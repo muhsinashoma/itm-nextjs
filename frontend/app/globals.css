@@ -1,0 +1,262 @@
+/* app/global.css */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* =========================
+   COMPONENT CLASSES
+========================= */
+@layer components {
+  .input {
+    @apply w-full px-3 py-2 rounded-lg border border-border bg-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-all shadow-sm;
+  }
+
+  .btn-danger {
+    @apply bg-destructive text-white px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 transition-all;
+  }
+}
+
+/* =========================
+   THEME VARIABLE MAPPING
+========================= */
+@layer utilities {
+  .bg-background { background-color: var(--background); }
+  .bg-card { background-color: var(--card); }
+  .bg-muted { background-color: var(--muted); }
+  .bg-popover { background-color: var(--popover); }
+  .text-foreground { color: var(--foreground); }
+  .text-muted-foreground { color: var(--muted-foreground); }
+  .text-primary { color: var(--primary); }
+  .border-border { border-color: var(--border); }
+  .text-secondary-foreground { color: var(--secondary-foreground); }
+}
+
+/* =========================
+   THEME VARIABLES (TAILWIND LINK)
+========================= */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+/* =========================
+   LIGHT THEME (DEFAULT)
+========================= */
+:root {
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.45 0.16 250);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.96 0 0);
+  --ring: oklch(0.65 0.12 250);
+  --destructive: oklch(0.55 0.2 25);
+  --dashboard-bg: #f1f5f9;
+  --sidebar-width: 256px;
+}
+
+/* =========================
+   DARK THEME
+========================= */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.65 0.16 250);
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --dashboard-bg: #020617;
+}
+
+/* Soft Dark */
+.theme-soft-dark {
+  --background: #1f1f2e;
+  --foreground: #e0e0f0;
+  --card: #2a2a3b;
+  --card-foreground: #e0e0f0;
+  --popover: #2a2a3b;
+  --popover-foreground: #e0e0f0;
+  --primary: #5c6bc0;
+  --primary-foreground: #ffffff;
+  --secondary: #3f51b5;
+  --secondary-foreground: #e0e0f0;
+  --muted: #2c2c3b;
+  --muted-foreground: #b0b0c0;
+  --accent: #7986cb;
+  --accent-foreground: #ffffff;
+  --destructive: #ef5350;
+  --border: #3a3a4a;
+  --input: #2a2a3b;
+  --ring: #5c6bc0;
+  --dashboard-bg: #1b1b2c;
+}
+
+/* Blue Theme */
+.theme-blue {
+  --background: #eff6ff;
+  --foreground: #1e3a8a;
+  --card: #ffffff;
+  --card-foreground: #1e3a8a;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --muted: #dbeafe;
+  --muted-foreground: #1e40af;
+  --border: #bfdbfe;
+  --popover: #ffffff;
+  --popover-foreground: #1e3a8a;
+  --accent: #3b82f6;
+  --accent-foreground: #ffffff;
+  --input: #dbeafe;
+  --ring: #2563eb;
+  --destructive: #ef4444;
+  --dashboard-bg: #e0f2fe;
+}
+
+/* Amber Theme */
+.theme-amber {
+  --background: #fffbeb;
+  --foreground: #78350f;
+  --card: #ffffff;
+  --card-foreground: #78350f;
+  --primary: #f59e0b;
+  --primary-foreground: #ffffff;
+  --muted: #fef3c7;
+  --muted-foreground: #92400e;
+  --border: #fde68a;
+  --popover: #ffffff;
+  --popover-foreground: #78350f;
+  --accent: #fbbf24;
+  --accent-foreground: #ffffff;
+  --input: #fef3c7;
+  --ring: #f59e0b;
+  --destructive: #ef4444;
+  --dashboard-bg: #fef3c7;
+}
+
+/* System Theme */
+.theme-system {
+  --background: #ffffff;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #111827;
+  --muted: #f9fafb;
+  --muted-foreground: #6b7280;
+  --accent: #f3f4f6;
+  --accent-foreground: #111827;
+  --border: #e5e7eb;
+  --input: #f3f4f6;
+  --ring: #4f46e5;
+  --destructive: #ef4444;
+  --dashboard-bg: #f4f6f8;
+}
+
+/* Company Theme */
+.theme-company {
+  --background: #fff5f5;
+  --foreground: #7f1d1d;
+  --card: #ffffff;
+  --card-foreground: #7f1d1d;
+  --popover: #ffffff;
+  --popover-foreground: #7f1d1d;
+  --primary: #d32f2f;
+  --primary-foreground: #ffffff;
+  --secondary: #ffe5e5;
+  --secondary-foreground: #7f1d1d;
+  --muted: #ffeaea;
+  --muted-foreground: #9b1c1c;
+  --accent: #ef5350;
+  --accent-foreground: #ffffff;
+  --border: #fecaca;
+  --input: #fef2f2;
+  --ring: #d32f2f;
+  --destructive: #b91c1c;
+  --dashboard-bg: #fff1f1;
+}
+
+/* =========================
+   BASE STYLES
+========================= */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+}
+
+/* =========================
+   DASHBOARD BG
+========================= */
+.dashboard-bg {
+  background-color: var(--dashboard-bg);
+  transition: background-color 0.3s ease;
+}
+
+/* =========================
+   SKELETON LOADER
+========================= */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--muted) 25%, var(--border) 50%, var(--muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
