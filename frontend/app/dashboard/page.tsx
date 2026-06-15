@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+//frontend/app/dashboard/page.tsx
 "use client";
 
 import React from "react";
@@ -10,7 +10,7 @@ import { sections } from "@/components/tt-data";
 
 import {
     AreaChart, Area, BarChart, Bar, PieChart, Pie,
-    Tooltip, ResponsiveContainer, Cell, LabelList, XAxis,
+    Tooltip, ResponsiveContainer, Cell, LabelList, XAxis, YAxis,
 } from "recharts";
 
 // ── Shared helpers ──────────────────────────────────────────────────
@@ -130,36 +130,61 @@ const toVendorCount = [].filter(d => d.status === "To Vendor" || d.status === "T
 const recoveredCount = [].filter(d => d.status === "Recovered").length;
 const expiredCount = [].filter(d => d.status === "Expired").length;
 
+
+
+// Warranty Overview with static data
 const warrantyDetails = [
-    { label: "Claimed", value: claimedCount, color: "#f97316", status: "Claimed" },
-    { label: "To Vendor", value: toVendorCount, color: "#8b5cf6", status: "To Vendor" },
-    { label: "Recovered", value: recoveredCount, color: "#3b82f6", status: "Recovered" },
-    { label: "Expired", value: expiredCount, color: "#ef4444", status: "Expired" },
+    { label: "Claimed", value: 42, color: "#f97316", status: "Claimed" },
+    { label: "To Vendor", value: 18, color: "#8b5cf6", status: "To Vendor" },
+    { label: "Recovered", value: 31, color: "#3b82f6", status: "Recovered" },
+    { label: "Expired", value: 9, color: "#ef4444", status: "Expired" },
 ];
 
-const warrantyBarData = [{
-    year: "2026",
-    claimed: claimedCount,
-    vendor: toVendorCount,
-    recovered: recoveredCount,
-    expired: expiredCount,
-}];
+const warrantyBarData = [
+    {
+        year: "2026",
+        claimed: warrantyDetails[0].value,
+        vendor: warrantyDetails[1].value,
+        recovered: warrantyDetails[2].value,
+        expired: warrantyDetails[3].value,
+    },
+];
+
+const warrantyMaxValue = Math.max(
+    warrantyDetails[0].value,
+    warrantyDetails[1].value,
+    warrantyDetails[2].value,
+    warrantyDetails[3].value,
+    1
+);
 
 // Service — exact status strings from assignedDeviceService
+
 const serviceData = [
-    { label: "Service Request", value: [].filter(d => d.status === "Service Requrest").length, color: "#3b82f6", status: "Service Requrest" },
-    { label: "Trf to Vendor", value: [].filter(d => d.status === "Tranferred to Vendor").length, color: "#f59e0b", status: "Tranferred to Vendor" },
-    { label: "Closed", value: [].filter(d => d.status === "Closed").length, color: "#10b981", status: "Closed" },
+    { label: "Service Request", value: 28, color: "#3b82f6", status: "Service Requrest" },
+    { label: "Trf to Vendor", value: 12, color: "#f59e0b", status: "Tranferred to Vendor" },
+    { label: "Closed", value: 44, color: "#10b981", status: "Closed" },
 ];
 
-const serviceBarData = [{
-    name: "Requests",
-    servicerequest: serviceData[0].value,
-    transferred: serviceData[1].value,
-    closed: serviceData[2].value,
-}];
+const serviceBarData = [
+    {
+        name: "2026",
+        servicerequest: serviceData[0].value,
+        transferred: serviceData[1].value,
+        closed: serviceData[2].value,
+    },
+];
 
-// Resignation
+const serviceMaxValue = Math.max(
+    serviceData[0].value,
+    serviceData[1].value,
+    serviceData[2].value,
+    1
+);
+
+
+
+// Resignation Clearance
 const resignationAreaData = [
     { month: "Jan", pending: 2, completed: 5, inprocess: 1 },
     { month: "Feb", pending: 1, completed: 4, inprocess: 2 },
@@ -169,14 +194,35 @@ const resignationAreaData = [
     { month: "Jun", pending: 4, completed: 7, inprocess: 1 },
 ];
 
+const resignationPendingTotal = resignationAreaData.reduce((sum, item) => sum + item.pending, 0);
+const resignationCompletedTotal = resignationAreaData.reduce((sum, item) => sum + item.completed, 0);
+const resignationInProcessTotal = resignationAreaData.reduce((sum, item) => sum + item.inprocess, 0);
+
 const resignationLegend = [
-    { label: "Pending Clearance", value: [].filter(d => d.status === "Pending Clearance").length, color: "#f59e0b", status: "Pending Clearance" },
-    { label: "Completed", value: [].filter(d => d.status === "Completed").length, color: "#10b981", status: "Completed" },
-    { label: "In Process", value: [].filter(d => d.status === "In Process").length, color: "#3b82f6", status: "In Process" },
+    { label: "Pending Clearance", value: resignationPendingTotal, color: "#f59e0b", status: "Pending Clearance" },
+    { label: "Completed", value: resignationCompletedTotal, color: "#10b981", status: "Completed" },
+    { label: "In Process", value: resignationInProcessTotal, color: "#3b82f6", status: "In Process" },
 ];
 
 // Renewal
 
+// const renewalBarData = [
+//     { month: "Jan", upcoming: 5, completed: 10, delayed: 2 },
+//     { month: "Feb", upcoming: 4, completed: 9, delayed: 3 },
+//     { month: "Mar", upcoming: 6, completed: 12, delayed: 2 },
+//     { month: "Apr", upcoming: 5, completed: 14, delayed: 3 },
+//     { month: "May", upcoming: 7, completed: 11, delayed: 1 },
+//     { month: "Jun", upcoming: 6, completed: 13, delayed: 2 },
+// ];
+
+// const renewalLegend = [
+//     { label: "Upcoming Renewals", value: [].filter(d => d.status === "Upcoming Renewals").length, color: "#f59e0b", status: "Upcoming Renewals" },
+//     { label: "Completed", value: [].filter(d => d.status === "Completed").length, color: "#10b981", status: "Completed" },
+//     { label: "Delayed", value: [].filter(d => d.status === "Delayed").length, color: "#ef4444", status: "Delayed" },
+// ];
+
+
+// Renewal
 const renewalBarData = [
     { month: "Jan", upcoming: 5, completed: 10, delayed: 2 },
     { month: "Feb", upcoming: 4, completed: 9, delayed: 3 },
@@ -186,10 +232,40 @@ const renewalBarData = [
     { month: "Jun", upcoming: 6, completed: 13, delayed: 2 },
 ];
 
+const renewalUpcomingTotal = renewalBarData.reduce(
+    (sum, item) => sum + item.upcoming,
+    0
+);
+
+const renewalCompletedTotal = renewalBarData.reduce(
+    (sum, item) => sum + item.completed,
+    0
+);
+
+const renewalDelayedTotal = renewalBarData.reduce(
+    (sum, item) => sum + item.delayed,
+    0
+);
+
 const renewalLegend = [
-    { label: "Upcoming Renewals", value: [].filter(d => d.status === "Upcoming Renewals").length, color: "#f59e0b", status: "Upcoming Renewals" },
-    { label: "Completed", value: [].filter(d => d.status === "Completed").length, color: "#10b981", status: "Completed" },
-    { label: "Delayed", value: [].filter(d => d.status === "Delayed").length, color: "#ef4444", status: "Delayed" },
+    {
+        label: "Upcoming Renewals",
+        value: renewalUpcomingTotal,
+        color: "#f59e0b",
+        status: "Upcoming Renewals",
+    },
+    {
+        label: "Completed",
+        value: renewalCompletedTotal,
+        color: "#10b981",
+        status: "Completed",
+    },
+    {
+        label: "Delayed",
+        value: renewalDelayedTotal,
+        color: "#ef4444",
+        status: "Delayed",
+    },
 ];
 
 // ── Page ────────────────────────────────────────────────────────────
@@ -405,7 +481,7 @@ export default function DashboardPage() {
                 </CardShell>
 
                 {/* ── Card 3: Warranty Overview── */}
-                <CardShell>
+                {/* <CardShell>
                     <CardHead title="Warranty Overview" kpi={totalWarranty.toLocaleString()} badge="↑ 18%"
                         onKpiClick={() => router.push("/dashboard/service-warranty/warranty-claims")} />
                     <div className="flex items-center gap-3">
@@ -446,10 +522,142 @@ export default function DashboardPage() {
                             ))}
                         </div>
                     </div>
+                </CardShell> */}
+
+                {/* ── Card 3: Warranty Overview ── */}
+                <CardShell>
+                    <CardHead
+                        title="Warranty Overview"
+                        kpi={totalWarranty.toLocaleString()}
+                        badge="↑ 18%"
+                        onKpiClick={() => router.push("/dashboard/service-warranty/warranty-claims")}
+                    />
+
+                    <div className="flex items-center gap-3">
+                        <div className="w-1/2 h-36">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={warrantyBarData}
+                                    margin={{ top: 18, right: 4, left: 4, bottom: 4 }}
+                                    barCategoryGap="20%"
+                                    barGap={3}
+                                    onClick={(e) => {
+                                        const key = e?.activePayload?.[0]?.dataKey as string | undefined;
+
+                                        const map: Record<string, string> = {
+                                            claimed: "Claimed",
+                                            vendor: "To Vendor",
+                                            recovered: "Recovered",
+                                            expired: "Expired",
+                                        };
+
+                                        if (key && map[key]) {
+                                            router.push(
+                                                `/dashboard/service-warranty/warranty-claims?status=${encodeURIComponent(map[key])}`
+                                            );
+                                        }
+                                    }}
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <XAxis
+                                        dataKey="year"
+                                        tick={{ fontSize: 9 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+
+                                    <YAxis
+                                        hide
+                                        domain={[0, warrantyMaxValue]}
+                                    />
+
+                                    <Tooltip {...cleanTooltipProps} />
+
+                                    <Bar
+                                        dataKey="claimed"
+                                        fill="#f97316"
+                                        radius={[4, 4, 0, 0]}
+                                        cursor="pointer"
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="claimed"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="vendor"
+                                        fill="#8b5cf6"
+                                        radius={[4, 4, 0, 0]}
+                                        cursor="pointer"
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="vendor"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="recovered"
+                                        fill="#3b82f6"
+                                        radius={[4, 4, 0, 0]}
+                                        cursor="pointer"
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="recovered"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="expired"
+                                        fill="#ef4444"
+                                        radius={[4, 4, 0, 0]}
+                                        cursor="pointer"
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="expired"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="w-1/2 pl-3 border-l border-border space-y-0.5">
+                            {warrantyDetails.map((item) => (
+                                <LegendRow
+                                    key={item.label}
+                                    label={item.label}
+                                    value={item.value}
+                                    color={item.color}
+                                    onClick={() =>
+                                        router.push(
+                                            `/dashboard/service-warranty/warranty-claims?status=${encodeURIComponent(item.status)}`
+                                        )
+                                    }
+                                />
+                            ))}
+                        </div>
+                    </div>
                 </CardShell>
 
+
+
                 {/* ── Card 4: Service Requests ── */}
-                <CardShell>
+                {/* <CardShell>
                     <CardHead title="Service Requests" kpi={totalService.toLocaleString()} badge="↑ 24%"
                         onKpiClick={() => router.push("/dashboard/service-warranty/service-claims")} />
                     <div className="flex items-center gap-3">
@@ -485,6 +693,126 @@ export default function DashboardPage() {
                             {serviceData.map(item => (
                                 <LegendRow key={item.label} label={item.label} value={item.value} color={item.color}
                                     onClick={() => router.push(`/dashboard/service-warranty/service-claims?status=${encodeURIComponent(item.status)}`)} />
+                            ))}
+                        </div>
+                    </div>
+                </CardShell> */}
+
+                {/* ── Card 4: Service Requests ── */}
+                <CardShell>
+                    <CardHead
+                        title="Service Requests"
+                        kpi={totalService.toLocaleString()}
+                        badge="↑ 24%"
+                        onKpiClick={() => router.push("/dashboard/service-warranty/service-claims")}
+                    />
+
+                    <div className="flex items-center gap-3">
+                        <div className="w-1/2 h-36">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={serviceBarData}
+                                    margin={{ top: 18, right: 4, left: 4, bottom: 4 }}
+                                    barCategoryGap="22%"
+                                    barGap={4}
+                                    onClick={(e) => {
+                                        const key = e?.activePayload?.[0]?.dataKey as string | undefined;
+
+                                        const map: Record<string, string> = {
+                                            servicerequest: "Service Requrest",
+                                            transferred: "Tranferred to Vendor",
+                                            closed: "Closed",
+                                        };
+
+                                        if (key && map[key]) {
+                                            router.push(
+                                                `/dashboard/service-warranty/service-claims?status=${encodeURIComponent(map[key])}`
+                                            );
+                                        }
+                                    }}
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <XAxis
+                                        dataKey="name"
+                                        tick={{ fontSize: 9 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+
+                                    <YAxis
+                                        hide
+                                        domain={[0, serviceMaxValue]}
+                                    />
+
+                                    <Tooltip {...cleanTooltipProps} />
+
+                                    <Bar
+                                        dataKey="servicerequest"
+                                        fill="#3b82f6"
+                                        name="Service Request"
+                                        radius={[4, 4, 0, 0]}
+                                        cursor="pointer"
+                                        activeBar={false}
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="servicerequest"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="transferred"
+                                        fill="#f59e0b"
+                                        name="Tranferred to Vendor"
+                                        radius={[4, 4, 0, 0]}
+                                        cursor="pointer"
+                                        activeBar={false}
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="transferred"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="closed"
+                                        fill="#10b981"
+                                        name="Closed"
+                                        radius={[4, 4, 0, 0]}
+                                        cursor="pointer"
+                                        activeBar={false}
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="closed"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="w-1/2 pl-3 border-l border-border space-y-0.5">
+                            {serviceData.map((item) => (
+                                <LegendRow
+                                    key={item.label}
+                                    label={item.label}
+                                    value={item.value}
+                                    color={item.color}
+                                    onClick={() =>
+                                        router.push(
+                                            `/dashboard/service-warranty/service-claims?status=${encodeURIComponent(item.status)}`
+                                        )
+                                    }
+                                />
                             ))}
                         </div>
                     </div>
