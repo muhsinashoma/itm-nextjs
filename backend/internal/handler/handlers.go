@@ -708,8 +708,75 @@ func (h *ReportHandler) Register(rg *gin.RouterGroup) {
 	g.GET("/non-operational", h.NonOperational)
 }
 
+
+
+// func (h *ReportHandler) Assigned(c *gin.Context) {
+// 	rows, err := h.db.Query(c.Request.Context(), `
+// 		SELECT d.id, d.emp_id,
+// 		       COALESCE(e.employee_name, d.emp_name),
+// 		       COALESCE(d.department, e.department_name),
+// 		       e.designation, d.category, d.brand, d.device_s_or_n, d.model_no,
+// 		       d.device_type, d.status, d.assign_date::text, d.device_warranty_date::text,
+// 		       d.mr_number, d.pr_number, d.vendor,
+// 		       to_char(NOW()-d.assign_date,'DD" days"'),
+// 		       CASE WHEN d.device_warranty_date > NOW()
+// 		            THEN to_char(d.device_warranty_date-NOW(),'DD" days"')
+// 		            ELSE 'Expired' END
+// 		FROM it_equipment d
+// 		LEFT JOIN employee_office_info e ON e.employee_id=d.emp_id
+// 		WHERE d.active>0 ORDER BY e.employee_name, d.category`)
+// 	if err != nil { response.ServerError(c, err); return }
+// 	defer rows.Close()
+// 	var res []map[string]any
+// 	for rows.Next() {
+// 		var id int64; var dt *int
+// 		var empID, empN, dept, desig, cat, brand, serial, model, status, ad, wd, mr, pr, vendor, age, wl *string
+// 		rows.Scan(&id, &empID, &empN, &dept, &desig, &cat, &brand, &serial, &model,
+// 			&dt, &status, &ad, &wd, &mr, &pr, &vendor, &age, &wl)
+// 		res = append(res, map[string]any{
+// 			"id": id, "emp_id": empID, "emp_name": empN, "department": dept, "designation": desig,
+// 			"category": cat, "brand": brand, "device_serial": serial, "model_no": model,
+// 			"device_type": dt, "status": status, "assign_date": ad, "warranty_date": wd,
+// 			"mr_number": mr, "pr_number": pr, "vendor": vendor, "device_age": age, "warranty_left": wl,
+// 		})
+// 	}
+// 	if res == nil { res = []map[string]any{} }
+// 	response.OK(c, res)
+// }
+
+
 func (h *ReportHandler) Assigned(c *gin.Context) {
-	rows, err := h.db.Query(c.Request.Context(), `
+	status := c.Query("status")
+
+	where := "WHERE d.active > 0"
+	args := []any{}
+	argNo := 1
+
+	if status != "" {
+		switch status {
+		case "Assigned":
+			where += fmt.Sprintf(" AND (d.status = $%d OR LOWER(COALESCE(d.status, '')) = 'assigned')", argNo)
+			args = append(args, "1")
+			argNo++
+
+		case "Returned":
+			where += fmt.Sprintf(" AND (d.status = $%d OR LOWER(COALESCE(d.status, '')) = 'returned')", argNo)
+			args = append(args, "4")
+			argNo++
+
+		case "Transferred":
+			where += fmt.Sprintf(" AND (d.status = $%d OR LOWER(COALESCE(d.status, '')) IN ('transfer', 'transferred'))", argNo)
+			args = append(args, "3")
+			argNo++
+
+		default:
+			where += fmt.Sprintf(" AND LOWER(COALESCE(d.status, '')) = LOWER($%d)", argNo)
+			args = append(args, status)
+			argNo++
+		}
+	}
+
+	rows, err := h.db.Query(c.Request.Context(), fmt.Sprintf(`
 		SELECT d.id, d.emp_id,
 		       COALESCE(e.employee_name, d.emp_name),
 		       COALESCE(d.department, e.department_name),
@@ -721,24 +788,69 @@ func (h *ReportHandler) Assigned(c *gin.Context) {
 		            THEN to_char(d.device_warranty_date-NOW(),'DD" days"')
 		            ELSE 'Expired' END
 		FROM it_equipment d
-		LEFT JOIN employee_office_info e ON e.employee_id=d.emp_id
-		WHERE d.active>0 ORDER BY e.employee_name, d.category`)
-	if err != nil { response.ServerError(c, err); return }
+		LEFT JOIN employee_office_info e ON e.employee_id = d.emp_id
+		%s
+		ORDER BY e.employee_name, d.category
+	`, where), args...)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
+
 	var res []map[string]any
+
 	for rows.Next() {
-		var id int64; var dt *int
-		var empID, empN, dept, desig, cat, brand, serial, model, status, ad, wd, mr, pr, vendor, age, wl *string
-		rows.Scan(&id, &empID, &empN, &dept, &desig, &cat, &brand, &serial, &model,
-			&dt, &status, &ad, &wd, &mr, &pr, &vendor, &age, &wl)
+		var id int64
+		var dt *int
+		var empID, empN, dept, desig, cat, brand, serial, model, statusValue, ad, wd, mr, pr, vendor, age, wl *string
+
+		rows.Scan(
+			&id, &empID, &empN, &dept, &desig, &cat, &brand, &serial, &model,
+			&dt, &statusValue, &ad, &wd, &mr, &pr, &vendor, &age, &wl,
+		)
+
+		displayStatus := ""
+		if statusValue != nil {
+			switch *statusValue {
+			case "1":
+				displayStatus = "Assigned"
+			case "4":
+				displayStatus = "Returned"
+			case "3":
+				displayStatus = "Transferred"
+			default:
+				displayStatus = *statusValue
+			}
+		}
+
 		res = append(res, map[string]any{
-			"id": id, "emp_id": empID, "emp_name": empN, "department": dept, "designation": desig,
-			"category": cat, "brand": brand, "device_serial": serial, "model_no": model,
-			"device_type": dt, "status": status, "assign_date": ad, "warranty_date": wd,
-			"mr_number": mr, "pr_number": pr, "vendor": vendor, "device_age": age, "warranty_left": wl,
+			"id": id,
+			"emp_id": empID,
+			"emp_name": empN,
+			"department": dept,
+			"designation": desig,
+			"category": cat,
+			"brand": brand,
+			"device_serial": serial,
+			"model_no": model,
+			"device_type": dt,
+			"status": displayStatus,
+			"assign_date": ad,
+			"warranty_date": wd,
+			"mr_number": mr,
+			"pr_number": pr,
+			"vendor": vendor,
+			"device_age": age,
+			"warranty_left": wl,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+
+	if res == nil {
+		res = []map[string]any{}
+	}
+
 	response.OK(c, res)
 }
 
