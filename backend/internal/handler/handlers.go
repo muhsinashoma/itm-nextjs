@@ -1,3 +1,4 @@
+//backend/internal/handler/handlers.go
 package handler
 
 import (
@@ -7,6 +8,7 @@ import (
 	"itm-api/pkg/response"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -115,9 +117,12 @@ func (h *EmployeeHandler) Search(c *gin.Context) {
 type DashboardHandler struct{ db *pgxpool.Pool }
 func NewDashboardHandler(db *pgxpool.Pool) *DashboardHandler { return &DashboardHandler{db: db} }
 
+
+
 func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/dashboard")
 	g.GET("/stats", h.Stats)
+	g.GET("/summary", h.Summary)
 	g.GET("/ticket-trend", h.TicketTrend)
 }
 
@@ -143,6 +148,179 @@ func (h *DashboardHandler) Stats(c *gin.Context) {
 	h.db.QueryRow(ctx, "SELECT COUNT(*) FROM trouble_tickets WHERE active=TRUE AND status_progess=3").Scan(&s.ClosedTickets)
 	h.db.QueryRow(ctx, "SELECT COUNT(*) FROM it_equipment WHERE active>0 AND device_warranty_date BETWEEN NOW() AND NOW()+INTERVAL '30 days'").Scan(&s.WarrantyExpiring)
 	response.OK(c, s)
+}
+
+//Adding New for Total Active Assets
+
+func (h *DashboardHandler) Summary(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	type Item struct {
+		Label string `json:"label"`
+		Value int   `json:"value"`
+	}
+
+	type Group struct {
+		Total int    `json:"total"`
+		Items []Item `json:"items"`
+	}
+
+	resp := gin.H{}
+	var rows pgx.Rows
+    var err error
+
+var assigned int
+var returned int
+var transferred int
+var available int
+
+_ = h.db.QueryRow(ctx, `
+	SELECT COUNT(*)
+	FROM it_equipment
+	WHERE COALESCE(active, 0) > 0
+	AND (
+		status = '1'
+		OR LOWER(COALESCE(status, '')) = 'assigned'
+	)
+`).Scan(&assigned)
+
+_ = h.db.QueryRow(ctx, `
+	SELECT COUNT(*)
+	FROM it_equipment
+	WHERE COALESCE(active, 0) > 0
+	AND (
+		status = '4'
+		OR LOWER(COALESCE(status, '')) = 'returned'
+	)
+`).Scan(&returned)
+
+_ = h.db.QueryRow(ctx, `
+	SELECT COUNT(*)
+	FROM it_equipment
+	WHERE COALESCE(active, 0) > 0
+	AND (
+		status = '3'
+		OR LOWER(COALESCE(status, '')) IN ('transfer', 'transferred')
+	)
+`).Scan(&transferred)
+
+_ = h.db.QueryRow(ctx, `
+	SELECT COUNT(*)
+	FROM stack_inventory
+	WHERE COALESCE(status, 1) = 1
+	AND COALESCE(device_assigned_status, 0) = 0
+`).Scan(&available)
+
+resp["active_assets"] = Group{
+	Total: assigned + returned + transferred + available,
+	Items: []Item{
+		{Label: "Assigned", Value: assigned},
+		{Label: "Returned", Value: returned},
+		{Label: "Transferred", Value: transferred},
+		{Label: "Available", Value: available},
+	},
+}
+
+	
+	// Non-operational assets
+	var damaged int
+	var ownership int
+
+	_ = h.db.QueryRow(ctx, `SELECT COUNT(*) FROM damage_inventory`).Scan(&damaged)
+	_ = h.db.QueryRow(ctx, `SELECT COUNT(*) FROM ownership_transfers`).Scan(&ownership)
+
+	resp["non_operational"] = Group{
+		Total: damaged + ownership,
+		Items: []Item{
+			{Label: "Damaged", Value: damaged},
+			{Label: "Ownership", Value: ownership},
+			{Label: "Lost", Value: 0},
+		},
+	}
+
+	// Service requests
+	
+	rows, err = h.db.Query(ctx, `
+	SELECT
+		CASE
+			WHEN claim_status IN (1, 0) THEN 'Service Request'
+			WHEN claim_status IN (2, 4) THEN 'To Vendor'
+			WHEN claim_status IN (3, 5) THEN 'Closed'
+			ELSE 'Unknown'
+		END AS label,
+		COUNT(*)::int AS value
+	FROM device_claims
+	WHERE service_type = 1 AND COALESCE(status, 1) = 1
+	GROUP BY label
+	ORDER BY value DESC
+`)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	serviceItems := []Item{}
+	serviceTotal := 0
+
+	for rows.Next() {
+		var item Item
+		if err := rows.Scan(&item.Label, &item.Value); err != nil {
+			rows.Close()
+			response.ServerError(c, err)
+			return
+		}
+		serviceItems = append(serviceItems, item)
+		serviceTotal += item.Value
+	}
+	rows.Close()
+
+	resp["service_requests"] = Group{
+		Total: serviceTotal,
+		Items: serviceItems,
+	}
+
+	// Warranty claims
+	rows, err = h.db.Query(ctx, `
+		SELECT
+			CASE
+				WHEN claim_status = 1 THEN 'Claimed'
+				WHEN claim_status = 2 THEN 'To Vendor'
+				WHEN claim_status = 3 THEN 'Recovered'
+				ELSE 'Expired'
+			END AS label,
+			COUNT(*)::int AS value
+		FROM device_claims
+		WHERE service_type = 0 AND COALESCE(status, 1) = 1
+		GROUP BY label
+		ORDER BY value DESC
+	`)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	warrantyItems := []Item{}
+	warrantyTotal := 0
+
+	for rows.Next() {
+		var item Item
+		if err := rows.Scan(&item.Label, &item.Value); err != nil {
+			rows.Close()
+			response.ServerError(c, err)
+			return
+		}
+		warrantyItems = append(warrantyItems, item)
+		warrantyTotal += item.Value
+	}
+	rows.Close()
+
+	resp["warranty"] = Group{
+		Total: warrantyTotal,
+		Items: warrantyItems,
+	}
+
+	response.OK(c, resp)
 }
 
 func (h *DashboardHandler) TicketTrend(c *gin.Context) {
@@ -513,9 +691,13 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 type ReportHandler struct{ db *pgxpool.Pool }
 func NewReportHandler(db *pgxpool.Pool) *ReportHandler { return &ReportHandler{db: db} }
 
+
 func (h *ReportHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/reports")
+
 	g.GET("/assigned", h.Assigned)
+	g.GET("/assets", h.Assigned) // frontend alias for /dashboard/reports/assets
+
 	g.GET("/warranty", h.Warranty)
 	g.GET("/service", h.Service)
 	g.GET("/users", h.Users)

@@ -1,0 +1,309 @@
+
+https://chatgpt.com/c/6a29381f-0528-83a4-a117-fa1ece38f4ab
+
+
+
+7 helper functions created successfully
+
+-----------------------------------------------------------
+
+1. safe_int
+
+
+CREATE OR REPLACE FUNCTION public.safe_int(v text)
+RETURNS integer AS $func$
+BEGIN
+    IF v IS NULL OR btrim(v) = '' OR lower(btrim(v)) = 'null' THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN v::integer;
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END;
+$func$ LANGUAGE plpgsql IMMUTABLE;
+
+
+
+output
+
+CREATE FUNCTION
+
+Query returned successfully in 145 msec.
+
+---------------------------------------------------------------
+
+2. safe_bigint
+CREATE OR REPLACE FUNCTION public.safe_bigint(v text)
+RETURNS bigint AS $func$
+BEGIN
+    IF v IS NULL OR btrim(v) = '' OR lower(btrim(v)) = 'null' THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN v::bigint;
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END;
+$func$ LANGUAGE plpgsql IMMUTABLE;
+
+
+
+CREATE FUNCTION
+
+Query returned successfully in 83 msec.
+-----------------------------------------------------------------
+
+3. safe_smallint
+
+CREATE OR REPLACE FUNCTION public.safe_smallint(v text)
+RETURNS smallint AS $func$
+BEGIN
+    IF v IS NULL OR btrim(v) = '' OR lower(btrim(v)) = 'null' THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN v::smallint;
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END;
+$func$ LANGUAGE plpgsql IMMUTABLE;
+
+
+output
+
+CREATE FUNCTION
+
+Query returned successfully in 82 msec.
+
+-------------------------------------------------------------
+
+
+4. safe_double
+CREATE OR REPLACE FUNCTION public.safe_double(v text)
+RETURNS double precision AS $func$
+BEGIN
+    IF v IS NULL OR btrim(v) = '' OR lower(btrim(v)) = 'null' THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN v::double precision;
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END;
+$func$ LANGUAGE plpgsql IMMUTABLE;
+
+
+output
+
+CREATE FUNCTION
+
+Query returned successfully in 61 msec.
+
+----------------------------------------------------------------
+
+5. safe_bool
+CREATE OR REPLACE FUNCTION public.safe_bool(v text)
+RETURNS boolean AS $func$
+BEGIN
+    IF v IS NULL OR btrim(v) = '' OR lower(btrim(v)) = 'null' THEN
+        RETURN NULL;
+    END IF;
+
+    IF lower(btrim(v)) IN ('1', 'true', 't', 'yes', 'y', 'active') THEN
+        RETURN TRUE;
+    END IF;
+
+    IF lower(btrim(v)) IN ('0', 'false', 'f', 'no', 'n', 'inactive') THEN
+        RETURN FALSE;
+    END IF;
+
+    RETURN NULL;
+END;
+$func$ LANGUAGE plpgsql IMMUTABLE;
+
+
+output
+
+CREATE FUNCTION
+
+Query returned successfully in 63 msec.
+
+-------------------------------------------------------------------------
+
+
+6. safe_date
+CREATE OR REPLACE FUNCTION public.safe_date(v text)
+RETURNS date AS $func$
+BEGIN
+    IF v IS NULL
+       OR btrim(v) = ''
+       OR lower(btrim(v)) = 'null'
+       OR btrim(v) = '0000-00-00'
+       OR btrim(v) = '0000-00-00 00:00:00' THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN v::date;
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END;
+$func$ LANGUAGE plpgsql IMMUTABLE;
+
+
+output:
+
+CREATE FUNCTION
+
+Query returned successfully in 56 msec.
+
+
+---------------------------------------------
+
+
+7. safe_timestamptz
+CREATE OR REPLACE FUNCTION public.safe_timestamptz(v text)
+RETURNS timestamptz AS $func$
+BEGIN
+    IF v IS NULL
+       OR btrim(v) = ''
+       OR lower(btrim(v)) = 'null'
+       OR btrim(v) = '0000-00-00'
+       OR btrim(v) = '0000-00-00 00:00:00' THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN v::timestamptz;
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END;
+$func$ LANGUAGE plpgsql IMMUTABLE;
+
+
+output:
+
+CREATE FUNCTION
+
+Query returned successfully in 58 msec.
+
+------------------------------------------------------------
+
+BOSS, this output is normal ✅
+
+Your function returns void, so pgAdmin shows one row with empty value:
+
+copy_old_import_table
+void
+
+That means the query ran successfully if no red error message appeared.
+
+Now check how many rows inserted into employee_office_info.
+
+Run:
+
+SELECT COUNT(*) AS employee_office_info_rows
+FROM public.employee_office_info;
+
+Expected count should be close to old table count:
+
+2796
+
+-------------------------------------------------------------------------------------------------
+
+For every copy function, output will look empty because it returns void. The real confirmation is the COUNT(*) query.
+
+----------------------------------------------------------------------------------------------
+
+
+
+Thought for 6s
+
+BOSS, next step হলো বাকি tables copy করা এবং প্রতিটা copy করার পর count check করা।
+
+1. Inventory categories
+SELECT public.copy_old_import_table('tbl_inventory_category', 'inventory_categories');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_inventory_category) AS old_inventory_category,
+  (SELECT COUNT(*) FROM public.inventory_categories) AS public_inventory_categories;
+2. Fault types
+SELECT public.copy_old_import_table('tbl_fault_type1', 'fault_types');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_fault_type1) AS old_fault_type,
+  (SELECT COUNT(*) FROM public.fault_types) AS public_fault_types;
+3. IT equipment
+SELECT public.copy_old_import_table('tbl_it_equipment_requisition_form', 'it_equipment');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_it_equipment_requisition_form) AS old_it_equipment,
+  (SELECT COUNT(*) FROM public.it_equipment) AS public_it_equipment;
+4. Stack inventory
+SELECT public.copy_old_import_table('tbl_it_equipment_requisition_stack_info', 'stack_inventory');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_it_equipment_requisition_stack_info) AS old_stack_info,
+  (SELECT COUNT(*) FROM public.stack_inventory) AS public_stack_inventory;
+
+
+5. Equipment status history
+SELECT public.copy_old_import_table('tbl_it_equipment_status_history', 'equipment_status_history');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_it_equipment_status_history) AS old_status_history,
+  (SELECT COUNT(*) FROM public.equipment_status_history) AS public_status_history;
+6. Device claims
+SELECT public.copy_old_import_table('tbl_device_claim', 'device_claims');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_device_claim) AS old_device_claim,
+  (SELECT COUNT(*) FROM public.device_claims) AS public_device_claims;
+7. Damage inventory
+SELECT public.copy_old_import_table('tbl_inventory_damage', 'damage_inventory');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_inventory_damage) AS old_inventory_damage,
+  (SELECT COUNT(*) FROM public.damage_inventory) AS public_damage_inventory;
+8. Warranty vendors
+SELECT public.copy_old_import_table('tbl_device_warrenty_vendor_list', 'warranty_vendors');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_device_warrenty_vendor_list) AS old_warranty_vendor,
+  (SELECT COUNT(*) FROM public.warranty_vendors) AS public_warranty_vendors;
+9. Ownership transfers
+SELECT public.copy_old_import_table('tbl_device_ownership_transfer_form', 'ownership_transfers');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_device_ownership_transfer_form) AS old_ownership_transfer,
+  (SELECT COUNT(*) FROM public.ownership_transfers) AS public_ownership_transfers;
+10. TT track
+SELECT public.copy_old_import_table('tbl_track_tt', 'tt_track');
+
+Check:
+
+SELECT
+  (SELECT COUNT(*) FROM old_import.tbl_track_tt) AS old_track_tt,
+  (SELECT COUNT(*) FROM public.tt_track) AS public_tt_track;
+
+Run one by one. যদি কোনো table এ red error আসে, ওই error টা send করবেন; next table run করবেন না.
+
+-----------------------------------------------------------------------------------------------------------------------
+
