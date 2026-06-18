@@ -1,4 +1,4 @@
-// app/dashboard/reports/assets/page.tsx
+// frontend/app/dashboard/reports/assets/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,6 +10,7 @@ import DeviceViewModal from "@/components/modals/DeviceViewModal";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { reportApi } from "@/lib/api";
 
 /* ── Status color helper (covers all statuses in static data) ── */
 const statusStyle = (status?: string): string => {
@@ -72,6 +73,26 @@ function LocalInput({ label, ...props }: any) {
     );
 }
 
+
+function normalizeAssetStatus(value?: string): AssignedDevice["status"] {
+    const raw = String(value || "").toLowerCase().trim();
+
+    const map: Record<string, string> = {
+        "1": "Assigned",
+        "4": "Returned",
+        "3": "Transferred",
+        assigned: "Assigned",
+        returned: "Returned",
+        transfer: "Transferred",
+        transferred: "Transferred",
+        available: "Available",
+    };
+
+    return (map[raw] || value || "Assigned") as AssignedDevice["status"];
+}
+
+
+
 export default function AssignedPage() {
     const searchParams = useSearchParams();
     const status = searchParams.get("status");
@@ -84,22 +105,60 @@ export default function AssignedPage() {
     const [assignDevice, setAssignDevice] = useState<AssignedDevice | null>(null);
     const [formData, setFormData] = useState<AssignedDevice | null>(null);
 
+
     useEffect(() => {
         async function loadData() {
             try {
-                const url = status
-                    ? `/api/reports/assigned?status=${status}`
-                    : `/api/reports/assigned`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error("Failed to load");
-                const result: AssignedDevice[] = await res.json();
-                setData(result);
-            } catch {
+                setLoading(true);
+                setError(null);
+
+                const res = await reportApi.assets({
+                    status: status || undefined,
+                });
+
+                const rows = Array.isArray(res.data) ? res.data : [];
+
+
+                const mapped: AssignedDevice[] = rows.map((item: any, index: number) => ({
+                    sl: index + 1,
+
+                    referenceNumber: item.mr_number || item.pr_number || String(item.id || ""),
+                    mrnNumber: item.mr_number || "",
+                    prNumber: item.pr_number || "",
+
+                    employeeId: item.emp_id || "",
+                    employeeName: item.emp_name || "",
+                    designation: item.designation || "",
+                    department: item.department || "",
+
+                    category: item.category || "",
+                    deviceSl: item.device_serial || "",
+                    model: item.model_no || "",
+
+                    status: normalizeAssetStatus(item.status || status || ""),
+                    userUsageDuration: item.device_age || "",
+                    warranty: item.warranty_date || "",
+                    vendor: item.vendor || "",
+
+                    assignedBy: item.assigned_by || item.created_by || "",
+                    assignedDate: item.assign_date || "",
+
+                    deviceType: item.device_type ? String(item.device_type) : "",
+                    deviceAge: item.device_age || "",
+                    purchaseDate: item.assign_date || "",
+
+                    remarks: item.remarks || "",
+                }));
+
+                setData(mapped);
+            } catch (err) {
+                console.error("Assets load error:", err);
                 setError("Unable to load data");
             } finally {
                 setLoading(false);
             }
         }
+
         loadData();
     }, [status]);
 

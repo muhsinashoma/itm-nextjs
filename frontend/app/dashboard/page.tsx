@@ -1,12 +1,12 @@
 //frontend/app/dashboard/page.tsx
 "use client";
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import OverviewChart from "@/components/overview-chart";
 import { DataTable } from "@/components/data-table";
 import { columns } from "@/components/tt-columns";
 import { sections } from "@/components/tt-data";
+import { dashboardApi, type DashboardSummary } from "@/lib/api";
 
 import {
     AreaChart, Area, BarChart, Bar, PieChart, Pie,
@@ -107,14 +107,62 @@ const PieLabel = (props: any) => {
     );
 };
 
-// ── Chart data ──────────────────────────────────────────────────────
+//Adding New
 
-const activeAssetsData = [
-    { label: "Assigned", shortLabel: "Assign", value: 11797, color: "#3b82f6" },
-    { label: "Transferred", shortLabel: "Trans", value: 540, color: "#f59e0b" },
-    { label: "Returned", shortLabel: "Return", value: 210, color: "#10b981" },
-    { label: "Available", shortLabel: "Avail", value: 320, color: "#8b5cf6" },
-];
+function colorByLabel(label: string) {
+    const key = label.toLowerCase();
+
+    if (key.includes("assigned")) return "#3b82f6";
+    if (key.includes("transfer")) return "#f59e0b";
+    if (key.includes("return")) return "#10b981";
+    if (key.includes("available") || key.includes("stored")) return "#8b5cf6";
+
+    if (key.includes("lost")) return "#ef4444";
+    if (key.includes("damage")) return "#f59e0b";
+    if (key.includes("ownership")) return "#10b981";
+
+    if (key.includes("claim")) return "#f97316";
+    if (key.includes("vendor")) return "#8b5cf6";
+    if (key.includes("recover")) return "#3b82f6";
+    if (key.includes("expired")) return "#ef4444";
+    if (key.includes("closed")) return "#10b981";
+    if (key.includes("service")) return "#3b82f6";
+
+    return "#64748b";
+}
+
+function getSummaryValue(items: { label: string; value: number }[], keyword: string) {
+    return (
+        items.find((item) =>
+            item.label.toLowerCase().includes(keyword.toLowerCase())
+        )?.value ?? 0
+    );
+}
+
+
+function hideDashboardLabels(
+    items: { label: string; value: number }[],
+    hiddenLabels: string[]
+) {
+    const hidden = hiddenLabels.map((label) => label.toLowerCase());
+
+    return items.filter(
+        (item) => !hidden.includes(item.label.toLowerCase())
+    );
+}
+
+
+function getShortAssetLabel(label: string) {
+    const map: Record<string, string> = {
+        Assigned: "Assigned",
+        Available: "Available",
+        Transferred: "Trans",
+        Returned: "Return",
+    };
+
+    return map[label] || label.slice(0, 6);
+}
+// ── Chart data ──────────────────────────────────────────────────────
 
 
 // Non Operational— computed from real static data
@@ -123,13 +171,6 @@ const nonOpData = [
     { label: "Damaged", value: 55, color: "#f59e0b" },
     { label: "Ownership", value: 1000, color: "#10b981" },
 ];
-
-// Warranty — computed from real static data
-const claimedCount = [].filter(d => d.status === "Claimed").length;
-const toVendorCount = [].filter(d => d.status === "To Vendor" || d.status === "Tranferred to Vendor").length;
-const recoveredCount = [].filter(d => d.status === "Recovered").length;
-const expiredCount = [].filter(d => d.status === "Expired").length;
-
 
 
 // Warranty Overview with static data
@@ -204,22 +245,7 @@ const resignationLegend = [
     { label: "In Process", value: resignationInProcessTotal, color: "#3b82f6", status: "In Process" },
 ];
 
-// Renewal
 
-// const renewalBarData = [
-//     { month: "Jan", upcoming: 5, completed: 10, delayed: 2 },
-//     { month: "Feb", upcoming: 4, completed: 9, delayed: 3 },
-//     { month: "Mar", upcoming: 6, completed: 12, delayed: 2 },
-//     { month: "Apr", upcoming: 5, completed: 14, delayed: 3 },
-//     { month: "May", upcoming: 7, completed: 11, delayed: 1 },
-//     { month: "Jun", upcoming: 6, completed: 13, delayed: 2 },
-// ];
-
-// const renewalLegend = [
-//     { label: "Upcoming Renewals", value: [].filter(d => d.status === "Upcoming Renewals").length, color: "#f59e0b", status: "Upcoming Renewals" },
-//     { label: "Completed", value: [].filter(d => d.status === "Completed").length, color: "#10b981", status: "Completed" },
-//     { label: "Delayed", value: [].filter(d => d.status === "Delayed").length, color: "#ef4444", status: "Delayed" },
-// ];
 
 
 // Renewal
@@ -272,12 +298,149 @@ const renewalLegend = [
 export default function DashboardPage() {
     const router = useRouter();
 
-    const totalAssets = activeAssetsData.reduce((s, i) => s + i.value, 0);
-    const totalNonOp = nonOpData.reduce((s, i) => s + i.value, 0);
-    const totalWarranty = warrantyDetails.reduce((s, i) => s + i.value, 0);
-    const totalService = serviceData.reduce((s, i) => s + i.value, 0);
-    const totalResig = resignationAreaData.reduce((s, d) => s + d.pending + d.completed + d.inprocess, 0);
-    const totalRenewal = renewalBarData.reduce((s, d) => s + d.upcoming + d.completed + d.delayed, 0);
+
+
+    //Adding New
+
+    const [summary, setSummary] = useState<DashboardSummary | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadDashboard() {
+            try {
+                setLoading(true);
+                setError("");
+
+                const res = await dashboardApi.summary();
+
+                if (mounted) {
+                    setSummary(res.data);
+                }
+            } catch (err: any) {
+                if (mounted) {
+                    setError(err?.message || "Unable to load dashboard data");
+                }
+            } finally {
+                if (mounted) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        loadDashboard();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="p-4 text-sm text-muted-foreground">
+                Loading dashboard data...
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="p-4 text-sm text-red-600">
+                {error}
+            </div>
+        );
+    }
+
+    if (!summary) {
+        return (
+            <div className="p-4 text-sm text-red-600">
+                No dashboard data found.
+            </div>
+        );
+    }
+
+
+    const activeAssetsData = hideDashboardLabels(
+        summary.active_assets.items,
+        ["Unknown", "Other"]
+    ).map((item) => ({
+        label: item.label,
+        shortLabel: item.label.length > 6 ? item.label.slice(0, 6) : item.label,
+        value: item.value,
+        color: colorByLabel(item.label),
+    }));
+
+    const nonOpData = summary.non_operational.items.map((item) => ({
+        label: item.label,
+        value: item.value,
+        color: colorByLabel(item.label),
+    }));
+
+    const warrantyDetails = summary.warranty.items.map((item) => ({
+        label: item.label,
+        value: item.value,
+        color: colorByLabel(item.label),
+        status: item.label,
+    }));
+
+    const serviceData = summary.service_requests.items.map((item) => ({
+        label: item.label,
+        value: item.value,
+        color: colorByLabel(item.label),
+        status: item.label,
+    }));
+
+    const warrantyBarData = [
+        {
+            year: "2026",
+            claimed: getSummaryValue(summary.warranty.items, "claim"),
+            vendor: getSummaryValue(summary.warranty.items, "vendor"),
+            recovered: getSummaryValue(summary.warranty.items, "recover"),
+            expired: getSummaryValue(summary.warranty.items, "expired"),
+        },
+    ];
+
+    const warrantyMaxValue = Math.max(
+        warrantyBarData[0].claimed,
+        warrantyBarData[0].vendor,
+        warrantyBarData[0].recovered,
+        warrantyBarData[0].expired,
+        1
+    );
+
+    const serviceBarData = [
+        {
+            name: "2026",
+            servicerequest: getSummaryValue(summary.service_requests.items, "service"),
+            transferred: getSummaryValue(summary.service_requests.items, "vendor"),
+            closed: getSummaryValue(summary.service_requests.items, "closed"),
+        },
+    ];
+
+    const serviceMaxValue = Math.max(
+        serviceBarData[0].servicerequest,
+        serviceBarData[0].transferred,
+        serviceBarData[0].closed,
+        1
+    );
+
+    const totalAssets = summary.active_assets.total;
+    const totalNonOp = summary.non_operational.total;
+    const totalWarranty = summary.warranty.total;
+    const totalService = summary.service_requests.total;
+
+    // still static until backend monthly trend APIs are added
+    const totalResig = resignationAreaData.reduce(
+        (s, d) => s + d.pending + d.completed + d.inprocess,
+        0
+    );
+
+    const totalRenewal = renewalBarData.reduce(
+        (s, d) => s + d.upcoming + d.completed + d.delayed,
+        0
+    );
 
     //bar chart for 1st card
 

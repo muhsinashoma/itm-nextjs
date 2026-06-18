@@ -1,3 +1,6 @@
+
+//frontend/lib/api.ts
+
 // lib/api.ts — Central API client for ITM Go backend
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
@@ -15,33 +18,47 @@ export function clearAuth() {
     window.location.href = "/auth";
 }
 
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const token = getToken();
+
     const res = await fetch(`${BASE}${path}`, {
         ...options,
+        cache: "no-store",
         headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...(options.headers ?? {}),
         },
     });
-    if (res.status === 401) { clearAuth(); throw new Error("Session expired"); }
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).error ?? `HTTP ${res.status}`);
+
+    if (res.status === 401) {
+        clearAuth();
+        throw new Error("Session expired");
     }
-    return res.json();
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || data?.success === false) {
+        throw new Error(
+            data?.error ||
+            data?.message ||
+            `HTTP ${res.status}`
+        );
+    }
+
+    return data as T;
 }
 
 export interface ApiOk<T> { success: boolean; data: T; }
 export interface ApiPage<T> { success: boolean; data: T[]; total: number; page: number; page_size: number; }
 
 export const api = {
-    get:   <T>(path: string) => request<T>(path),
-    post:  <T>(path: string, body?: unknown) => request<T>(path, { method: "POST",  body: JSON.stringify(body ?? {}) }),
-    put:   <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT",   body: JSON.stringify(body ?? {}) }),
+    get: <T>(path: string) => request<T>(path),
+    post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
+    put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body: JSON.stringify(body ?? {}) }),
     patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body: JSON.stringify(body ?? {}) }),
-    del:   <T>(path: string) => request<T>(path, { method: "DELETE" }),
+    del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
 export const authApi = {
@@ -52,15 +69,45 @@ export const authApi = {
 
 export interface DashboardStats { total_devices: number; assigned_devices: number; stock_devices: number; active_employees: number; open_tickets: number; running_tickets: number; closed_tickets: number; warranty_expiring_30d: number; }
 export interface TicketTrend { day: string; open: number; running: number; closed: number; total: number; }
+
+//new adding
+
+export type DashboardSummaryItem = {
+    label: string;
+    value: number;
+};
+
+export type DashboardSummaryGroup = {
+    total: number;
+    items: DashboardSummaryItem[];
+};
+
+export type DashboardSummary = {
+    active_assets: DashboardSummaryGroup;
+    non_operational: DashboardSummaryGroup;
+    service_requests: DashboardSummaryGroup;
+    warranty: DashboardSummaryGroup;
+    employees?: DashboardSummaryGroup;
+    stock?: DashboardSummaryGroup;
+};
+
+
+//Adding new
+
 export const dashboardApi = {
-    getStats:       () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
+    summary: () => api.get<ApiOk<DashboardSummary>>("/dashboard/summary"),
+
+    getStats: () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
+    stats: () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
+
     getTicketTrend: () => api.get<ApiOk<TicketTrend[]>>("/dashboard/ticket-trend"),
+    ticketTrend: () => api.get<ApiOk<TicketTrend[]>>("/dashboard/ticket-trend"),
 };
 
 export interface Ticket { id: number; tt_no: number; employee_id: string; employee_name: string; department: string; phone: string; email: string; client_name: string; fault_type: number; fault_type_name: string; reason_of_problem: string; fault_date_time: string; status_progress: number; attach_file: string; created_by: string; created_at: string; ticket_age: string; }
 export const ticketApi = {
     list: (p?: { page?: number; page_size?: number; status?: string; emp_id?: string; search?: string }) => {
-        const q = new URLSearchParams(Object.fromEntries(Object.entries(p ?? {}).filter(([,v]) => v !== undefined)) as any).toString();
+        const q = new URLSearchParams(Object.fromEntries(Object.entries(p ?? {}).filter(([, v]) => v !== undefined)) as any).toString();
         return api.get<ApiPage<Ticket>>(`/tickets?${q}`);
     },
     get: (id: number) => api.get<ApiOk<Ticket>>(`/tickets/${id}`),
@@ -76,7 +123,7 @@ export const ticketApi = {
 export interface Device { id: number; emp_id: string; emp_name: string; department: string; designation: string; category: string; brand: string; device_serial: string; model_no: string; device_type: number; status: string; assign_date: string; warranty_date: string; vendor: string; mr_number: string; pr_number: string; os: string; cpu: string; ram: string; hdd: string; monitor: string; ip_address: string; active: number; return_status: number; transfer_status: number; device_age: string; warranty_left: string; created_at: string; }
 export const deviceApi = {
     list: (p?: { page?: number; page_size?: number; category?: string; status?: string; search?: string }) => {
-        const q = new URLSearchParams(Object.fromEntries(Object.entries(p ?? {}).filter(([,v]) => v !== undefined)) as any).toString();
+        const q = new URLSearchParams(Object.fromEntries(Object.entries(p ?? {}).filter(([, v]) => v !== undefined)) as any).toString();
         return api.get<ApiPage<Device>>(`/devices?${q}`);
     },
     get: (id: number) => api.get<ApiOk<Device>>(`/devices/${id}`),
@@ -124,14 +171,57 @@ export const categoryApi = {
     create: (body: any) => api.post<ApiOk<{ id: number }>>("/categories", body),
 };
 
+
+//Adding New
+
+function toQuery(params?: Record<string, any>) {
+    if (!params) return "";
+
+    const q = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+            q.set(key, String(value));
+        }
+    });
+
+    const query = q.toString();
+    return query ? `?${query}` : "";
+}
+
+//Adding New
+
 export const reportApi = {
-    assigned:       () => api.get<ApiOk<Device[]>>("/reports/assigned"),
-    warranty:       () => api.get<ApiOk<Claim[]>>("/reports/warranty"),
-    service:        () => api.get<ApiOk<Claim[]>>("/reports/service"),
-    users:          (active?: string) => api.get<ApiOk<Employee[]>>(`/reports/users${active ? `?active=${active}` : ""}`),
-    disposal:       () => api.get<ApiOk<any[]>>("/reports/disposal"),
-    stockStatus:    () => api.get<ApiOk<any[]>>("/reports/stock-status"),
-    resignation:    () => api.get<ApiOk<any[]>>("/reports/resignation"),
-    renewal:        () => api.get<ApiOk<any[]>>("/reports/renewal"),
-    nonOperational: () => api.get<ApiOk<any[]>>("/reports/non-operational"),
+    assets: (params?: Record<string, any>) =>
+        api.get<ApiOk<Device[]>>(`/reports/assets${toQuery(params)}`),
+
+    assigned: (params?: Record<string, any>) =>
+        api.get<ApiOk<Device[]>>(`/reports/assigned${toQuery(params)}`),
+
+    warranty: (params?: Record<string, any>) =>
+        api.get<ApiOk<Claim[]>>(`/reports/warranty${toQuery(params)}`),
+
+    service: (params?: Record<string, any>) =>
+        api.get<ApiOk<Claim[]>>(`/reports/service${toQuery(params)}`),
+
+    users: (params?: Record<string, any>) =>
+        api.get<ApiOk<Employee[]>>(`/reports/users${toQuery(params)}`),
+
+    disposal: (params?: Record<string, any>) =>
+        api.get<ApiOk<any[]>>(`/reports/disposal${toQuery(params)}`),
+
+    stockStatus: (params?: Record<string, any>) =>
+        api.get<ApiOk<any[]>>(`/reports/stock-status${toQuery(params)}`),
+
+    resignation: (params?: Record<string, any>) =>
+        api.get<ApiOk<any[]>>(`/reports/resignation${toQuery(params)}`),
+
+    renewal: (params?: Record<string, any>) =>
+        api.get<ApiOk<any[]>>(`/reports/renewal${toQuery(params)}`),
+
+    nonOperational: (params?: Record<string, any>) =>
+        api.get<ApiOk<any[]>>(`/reports/non-operational${toQuery(params)}`),
 };
+
+
+export const reportsApi = reportApi;

@@ -5,7 +5,7 @@
  */
 //models/ → defines the shape of your data
 
-//models/AssignedDevice.ts
+//frontend/models/AssignedDevice.ts  
 
 export type DeviceStatus = "Assigned" | "Transferred" | "Returned" | "Available" | "Damaged" | "Stored" | "Claimed" | "Recovered" | "Petty Cash" | "MR Type" | "In Progress" | "Open" | "Expired" | "Requests" | "To Vendor" | "Closed" | "Recovered" | "Lost" | "Ownership" | "Completed" | "Pending Clearance" | "In Process" | "Upcoming Renewals" | "Delayed" | "Obsoleted" | "User Ownership" | "Service Requrest" | "Tranferred to Vendor";
 
@@ -34,4 +34,6 @@ export interface AssignedDevice {
     avatarUrl?: string;   // image URL
     condition?: string;
     remarks?: string;
+    id?: number | string;
+    brand?: string;
 }
