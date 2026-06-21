@@ -146,7 +146,7 @@ export default function AssignedPage() {
 
                     deviceType: item.device_type ? String(item.device_type) : "",
                     deviceAge: item.device_age || "",
-                    purchaseDate: item.assign_date || "",
+                    purchaseDate: item.purchase_date || item.assign_date || "",
 
                     remarks: item.remarks || "",
                 }));
