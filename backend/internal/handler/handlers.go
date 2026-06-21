@@ -710,149 +710,280 @@ func (h *ReportHandler) Register(rg *gin.RouterGroup) {
 
 
 
-// func (h *ReportHandler) Assigned(c *gin.Context) {
-// 	rows, err := h.db.Query(c.Request.Context(), `
-// 		SELECT d.id, d.emp_id,
-// 		       COALESCE(e.employee_name, d.emp_name),
-// 		       COALESCE(d.department, e.department_name),
-// 		       e.designation, d.category, d.brand, d.device_s_or_n, d.model_no,
-// 		       d.device_type, d.status, d.assign_date::text, d.device_warranty_date::text,
-// 		       d.mr_number, d.pr_number, d.vendor,
-// 		       to_char(NOW()-d.assign_date,'DD" days"'),
-// 		       CASE WHEN d.device_warranty_date > NOW()
-// 		            THEN to_char(d.device_warranty_date-NOW(),'DD" days"')
-// 		            ELSE 'Expired' END
-// 		FROM it_equipment d
-// 		LEFT JOIN employee_office_info e ON e.employee_id=d.emp_id
-// 		WHERE d.active>0 ORDER BY e.employee_name, d.category`)
-// 	if err != nil { response.ServerError(c, err); return }
-// 	defer rows.Close()
-// 	var res []map[string]any
-// 	for rows.Next() {
-// 		var id int64; var dt *int
-// 		var empID, empN, dept, desig, cat, brand, serial, model, status, ad, wd, mr, pr, vendor, age, wl *string
-// 		rows.Scan(&id, &empID, &empN, &dept, &desig, &cat, &brand, &serial, &model,
-// 			&dt, &status, &ad, &wd, &mr, &pr, &vendor, &age, &wl)
-// 		res = append(res, map[string]any{
-// 			"id": id, "emp_id": empID, "emp_name": empN, "department": dept, "designation": desig,
-// 			"category": cat, "brand": brand, "device_serial": serial, "model_no": model,
-// 			"device_type": dt, "status": status, "assign_date": ad, "warranty_date": wd,
-// 			"mr_number": mr, "pr_number": pr, "vendor": vendor, "device_age": age, "warranty_left": wl,
-// 		})
-// 	}
-// 	if res == nil { res = []map[string]any{} }
-// 	response.OK(c, res)
-// }
-
-
 func (h *ReportHandler) Assigned(c *gin.Context) {
 	status := c.Query("status")
 
+	// -------------------------------------------------------------------------
+	// Available devices: source is stack_inventory
+	// -------------------------------------------------------------------------
+	if status == "Available" {
+		availableRows, availableErr := h.db.Query(c.Request.Context(), `
+    SELECT
+        s.id,
+        COALESCE(s.mr_id, ''),
+        COALESCE(s.pr_id, ''),
+        COALESCE(s.serial_no, ''),
+
+        COALESCE(
+    (
+        SELECT ic.inventory_category_list
+        FROM public.inventory_categories ic
+        WHERE ic.id::text = TRIM(s.category::text)
+        LIMIT 1
+    ),
+    'Unknown Category'
+) AS category_name,
+
+        COALESCE(s.brand, ''),
+        COALESCE(s.model, ''),
+        COALESCE(s.device_type, ''),
+        COALESCE(s.vendor_name, ''),
+        COALESCE(s.purchase_date::text, ''),
+        COALESCE(s.warranty_date::text, '')
+    FROM stack_inventory s
+    
+    WHERE s.device_assigned_status = 0
+    ORDER BY s.id DESC
+`)
+		if availableErr != nil {
+			response.ServerError(c, availableErr)
+			return
+		}
+		defer availableRows.Close()
+
+		result := []map[string]any{}
+
+		for availableRows.Next() {
+			var id int64
+			var mrNumber string
+			var prNumber string
+			var serialNo string
+			var category string
+			var brand string
+			var model string
+			var deviceType string
+			var vendor string
+			var purchaseDate string
+			var warrantyDate string
+
+			if err := availableRows.Scan(
+				&id,
+				&mrNumber,
+				&prNumber,
+				&serialNo,
+				&category,
+				&brand,
+				&model,
+				&deviceType,
+				&vendor,
+				&purchaseDate,
+				&warrantyDate,
+			); err != nil {
+				response.ServerError(c, err)
+				return
+			}
+
+			result = append(result, map[string]any{
+				"id":            id,
+				"emp_id":        "",
+				"emp_name":      "",
+				"department":    "",
+				"designation":   "",
+				"category":      category,
+				"brand":         brand,
+				"device_serial": serialNo,
+				"model_no":      model,
+				"device_type":   deviceType,
+				"status":        "Available",
+
+				"assign_date":   "",
+				"purchase_date": purchaseDate,
+				"warranty_date": warrantyDate,
+
+				"mr_number":     mrNumber,
+				"pr_number":     prNumber,
+				"vendor":        vendor,
+				"device_age":    "",
+				"warranty_left": "",
+				"assigned_by":   "",
+				"remarks":       "",
+			})
+		}
+
+
+		fmt.Printf("Available first category: %s, total: %d\n", func() string {
+	if len(result) == 0 {
+		return "none"
+	}
+	return fmt.Sprint(result[0]["category"])
+}(), len(result))
+		response.OK(c, result)
+		return
+	}
+
+	// -------------------------------------------------------------------------
+	// Assigned / Returned / Transferred: source is it_equipment
+	// -------------------------------------------------------------------------
 	where := "WHERE d.active > 0"
 	args := []any{}
 	argNo := 1
 
-	if status != "" {
-		switch status {
-		case "Assigned":
-			where += fmt.Sprintf(" AND (d.status = $%d OR LOWER(COALESCE(d.status, '')) = 'assigned')", argNo)
-			args = append(args, "1")
-			argNo++
+	switch status {
+	case "Assigned":
+		where += fmt.Sprintf(`
+			AND (
+				d.status = $%d
+				OR LOWER(COALESCE(d.status, '')) = 'assigned'
+			)`, argNo)
+		args = append(args, "1")
+		argNo++
 
-		case "Returned":
-			where += fmt.Sprintf(" AND (d.status = $%d OR LOWER(COALESCE(d.status, '')) = 'returned')", argNo)
-			args = append(args, "4")
-			argNo++
+	case "Returned":
+		where += fmt.Sprintf(`
+			AND (
+				d.status = $%d
+				OR LOWER(COALESCE(d.status, '')) = 'returned'
+			)`, argNo)
+		args = append(args, "4")
+		argNo++
 
-		case "Transferred":
-			where += fmt.Sprintf(" AND (d.status = $%d OR LOWER(COALESCE(d.status, '')) IN ('transfer', 'transferred'))", argNo)
-			args = append(args, "3")
-			argNo++
+	case "Transferred":
+		where += fmt.Sprintf(`
+			AND (
+				d.status = $%d
+				OR LOWER(COALESCE(d.status, '')) IN ('transfer', 'transferred')
+			)`, argNo)
+		args = append(args, "3")
+		argNo++
 
-		default:
-			where += fmt.Sprintf(" AND LOWER(COALESCE(d.status, '')) = LOWER($%d)", argNo)
-			args = append(args, status)
-			argNo++
-		}
+	case "":
+		// All active equipment, no status filter.
+
+	default:
+		where += fmt.Sprintf(
+			" AND LOWER(COALESCE(d.status, '')) = LOWER($%d)",
+			argNo,
+		)
+		args = append(args, status)
+		argNo++
 	}
 
-	rows, err := h.db.Query(c.Request.Context(), fmt.Sprintf(`
-		SELECT d.id, d.emp_id,
-		       COALESCE(e.employee_name, d.emp_name),
-		       COALESCE(d.department, e.department_name),
-		       e.designation, d.category, d.brand, d.device_s_or_n, d.model_no,
-		       d.device_type, d.status, d.assign_date::text, d.device_warranty_date::text,
-		       d.mr_number, d.pr_number, d.vendor,
-		       to_char(NOW()-d.assign_date,'DD" days"'),
-		       CASE WHEN d.device_warranty_date > NOW()
-		            THEN to_char(d.device_warranty_date-NOW(),'DD" days"')
-		            ELSE 'Expired' END
-		FROM it_equipment d
-		LEFT JOIN employee_office_info e ON e.employee_id = d.emp_id
-		%s
-		ORDER BY e.employee_name, d.category
-	`, where), args...)
-
-	if err != nil {
-		response.ServerError(c, err)
+	deviceRows, deviceErr := h.db.Query(
+		c.Request.Context(),
+		fmt.Sprintf(`
+			SELECT
+				d.id,
+				d.emp_id,
+				COALESCE(e.employee_name, d.emp_name),
+				COALESCE(d.department, e.department_name),
+				e.designation,
+				d.category,
+				d.brand,
+				d.device_s_or_n,
+				d.model_no,
+				d.device_type,
+				d.status,
+				d.assign_date::text,
+				d.device_warranty_date::text,
+				d.mr_number,
+				d.pr_number,
+				d.vendor,
+				to_char(NOW() - d.assign_date, 'DD" days"'),
+				CASE
+					WHEN d.device_warranty_date > NOW()
+						THEN to_char(d.device_warranty_date - NOW(), 'DD" days"')
+					ELSE 'Expired'
+				END
+			FROM it_equipment d
+			LEFT JOIN employee_office_info e
+				ON e.employee_id = d.emp_id
+			%s
+			ORDER BY e.employee_name, d.category
+		`, where),
+		args...,
+	)
+	if deviceErr != nil {
+		response.ServerError(c, deviceErr)
 		return
 	}
-	defer rows.Close()
+	defer deviceRows.Close()
 
-	var res []map[string]any
+	result := []map[string]any{}
 
-	for rows.Next() {
+	for deviceRows.Next() {
 		var id int64
-		var dt *int
-		var empID, empN, dept, desig, cat, brand, serial, model, statusValue, ad, wd, mr, pr, vendor, age, wl *string
+		var deviceType *int
+		var empID, empName, department, designation *string
+		var category, brand, serialNo, modelNo *string
+		var statusValue, assignDate, warrantyDate *string
+		var mrNumber, prNumber, vendor, deviceAge, warrantyLeft *string
 
-		rows.Scan(
-			&id, &empID, &empN, &dept, &desig, &cat, &brand, &serial, &model,
-			&dt, &statusValue, &ad, &wd, &mr, &pr, &vendor, &age, &wl,
-		)
+		if err := deviceRows.Scan(
+			&id,
+			&empID,
+			&empName,
+			&department,
+			&designation,
+			&category,
+			&brand,
+			&serialNo,
+			&modelNo,
+			&deviceType,
+			&statusValue,
+			&assignDate,
+			&warrantyDate,
+			&mrNumber,
+			&prNumber,
+			&vendor,
+			&deviceAge,
+			&warrantyLeft,
+		); err != nil {
+			response.ServerError(c, err)
+			return
+		}
 
 		displayStatus := ""
 		if statusValue != nil {
 			switch *statusValue {
 			case "1":
 				displayStatus = "Assigned"
-			case "4":
-				displayStatus = "Returned"
 			case "3":
 				displayStatus = "Transferred"
+			case "4":
+				displayStatus = "Returned"
 			default:
 				displayStatus = *statusValue
 			}
 		}
 
-		res = append(res, map[string]any{
-			"id": id,
-			"emp_id": empID,
-			"emp_name": empN,
-			"department": dept,
-			"designation": desig,
-			"category": cat,
-			"brand": brand,
-			"device_serial": serial,
-			"model_no": model,
-			"device_type": dt,
-			"status": displayStatus,
-			"assign_date": ad,
-			"warranty_date": wd,
-			"mr_number": mr,
-			"pr_number": pr,
-			"vendor": vendor,
-			"device_age": age,
-			"warranty_left": wl,
+		result = append(result, map[string]any{
+			"id":             id,
+			"emp_id":         empID,
+			"emp_name":       empName,
+			"department":     department,
+			"designation":    designation,
+			"category":       category,
+			"brand":          brand,
+			"device_serial":  serialNo,
+			"model_no":       modelNo,
+			"device_type":    deviceType,
+			"status":         displayStatus,
+			"assign_date":    assignDate,
+			"warranty_date":  warrantyDate,
+			"mr_number":      mrNumber,
+			"pr_number":      prNumber,
+			"vendor":         vendor,
+			"device_age":     deviceAge,
+			"warranty_left":  warrantyLeft,
+			"assigned_by":    "",
+			"remarks":        "",
 		})
 	}
 
-	if res == nil {
-		res = []map[string]any{}
-	}
-
-	response.OK(c, res)
+	response.OK(c, result)
 }
+
+
 
 func (h *ReportHandler) Warranty(c *gin.Context) {
 	rows, err := h.db.Query(c.Request.Context(), `
