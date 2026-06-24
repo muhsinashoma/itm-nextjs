@@ -60,13 +60,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	log.Println("LOGIN DEBUG id:", id)
-	log.Println("LOGIN DEBUG username:", username)
-	log.Println("LOGIN DEBUG active:", active)
-	log.Println("LOGIN DEBUG userType:", userType)
-	log.Println("LOGIN DEBUG hash length:", len(hash))
-	log.Println("LOGIN DEBUG hash:", hash)
-	log.Println("LOGIN DEBUG password:", req.Password)
+
+	// print debug info
+	// log.Println("LOGIN DEBUG id:", id)
+	// log.Println("LOGIN DEBUG username:", username)
+	// log.Println("LOGIN DEBUG active:", active)
+	// log.Println("LOGIN DEBUG userType:", userType)
+	// log.Println("LOGIN DEBUG hash length:", len(hash))
+	// log.Println("LOGIN DEBUG hash:", hash)
+	// log.Println("LOGIN DEBUG password:", req.Password)
 
 	if !active {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "account inactive"})
