@@ -137,6 +137,95 @@ export const deviceApi = {
     delete: (id: number) => api.del(`/devices/${id}`),
 };
 
+export interface AssetDevice {
+    id: number;
+    device_serial: string | null;
+    category: string | null;
+    brand: string | null;
+    model: string | null;
+    device_type: string | null;
+
+    asset_status: number;
+    status_label: string;
+
+    emp_id: string | null;
+    emp_name: string | null;
+    department: string | null;
+    designation: string | null;
+    assigned_date: string | null;
+
+    vendor_id: number | null;
+    vendor_name: string | null;
+    vendor_flag: number | null;
+
+    mr_number: string | null;
+    pr_number: string | null;
+
+    purchase_date: string | null;
+    warranty_date: string | null;
+
+    created_at: string | null;
+    updated_at: string | null;
+}
+
+
+
+// export const assetDeviceApi = {
+//     list: (params?: {
+//         page?: number;
+//         limit?: number;
+//         category?: string;
+//         status?: number;
+//         vendor_id?: number;
+//         search?: string;
+//     }) => {
+//         const query = new URLSearchParams();
+
+//         Object.entries(params ?? {}).forEach(([key, value]) => {
+//             if (value !== undefined && value !== null && value !== "") {
+//                 query.set(key, String(value));
+//             }
+//         });
+
+//         const qs = query.toString();
+
+//         return api.get<ApiPage<AssetDevice>>(
+//             `/assets/devices${qs ? `?${qs}` : ""}`
+//         );
+//     },
+// };
+
+
+export const assetDeviceApi = {
+    list: (params?: {
+        page?: number;
+        limit?: number;
+        category?: string;
+        status?: number;
+        vendor_id?: number;
+        search?: string;
+    }) => {
+        const query = new URLSearchParams();
+
+        Object.entries(params ?? {}).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== "") {
+                query.set(key, String(value));
+            }
+        });
+
+        const qs = query.toString();
+
+        return api.get<ApiPage<AssetDevice>>(
+            `/assets/devices${qs ? `?${qs}` : ""}`
+        );
+    },
+
+    get: (id: number) =>
+        api.get<ApiOk<AssetDevice>>(`/assets/devices/${id}`),
+};
+
+
+
 export interface Employee { employee_id: string; employee_name: string; designation: string; department: string; work_field: string; sub_function: string; active: string; personal_cell: string; official_cell: string; email: string; picture: string; device_count?: number; }
 export const employeeApi = {
     list: (p?: { page?: number; page_size?: number; active?: string }) => api.get<ApiPage<Employee>>(`/employees?${new URLSearchParams(p as any).toString()}`),
