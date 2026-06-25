@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
     assetDeviceApi,
     type AssetDevice,
+
 } from "@/lib/api";
 
 const PAGE_SIZE = 50;
@@ -68,6 +69,8 @@ export default function AssetDevicesPage() {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 

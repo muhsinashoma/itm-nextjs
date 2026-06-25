@@ -1,8 +1,16 @@
+//frontend/app/dashboard/assets/devices/[id]/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { assetDeviceApi, type AssetDevice } from "@/lib/api";
+// import { assetDeviceApi, type AssetDevice } from "@/lib/api";
+
+import {
+    assetDeviceApi,
+    type AssetDevice,
+    type AssetDeviceHistory,
+} from "@/lib/api";
 
 function formatDate(value: string | null) {
     if (!value) return "-";
@@ -70,6 +78,10 @@ export default function AssetDeviceDetailsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
+    const [history, setHistory] = useState<AssetDeviceHistory[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(true);
+    const [historyError, setHistoryError] = useState("");
+
     useEffect(() => {
         async function loadDevice() {
             if (!Number.isFinite(id) || id < 1) {
@@ -78,20 +90,52 @@ export default function AssetDeviceDetailsPage() {
                 return;
             }
 
+            // try {
+            //     setLoading(true);
+            //     setError("");
+
+            //     const [deviceResponse, historyResponse] = await Promise.all([
+            //         assetDeviceApi.get(id),
+            //         assetDeviceApi.history(id),
+            //     ]);
+
+            //     setDevice(deviceResponse.data);
+            //     setHistory(historyResponse.data ?? []);
+            // } catch (err) {
+            //     setError(
+            //         err instanceof Error
+            //             ? err.message
+            //             : "Unable to load asset device"
+            //     );
+            // } finally {
+            //     setLoading(false);
+            // }
+
+
             try {
                 setLoading(true);
+                setHistoryLoading(true);
                 setError("");
+                setHistoryError("");
 
-                const response = await assetDeviceApi.get(id);
-                setDevice(response.data);
+                const [deviceResponse, historyResponse] = await Promise.all([
+                    assetDeviceApi.get(id),
+                    assetDeviceApi.history(id),
+                ]);
+
+                setDevice(deviceResponse.data);
+                setHistory(historyResponse.data ?? []);
             } catch (err) {
-                setError(
+                const message =
                     err instanceof Error
                         ? err.message
-                        : "Unable to load asset device"
-                );
+                        : "Unable to load asset device";
+
+                setError(message);
+                setHistoryError(message);
             } finally {
                 setLoading(false);
+                setHistoryLoading(false);
             }
         }
 
@@ -221,6 +265,126 @@ export default function AssetDeviceDetailsPage() {
                         value={formatDate(device.updated_at)}
                     />
                 </div>
+            </section>
+
+
+            <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">
+                            Device History
+                        </h2>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Previous migrated records and assignment history.
+                        </p>
+                    </div>
+
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                        {history.length} record{history.length === 1 ? "" : "s"}
+                    </span>
+                </div>
+
+                {historyLoading && (
+                    <div className="rounded-lg border border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
+                        Loading device history...
+                    </div>
+                )}
+
+                {!historyLoading && historyError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {historyError}
+                    </div>
+                )}
+
+                {!historyLoading && !historyError && history.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+                        <p className="text-sm font-medium text-foreground">
+                            No previous history found
+                        </p>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            This device has no migrated duplicate or previous equipment record.
+                        </p>
+                    </div>
+                )}
+
+                {!historyLoading && !historyError && history.length > 0 && (
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[1000px] text-sm">
+                            <thead className="border-b border-border bg-muted/40">
+                                <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                                    <th className="px-3 py-3 font-semibold">Status</th>
+                                    <th className="px-3 py-3 font-semibold">Employee</th>
+                                    <th className="px-3 py-3 font-semibold">Department</th>
+                                    <th className="px-3 py-3 font-semibold">Vendor</th>
+                                    <th className="px-3 py-3 font-semibold">Assigned</th>
+                                    <th className="px-3 py-3 font-semibold">Returned</th>
+                                    <th className="px-3 py-3 font-semibold">Legacy Record</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {history.map((item) => (
+                                    <tr
+                                        key={item.id}
+                                        className="border-b border-border/70 transition-colors hover:bg-muted/30"
+                                    >
+                                        <td className="px-3 py-3">
+                                            <span
+                                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass(
+                                                    item.status_code ?? -1
+                                                )}`}
+                                            >
+                                                {item.status_label || "Unknown"}
+                                            </span>
+                                        </td>
+
+                                        <td className="px-3 py-3">
+                                            <div className="font-medium text-foreground">
+                                                {item.emp_name || "-"}
+                                            </div>
+
+                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                                {item.emp_id || "-"}
+                                            </div>
+                                        </td>
+
+                                        <td className="px-3 py-3">
+                                            <div>{item.department || "-"}</div>
+
+                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                                {item.designation || "-"}
+                                            </div>
+                                        </td>
+
+                                        <td className="px-3 py-3">
+                                            {item.vendor || "-"}
+                                        </td>
+
+                                        <td className="px-3 py-3">
+                                            {formatDate(item.assigned_date)}
+                                        </td>
+
+                                        <td className="px-3 py-3">
+                                            {formatDate(item.returned_at)}
+                                        </td>
+
+                                        <td className="px-3 py-3">
+                                            <div className="font-medium text-foreground">
+                                                #{item.legacy_equipment_id}
+                                            </div>
+
+                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                                {item.history_reason || "-"}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </section>
         </div>
     );
