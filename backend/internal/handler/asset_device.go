@@ -21,15 +21,20 @@ func NewAssetDeviceHandler(db *pgxpool.Pool) *AssetDeviceHandler {
 	return &AssetDeviceHandler{db: db}
 }
 
+
+
 // func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
 // 	g := rg.Group("/assets")
+
 // 	g.GET("/devices", h.List)
+// 	g.GET("/devices/:id", h.GetByID)
 // }
 
 func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/assets")
 
 	g.GET("/devices", h.List)
+	g.GET("/devices/:id/history", h.History)
 	g.GET("/devices/:id", h.GetByID)
 }
 
@@ -63,6 +68,41 @@ type AssetDevice struct {
 	CreatedAt      *string `json:"created_at"`
 	UpdatedAt      *string `json:"updated_at"`
 }
+
+
+type AssetDeviceHistory struct {
+	ID                  int64   `json:"id"`
+	AssetDeviceID       int64   `json:"asset_device_id"`
+	LegacyEquipmentID   int64   `json:"legacy_equipment_id"`
+
+	DeviceSerial        *string `json:"device_serial"`
+	StatusCode          *int16  `json:"status_code"`
+	StatusLabel         string  `json:"status_label"`
+	RawStatus           *string `json:"raw_status"`
+
+	PreviousStatus      *int    `json:"previous_status"`
+	ReturnStatus        *int16  `json:"return_status"`
+	TransferStatus      *int16  `json:"transfer_status"`
+
+	EmpID               *string `json:"emp_id"`
+	EmpName             *string `json:"emp_name"`
+	Department          *string `json:"department"`
+	Designation         *string `json:"designation"`
+
+	MRNumber            *string `json:"mr_number"`
+	PRNumber            *string `json:"pr_number"`
+	Vendor              *string `json:"vendor"`
+
+	AssignedDate        *string `json:"assigned_date"`
+	TransferredAt       *string `json:"transferred_at"`
+	ReturnedAt          *string `json:"returned_at"`
+
+	HistoryReason       string  `json:"history_reason"`
+	CreatedAtSource     *string `json:"created_at_source"`
+	UpdatedAtSource     *string `json:"updated_at_source"`
+	MigratedAt          *string `json:"migrated_at"`
+}
+
 
 func (h *AssetDeviceHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -396,5 +436,133 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"success": true,
 		"data":    asset,
+	})
+}
+
+
+func (h *AssetDeviceHandler) History(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id < 1 {
+		c.JSON(400, gin.H{
+			"success": false,
+			"error":   "invalid asset device id",
+		})
+		return
+	}
+
+	const sqlQuery = `
+		SELECT
+			h.id,
+			h.asset_device_id,
+			h.legacy_equipment_id,
+
+			h.device_serial,
+
+			h.status_code,
+			CASE h.status_code
+				WHEN 0 THEN 'Damaged'
+				WHEN 1 THEN 'Assigned'
+				WHEN 2 THEN 'Available'
+				WHEN 3 THEN 'Transferred'
+				WHEN 4 THEN 'Returned'
+				WHEN 5 THEN 'Lost'
+				WHEN 7 THEN 'Ownership Transfer'
+				WHEN 8 THEN 'Claim Raised'
+				WHEN 15 THEN 'Service Request'
+				ELSE COALESCE(NULLIF(BTRIM(h.raw_status), ''), 'Unknown')
+			END AS status_label,
+			h.raw_status,
+
+			h.previous_status,
+			h.return_status,
+			h.transfer_status,
+
+			h.emp_id,
+			h.emp_name,
+			h.department,
+			h.designation,
+
+			h.mr_number,
+			h.pr_number,
+			h.vendor,
+
+			h.assigned_date::text,
+			h.transferred_at::text,
+			h.returned_at::text,
+
+			h.history_reason,
+			h.created_at_source::text,
+			h.updated_at_source::text,
+			h.migrated_at::text
+		FROM public.asset_device_history h
+		WHERE h.asset_device_id = $1
+		ORDER BY
+			h.updated_at_source DESC NULLS LAST,
+			h.created_at_source DESC NULLS LAST,
+			h.id DESC
+	`
+
+	rows, err := h.db.Query(c.Request.Context(), sqlQuery, id)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer rows.Close()
+
+	history := make([]AssetDeviceHistory, 0)
+
+	for rows.Next() {
+		var item AssetDeviceHistory
+
+		err := rows.Scan(
+			&item.ID,
+			&item.AssetDeviceID,
+			&item.LegacyEquipmentID,
+
+			&item.DeviceSerial,
+
+			&item.StatusCode,
+			&item.StatusLabel,
+			&item.RawStatus,
+
+			&item.PreviousStatus,
+			&item.ReturnStatus,
+			&item.TransferStatus,
+
+			&item.EmpID,
+			&item.EmpName,
+			&item.Department,
+			&item.Designation,
+
+			&item.MRNumber,
+			&item.PRNumber,
+			&item.Vendor,
+
+			&item.AssignedDate,
+			&item.TransferredAt,
+			&item.ReturnedAt,
+
+			&item.HistoryReason,
+			&item.CreatedAtSource,
+			&item.UpdatedAtSource,
+			&item.MigratedAt,
+		)
+
+		if err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		history = append(history, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"data":    history,
 	})
 }

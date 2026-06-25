@@ -169,31 +169,39 @@ export interface AssetDevice {
 }
 
 
+export interface AssetDeviceHistory {
+    id: number;
+    asset_device_id: number;
+    legacy_equipment_id: number;
 
-// export const assetDeviceApi = {
-//     list: (params?: {
-//         page?: number;
-//         limit?: number;
-//         category?: string;
-//         status?: number;
-//         vendor_id?: number;
-//         search?: string;
-//     }) => {
-//         const query = new URLSearchParams();
+    device_serial: string | null;
+    status_code: number | null;
+    status_label: string;
+    raw_status: string | null;
 
-//         Object.entries(params ?? {}).forEach(([key, value]) => {
-//             if (value !== undefined && value !== null && value !== "") {
-//                 query.set(key, String(value));
-//             }
-//         });
+    previous_status: number | null;
+    return_status: number | null;
+    transfer_status: number | null;
 
-//         const qs = query.toString();
+    emp_id: string | null;
+    emp_name: string | null;
+    department: string | null;
+    designation: string | null;
 
-//         return api.get<ApiPage<AssetDevice>>(
-//             `/assets/devices${qs ? `?${qs}` : ""}`
-//         );
-//     },
-// };
+    mr_number: string | null;
+    pr_number: string | null;
+    vendor: string | null;
+
+    assigned_date: string | null;
+    transferred_at: string | null;
+    returned_at: string | null;
+
+    history_reason: string;
+    created_at_source: string | null;
+    updated_at_source: string | null;
+    migrated_at: string | null;
+}
+
 
 
 export const assetDeviceApi = {
@@ -222,8 +230,10 @@ export const assetDeviceApi = {
 
     get: (id: number) =>
         api.get<ApiOk<AssetDevice>>(`/assets/devices/${id}`),
-};
 
+    history: (id: number) =>
+        api.get<ApiOk<AssetDeviceHistory[]>>(`/assets/devices/${id}/history`),
+};
 
 
 export interface Employee { employee_id: string; employee_name: string; designation: string; department: string; work_field: string; sub_function: string; active: string; personal_cell: string; official_cell: string; email: string; picture: string; device_count?: number; }
