@@ -1,6 +1,7 @@
 
-// itm/components/data-table.tsx
+//This decides what is hidden initially.
 
+// itm/components/data-table.tsx
 
 
 "use client";
@@ -66,6 +67,7 @@ const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
      * Employee ID
      * Employee
      * Designation
+     * deviceSl
      * Category
      * Model
      * Status
@@ -73,10 +75,10 @@ const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
      */
 
     // Asset report optional columns
-    deviceSl: false,
     mrnNumber: false,
     prNumber: false,
     department: false,
+    designation: false,
     brand: false,
     deviceType: false,
     vendor: false,
@@ -600,7 +602,8 @@ export function DataTable<TData, TValue>({
 
             {/* Table */}
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
-                <Table className="min-w-[1180px] table-fixed border-collapse text-xs">
+                {/* <Table className="min-w-[1180px] table-fixed border-collapse text-xs"> */}
+                <Table className="w-full min-w-[940px] table-fixed border-collapse text-[10px]">
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow
@@ -610,7 +613,23 @@ export function DataTable<TData, TValue>({
                                 {headerGroup.headers.map((header) => (
                                     <TableHead
                                         key={header.id}
-                                        className="whitespace-nowrap border-b bg-muted/60 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+
+                                        // className="whitespace-nowrap border-b bg-muted/60 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+
+                                        className="
+    whitespace-nowrap
+    border-b
+    bg-muted/60
+    px-2
+    py-2
+    text-center
+    text-[9px]
+    font-semibold
+    uppercase
+    tracking-wide
+    text-muted-foreground
+"
+
                                         style={{
                                             width:
                                                 header.getSize() !== 150
@@ -641,7 +660,17 @@ export function DataTable<TData, TValue>({
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell
                                             key={cell.id}
-                                            className="overflow-hidden px-3 py-3 text-center align-middle text-xs whitespace-nowrap"
+                                            // className="overflow-hidden px-3 py-3 text-center align-middle text-xs whitespace-nowrap"
+                                            className="
+    overflow-hidden
+    whitespace-nowrap
+    px-2
+    py-2
+    text-center
+    align-middle
+    text-[10px]
+    text-ellipsis
+"
                                         >
                                             {flexRender(
                                                 cell.column.columnDef.cell,

@@ -1,11 +1,13 @@
 // // frontend/components/reports/assigned-columns.tsx
 
+
 // "use client";
 
 // import { ColumnDef } from "@tanstack/react-table";
 // import { AssignedDevice } from "@/models/AssignedDevice";
 // import { Button } from "@/components/ui/button";
 // import { UserAvatar } from "@/components/user-avatar";
+
 // import {
 //   DropdownMenu,
 //   DropdownMenuContent,
@@ -15,77 +17,139 @@
 // } from "@/components/ui/dropdown-menu";
 
 // import {
-//   MoreVertical,
+//   ChevronDown,
+//   Eye,
 //   Pencil,
 //   Trash2,
-//   ChevronDown,
 //   UserPlus,
 // } from "lucide-react";
 
-// import {
-//   Avatar,
-//   AvatarImage,
-//   AvatarFallback,
-// } from "@/components/ui/avatar";
-
-// // ================= HELPER =================
-// const getInitials = (name?: string) => {
-//   if (!name) return "NA";
-
-//   const ignored = ["md.", "md", "mohammad"];
-
-//   const parts = name
-//     .toLowerCase()
-//     .split(" ")
-//     .filter((w) => w && !ignored.includes(w));
-
-//   return parts
-//     .slice(0, 2)
-//     .map((w) => w[0].toUpperCase())
-//     .join("");
-// };
-
-// // ================= TYPES =================
 // type ColumnProps = {
 //   onView?: (device: AssignedDevice) => void;
 //   onAssign?: (device: AssignedDevice) => void;
 // };
 
-// // ================= COLUMNS =================
+// function emptyValue(value?: string | null) {
+//   return value?.trim() ? value : "—";
+// }
+
+// function formatDate(value?: string | null) {
+//   if (!value?.trim()) return "—";
+
+//   const date = new Date(value);
+
+//   if (Number.isNaN(date.getTime())) {
+//     return value;
+//   }
+
+//   return new Intl.DateTimeFormat("en-GB", {
+//     day: "2-digit",
+//     month: "short",
+//     year: "numeric",
+//   }).format(date);
+// }
+
+// function statusClass(status?: string) {
+//   const normalized = status?.toLowerCase().trim();
+
+//   switch (normalized) {
+//     case "assigned":
+//       return "border-blue-200 bg-blue-50 text-blue-700";
+
+//     case "returned":
+//       return "border-emerald-200 bg-emerald-50 text-emerald-700";
+
+//     case "transferred":
+//       return "border-amber-200 bg-amber-50 text-amber-700";
+
+//     case "available":
+//       return "border-violet-200 bg-violet-50 text-violet-700";
+
+//     case "damaged":
+//       return "border-orange-200 bg-orange-50 text-orange-700";
+
+//     case "lost":
+//       return "border-red-200 bg-red-50 text-red-700";
+
+//     case "ownership":
+//     case "ownership transfer":
+//     case "user ownership":
+//       return "border-teal-200 bg-teal-50 text-teal-700";
+
+//     default:
+//       return "border-slate-200 bg-slate-50 text-slate-700";
+//   }
+// }
+
 // export const assignedColumns = (
 //   props: ColumnProps = {}
 // ): ColumnDef<AssignedDevice>[] => {
 //   const { onView, onAssign } = props;
 
 //   return [
+//     /*
+//      * ================= DEFAULT VISIBLE COLUMNS =================
+//      * Order:
+//      * SL | Reference No | Employee ID | Employee | Designation
+//      * Category | Model | Status | Actions
+//      */
+
 //     {
 //       accessorKey: "sl",
 //       header: "SL",
+//       enableHiding: false,
+//       size: 55,
+//       cell: ({ row }) => (
+//         <span className="font-medium text-foreground">
+//           {row.original.sl}
+//         </span>
+//       ),
 //     },
+
 //     {
 //       accessorKey: "referenceNumber",
 //       header: "Reference No",
+//       enableHiding: false,
+//       size: 190,
+//       cell: ({ row }) => (
+//         <div className="max-w-[180px] break-words text-xs font-medium text-foreground">
+//           {emptyValue(row.original.referenceNumber)}
+//         </div>
+//       ),
 //     },
+
 //     {
 //       accessorKey: "employeeId",
 //       header: "Employee ID",
+//       enableHiding: true,
+//       size: 110,
+//       cell: ({ row }) => (
+//         <span className="text-xs font-medium text-foreground">
+//           {emptyValue(row.original.employeeId)}
+//         </span>
+//       ),
 //     },
-
-
 
 //     {
 //       accessorKey: "employeeName",
 //       header: "Employee",
+//       enableHiding: true,
+//       size: 220,
 //       cell: ({ row }) => {
-//         const data = row.original;
+//         const device = row.original;
 
 //         return (
-//           <div className="flex items-center gap-2">
+//           <div className="flex min-w-[180px] items-center gap-2.5">
 //             <UserAvatar
-//               name={data.employeeName}
-//               src={data.avatarUrl}
+//               name={device.employeeName}
+//               src={device.avatarUrl}
 //             />
-//             <span>{data.employeeName}</span>
+
+//             <div className="min-w-0">
+//               <p className="truncate text-sm font-medium text-foreground">
+//                 {emptyValue(device.employeeName)}
+//               </p>
+//             </div>
 //           </div>
 //         );
 //       },
@@ -94,95 +158,308 @@
 //     {
 //       accessorKey: "designation",
 //       header: "Designation",
+//       enableHiding: true,
+//       size: 170,
+//       cell: ({ row }) => (
+//         <div className="max-w-[160px] break-words text-xs text-foreground">
+//           {emptyValue(row.original.designation)}
+//         </div>
+//       ),
 //     },
-//     {
-//       accessorKey: "department",
-//       header: "Department",
-//     },
+
 //     {
 //       accessorKey: "category",
 //       header: "Category",
+//       enableHiding: true,
+//       size: 145,
+//       cell: ({ row }) => (
+//         <div className="max-w-[140px] break-words text-xs text-foreground">
+//           {emptyValue(row.original.category)}
+//         </div>
+//       ),
 //     },
+
 //     {
 //       accessorKey: "model",
 //       header: "Model",
+//       enableHiding: true,
+//       size: 160,
+//       cell: ({ row }) => (
+//         <div className="max-w-[150px] break-words text-xs text-foreground">
+//           {emptyValue(row.original.model)}
+//         </div>
+//       ),
 //     },
 
-//     // ✅ STATUS BADGE (IMPROVED UI)
 //     {
 //       accessorKey: "status",
 //       header: "Status",
+//       enableHiding: false,
+//       size: 120,
 //       cell: ({ row }) => {
 //         const status = row.original.status;
 
 //         return (
-//           <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700">
-//             {status}
+//           <span
+//             className={`inline-flex whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-medium ${statusClass(
+//               status
+//             )}`}
+//           >
+//             {emptyValue(status)}
 //           </span>
 //         );
 //       },
 //     },
 
 //     {
-//       accessorKey: "deviceType",
-//       header: "Device Type",
-//     },
-
-//     // ================= ACTIONS =================
-//     {
 //       id: "actions",
 //       header: "Actions",
+//       enableHiding: false,
+//       size: 125,
 //       cell: ({ row }) => {
 //         const device = row.original;
 
 //         return (
 //           <DropdownMenu>
 //             <DropdownMenuTrigger asChild>
-//               <Button size="sm" variant="outline">
-//                 Actions <ChevronDown className="ml-1 h-4 w-4" />
+//               <Button
+//                 size="sm"
+//                 variant="outline"
+//                 className="h-8 gap-1.5 px-2.5 text-xs"
+//               >
+//                 Actions
+//                 <ChevronDown className="h-3.5 w-3.5" />
 //               </Button>
 //             </DropdownMenuTrigger>
 
-//             <DropdownMenuContent>
-
-//               {/* VIEW */}
-//               <DropdownMenuItem onClick={() => onView?.(device)}>
-//                 <MoreVertical className="h-4 w-4 mr-2" />
+//             <DropdownMenuContent
+//               align="end"
+//               className="w-44"
+//             >
+//               <DropdownMenuItem
+//                 onClick={() => onView?.(device)}
+//                 className="gap-2"
+//               >
+//                 <Eye className="h-4 w-4 text-primary" />
 //                 View Details
 //               </DropdownMenuItem>
 
-//               {/* ASSIGN */}
 //               {device.status === "Available" && (
 //                 <DropdownMenuItem
 //                   onClick={() => onAssign?.(device)}
-//                   className="text-blue-600"
+//                   className="gap-2 text-blue-600"
 //                 >
-//                   <UserPlus className="h-4 w-4 mr-2" />
+//                   <UserPlus className="h-4 w-4" />
 //                   Assign Device
 //                 </DropdownMenuItem>
 //               )}
 
-//               {/* EDIT */}
-//               <DropdownMenuItem>
-//                 <Pencil className="h-4 w-4 mr-2" />
+//               <DropdownMenuItem className="gap-2">
+//                 <Pencil className="h-4 w-4 text-amber-600" />
 //                 Edit
 //               </DropdownMenuItem>
 
 //               <DropdownMenuSeparator />
 
-//               {/* DELETE */}
-//               <DropdownMenuItem className="text-red-600">
-//                 <Trash2 className="h-4 w-4 mr-2" />
+//               <DropdownMenuItem className="gap-2 text-red-600 focus:text-red-600">
+//                 <Trash2 className="h-4 w-4" />
 //                 Delete
 //               </DropdownMenuItem>
-
 //             </DropdownMenuContent>
 //           </DropdownMenu>
 //         );
 //       },
 //     },
+
+//     /*
+//      * ================= OPTIONAL COLUMNS =================
+//      * These should be hidden by default in DataTable.
+//      * Users can enable them from the Columns dropdown.
+//      */
+
+//     {
+//       accessorKey: "deviceSl",
+//       header: "Device Serial Number",
+//       enableHiding: true,
+//       size: 190,
+//       cell: ({ row }) => (
+//         <div className="max-w-[180px] break-all text-xs font-medium text-foreground">
+//           {emptyValue(row.original.deviceSl)}
+//         </div>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "mrnNumber",
+//       header: "MR No",
+//       enableHiding: true,
+//       size: 180,
+//       cell: ({ row }) => (
+//         <div className="max-w-[170px] break-all text-xs text-foreground">
+//           {emptyValue(row.original.mrnNumber)}
+//         </div>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "prNumber",
+//       header: "PR No",
+//       enableHiding: true,
+//       size: 180,
+//       cell: ({ row }) => (
+//         <div className="max-w-[170px] break-all text-xs text-foreground">
+//           {emptyValue(row.original.prNumber)}
+//         </div>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "department",
+//       header: "Department",
+//       enableHiding: true,
+//       size: 210,
+//       cell: ({ row }) => (
+//         <div className="max-w-[200px] break-words text-xs text-foreground">
+//           {emptyValue(row.original.department)}
+//         </div>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "brand",
+//       header: "Brand",
+//       enableHiding: true,
+//       size: 140,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {emptyValue(row.original.brand)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "deviceType",
+//       header: "Device Type",
+//       enableHiding: true,
+//       size: 130,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {emptyValue(row.original.deviceType)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "vendor",
+//       header: "Vendor",
+//       enableHiding: true,
+//       size: 170,
+//       cell: ({ row }) => (
+//         <div className="max-w-[160px] break-words text-xs text-foreground">
+//           {emptyValue(row.original.vendor)}
+//         </div>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "assignedDate",
+//       header: "Assigned Date",
+//       enableHiding: true,
+//       size: 140,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {formatDate(row.original.assignedDate)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "returnedDate",
+//       header: "Returned Date",
+//       enableHiding: true,
+//       size: 140,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {formatDate(row.original.returnedDate)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "transferredDate",
+//       header: "Transferred Date",
+//       enableHiding: true,
+//       size: 150,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {formatDate(row.original.transferredDate)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "purchaseDate",
+//       header: "Purchase Date",
+//       enableHiding: true,
+//       size: 140,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {formatDate(row.original.purchaseDate)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "warranty",
+//       header: "Warranty Date",
+//       enableHiding: true,
+//       size: 140,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {formatDate(row.original.warranty)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "deviceAge",
+//       header: "Device Age",
+//       enableHiding: true,
+//       size: 120,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {emptyValue(row.original.deviceAge)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "userUsageDuration",
+//       header: "Usage Duration",
+//       enableHiding: true,
+//       size: 140,
+//       cell: ({ row }) => (
+//         <span className="text-xs text-foreground">
+//           {emptyValue(row.original.userUsageDuration)}
+//         </span>
+//       ),
+//     },
+
+//     {
+//       accessorKey: "remarks",
+//       header: "Remarks",
+//       enableHiding: true,
+//       size: 220,
+//       cell: ({ row }) => (
+//         <div className="max-w-[210px] break-words text-xs text-foreground">
+//           {emptyValue(row.original.remarks)}
+//         </div>
+//       ),
+//     },
 //   ];
 // };
+
+
 
 "use client";
 
@@ -271,9 +548,9 @@ export const assignedColumns = (
 
   return [
     /*
-     * ================= DEFAULT VISIBLE COLUMNS =================
-     * Order:
-     * SL | Reference No | Employee ID | Employee | Designation
+     * DEFAULT VISIBLE COLUMNS
+     *
+     * SL | Reference No | Employee ID | Employee | Designation | deviceSl
      * Category | Model | Status | Actions
      */
 
@@ -281,9 +558,9 @@ export const assignedColumns = (
       accessorKey: "sl",
       header: "SL",
       enableHiding: false,
-      size: 55,
+      size: 35,
       cell: ({ row }) => (
-        <span className="font-medium text-foreground">
+        <span className="text-[10px] font-medium text-foreground">
           {row.original.sl}
         </span>
       ),
@@ -293,9 +570,12 @@ export const assignedColumns = (
       accessorKey: "referenceNumber",
       header: "Reference No",
       enableHiding: false,
-      size: 190,
+      size: 80,
       cell: ({ row }) => (
-        <div className="max-w-[180px] break-words text-xs font-medium text-foreground">
+        <div
+          className="max-w-[76px] truncate text-[10px] font-medium text-foreground"
+          title={emptyValue(row.original.referenceNumber)}
+        >
           {emptyValue(row.original.referenceNumber)}
         </div>
       ),
@@ -305,9 +585,9 @@ export const assignedColumns = (
       accessorKey: "employeeId",
       header: "Employee ID",
       enableHiding: true,
-      size: 110,
+      size: 82,
       cell: ({ row }) => (
-        <span className="text-xs font-medium text-foreground">
+        <span className="text-[10px] font-medium text-foreground">
           {emptyValue(row.original.employeeId)}
         </span>
       ),
@@ -317,19 +597,24 @@ export const assignedColumns = (
       accessorKey: "employeeName",
       header: "Employee",
       enableHiding: true,
-      size: 220,
+      size: 170,
       cell: ({ row }) => {
         const device = row.original;
 
         return (
-          <div className="flex min-w-[180px] items-center gap-2.5">
-            <UserAvatar
-              name={device.employeeName}
-              src={device.avatarUrl}
-            />
+          <div className="flex min-w-0 items-center gap-1.5">
+            <div className="scale-90">
+              <UserAvatar
+                name={device.employeeName}
+                src={device.avatarUrl}
+              />
+            </div>
 
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">
+              <p
+                className="max-w-[115px] truncate text-[10px] font-medium text-foreground"
+                title={emptyValue(device.employeeName)}
+              >
                 {emptyValue(device.employeeName)}
               </p>
             </div>
@@ -338,14 +623,32 @@ export const assignedColumns = (
       },
     },
 
+    // {
+    //   accessorKey: "designation",
+    //   header: "Designation",
+    //   enableHiding: true,
+    //   size: 105,
+    //   cell: ({ row }) => (
+    //     <div
+    //       className="max-w-[100px] truncate text-[10px] text-foreground"
+    //       title={emptyValue(row.original.designation)}
+    //     >
+    //       {emptyValue(row.original.designation)}
+    //     </div>
+    //   ),
+    // },
+
     {
-      accessorKey: "designation",
-      header: "Designation",
+      accessorKey: "deviceSl",
+      header: "Device Serial No",
       enableHiding: true,
-      size: 170,
+      size: 145,
       cell: ({ row }) => (
-        <div className="max-w-[160px] break-words text-xs text-foreground">
-          {emptyValue(row.original.designation)}
+        <div
+          className="max-w-[135px] truncate text-[10px] font-medium text-foreground"
+          title={emptyValue(row.original.deviceSl)}
+        >
+          {emptyValue(row.original.deviceSl)}
         </div>
       ),
     },
@@ -354,9 +657,12 @@ export const assignedColumns = (
       accessorKey: "category",
       header: "Category",
       enableHiding: true,
-      size: 145,
+      size: 90,
       cell: ({ row }) => (
-        <div className="max-w-[140px] break-words text-xs text-foreground">
+        <div
+          className="max-w-[85px] truncate text-[10px] text-foreground"
+          title={emptyValue(row.original.category)}
+        >
           {emptyValue(row.original.category)}
         </div>
       ),
@@ -366,9 +672,12 @@ export const assignedColumns = (
       accessorKey: "model",
       header: "Model",
       enableHiding: true,
-      size: 160,
+      size: 82,
       cell: ({ row }) => (
-        <div className="max-w-[150px] break-words text-xs text-foreground">
+        <div
+          className="max-w-[78px] truncate text-[10px] text-foreground"
+          title={emptyValue(row.original.model)}
+        >
           {emptyValue(row.original.model)}
         </div>
       ),
@@ -378,13 +687,13 @@ export const assignedColumns = (
       accessorKey: "status",
       header: "Status",
       enableHiding: false,
-      size: 120,
+      size: 78,
       cell: ({ row }) => {
         const status = row.original.status;
 
         return (
           <span
-            className={`inline-flex whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-medium ${statusClass(
+            className={`inline-flex whitespace-nowrap rounded border px-1.5 py-0.5 text-[9px] font-medium ${statusClass(
               status
             )}`}
           >
@@ -398,7 +707,7 @@ export const assignedColumns = (
       id: "actions",
       header: "Actions",
       enableHiding: false,
-      size: 125,
+      size: 86,
       cell: ({ row }) => {
         const device = row.original;
 
@@ -408,10 +717,10 @@ export const assignedColumns = (
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 gap-1.5 px-2.5 text-xs"
+                className="h-7 gap-1 px-1.5 text-[9px]"
               >
                 Actions
-                <ChevronDown className="h-3.5 w-3.5" />
+                <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
 
@@ -455,30 +764,35 @@ export const assignedColumns = (
     },
 
     /*
-     * ================= OPTIONAL COLUMNS =================
-     * These should be hidden by default in DataTable.
-     * Users can enable them from the Columns dropdown.
+     * OPTIONAL COLUMNS
+     * Hidden initially in DataTable.
      */
 
-    {
-      accessorKey: "deviceSl",
-      header: "Device Serial Number",
-      enableHiding: true,
-      size: 190,
-      cell: ({ row }) => (
-        <div className="max-w-[180px] break-all text-xs font-medium text-foreground">
-          {emptyValue(row.original.deviceSl)}
-        </div>
-      ),
-    },
+    // {
+    //   accessorKey: "deviceSl",
+    //   header: "Device Serial Number",
+    //   enableHiding: true,
+    //   size: 160,
+    //   cell: ({ row }) => (
+    //     <div
+    //       className="max-w-[150px] truncate text-[10px] font-medium text-foreground"
+    //       title={emptyValue(row.original.deviceSl)}
+    //     >
+    //       {emptyValue(row.original.deviceSl)}
+    //     </div>
+    //   ),
+    // },
 
     {
       accessorKey: "mrnNumber",
       header: "MR No",
       enableHiding: true,
-      size: 180,
+      size: 150,
       cell: ({ row }) => (
-        <div className="max-w-[170px] break-all text-xs text-foreground">
+        <div
+          className="max-w-[140px] truncate text-[10px] text-foreground"
+          title={emptyValue(row.original.mrnNumber)}
+        >
           {emptyValue(row.original.mrnNumber)}
         </div>
       ),
@@ -488,9 +802,12 @@ export const assignedColumns = (
       accessorKey: "prNumber",
       header: "PR No",
       enableHiding: true,
-      size: 180,
+      size: 150,
       cell: ({ row }) => (
-        <div className="max-w-[170px] break-all text-xs text-foreground">
+        <div
+          className="max-w-[140px] truncate text-[10px] text-foreground"
+          title={emptyValue(row.original.prNumber)}
+        >
           {emptyValue(row.original.prNumber)}
         </div>
       ),
@@ -500,9 +817,12 @@ export const assignedColumns = (
       accessorKey: "department",
       header: "Department",
       enableHiding: true,
-      size: 210,
+      size: 180,
       cell: ({ row }) => (
-        <div className="max-w-[200px] break-words text-xs text-foreground">
+        <div
+          className="max-w-[170px] truncate text-[10px] text-foreground"
+          title={emptyValue(row.original.department)}
+        >
           {emptyValue(row.original.department)}
         </div>
       ),
@@ -512,9 +832,9 @@ export const assignedColumns = (
       accessorKey: "brand",
       header: "Brand",
       enableHiding: true,
-      size: 140,
+      size: 110,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {emptyValue(row.original.brand)}
         </span>
       ),
@@ -524,9 +844,9 @@ export const assignedColumns = (
       accessorKey: "deviceType",
       header: "Device Type",
       enableHiding: true,
-      size: 130,
+      size: 110,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {emptyValue(row.original.deviceType)}
         </span>
       ),
@@ -536,9 +856,12 @@ export const assignedColumns = (
       accessorKey: "vendor",
       header: "Vendor",
       enableHiding: true,
-      size: 170,
+      size: 150,
       cell: ({ row }) => (
-        <div className="max-w-[160px] break-words text-xs text-foreground">
+        <div
+          className="max-w-[140px] truncate text-[10px] text-foreground"
+          title={emptyValue(row.original.vendor)}
+        >
           {emptyValue(row.original.vendor)}
         </div>
       ),
@@ -548,9 +871,9 @@ export const assignedColumns = (
       accessorKey: "assignedDate",
       header: "Assigned Date",
       enableHiding: true,
-      size: 140,
+      size: 120,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {formatDate(row.original.assignedDate)}
         </span>
       ),
@@ -560,9 +883,9 @@ export const assignedColumns = (
       accessorKey: "returnedDate",
       header: "Returned Date",
       enableHiding: true,
-      size: 140,
+      size: 120,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {formatDate(row.original.returnedDate)}
         </span>
       ),
@@ -572,9 +895,9 @@ export const assignedColumns = (
       accessorKey: "transferredDate",
       header: "Transferred Date",
       enableHiding: true,
-      size: 150,
+      size: 130,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {formatDate(row.original.transferredDate)}
         </span>
       ),
@@ -584,9 +907,9 @@ export const assignedColumns = (
       accessorKey: "purchaseDate",
       header: "Purchase Date",
       enableHiding: true,
-      size: 140,
+      size: 120,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {formatDate(row.original.purchaseDate)}
         </span>
       ),
@@ -596,9 +919,9 @@ export const assignedColumns = (
       accessorKey: "warranty",
       header: "Warranty Date",
       enableHiding: true,
-      size: 140,
+      size: 120,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {formatDate(row.original.warranty)}
         </span>
       ),
@@ -608,9 +931,9 @@ export const assignedColumns = (
       accessorKey: "deviceAge",
       header: "Device Age",
       enableHiding: true,
-      size: 120,
+      size: 100,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {emptyValue(row.original.deviceAge)}
         </span>
       ),
@@ -620,9 +943,9 @@ export const assignedColumns = (
       accessorKey: "userUsageDuration",
       header: "Usage Duration",
       enableHiding: true,
-      size: 140,
+      size: 120,
       cell: ({ row }) => (
-        <span className="text-xs text-foreground">
+        <span className="text-[10px] text-foreground">
           {emptyValue(row.original.userUsageDuration)}
         </span>
       ),
@@ -632,10 +955,27 @@ export const assignedColumns = (
       accessorKey: "remarks",
       header: "Remarks",
       enableHiding: true,
-      size: 220,
+      size: 180,
       cell: ({ row }) => (
-        <div className="max-w-[210px] break-words text-xs text-foreground">
+        <div
+          className="max-w-[170px] truncate text-[10px] text-foreground"
+          title={emptyValue(row.original.remarks)}
+        >
           {emptyValue(row.original.remarks)}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "designation",
+      header: "Designation",
+      enableHiding: true,
+      size: 135,
+      cell: ({ row }) => (
+        <div
+          className="max-w-[125px] truncate text-[10px] text-foreground"
+          title={emptyValue(row.original.designation)}
+        >
+          {emptyValue(row.original.designation)}
         </div>
       ),
     },

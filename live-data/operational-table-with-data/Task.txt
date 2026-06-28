@@ -1,0 +1,47 @@
+
+
+ITM
+-----------------------------------------------------------------
+
+1. Database Optimization Tasks
+
+
+Convert all existing tables to PostgreSQL-compatible schema
+Add primary keys and foreign key constraints
+Normalize database relationships
+Add indexing for performance optimization
+Implement audit fields:
+created_at
+updated_at
+created_by
+updated_by
+Optimize query performance and scalability
+
+
+------------------------------------------------------------------
+
+Pico Photos Android App (Demo)
+
+Android SDK — core Android development framework
+Kotlin or Java — main Android programming languages
+AI/Image Processing algorithms — for duplicate photo detection and smart sorting
+SQLite / Room Database — local storage for photo metadata
+MediaStore API — to access and organize device photos
+Cloud or Subscription APIs — for premium features and account handling
+Material Design UI — modern Android interface design
+
+--------------------------------------------------------------------
+
+
+Pico Photos Android App (Demo)
+
+Android SDK — core Android development framework
+Kotlin or Java — main Android programming languages
+AI/Image Processing algorithms — for duplicate photo detection and smart sorting
+SQLite / Room Database — local storage for photo metadata
+MediaStore API — to access and organize device photos
+Cloud or Subscription APIs — for premium features and account handling
+Material Design UI — modern Android interface design
+
+-------------------------------------------------------------------
+
