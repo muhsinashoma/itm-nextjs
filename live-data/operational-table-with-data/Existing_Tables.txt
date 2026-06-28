@@ -1,0 +1,109 @@
+
+--------------------------------------------------------------
+ Common Table for Employee Information
+
+tbl_office_info
+tbl_personal_info
+
+tbl_user_info  -->previous authenticaton file. now no need
+-------------------------------------------------------------
+
+
+TT Tables
+-------------------------------------------------------------
+
+tbl_trouble_input
+
+tbl_tt_update        ---> TT History
+
+tbl_tt_reason
+
+tbl_track_tt         ->TT Track 
+--------------------------------------------------------------
+
+
+Device Category/Accessories  
+
+tbl_inventory_category
+ibl_it_usages_parts_category_list
+tbl_it_inventory_device_form     -->IT Accessories Input Form 
+
+
+------------------------------------------------------------------
+
+Inventory
+
+tbl_it_equipment_request_stack_inventory
+tbl_it_equipment_requisition_stack_info
+
+
+--------------------------------------------------------------------
+User Assigned Table
+
+
+tbl_it_equipment_requisition_form ->tbl_device_ownership_transfer_form
+				  ->tbl_it_equipment_status_history
+				  ->tbl_device_claim	
+                                  ->tbl_device_clamin_history
+
+--------------------------------------------------------------------
+
+Query Type
+
+tbl_fault_type1
+tbl_fault_type_other
+-----------------------------------------------------------------
+
+Category Change Table to store log file
+
+tbl_history_table_it_equipment
+
+------------------------------------------------------------------
+
+Vendor Category
+
+tbl_device_ownership_vendor_list
+
+tbl_device_warrenty_vendor_list 
+
+----------------------------------------------------------------------
+
+Access Level for IT Personnel
+
+tbl_user_info      :   status 1 and 2 (Role Type)
+
+----------------------------------------------------------------------
+
+Login Table image setting
+
+tbl_login_backgound_image
+---------------------------------------------------------------------
+
+Tier Table
+
+tbl_tier
+
+----------------------------------------------------------------------
+
+Query Type
+
+tbl_fault_type1
+tbl_fault_type_other
+---------------------------------------------------------------
+Damage Data : 'Delivered  to Disposal Committee for sell -2025'
+
+tbl_inventory_damage
+--------------------------------------------------------------
+
+Login Log File
+
+tbl_login_log
+
+--------------------------------------------------------------
+
+authSendEmail
+
+tbl_emails
+
+--------------------------------------------------------------------
+
