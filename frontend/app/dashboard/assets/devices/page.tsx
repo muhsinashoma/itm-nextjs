@@ -1,13 +1,38 @@
+
 //frontend/app/dashboard/assets/devices/page.tsx
+
+
 "use client";
-import { useRouter } from "next/navigation";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+    ChevronLeft,
+    ChevronRight,
+    Eye,
+    Filter,
+    MoreHorizontal,
+    Pencil,
+    Printer,
+    RefreshCw,
+    Search,
+    UserRound,
+    X,
+} from "lucide-react";
+
 import {
     assetDeviceApi,
     type AssetDevice,
-
 } from "@/lib/api";
+
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const PAGE_SIZE = 50;
 
@@ -42,22 +67,100 @@ function formatDate(value: string | null) {
 
 function statusClass(status: number) {
     const map: Record<number, string> = {
-        0: "bg-orange-50 text-orange-700 border-orange-200",
-        1: "bg-blue-50 text-blue-700 border-blue-200",
-        2: "bg-violet-50 text-violet-700 border-violet-200",
-        3: "bg-amber-50 text-amber-700 border-amber-200",
-        4: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        5: "bg-red-50 text-red-700 border-red-200",
-        7: "bg-teal-50 text-teal-700 border-teal-200",
-        8: "bg-pink-50 text-pink-700 border-pink-200",
-        15: "bg-cyan-50 text-cyan-700 border-cyan-200",
+        0: "border-orange-200 bg-orange-50 text-orange-700",
+        1: "border-blue-200 bg-blue-50 text-blue-700",
+        2: "border-violet-200 bg-violet-50 text-violet-700",
+        3: "border-amber-200 bg-amber-50 text-amber-700",
+        4: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        5: "border-red-200 bg-red-50 text-red-700",
+        7: "border-teal-200 bg-teal-50 text-teal-700",
+        8: "border-pink-200 bg-pink-50 text-pink-700",
+        15: "border-cyan-200 bg-cyan-50 text-cyan-700",
     };
 
-    return map[status] ?? "bg-slate-50 text-slate-700 border-slate-200";
+    return (
+        map[status] ??
+        "border-slate-200 bg-slate-50 text-slate-700"
+    );
+}
+
+function getInitials(name: string | null) {
+    if (!name?.trim()) return "NA";
+
+    const parts = name
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+    }
+
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function getAvatarTone(name: string | null) {
+    const tones = [
+        "bg-blue-100 text-blue-700",
+        "bg-violet-100 text-violet-700",
+        "bg-emerald-100 text-emerald-700",
+        "bg-amber-100 text-amber-700",
+        "bg-rose-100 text-rose-700",
+        "bg-cyan-100 text-cyan-700",
+        "bg-indigo-100 text-indigo-700",
+        "bg-teal-100 text-teal-700",
+    ];
+
+    if (!name) {
+        return "bg-slate-100 text-slate-600";
+    }
+
+    const number = [...name].reduce(
+        (total, letter) => total + letter.charCodeAt(0),
+        0
+    );
+
+    return tones[number % tones.length];
+}
+
+
+function EmployeeAvatar({
+    name,
+    image,
+}: {
+    name: string | null;
+    image: string | null;
+}) {
+    const [imageFailed, setImageFailed] = useState(false);
+
+    const canShowImage = Boolean(image && !imageFailed);
+
+    return (
+        <div
+            className={`relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold ${canShowImage
+                ? "bg-muted"
+                : getAvatarTone(name)
+                }`}
+        >
+            {canShowImage ? (
+                <img
+                    src={image!}
+                    alt={name || "Employee"}
+                    className="h-full w-full object-cover"
+                    onError={() => setImageFailed(true)}
+                />
+            ) : name ? (
+                getInitials(name)
+            ) : (
+                <UserRound className="h-4 w-4" />
+            )}
+        </div>
+    );
 }
 
 export default function AssetDevicesPage() {
     const router = useRouter();
+
     const [items, setItems] = useState<AssetDevice[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -69,8 +172,6 @@ export default function AssetDevicesPage() {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-
-
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -117,40 +218,94 @@ export default function AssetDevicesPage() {
         setPage(1);
     }
 
+    function openDevice(item: AssetDevice) {
+        router.push(`/dashboard/assets/devices/${item.id}`);
+    }
+
+    function printDevice(item: AssetDevice) {
+        window.open(
+            `/dashboard/assets/devices/${item.id}?print=1`,
+            "_blank",
+            "noopener,noreferrer,width=1100,height=850"
+        );
+    }
+
+    function editDevice(item: AssetDevice) {
+        router.push(`/dashboard/assets/devices/${item.id}?mode=edit`);
+    }
+
+    const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+    const endItem = Math.min(page * PAGE_SIZE, total);
+
     return (
-        <div className="p-4 space-y-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-4 p-4">
+            {/* Header */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
+                    <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Dashboard</span>
+                        <span>/</span>
+                        <span>Inventory</span>
+                        <span>/</span>
+                        <span className="font-medium text-primary">
+                            Asset Devices
+                        </span>
+                    </div>
+
                     <h1 className="text-xl font-bold text-foreground">
                         Asset Devices
                     </h1>
 
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Current unique device inventory from asset devices.
+                        Current unique device inventory and employee assignment registry.
                     </p>
                 </div>
 
-                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
-                    <span className="text-muted-foreground">Total Devices: </span>
-                    <span className="font-bold text-primary">
-                        {total.toLocaleString()}
-                    </span>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={loadAssets}
+                        disabled={loading}
+                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <RefreshCw
+                            className={`h-4 w-4 ${loading ? "animate-spin" : ""
+                                }`}
+                        />
+                        Refresh
+                    </button>
+
+                    <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+                        <span className="text-muted-foreground">
+                            Total Devices:
+                        </span>
+                        <span className="ml-1 font-bold text-primary">
+                            {total.toLocaleString()}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                    <input
-                        value={searchInput}
-                        onChange={(event) => setSearchInput(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                                applyFilters();
+            {/* Filter Area */}
+            <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+                <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1.6fr)_180px_180px_auto]">
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                        <input
+                            value={searchInput}
+                            onChange={(event) =>
+                                setSearchInput(event.target.value)
                             }
-                        }}
-                        placeholder="Search serial, employee, brand, vendor..."
-                        className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/25 md:col-span-2"
-                    />
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                    applyFilters();
+                                }
+                            }}
+                            placeholder="Search serial, employee, brand, model or vendor..."
+                            className="h-10 w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none transition focus:ring-2 focus:ring-primary/20"
+                        />
+                    </div>
 
                     <select
                         value={status}
@@ -158,7 +313,7 @@ export default function AssetDevicesPage() {
                             setStatus(event.target.value);
                             setPage(1);
                         }}
-                        className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                        className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:ring-2 focus:ring-primary/20"
                     >
                         {STATUS_OPTIONS.map((item) => (
                             <option key={item.value} value={item.value}>
@@ -173,43 +328,101 @@ export default function AssetDevicesPage() {
                             setCategory(event.target.value);
                             setPage(1);
                         }}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                                setPage(1);
+                            }
+                        }}
                         placeholder="Category, e.g. Laptop"
-                        className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                        className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:ring-2 focus:ring-primary/20"
                     />
+
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={applyFilters}
+                            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                        >
+                            <Filter className="h-4 w-4" />
+                            Search
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            title="Clear filters"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                        type="button"
-                        onClick={applyFilters}
-                        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                    >
-                        Search
-                    </button>
+                {(search || status || category) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">
+                            Active filters:
+                        </span>
 
-                    <button
-                        type="button"
-                        onClick={clearFilters}
-                        className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-                    >
-                        Clear Filters
-                    </button>
-                </div>
+                        {search && (
+                            <span className="rounded-md bg-primary/10 px-2 py-1 font-medium text-primary">
+                                Search: {search}
+                            </span>
+                        )}
+
+                        {status && (
+                            <span className="rounded-md bg-primary/10 px-2 py-1 font-medium text-primary">
+                                Status:{" "}
+                                {
+                                    STATUS_OPTIONS.find(
+                                        (item) => item.value === status
+                                    )?.label
+                                }
+                            </span>
+                        )}
+
+                        {category && (
+                            <span className="rounded-md bg-primary/10 px-2 py-1 font-medium text-primary">
+                                Category: {category}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
+            {/* Table */}
             <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1180px] text-sm">
+                    <table className="w-full min-w-[1450px] text-sm">
                         <thead className="border-b border-border bg-muted/40">
-                            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                                <th className="px-4 py-3 font-semibold">Serial</th>
-                                <th className="px-4 py-3 font-semibold">Device</th>
-                                <th className="px-4 py-3 font-semibold">Employee</th>
-                                <th className="px-4 py-3 font-semibold">Department</th>
-                                <th className="px-4 py-3 font-semibold">Vendor</th>
-                                <th className="px-4 py-3 font-semibold">MR / PR</th>
-                                <th className="px-4 py-3 font-semibold">Assigned Date</th>
-                                <th className="px-4 py-3 font-semibold">Status</th>
+                            <tr className="text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                                <th className="min-w-[175px] px-4 py-3">
+                                    Serial
+                                </th>
+                                <th className="min-w-[230px] px-4 py-3">
+                                    Device
+                                </th>
+                                <th className="min-w-[240px] px-4 py-3">
+                                    Employee
+                                </th>
+                                <th className="min-w-[220px] px-4 py-3">
+                                    Department
+                                </th>
+                                <th className="min-w-[150px] px-4 py-3">
+                                    Vendor
+                                </th>
+                                <th className="min-w-[200px] px-4 py-3">
+                                    MR / PR
+                                </th>
+                                <th className="min-w-[130px] px-4 py-3">
+                                    Assigned
+                                </th>
+                                <th className="min-w-[125px] px-4 py-3">
+                                    Status
+                                </th>
+                                <th className="w-[70px] px-4 py-3 text-right">
+                                    Action
+                                </th>
                             </tr>
                         </thead>
 
@@ -217,10 +430,13 @@ export default function AssetDevicesPage() {
                             {loading && (
                                 <tr>
                                     <td
-                                        colSpan={8}
-                                        className="px-4 py-12 text-center text-muted-foreground"
+                                        colSpan={9}
+                                        className="px-4 py-16 text-center text-sm text-muted-foreground"
                                     >
-                                        Loading asset devices...
+                                        <div className="flex flex-col items-center justify-center gap-2">
+                                            <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+                                            Loading asset devices...
+                                        </div>
                                     </td>
                                 </tr>
                             )}
@@ -228,8 +444,8 @@ export default function AssetDevicesPage() {
                             {!loading && error && (
                                 <tr>
                                     <td
-                                        colSpan={8}
-                                        className="px-4 py-12 text-center text-red-600"
+                                        colSpan={9}
+                                        className="px-4 py-16 text-center text-sm text-red-600"
                                     >
                                         {error}
                                     </td>
@@ -239,8 +455,8 @@ export default function AssetDevicesPage() {
                             {!loading && !error && items.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan={8}
-                                        className="px-4 py-12 text-center text-muted-foreground"
+                                        colSpan={9}
+                                        className="px-4 py-16 text-center text-sm text-muted-foreground"
                                     >
                                         No asset devices found.
                                     </td>
@@ -250,78 +466,164 @@ export default function AssetDevicesPage() {
                             {!loading &&
                                 !error &&
                                 items.map((item) => (
-                                    // <tr
-                                    //     key={item.id}
-                                    //     className="border-b border-border/70 transition-colors hover:bg-muted/30"
-                                    // >
-
                                     <tr
                                         key={item.id}
-                                        onClick={() => router.push(`/dashboard/assets/devices/${item.id}`)}
-                                        className="cursor-pointer border-b border-border/70 transition-colors hover:bg-muted/50"
+                                        onClick={() => openDevice(item)}
+                                        className="group cursor-pointer border-b border-border/70 transition-colors hover:bg-primary/[0.035]"
                                     >
-                                        <td className="px-4 py-3 font-medium text-foreground">
-                                            {item.device_serial || "-"}
+                                        <td className="px-4 py-3">
+                                            <div className="font-semibold tracking-wide text-foreground">
+                                                {item.device_serial || "-"}
+                                            </div>
+
+                                            <div className="mt-1 text-[11px] text-muted-foreground">
+                                                Asset ID #{item.id}
+                                            </div>
                                         </td>
 
                                         <td className="px-4 py-3">
-                                            <div className="font-medium text-foreground">
+                                            <div className="font-semibold text-foreground">
                                                 {[item.brand, item.model]
                                                     .filter(Boolean)
                                                     .join(" ") || "-"}
                                             </div>
 
-                                            <div className="mt-0.5 text-xs text-muted-foreground">
-                                                {item.category || "-"}
-                                                {item.device_type
-                                                    ? ` • ${item.device_type}`
-                                                    : ""}
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                {item.category ||
+                                                    "Uncategorized"}
                                             </div>
                                         </td>
 
                                         <td className="px-4 py-3">
-                                            <div className="font-medium text-foreground">
-                                                {item.emp_name || "Unassigned"}
-                                            </div>
+                                            <div className="flex min-w-[180px] items-center gap-2.5">
 
-                                            <div className="mt-0.5 text-xs text-muted-foreground">
-                                                {item.emp_id || "-"}
+                                                <EmployeeAvatar
+                                                    name={item.emp_name}
+                                                    image={item.employee_image}
+                                                />
+
+                                                <div className="min-w-0">
+                                                    <div className="truncate font-semibold text-foreground">
+                                                        {item.emp_name ||
+                                                            "Unassigned"}
+                                                    </div>
+
+                                                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                        {item.emp_id ||
+                                                            "No employee assigned"}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
 
                                         <td className="px-4 py-3">
-                                            <div className="text-foreground">
+                                            <div className="max-w-[210px] font-medium leading-5 text-foreground">
                                                 {item.department || "-"}
                                             </div>
 
-                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                            <div className="mt-1 text-xs text-muted-foreground">
                                                 {item.designation || "-"}
                                             </div>
                                         </td>
 
                                         <td className="px-4 py-3">
-                                            {item.vendor_name || "-"}
+                                            <div className="max-w-[145px] truncate font-medium text-foreground">
+                                                {item.vendor_name || "-"}
+                                            </div>
+
+                                            {item.vendor_id && (
+                                                <div className="mt-1 text-[11px] text-muted-foreground">
+                                                    Vendor #{item.vendor_id}
+                                                </div>
+                                            )}
                                         </td>
 
                                         <td className="px-4 py-3">
-                                            <div>{item.mr_number || "-"}</div>
-                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                            <div className="max-w-[200px] break-all text-xs font-medium text-foreground">
+                                                {item.mr_number || "-"}
+                                            </div>
+
+                                            <div className="mt-1 max-w-[200px] break-all text-[11px] text-muted-foreground">
                                                 {item.pr_number || "-"}
                                             </div>
                                         </td>
 
-                                        <td className="px-4 py-3">
+                                        <td className="px-4 py-3 text-xs font-medium text-foreground">
                                             {formatDate(item.assigned_date)}
                                         </td>
 
                                         <td className="px-4 py-3">
                                             <span
-                                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass(
+                                                className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-bold ${statusClass(
                                                     item.asset_status
                                                 )}`}
                                             >
                                                 {item.status_label}
                                             </span>
+                                        </td>
+
+                                        <td
+                                            className="px-4 py-3 text-right"
+                                            onClick={(event) =>
+                                                event.stopPropagation()
+                                            }
+                                        >
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button
+                                                        type="button"
+                                                        aria-label={`Actions for ${item.device_serial ||
+                                                            "asset device"
+                                                            }`}
+                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
+                                                    >
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+
+                                                <DropdownMenuContent
+                                                    align="end"
+                                                    className="w-48 border border-border bg-card text-card-foreground"
+                                                >
+                                                    <DropdownMenuLabel className="text-xs">
+                                                        Asset Actions
+                                                    </DropdownMenuLabel>
+
+                                                    <DropdownMenuSeparator />
+
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openDevice(item)
+                                                        }
+                                                        className="gap-2 text-sm"
+                                                    >
+                                                        <Eye className="h-4 w-4 text-primary" />
+                                                        View Details
+                                                    </DropdownMenuItem>
+
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            printDevice(item)
+                                                        }
+                                                        className="gap-2 text-sm"
+                                                    >
+                                                        <Printer className="h-4 w-4 text-emerald-600" />
+                                                        Print Preview
+                                                    </DropdownMenuItem>
+
+                                                    <DropdownMenuSeparator />
+
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            editDevice(item)
+                                                        }
+                                                        className="gap-2 text-sm"
+                                                    >
+                                                        <Pencil className="h-4 w-4 text-amber-600" />
+                                                        Edit Device
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </td>
                                     </tr>
                                 ))}
@@ -329,18 +631,19 @@ export default function AssetDevicesPage() {
                     </table>
                 </div>
 
+                {/* Pagination */}
                 <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
                         Showing{" "}
-                        <span className="font-medium text-foreground">
-                            {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+                        <span className="font-semibold text-foreground">
+                            {startItem}
                         </span>
                         {" - "}
-                        <span className="font-medium text-foreground">
-                            {Math.min(page * PAGE_SIZE, total)}
+                        <span className="font-semibold text-foreground">
+                            {endItem}
                         </span>
                         {" of "}
-                        <span className="font-medium text-foreground">
+                        <span className="font-semibold text-foreground">
                             {total.toLocaleString()}
                         </span>
                     </p>
@@ -349,15 +652,26 @@ export default function AssetDevicesPage() {
                         <button
                             type="button"
                             disabled={page <= 1 || loading}
-                            onClick={() => setPage((current) => Math.max(1, current - 1))}
-                            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+                            onClick={() =>
+                                setPage((current) =>
+                                    Math.max(1, current - 1)
+                                )
+                            }
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                         >
+                            <ChevronLeft className="h-4 w-4" />
                             Previous
                         </button>
 
-                        <span className="text-sm text-muted-foreground">
-                            Page <span className="font-medium text-foreground">{page}</span> of{" "}
-                            <span className="font-medium text-foreground">{totalPages}</span>
+                        <span className="px-1 text-sm text-muted-foreground">
+                            Page{" "}
+                            <span className="font-semibold text-foreground">
+                                {page}
+                            </span>{" "}
+                            of{" "}
+                            <span className="font-semibold text-foreground">
+                                {totalPages}
+                            </span>
                         </span>
 
                         <button
@@ -368,9 +682,10 @@ export default function AssetDevicesPage() {
                                     Math.min(totalPages, current + 1)
                                 )
                             }
-                            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Next
+                            <ChevronRight className="h-4 w-4" />
                         </button>
                     </div>
                 </div>

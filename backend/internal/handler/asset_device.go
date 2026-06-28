@@ -1,4 +1,566 @@
-//backend/interbal/handler/asset_device.go
+// //backend/interbal/handler/asset_device.go
+
+// package handler
+
+// import (
+// 	"fmt"
+// 	"strconv"
+// 	"strings"
+
+// 	"itm-api/pkg/response"
+
+// 	"github.com/gin-gonic/gin"
+// 	"github.com/jackc/pgx/v5/pgxpool"
+// )
+
+// type AssetDeviceHandler struct {
+// 	db *pgxpool.Pool
+// }
+
+// func NewAssetDeviceHandler(db *pgxpool.Pool) *AssetDeviceHandler {
+// 	return &AssetDeviceHandler{db: db}
+// }
+
+// func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
+// 	g := rg.Group("/assets")
+
+// 	g.GET("/devices", h.List)
+// 	g.GET("/devices/:id/history", h.History)
+// 	g.GET("/devices/:id", h.GetByID)
+// }
+
+// type AssetDevice struct {
+// 	ID            int64   `json:"id"`
+// 	DeviceSerial  *string `json:"device_serial"`
+// 	Category      *string `json:"category"`
+// 	Brand         *string `json:"brand"`
+// 	Model         *string `json:"model"`
+// 	DeviceType    *string `json:"device_type"`
+
+// 	AssetStatus   int16   `json:"asset_status"`
+// 	StatusLabel   string  `json:"status_label"`
+
+// 	EmpID         *string `json:"emp_id"`
+// 	EmpName       *string `json:"emp_name"`
+// 	EmployeeImage *string `json:"employee_image"`
+// 	Department    *string `json:"department"`
+// 	Designation   *string `json:"designation"`
+// 	AssignedDate  *string `json:"assigned_date"`
+
+// 	VendorID       *int64  `json:"vendor_id"`
+// 	VendorName     *string `json:"vendor_name"`
+// 	VendorFlag     *int16  `json:"vendor_flag"`
+
+// 	MRNumber       *string `json:"mr_number"`
+// 	PRNumber       *string `json:"pr_number"`
+
+// 	PurchaseDate   *string `json:"purchase_date"`
+// 	WarrantyDate   *string `json:"warranty_date"`
+
+// 	CreatedAt      *string `json:"created_at"`
+// 	UpdatedAt      *string `json:"updated_at"`
+// }
+
+// type AssetDeviceHistory struct {
+// 	ID                  int64   `json:"id"`
+// 	AssetDeviceID       int64   `json:"asset_device_id"`
+// 	LegacyEquipmentID   int64   `json:"legacy_equipment_id"`
+
+// 	DeviceSerial        *string `json:"device_serial"`
+// 	StatusCode          *int16  `json:"status_code"`
+// 	StatusLabel         string  `json:"status_label"`
+// 	RawStatus           *string `json:"raw_status"`
+
+// 	PreviousStatus      *int    `json:"previous_status"`
+// 	ReturnStatus        *int16  `json:"return_status"`
+// 	TransferStatus      *int16  `json:"transfer_status"`
+
+// 	EmpID               *string `json:"emp_id"`
+// 	EmpName             *string `json:"emp_name"`
+// 	Department          *string `json:"department"`
+// 	Designation         *string `json:"designation"`
+
+// 	MRNumber            *string `json:"mr_number"`
+// 	PRNumber            *string `json:"pr_number"`
+// 	Vendor              *string `json:"vendor"`
+
+// 	AssignedDate        *string `json:"assigned_date"`
+// 	TransferredAt       *string `json:"transferred_at"`
+// 	ReturnedAt          *string `json:"returned_at"`
+
+// 	HistoryReason       string  `json:"history_reason"`
+// 	CreatedAtSource     *string `json:"created_at_source"`
+// 	UpdatedAtSource     *string `json:"updated_at_source"`
+// 	MigratedAt          *string `json:"migrated_at"`
+// }
+
+// func (h *AssetDeviceHandler) List(c *gin.Context) {
+// 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+// 	// Supports both:
+// 	// ?limit=50
+// 	// ?page_size=50
+// 	limitText := c.DefaultQuery("limit", c.DefaultQuery("page_size", "50"))
+// 	limit, _ := strconv.Atoi(limitText)
+
+// 	if page < 1 {
+// 		page = 1
+// 	}
+
+// 	if limit < 1 {
+// 		limit = 50
+// 	}
+
+// 	if limit > 200 {
+// 		limit = 200
+// 	}
+
+// 	offset := (page - 1) * limit
+
+// 	args := make([]any, 0)
+// 	whereParts := []string{
+// 		"WHERE ad.row_status = 1",
+// 	}
+
+// 	placeholder := 1
+
+// 	// Optional: ?category=Laptop
+// 	if category := strings.TrimSpace(c.Query("category")); category != "" {
+// 		args = append(args, category)
+// 		whereParts = append(
+// 			whereParts,
+// 			fmt.Sprintf("AND LOWER(COALESCE(ad.category, '')) = LOWER($%d)", placeholder),
+// 		)
+// 		placeholder++
+// 	}
+
+// 	// Optional: ?status=1
+// 	// 0=Damaged, 1=Assigned, 2=Available, 3=Transferred,
+// 	// 4=Returned, 5=Lost, 7=Ownership Transfer,
+// 	// 8=Claim Raised, 15=Service Request
+// 	if statusText := strings.TrimSpace(c.Query("status")); statusText != "" {
+// 		status, err := strconv.Atoi(statusText)
+// 		if err != nil {
+// 			response.BadRequest(c, "status must be a valid number")
+// 			return
+// 		}
+
+// 		args = append(args, status)
+// 		whereParts = append(
+// 			whereParts,
+// 			fmt.Sprintf("AND ad.asset_status = $%d", placeholder),
+// 		)
+// 		placeholder++
+// 	}
+
+// 	// Optional: ?vendor_id=12
+// 	if vendorIDText := strings.TrimSpace(c.Query("vendor_id")); vendorIDText != "" {
+// 		vendorID, err := strconv.ParseInt(vendorIDText, 10, 64)
+// 		if err != nil {
+// 			response.BadRequest(c, "vendor_id must be a valid number")
+// 			return
+// 		}
+
+// 		args = append(args, vendorID)
+// 		whereParts = append(
+// 			whereParts,
+// 			fmt.Sprintf("AND ad.vendor_id = $%d", placeholder),
+// 		)
+// 		placeholder++
+// 	}
+
+// 	// Optional:
+// 	// ?search=DELL
+// 	// searches serial, employee, category, brand, model and vendor
+// 	if search := strings.TrimSpace(c.Query("search")); search != "" {
+// 		args = append(args, "%"+search+"%")
+
+// 		whereParts = append(
+// 			whereParts,
+// 			fmt.Sprintf(`
+// 				AND (
+// 					ad.device_serial ILIKE $%d
+// 					OR ad.emp_id ILIKE $%d
+// 					OR ad.emp_name ILIKE $%d
+// 					OR ad.category ILIKE $%d
+// 					OR ad.brand ILIKE $%d
+// 					OR ad.model ILIKE $%d
+// 					OR v.vendor_name ILIKE $%d
+// 				)
+// 			`, placeholder, placeholder, placeholder, placeholder, placeholder, placeholder, placeholder),
+// 		)
+
+// 		placeholder++
+// 	}
+
+// 	where := strings.Join(whereParts, "\n")
+
+// 	// Total count before pagination
+// 	countSQL := fmt.Sprintf(`
+// 		SELECT COUNT(*)
+
+// 		FROM public.asset_devices ad
+// LEFT JOIN public.vendors v
+//     ON v.id = ad.vendor_id
+// LEFT JOIN public.employee_office_info e
+//     ON e.employee_id = ad.emp_id
+// 		%s
+// 	`, where)
+
+// 	var total int
+// 	if err := h.db.QueryRow(c.Request.Context(), countSQL, args...).Scan(&total); err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+
+// 	// LIMIT and OFFSET placeholders
+// 	args = append(args, limit, offset)
+
+// 	listSQL := fmt.Sprintf(`
+// 		SELECT
+// 			ad.id,
+// 			ad.device_serial,
+// 			ad.category,
+// 			ad.brand,
+// 			ad.model,
+// 			ad.device_type,
+
+// 			ad.asset_status,
+
+// 			CASE ad.asset_status
+// 				WHEN 0 THEN 'Damaged'
+// 				WHEN 1 THEN 'Assigned'
+// 				WHEN 2 THEN 'Available'
+// 				WHEN 3 THEN 'Transferred'
+// 				WHEN 4 THEN 'Returned'
+// 				WHEN 5 THEN 'Lost'
+// 				WHEN 7 THEN 'Ownership Transfer'
+// 				WHEN 8 THEN 'Claim Raised'
+// 				WHEN 15 THEN 'Service Request'
+// 				ELSE 'Unknown'
+// 			END AS status_label,
+
+// 			ad.emp_id,
+// ad.emp_name,
+// e.picture AS employee_image,
+// ad.department,
+// ad.designation,
+// ad.assigned_date::text,
+
+// 			ad.vendor_id,
+// 			COALESCE(v.vendor_name, NULLIF(BTRIM(ad.vendor_name), '')) AS vendor_name,
+// 			v.vendor_flag,
+
+// 			ad.mr_number,
+// 			ad.pr_number,
+
+// 			ad.purchase_date::text,
+// 			ad.warranty_date::text,
+
+// 			ad.created_at::text,
+// 			ad.updated_at::text
+// 		FROM public.asset_devices ad
+// 		LEFT JOIN public.vendors v
+// 			ON v.id = ad.vendor_id
+// 		%s
+// 		ORDER BY ad.updated_at DESC NULLS LAST, ad.id DESC
+// 		LIMIT $%d OFFSET $%d
+// 	`, where, placeholder, placeholder+1)
+
+// 	rows, err := h.db.Query(c.Request.Context(), listSQL, args...)
+// 	if err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+// 	defer rows.Close()
+
+// 	assets := make([]AssetDevice, 0)
+
+// 	for rows.Next() {
+// 		var asset AssetDevice
+
+// 		err := rows.Scan(
+// 			&asset.ID,
+// 			&asset.DeviceSerial,
+// 			&asset.Category,
+// 			&asset.Brand,
+// 			&asset.Model,
+// 			&asset.DeviceType,
+
+// 			&asset.AssetStatus,
+// 			&asset.StatusLabel,
+
+// 			&asset.EmpID,
+// 			&asset.EmpName,
+// 			&asset.Department,
+// 			&asset.Designation,
+// 			&asset.AssignedDate,
+
+// 			&asset.VendorID,
+// 			&asset.VendorName,
+// 			&asset.VendorFlag,
+
+// 			&asset.MRNumber,
+// 			&asset.PRNumber,
+
+// 			&asset.PurchaseDate,
+// 			&asset.WarrantyDate,
+
+// 			&asset.CreatedAt,
+// 			&asset.UpdatedAt,
+// 		)
+
+// 		if err != nil {
+// 			response.ServerError(c, err)
+// 			return
+// 		}
+
+// 		assets = append(assets, asset)
+// 	}
+
+// 	if err := rows.Err(); err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+
+// 	response.Paginated(c, assets, total, page, limit)
+// }
+
+// func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
+// 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// 	if err != nil || id < 1 {
+// 		c.JSON(400, gin.H{
+// 			"success": false,
+// 			"error":   "invalid asset device id",
+// 		})
+// 		return
+// 	}
+
+// 	const sqlQuery = `
+// 		SELECT
+// 			ad.id,
+// 			ad.device_serial,
+// 			ad.category,
+// 			ad.brand,
+// 			ad.model,
+// 			ad.device_type,
+
+// 			ad.asset_status,
+
+// 			CASE ad.asset_status
+// 				WHEN 0 THEN 'Damaged'
+// 				WHEN 1 THEN 'Assigned'
+// 				WHEN 2 THEN 'Available'
+// 				WHEN 3 THEN 'Transferred'
+// 				WHEN 4 THEN 'Returned'
+// 				WHEN 5 THEN 'Lost'
+// 				WHEN 7 THEN 'Ownership Transfer'
+// 				WHEN 8 THEN 'Claim Raised'
+// 				WHEN 15 THEN 'Service Request'
+// 				ELSE 'Unknown'
+// 			END AS status_label,
+
+// 			ad.emp_id,
+// ad.emp_name,
+// e.picture AS employee_image,
+// ad.department,
+// ad.designation,
+// ad.assigned_date::text,
+
+// 			ad.vendor_id,
+// 			COALESCE(v.vendor_name, NULLIF(BTRIM(ad.vendor_name), '')) AS vendor_name,
+// 			v.vendor_flag,
+
+// 			ad.mr_number,
+// 			ad.pr_number,
+
+// 			ad.purchase_date::text,
+// 			ad.warranty_date::text,
+
+// 			ad.created_at::text,
+// 			ad.updated_at::text
+// 		FROM public.asset_devices ad
+// LEFT JOIN public.vendors v
+//     ON v.id = ad.vendor_id
+// LEFT JOIN public.employee_office_info e
+//     ON e.employee_id = ad.emp_id
+// WHERE ad.id = $1
+// 		  AND ad.row_status = 1
+// 	`
+
+// 	var asset AssetDevice
+
+// 	err = h.db.QueryRow(c.Request.Context(), sqlQuery, id).Scan(
+// 		&asset.ID,
+// 		&asset.DeviceSerial,
+// 		&asset.Category,
+// 		&asset.Brand,
+// 		&asset.Model,
+// 		&asset.DeviceType,
+
+// 		&asset.AssetStatus,
+// 		&asset.StatusLabel,
+
+// 		&asset.EmpID,
+// 		&asset.EmpName,
+// 		&asset.Department,
+// 		&asset.Designation,
+// 		&asset.AssignedDate,
+
+// 		&asset.VendorID,
+// 		&asset.VendorName,
+// 		&asset.VendorFlag,
+
+// 		&asset.MRNumber,
+// 		&asset.PRNumber,
+
+// 		&asset.PurchaseDate,
+// 		&asset.WarrantyDate,
+
+// 		&asset.CreatedAt,
+// 		&asset.UpdatedAt,
+// 	)
+
+// 	if err != nil {
+// 		c.JSON(404, gin.H{
+// 			"success": false,
+// 			"error":   "asset device not found",
+// 		})
+// 		return
+// 	}
+
+// 	c.JSON(200, gin.H{
+// 		"success": true,
+// 		"data":    asset,
+// 	})
+// }
+
+// func (h *AssetDeviceHandler) History(c *gin.Context) {
+// 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// 	if err != nil || id < 1 {
+// 		c.JSON(400, gin.H{
+// 			"success": false,
+// 			"error":   "invalid asset device id",
+// 		})
+// 		return
+// 	}
+
+// 	const sqlQuery = `
+// 		SELECT
+// 			h.id,
+// 			h.asset_device_id,
+// 			h.legacy_equipment_id,
+
+// 			h.device_serial,
+
+// 			h.status_code,
+// 			CASE h.status_code
+// 				WHEN 0 THEN 'Damaged'
+// 				WHEN 1 THEN 'Assigned'
+// 				WHEN 2 THEN 'Available'
+// 				WHEN 3 THEN 'Transferred'
+// 				WHEN 4 THEN 'Returned'
+// 				WHEN 5 THEN 'Lost'
+// 				WHEN 7 THEN 'Ownership Transfer'
+// 				WHEN 8 THEN 'Claim Raised'
+// 				WHEN 15 THEN 'Service Request'
+// 				ELSE COALESCE(NULLIF(BTRIM(h.raw_status), ''), 'Unknown')
+// 			END AS status_label,
+// 			h.raw_status,
+
+// 			h.previous_status,
+// 			h.return_status,
+// 			h.transfer_status,
+
+// 			h.emp_id,
+// 			h.emp_name,
+// 			h.department,
+// 			h.designation,
+
+// 			h.mr_number,
+// 			h.pr_number,
+// 			h.vendor,
+
+// 			h.assigned_date::text,
+// 			h.transferred_at::text,
+// 			h.returned_at::text,
+
+// 			h.history_reason,
+// 			h.created_at_source::text,
+// 			h.updated_at_source::text,
+// 			h.migrated_at::text
+// 		FROM public.asset_device_history h
+// 		WHERE h.asset_device_id = $1
+// 		ORDER BY
+// 			h.updated_at_source DESC NULLS LAST,
+// 			h.created_at_source DESC NULLS LAST,
+// 			h.id DESC
+// 	`
+
+// 	rows, err := h.db.Query(c.Request.Context(), sqlQuery, id)
+// 	if err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+// 	defer rows.Close()
+
+// 	history := make([]AssetDeviceHistory, 0)
+
+// 	for rows.Next() {
+// 		var item AssetDeviceHistory
+
+// 		err := rows.Scan(
+// 			&item.ID,
+// 			&item.AssetDeviceID,
+// 			&item.LegacyEquipmentID,
+
+// 			&item.DeviceSerial,
+
+// 			&item.StatusCode,
+// 			&item.StatusLabel,
+// 			&item.RawStatus,
+
+// 			&item.PreviousStatus,
+// 			&item.ReturnStatus,
+// 			&item.TransferStatus,
+
+// 			&item.EmpID,
+// 			&item.EmpName,
+// 			&item.Department,
+// 			&item.Designation,
+
+// 			&item.MRNumber,
+// 			&item.PRNumber,
+// 			&item.Vendor,
+
+// 			&item.AssignedDate,
+// 			&item.TransferredAt,
+// 			&item.ReturnedAt,
+
+// 			&item.HistoryReason,
+// 			&item.CreatedAtSource,
+// 			&item.UpdatedAtSource,
+// 			&item.MigratedAt,
+// 		)
+
+// 		if err != nil {
+// 			response.ServerError(c, err)
+// 			return
+// 		}
+
+// 		history = append(history, item)
+// 	}
+
+// 	if err := rows.Err(); err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+
+// 	c.JSON(200, gin.H{
+// 		"success": true,
+// 		"data":    history,
+// 	})
+// }
 
 package handler
 
@@ -21,95 +583,83 @@ func NewAssetDeviceHandler(db *pgxpool.Pool) *AssetDeviceHandler {
 	return &AssetDeviceHandler{db: db}
 }
 
-
-
-// func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
-// 	g := rg.Group("/assets")
-
-// 	g.GET("/devices", h.List)
-// 	g.GET("/devices/:id", h.GetByID)
-// }
-
 func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/assets")
 
+	// Keep history route before :id route.
 	g.GET("/devices", h.List)
 	g.GET("/devices/:id/history", h.History)
 	g.GET("/devices/:id", h.GetByID)
 }
 
 type AssetDevice struct {
-	ID            int64   `json:"id"`
-	DeviceSerial  *string `json:"device_serial"`
-	Category      *string `json:"category"`
-	Brand         *string `json:"brand"`
-	Model         *string `json:"model"`
-	DeviceType    *string `json:"device_type"`
+	ID           int64   `json:"id"`
+	DeviceSerial *string `json:"device_serial"`
+	Category     *string `json:"category"`
+	Brand        *string `json:"brand"`
+	Model        *string `json:"model"`
+	DeviceType   *string `json:"device_type"`
 
-	AssetStatus   int16   `json:"asset_status"`
-	StatusLabel   string  `json:"status_label"`
+	AssetStatus int16  `json:"asset_status"`
+	StatusLabel string `json:"status_label"`
 
 	EmpID         *string `json:"emp_id"`
 	EmpName       *string `json:"emp_name"`
+	EmployeeImage *string `json:"employee_image"`
 	Department    *string `json:"department"`
 	Designation   *string `json:"designation"`
 	AssignedDate  *string `json:"assigned_date"`
 
-	VendorID       *int64  `json:"vendor_id"`
-	VendorName     *string `json:"vendor_name"`
-	VendorFlag     *int16  `json:"vendor_flag"`
+	VendorID   *int64  `json:"vendor_id"`
+	VendorName *string `json:"vendor_name"`
+	VendorFlag *int16  `json:"vendor_flag"`
 
-	MRNumber       *string `json:"mr_number"`
-	PRNumber       *string `json:"pr_number"`
+	MRNumber *string `json:"mr_number"`
+	PRNumber *string `json:"pr_number"`
 
-	PurchaseDate   *string `json:"purchase_date"`
-	WarrantyDate   *string `json:"warranty_date"`
+	PurchaseDate *string `json:"purchase_date"`
+	WarrantyDate *string `json:"warranty_date"`
 
-	CreatedAt      *string `json:"created_at"`
-	UpdatedAt      *string `json:"updated_at"`
+	CreatedAt *string `json:"created_at"`
+	UpdatedAt *string `json:"updated_at"`
 }
-
 
 type AssetDeviceHistory struct {
-	ID                  int64   `json:"id"`
-	AssetDeviceID       int64   `json:"asset_device_id"`
-	LegacyEquipmentID   int64   `json:"legacy_equipment_id"`
+	ID                int64 `json:"id"`
+	AssetDeviceID     int64 `json:"asset_device_id"`
+	LegacyEquipmentID int64 `json:"legacy_equipment_id"`
 
-	DeviceSerial        *string `json:"device_serial"`
-	StatusCode          *int16  `json:"status_code"`
-	StatusLabel         string  `json:"status_label"`
-	RawStatus           *string `json:"raw_status"`
+	DeviceSerial *string `json:"device_serial"`
+	StatusCode   *int16  `json:"status_code"`
+	StatusLabel  string  `json:"status_label"`
+	RawStatus    *string `json:"raw_status"`
 
-	PreviousStatus      *int    `json:"previous_status"`
-	ReturnStatus        *int16  `json:"return_status"`
-	TransferStatus      *int16  `json:"transfer_status"`
+	PreviousStatus *int   `json:"previous_status"`
+	ReturnStatus   *int16 `json:"return_status"`
+	TransferStatus *int16 `json:"transfer_status"`
 
-	EmpID               *string `json:"emp_id"`
-	EmpName             *string `json:"emp_name"`
-	Department          *string `json:"department"`
-	Designation         *string `json:"designation"`
+	EmpID       *string `json:"emp_id"`
+	EmpName     *string `json:"emp_name"`
+	Department  *string `json:"department"`
+	Designation *string `json:"designation"`
 
-	MRNumber            *string `json:"mr_number"`
-	PRNumber            *string `json:"pr_number"`
-	Vendor              *string `json:"vendor"`
+	MRNumber *string `json:"mr_number"`
+	PRNumber *string `json:"pr_number"`
+	Vendor   *string `json:"vendor"`
 
-	AssignedDate        *string `json:"assigned_date"`
-	TransferredAt       *string `json:"transferred_at"`
-	ReturnedAt          *string `json:"returned_at"`
+	AssignedDate  *string `json:"assigned_date"`
+	TransferredAt *string `json:"transferred_at"`
+	ReturnedAt    *string `json:"returned_at"`
 
-	HistoryReason       string  `json:"history_reason"`
-	CreatedAtSource     *string `json:"created_at_source"`
-	UpdatedAtSource     *string `json:"updated_at_source"`
-	MigratedAt          *string `json:"migrated_at"`
+	HistoryReason   string  `json:"history_reason"`
+	CreatedAtSource *string `json:"created_at_source"`
+	UpdatedAtSource *string `json:"updated_at_source"`
+	MigratedAt      *string `json:"migrated_at"`
 }
-
 
 func (h *AssetDeviceHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 
-	// Supports both:
-	// ?limit=50
-	// ?page_size=50
 	limitText := c.DefaultQuery("limit", c.DefaultQuery("page_size", "50"))
 	limit, _ := strconv.Atoi(limitText)
 
@@ -137,17 +687,19 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 	// Optional: ?category=Laptop
 	if category := strings.TrimSpace(c.Query("category")); category != "" {
 		args = append(args, category)
+
 		whereParts = append(
 			whereParts,
-			fmt.Sprintf("AND LOWER(COALESCE(ad.category, '')) = LOWER($%d)", placeholder),
+			fmt.Sprintf(
+				"AND LOWER(COALESCE(ad.category, '')) = LOWER($%d)",
+				placeholder,
+			),
 		)
+
 		placeholder++
 	}
 
 	// Optional: ?status=1
-	// 0=Damaged, 1=Assigned, 2=Available, 3=Transferred,
-	// 4=Returned, 5=Lost, 7=Ownership Transfer,
-	// 8=Claim Raised, 15=Service Request
 	if statusText := strings.TrimSpace(c.Query("status")); statusText != "" {
 		status, err := strconv.Atoi(statusText)
 		if err != nil {
@@ -156,10 +708,12 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 		}
 
 		args = append(args, status)
+
 		whereParts = append(
 			whereParts,
 			fmt.Sprintf("AND ad.asset_status = $%d", placeholder),
 		)
+
 		placeholder++
 	}
 
@@ -172,16 +726,18 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 		}
 
 		args = append(args, vendorID)
+
 		whereParts = append(
 			whereParts,
 			fmt.Sprintf("AND ad.vendor_id = $%d", placeholder),
 		)
+
 		placeholder++
 	}
 
 	// Optional:
 	// ?search=DELL
-	// searches serial, employee, category, brand, model and vendor
+	// Searches serial, employee, category, brand, model and vendor.
 	if search := strings.TrimSpace(c.Query("search")); search != "" {
 		args = append(args, "%"+search+"%")
 
@@ -197,7 +753,15 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 					OR ad.model ILIKE $%d
 					OR v.vendor_name ILIKE $%d
 				)
-			`, placeholder, placeholder, placeholder, placeholder, placeholder, placeholder, placeholder),
+			`,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+			),
 		)
 
 		placeholder++
@@ -205,7 +769,7 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 
 	where := strings.Join(whereParts, "\n")
 
-	// Total count before pagination
+	// Count query does not require employee image join.
 	countSQL := fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM public.asset_devices ad
@@ -215,12 +779,17 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 	`, where)
 
 	var total int
-	if err := h.db.QueryRow(c.Request.Context(), countSQL, args...).Scan(&total); err != nil {
+
+	if err := h.db.QueryRow(
+		c.Request.Context(),
+		countSQL,
+		args...,
+	).Scan(&total); err != nil {
 		response.ServerError(c, err)
 		return
 	}
 
-	// LIMIT and OFFSET placeholders
+	// Add pagination arguments after count query.
 	args = append(args, limit, offset)
 
 	listSQL := fmt.Sprintf(`
@@ -249,6 +818,7 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 
 			ad.emp_id,
 			ad.emp_name,
+			ep.picture AS employee_image,
 			ad.department,
 			ad.designation,
 			ad.assigned_date::text,
@@ -265,15 +835,27 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 
 			ad.created_at::text,
 			ad.updated_at::text
+
 		FROM public.asset_devices ad
+
 		LEFT JOIN public.vendors v
 			ON v.id = ad.vendor_id
+
+		LEFT JOIN public.employee_personal_info ep
+			ON BTRIM(ep.employee_id) = BTRIM(ad.emp_id)
+
 		%s
+
 		ORDER BY ad.updated_at DESC NULLS LAST, ad.id DESC
+
 		LIMIT $%d OFFSET $%d
 	`, where, placeholder, placeholder+1)
 
-	rows, err := h.db.Query(c.Request.Context(), listSQL, args...)
+	rows, err := h.db.Query(
+		c.Request.Context(),
+		listSQL,
+		args...,
+	)
 	if err != nil {
 		response.ServerError(c, err)
 		return
@@ -298,6 +880,7 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 
 			&asset.EmpID,
 			&asset.EmpName,
+			&asset.EmployeeImage,
 			&asset.Department,
 			&asset.Designation,
 			&asset.AssignedDate,
@@ -331,7 +914,6 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 
 	response.Paginated(c, assets, total, page, limit)
 }
-
 
 func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -369,6 +951,7 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 
 			ad.emp_id,
 			ad.emp_name,
+			ep.picture AS employee_image,
 			ad.department,
 			ad.designation,
 			ad.assigned_date::text,
@@ -385,16 +968,26 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 
 			ad.created_at::text,
 			ad.updated_at::text
+
 		FROM public.asset_devices ad
+
 		LEFT JOIN public.vendors v
 			ON v.id = ad.vendor_id
+
+		LEFT JOIN public.employee_personal_info ep
+			ON BTRIM(ep.employee_id) = BTRIM(ad.emp_id)
+
 		WHERE ad.id = $1
-		  AND ad.row_status = 1
+			AND ad.row_status = 1
 	`
 
 	var asset AssetDevice
 
-	err = h.db.QueryRow(c.Request.Context(), sqlQuery, id).Scan(
+	err = h.db.QueryRow(
+		c.Request.Context(),
+		sqlQuery,
+		id,
+	).Scan(
 		&asset.ID,
 		&asset.DeviceSerial,
 		&asset.Category,
@@ -407,6 +1000,7 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 
 		&asset.EmpID,
 		&asset.EmpName,
+		&asset.EmployeeImage,
 		&asset.Department,
 		&asset.Designation,
 		&asset.AssignedDate,
@@ -438,7 +1032,6 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 		"data":    asset,
 	})
 }
-
 
 func (h *AssetDeviceHandler) History(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -494,15 +1087,22 @@ func (h *AssetDeviceHandler) History(c *gin.Context) {
 			h.created_at_source::text,
 			h.updated_at_source::text,
 			h.migrated_at::text
+
 		FROM public.asset_device_history h
+
 		WHERE h.asset_device_id = $1
+
 		ORDER BY
 			h.updated_at_source DESC NULLS LAST,
 			h.created_at_source DESC NULLS LAST,
 			h.id DESC
 	`
 
-	rows, err := h.db.Query(c.Request.Context(), sqlQuery, id)
+	rows, err := h.db.Query(
+		c.Request.Context(),
+		sqlQuery,
+		id,
+	)
 	if err != nil {
 		response.ServerError(c, err)
 		return
