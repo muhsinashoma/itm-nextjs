@@ -137,6 +137,38 @@ export const deviceApi = {
     delete: (id: number) => api.del(`/devices/${id}`),
 };
 
+// export interface AssetDevice {
+//     id: number;
+//     device_serial: string | null;
+//     category: string | null;
+//     brand: string | null;
+//     model: string | null;
+//     device_type: string | null;
+
+//     asset_status: number;
+//     status_label: string;
+
+//     emp_id: string | null;
+//     emp_name: string | null;
+//     department: string | null;
+//     designation: string | null;
+//     assigned_date: string | null;
+
+//     vendor_id: number | null;
+//     vendor_name: string | null;
+//     vendor_flag: number | null;
+
+//     mr_number: string | null;
+//     pr_number: string | null;
+
+//     purchase_date: string | null;
+//     warranty_date: string | null;
+
+//     created_at: string | null;
+//     updated_at: string | null;
+// }
+
+
 export interface AssetDevice {
     id: number;
     device_serial: string | null;
@@ -150,24 +182,20 @@ export interface AssetDevice {
 
     emp_id: string | null;
     emp_name: string | null;
+    employee_image?: string | null;
+
     department: string | null;
     designation: string | null;
     assigned_date: string | null;
 
     vendor_id: number | null;
     vendor_name: string | null;
-    vendor_flag: number | null;
 
     mr_number: string | null;
     pr_number: string | null;
-
     purchase_date: string | null;
     warranty_date: string | null;
-
-    created_at: string | null;
-    updated_at: string | null;
 }
-
 
 export interface AssetDeviceHistory {
     id: number;

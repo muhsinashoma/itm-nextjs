@@ -1,21 +1,23 @@
 
 // itm/components/data-table.tsx
 
-"use client"
 
-import * as React from "react"
+
+"use client";
+
+import * as React from "react";
 import {
     ColumnDef,
+    ColumnFiltersState,
     flexRender,
     getCoreRowModel,
     getFilteredRowModel,
     getPaginationRowModel,
     getSortedRowModel,
-    useReactTable,
     SortingState,
-    ColumnFiltersState,
+    useReactTable,
     VisibilityState,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
 
 import {
     Table,
@@ -24,11 +26,11 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 import {
     DropdownMenu,
@@ -37,22 +39,74 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
 import {
-    Search,
-    X,
-    Filter,
     Download,
-    SlidersHorizontal,
     Eye,
     EyeOff,
-} from "lucide-react"
+    Filter,
+    Search,
+    SlidersHorizontal,
+    X,
+} from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    data: TData[]
-    dateColumn?: string
+    columns: ColumnDef<TData, TValue>[];
+    data: TData[];
+    dateColumn?: string;
+}
+
+const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
+    /*
+     * Asset report default visible columns:
+     *
+     * SL
+     * Reference No
+     * Employee ID
+     * Employee
+     * Designation
+     * Category
+     * Model
+     * Status
+     * Actions
+     */
+
+    // Asset report optional columns
+    deviceSl: false,
+    mrnNumber: false,
+    prNumber: false,
+    department: false,
+    brand: false,
+    deviceType: false,
+    vendor: false,
+    assignedBy: false,
+    assignedDate: false,
+    returnedDate: false,
+    transferredDate: false,
+    purchaseDate: false,
+    warranty: false,
+    deviceAge: false,
+    userUsageDuration: false,
+    remarks: false,
+
+    // Shared employee / other table optional columns
+    dept_name: false,
+    employee_name: false,
+    func_name: false,
+    mobile_no: false,
+    postingArea: false,
+    postingDistrict: false,
+    personalMobile: false,
+    officeMobile: false,
+};
+
+function normalizeValue(value: unknown) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value).toLowerCase();
 }
 
 export function DataTable<TData, TValue>({
@@ -60,348 +114,227 @@ export function DataTable<TData, TValue>({
     data,
     dateColumn = "date",
 }: DataTableProps<TData, TValue>) {
-
-    /* =========================
-       STATES
-    ========================= */
-
-    const [sorting, setSorting] = React.useState<SortingState>([])
+    const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] =
-        React.useState<ColumnFiltersState>([])
+        React.useState<ColumnFiltersState>([]);
 
     const [columnVisibility, setColumnVisibility] =
-        React.useState<VisibilityState>({
-            dept_name: false,
-            employee_name: false,
-            func_name: false,
-            mobile_no: false,
-            postingArea: false,
-            postingDistrict: false,
-            personalMobile: false,
-            officeMobile: false,
-            vendor: false,
-            assignedBy: false,
-            department: false,
-            userUsageDuration: false,
-            deviceAge: false,
-            warranty: false,
-            purchaseDate: false,
-            deviceType: false,
-            remarks: false,
-        })
+        React.useState<VisibilityState>(DEFAULT_HIDDEN_COLUMNS);
 
-    const [globalFilter, setGlobalFilter] = React.useState("")
-    const [columnSearchOpen, setColumnSearchOpen] =
-        React.useState(false)
+    const [globalFilter, setGlobalFilter] = React.useState("");
+    const [filterOpen, setFilterOpen] = React.useState(false);
 
-    const [fromDate, setFromDate] = React.useState("")
-    const [toDate, setToDate] = React.useState("")
-
-    /* =========================
-       FILTERED DATA
-    ========================= */
+    const [fromDate, setFromDate] = React.useState("");
+    const [toDate, setToDate] = React.useState("");
 
     const filteredData = React.useMemo(() => {
-        return data.filter((row: any) => {
+        const searchText = globalFilter.trim().toLowerCase();
 
-            const ttNoMatch =
-                !columnFilters.find(f => f.id === "tt_no") ||
-                (row.tt_no ?? "")
-                    .toString()
-                    .toLowerCase()
-                    .includes(
-                        (
-                            columnFilters.find(
-                                f => f.id === "tt_no"
-                            )?.value ?? ""
-                        )
-                            .toString()
-                            .toLowerCase()
-                    )
+        return data.filter((row: TData) => {
+            const record = row as Record<string, unknown>;
 
-            const employeeIdMatch =
-                !columnFilters.find(
-                    f => f.id === "employee_id"
-                ) ||
-                (row.employee_id ?? "")
-                    .toString()
-                    .toLowerCase()
-                    .includes(
-                        (
-                            columnFilters.find(
-                                f => f.id === "employee_id"
-                            )?.value ?? ""
-                        )
-                            .toString()
-                            .toLowerCase()
-                    )
+            const matchesGlobalSearch =
+                !searchText ||
+                Object.values(record).some((value) =>
+                    normalizeValue(value).includes(searchText)
+                );
 
-            const statusMatch =
-                !columnFilters.find(f => f.id === "status") ||
-                (row.status ?? "")
-                    .toString()
-                    .toLowerCase()
-                    .includes(
-                        (
-                            columnFilters.find(
-                                f => f.id === "status"
-                            )?.value ?? ""
-                        )
-                            .toString()
-                            .toLowerCase()
-                    )
+            const statusFilter = columnFilters.find(
+                (filter) => filter.id === "status"
+            );
 
-            let dateMatch = true
+            const employeeIdFilter = columnFilters.find(
+                (filter) => filter.id === "employeeId"
+            );
+
+            const matchesStatus =
+                !statusFilter ||
+                normalizeValue(record.status).includes(
+                    normalizeValue(statusFilter.value)
+                );
+
+            const matchesEmployeeId =
+                !employeeIdFilter ||
+                normalizeValue(record.employeeId).includes(
+                    normalizeValue(employeeIdFilter.value)
+                );
+
+            let matchesDate = true;
 
             if (fromDate || toDate) {
-                const rowDate = new Date(row[dateColumn])
+                const rawDate = record[dateColumn];
 
-                const from = fromDate
-                    ? new Date(fromDate)
-                    : null
+                if (!rawDate) {
+                    matchesDate = false;
+                } else {
+                    const rowDate = new Date(String(rawDate));
 
-                const to = toDate
-                    ? new Date(toDate)
-                    : null
+                    if (Number.isNaN(rowDate.getTime())) {
+                        matchesDate = false;
+                    } else {
+                        const startDate = fromDate
+                            ? new Date(`${fromDate}T00:00:00`)
+                            : null;
 
-                if (
-                    from &&
-                    to &&
-                    !(rowDate >= from && rowDate <= to)
-                ) {
-                    dateMatch = false
-                }
+                        const endDate = toDate
+                            ? new Date(`${toDate}T23:59:59`)
+                            : null;
 
-                if (from && !to && rowDate < from) {
-                    dateMatch = false
-                }
+                        if (startDate && rowDate < startDate) {
+                            matchesDate = false;
+                        }
 
-                if (!from && to && rowDate > to) {
-                    dateMatch = false
+                        if (endDate && rowDate > endDate) {
+                            matchesDate = false;
+                        }
+                    }
                 }
             }
 
             return (
-                ttNoMatch &&
-                employeeIdMatch &&
-                statusMatch &&
-                dateMatch
-            )
-        })
+                matchesGlobalSearch &&
+                matchesStatus &&
+                matchesEmployeeId &&
+                matchesDate
+            );
+        });
     }, [
         data,
+        globalFilter,
+        columnFilters,
         fromDate,
         toDate,
-        columnFilters,
         dateColumn,
-    ])
-
-    /* =========================
-       TABLE
-    ========================= */
+    ]);
 
     const table = useReactTable({
         data: filteredData,
         columns,
-
         state: {
             sorting,
             columnFilters,
             columnVisibility,
-            globalFilter,
         },
-
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
-        onColumnVisibilityChange:
-            setColumnVisibility,
-        onGlobalFilterChange: setGlobalFilter,
-
+        onColumnVisibilityChange: setColumnVisibility,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel:
-            getPaginationRowModel(),
-        getSortedRowModel:
-            getSortedRowModel(),
-        getFilteredRowModel:
-            getFilteredRowModel(),
-    })
+        getFilteredRowModel: getFilteredRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+    });
 
     const activeFiltersCount =
-        columnFilters.length +
         (globalFilter ? 1 : 0) +
-        (fromDate || toDate ? 1 : 0)
+        columnFilters.length +
+        (fromDate || toDate ? 1 : 0);
 
-    /* =========================
-       CSV EXPORT
-    ========================= */
+    const resetFilters = () => {
+        setGlobalFilter("");
+        setColumnFilters([]);
+        setFromDate("");
+        setToDate("");
+        setFilterOpen(false);
+    };
 
     const exportToCSV = () => {
-        const rows =
-            table.getFilteredRowModel().rows
+        const rows = table.getFilteredRowModel().rows;
 
-        if (!rows.length) return
+        if (!rows.length) {
+            return;
+        }
 
-        const visibleColumns =
-            table
-                .getAllLeafColumns()
-                .filter(col => col.getIsVisible())
+        const visibleColumns = table
+            .getAllLeafColumns()
+            .filter((column) => column.getIsVisible());
 
-        const headers = visibleColumns.map(
-            col =>
-                col.columnDef.header?.toString() ||
-                col.id
-        )
+        const headers = visibleColumns.map((column) => {
+            const header = column.columnDef.header;
 
-        const csvRows = [
-            headers.join(","),
+            if (typeof header === "string") {
+                return header;
+            }
 
-            ...rows.map(row =>
-                visibleColumns
-                    .map(
-                        col =>
-                            `"${String(
-                                row.getValue(col.id) ?? ""
-                            ).replace(/"/g, '""')}"`
-                    )
-                    .join(",")
-            ),
-        ]
+            return column.id;
+        });
+
+        const csvRows = rows.map((row) =>
+            visibleColumns
+                .map((column) => {
+                    const value = row.getValue(column.id) ?? "";
+
+                    return `"${String(value).replace(/"/g, '""')}"`;
+                })
+                .join(",")
+        );
 
         const blob = new Blob(
-            [csvRows.join("\n")],
+            [[headers.join(","), ...csvRows].join("\n")],
             {
-                type: "text/csv",
+                type: "text/csv;charset=utf-8;",
             }
-        )
+        );
 
-        const url =
-            window.URL.createObjectURL(blob)
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
 
-        const a =
-            document.createElement("a")
-
-        a.href = url
-
-        a.download = `table-export-${new Date()
+        link.href = url;
+        link.download = `asset-report-${new Date()
             .toISOString()
-            .split("T")[0]
-            }.csv`
+            .slice(0, 10)}.csv`;
 
-        a.click()
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-        window.URL.revokeObjectURL(url)
-    }
+        window.URL.revokeObjectURL(url);
+    };
 
-    /* =========================
-       FILTER HELPERS
-    ========================= */
-
-    const clearAllFilters = () => {
-        setGlobalFilter("")
-        setColumnFilters([])
-        setFromDate("")
-        setToDate("")
-    }
-
-    const clearColumnFilter = (
-        columnId: string
-    ) => {
-        setColumnFilters(prev =>
-            prev.filter(f => f.id !== columnId)
-        )
-    }
-
-    /* =========================
-       RENDER
-    ========================= */
+    const visibleColumnCount = table.getVisibleLeafColumns().length;
 
     return (
-        <div className="space-y-2 text-[10px] leading-tight text-foreground">
-
-            {/* =========================
-                TOOLBAR
-            ========================= */}
-
-            <div className="flex flex-wrap items-center justify-between gap-2">
-
-                {/* LEFT */}
-
-                <div className="flex flex-wrap items-center gap-2 flex-1">
-
-                    {/* SEARCH */}
-
-                    <div className="relative w-full max-w-md">
-
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-blue-400" />
+        <div className="space-y-3 text-sm text-foreground">
+            {/* Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                    <div className="relative w-full max-w-lg">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
 
                         <Input
-                            placeholder="Search..."
+                            placeholder="Search reference, employee, category, model..."
                             value={globalFilter}
-                            onChange={e =>
-                                setGlobalFilter(
-                                    e.target.value
-                                )
+                            onChange={(event) =>
+                                setGlobalFilter(event.target.value)
                             }
-                            className="
-                                h-8
-                                pl-8
-                                pr-8
-                                text-[10px]
-                                border-blue-300
-                                focus-visible:ring-1
-                                focus-visible:ring-blue-300
-                            "
+                            className="h-9 border-primary/30 pl-9 pr-9 text-sm focus-visible:ring-primary/30"
                         />
 
                         {globalFilter && (
                             <button
-                                onClick={() =>
-                                    setGlobalFilter("")
-                                }
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500"
+                                type="button"
+                                onClick={() => setGlobalFilter("")}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                                aria-label="Clear search"
                             >
-                                <X className="h-3.5 w-3.5" />
+                                <X className="h-4 w-4" />
                             </button>
                         )}
                     </div>
 
-                    {/* FILTER */}
-
                     <DropdownMenu
-                        open={columnSearchOpen}
-                        onOpenChange={
-                            setColumnSearchOpen
-                        }
+                        open={filterOpen}
+                        onOpenChange={setFilterOpen}
                     >
                         <DropdownMenuTrigger asChild>
                             <Button
                                 size="sm"
-                                className="
-                                    h-8
-                                    gap-1.5
-                                    text-[10px]
-                                    bg-green-200
-                                    border
-                                    border-green-300
-                                    text-black
-                                    hover:bg-green-300
-                                "
+                                className="h-9 gap-2 border border-emerald-300 bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
                             >
-                                <Filter className="h-3.5 w-3.5" />
-
+                                <Filter className="h-4 w-4" />
                                 Filter
 
                                 {activeFiltersCount > 0 && (
-                                    <Badge
-                                        className="
-                                            h-5
-                                            min-w-5
-                                            px-1
-                                            text-[10px]
-                                            bg-green-100
-                                            text-black
-                                        "
-                                    >
+                                    <Badge className="h-5 min-w-5 rounded-full bg-emerald-600 px-1 text-[10px] text-white">
                                         {activeFiltersCount}
                                     </Badge>
                                 )}
@@ -410,359 +343,321 @@ export function DataTable<TData, TValue>({
 
                         <DropdownMenuContent
                             align="start"
-                            className="w-80 p-3 space-y-3"
+                            className="w-80 p-3"
                         >
-
-                            {/* DATE FILTER */}
-
-                            <div className="grid grid-cols-2 gap-3">
-
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-medium">
-                                        From Date
-                                    </label>
-
-                                    <Input
-                                        type="date"
-                                        value={fromDate}
-                                        onChange={e =>
-                                            setFromDate(
-                                                e.target.value
-                                            )
-                                        }
-                                        className="h-8 text-[10px]"
-                                    />
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-medium">
-                                        To Date
-                                    </label>
-
-                                    <Input
-                                        type="date"
-                                        value={toDate}
-                                        onChange={e =>
-                                            setToDate(
-                                                e.target.value
-                                            )
-                                        }
-                                        className="h-8 text-[10px]"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* COLUMN FILTERS */}
-
-                            {[
-                                "tt_no",
-                                "employee_id",
-                                "status",
-                            ].map(colId => {
-                                const column =
-                                    table
-                                        .getAllColumns()
-                                        .find(
-                                            c =>
-                                                c.id ===
-                                                colId
-                                        )
-
-                                if (!column) return null
-
-                                return (
-                                    <div
-                                        key={colId}
-                                        className="space-y-1"
-                                    >
-                                        <p className="text-[10px] font-medium capitalize">
-                                            {colId}
-                                        </p>
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-muted-foreground">
+                                            From Date
+                                        </label>
 
                                         <Input
-                                            placeholder={`Filter ${colId}`}
-                                            value={
-                                                (column.getFilterValue() as string) ??
-                                                ""
-                                            }
-                                            onChange={e =>
-                                                column.setFilterValue(
-                                                    e.target
-                                                        .value
+                                            type="date"
+                                            value={fromDate}
+                                            onChange={(event) =>
+                                                setFromDate(
+                                                    event.target.value
                                                 )
                                             }
-                                            className="h-8 text-[10px]"
+                                            className="h-8 text-xs"
                                         />
                                     </div>
-                                )
-                            })}
 
-                            {/* FOOTER */}
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-muted-foreground">
+                                            To Date
+                                        </label>
 
-                            <div className="flex justify-end gap-2 pt-2">
+                                        <Input
+                                            type="date"
+                                            value={toDate}
+                                            onChange={(event) =>
+                                                setToDate(
+                                                    event.target.value
+                                                )
+                                            }
+                                            className="h-8 text-xs"
+                                        />
+                                    </div>
+                                </div>
 
-                                <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    className="h-7 text-[10px]"
-                                    onClick={() => {
-                                        table.resetColumnFilters()
-                                        setFromDate("")
-                                        setToDate("")
-                                        setColumnSearchOpen(
-                                            false
-                                        )
-                                    }}
-                                >
-                                    Reset
-                                </Button>
+                                {["employeeId", "status"].map((columnId) => {
+                                    const column = table
+                                        .getAllColumns()
+                                        .find(
+                                            (item) => item.id === columnId
+                                        );
 
-                                <Button
-                                    size="sm"
-                                    className="h-7 text-[10px] bg-green-500 hover:bg-green-600"
-                                    onClick={() =>
-                                        setColumnSearchOpen(
-                                            false
-                                        )
+                                    if (!column) {
+                                        return null;
                                     }
-                                >
-                                    Apply
-                                </Button>
+
+                                    const label =
+                                        columnId === "employeeId"
+                                            ? "Employee ID"
+                                            : "Status";
+
+                                    return (
+                                        <div
+                                            key={columnId}
+                                            className="space-y-1"
+                                        >
+                                            <label className="text-xs font-medium text-muted-foreground">
+                                                {label}
+                                            </label>
+
+                                            <Input
+                                                placeholder={`Filter by ${label}`}
+                                                value={
+                                                    (column.getFilterValue() as string) ??
+                                                    ""
+                                                }
+                                                onChange={(event) =>
+                                                    column.setFilterValue(
+                                                        event.target.value
+                                                    )
+                                                }
+                                                className="h-8 text-xs"
+                                            />
+                                        </div>
+                                    );
+                                })}
+
+                                <div className="flex justify-end gap-2 border-t border-border pt-3">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 text-xs"
+                                        onClick={resetFilters}
+                                    >
+                                        Reset
+                                    </Button>
+
+                                    <Button
+                                        size="sm"
+                                        className="h-8 text-xs"
+                                        onClick={() => setFilterOpen(false)}
+                                    >
+                                        Apply
+                                    </Button>
+                                </div>
                             </div>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
 
-                {/* RIGHT */}
-
                 <div className="flex items-center gap-2">
-
-                    {/* COLUMN VISIBILITY */}
-
                     <DropdownMenu>
-
                         <DropdownMenuTrigger asChild>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 gap-1.5 text-[10px]"
+                                className="h-9 gap-2 text-xs"
                             >
-                                <SlidersHorizontal className="h-3.5 w-3.5" />
+                                <SlidersHorizontal className="h-4 w-4" />
                                 Columns
                             </Button>
                         </DropdownMenuTrigger>
 
                         <DropdownMenuContent
                             align="end"
-                            className="w-56"
+                            className="max-h-[420px] w-64 overflow-y-auto"
                         >
-                            <DropdownMenuLabel className="text-[10px]">
+                            <DropdownMenuLabel className="text-xs">
                                 Show / Hide Columns
                             </DropdownMenuLabel>
 
                             <DropdownMenuSeparator />
 
                             <div className="py-1">
-
                                 {table
                                     .getAllColumns()
-                                    .filter(col =>
-                                        col.getCanHide()
+                                    .filter((column) =>
+                                        column.getCanHide()
                                     )
-                                    .map(col => (
-                                        <DropdownMenuCheckboxItem
-                                            key={col.id}
-                                            checked={col.getIsVisible()}
-                                            onCheckedChange={val =>
-                                                col.toggleVisibility(
-                                                    !!val
-                                                )
-                                            }
-                                            className="text-[10px]"
-                                        >
-                                            {col.getIsVisible() ? (
-                                                <Eye className="mr-2 h-3.5 w-3.5" />
-                                            ) : (
-                                                <EyeOff className="mr-2 h-3.5 w-3.5" />
-                                            )}
+                                    .map((column) => {
+                                        const header =
+                                            column.columnDef.header;
 
-                                            {col.columnDef.header?.toString() ||
-                                                col.id}
-                                        </DropdownMenuCheckboxItem>
-                                    ))}
+                                        const label =
+                                            typeof header === "string"
+                                                ? header
+                                                : column.id;
+
+                                        return (
+                                            <DropdownMenuCheckboxItem
+                                                key={column.id}
+                                                checked={column.getIsVisible()}
+                                                onCheckedChange={(value) =>
+                                                    column.toggleVisibility(
+                                                        Boolean(value)
+                                                    )
+                                                }
+                                                className="text-xs"
+                                            >
+                                                {column.getIsVisible() ? (
+                                                    <Eye className="mr-2 h-3.5 w-3.5" />
+                                                ) : (
+                                                    <EyeOff className="mr-2 h-3.5 w-3.5" />
+                                                )}
+
+                                                {label}
+                                            </DropdownMenuCheckboxItem>
+                                        );
+                                    })}
                             </div>
                         </DropdownMenuContent>
                     </DropdownMenu>
-
-                    {/* EXPORT */}
 
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={exportToCSV}
-                        className="h-8 gap-1.5 text-[10px]"
+                        className="h-9 gap-2 text-xs"
                     >
-                        <Download className="h-3.5 w-3.5" />
+                        <Download className="h-4 w-4" />
                         Export
                     </Button>
                 </div>
             </div>
 
-            {/* =========================
-                ACTIVE FILTERS
-            ========================= */}
-
+            {/* Active filter chips */}
             {activeFiltersCount > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
-
                     {globalFilter && (
                         <Badge
                             variant="secondary"
-                            className="h-6 text-[10px]"
+                            className="gap-1 text-xs"
                         >
-                            Global: "{globalFilter}"
+                            Search: {globalFilter}
 
                             <button
-                                onClick={() =>
-                                    setGlobalFilter("")
-                                }
+                                type="button"
+                                onClick={() => setGlobalFilter("")}
+                                aria-label="Clear search filter"
                             >
-                                <X className="ml-1 h-3 w-3" />
+                                <X className="h-3.5 w-3.5" />
                             </button>
                         </Badge>
                     )}
 
-                    {columnFilters.map(f => (
+                    {columnFilters.map((filter) => (
                         <Badge
-                            key={f.id}
+                            key={filter.id}
                             variant="secondary"
-                            className="h-6 text-[10px]"
+                            className="gap-1 text-xs"
                         >
-                            {f.id}: "{String(f.value)}"
+                            {filter.id}: {String(filter.value)}
 
                             <button
+                                type="button"
                                 onClick={() =>
-                                    clearColumnFilter(
-                                        f.id
+                                    setColumnFilters((current) =>
+                                        current.filter(
+                                            (item) =>
+                                                item.id !== filter.id
+                                        )
                                     )
                                 }
+                                aria-label={`Clear ${filter.id} filter`}
                             >
-                                <X className="ml-1 h-3 w-3" />
+                                <X className="h-3.5 w-3.5" />
                             </button>
                         </Badge>
                     ))}
 
+                    {(fromDate || toDate) && (
+                        <Badge
+                            variant="secondary"
+                            className="gap-1 text-xs"
+                        >
+                            Date: {fromDate || "Start"} — {toDate || "Now"}
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFromDate("");
+                                    setToDate("");
+                                }}
+                                aria-label="Clear date filter"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        </Badge>
+                    )}
+
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={clearAllFilters}
-                        className="h-6 text-[10px]"
+                        onClick={resetFilters}
+                        className="h-7 text-xs"
                     >
                         Clear all
                     </Button>
                 </div>
             )}
 
-            {/* =========================
-                TABLE
-            ========================= */}
-
-            <div className="rounded-xl border border-border overflow-x-auto">
-
-                <Table className="w-full min-w-[600px] table-auto border-collapse text-[10px]">
-
+            {/* Table */}
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                <Table className="min-w-[1180px] table-fixed border-collapse text-xs">
                     <TableHeader>
-
-                        {table
-                            .getHeaderGroups()
-                            .map(headerGroup => (
-
-                                <TableRow key={headerGroup.id}>
-
-                                    {headerGroup.headers.map(
-                                        header => (
-
-                                            <TableHead
-                                                key={header.id}
-                                                className="
-                                                    px-1
-                                                    py-2
-                                                    text-[10px]
-                                                    font-semibold
-                                                    text-center
-                                                    bg-muted
-                                                    border-b
-                                                    whitespace-normal
-                                                    break-words
-                                                "
-                                            >
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(
-                                                        header
-                                                            .column
-                                                            .columnDef
-                                                            .header,
-                                                        header.getContext()
-                                                    )}
-                                            </TableHead>
-                                        )
-                                    )}
-                                </TableRow>
-                            ))}
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow
+                                key={headerGroup.id}
+                                className="hover:bg-transparent"
+                            >
+                                {headerGroup.headers.map((header) => (
+                                    <TableHead
+                                        key={header.id}
+                                        className="whitespace-nowrap border-b bg-muted/60 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                        style={{
+                                            width:
+                                                header.getSize() !== 150
+                                                    ? header.getSize()
+                                                    : undefined,
+                                        }}
+                                    >
+                                        {header.isPlaceholder
+                                            ? null
+                                            : flexRender(
+                                                header.column.columnDef
+                                                    .header,
+                                                header.getContext()
+                                            )}
+                                    </TableHead>
+                                ))}
+                            </TableRow>
+                        ))}
                     </TableHeader>
 
                     <TableBody>
-
-                        {table.getRowModel().rows
-                            ?.length ? (
-
-                            table
-                                .getRowModel()
-                                .rows.map(row => (
-
-                                    <TableRow
-                                        key={row.id}
-                                        className="hover:bg-muted/40"
-                                    >
-
-                                        {row
-                                            .getVisibleCells()
-                                            .map(cell => (
-
-                                                <TableCell
-                                                    key={cell.id}
-                                                    className="
-                                                        px-1
-                                                        py-1
-                                                        text-[10px]
-                                                        text-center
-                                                        align-middle
-                                                        border-b
-                                                        whitespace-normal
-                                                        break-words
-                                                    "
-                                                >
-                                                    {flexRender(
-                                                        cell
-                                                            .column
-                                                            .columnDef
-                                                            .cell,
-                                                        cell.getContext()
-                                                    )}
-                                                </TableCell>
-                                            ))}
-                                    </TableRow>
-                                ))
+                        {table.getRowModel().rows.length ? (
+                            table.getRowModel().rows.map((row) => (
+                                <TableRow
+                                    key={row.id}
+                                    className="border-b border-border/70 transition-colors hover:bg-primary/[0.03]"
+                                >
+                                    {row.getVisibleCells().map((cell) => (
+                                        <TableCell
+                                            key={cell.id}
+                                            className="overflow-hidden px-3 py-3 text-center align-middle text-xs whitespace-nowrap"
+                                        >
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext()
+                                            )}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
                         ) : (
                             <TableRow>
                                 <TableCell
-                                    colSpan={
-                                        columns.length
-                                    }
-                                    className="h-24 text-center text-[10px]"
+                                    colSpan={visibleColumnCount}
+                                    className="h-28 text-center text-sm text-muted-foreground"
                                 >
-                                    No results.
+                                    No results found.
                                 </TableCell>
                             </TableRow>
                         )}
@@ -770,31 +665,26 @@ export function DataTable<TData, TValue>({
                 </Table>
             </div>
 
-            {/* =========================
-                PAGINATION
-            ========================= */}
-
-            <div className="flex items-center justify-between px-2">
-
-                <p className="text-[10px] text-muted-foreground">
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-1">
+                <p className="text-xs text-muted-foreground">
                     Page{" "}
-                    {table.getState().pagination
-                        .pageIndex + 1}{" "}
-                    of {table.getPageCount()}
+                    <span className="font-medium text-foreground">
+                        {table.getState().pagination.pageIndex + 1}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-foreground">
+                        {table.getPageCount()}
+                    </span>
                 </p>
 
                 <div className="flex items-center gap-2">
-
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                            table.previousPage()
-                        }
-                        disabled={
-                            !table.getCanPreviousPage()
-                        }
-                        className="h-7 text-[10px]"
+                        onClick={() => table.previousPage()}
+                        disabled={!table.getCanPreviousPage()}
+                        className="h-8 text-xs"
                     >
                         Previous
                     </Button>
@@ -802,18 +692,14 @@ export function DataTable<TData, TValue>({
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                            table.nextPage()
-                        }
-                        disabled={
-                            !table.getCanNextPage()
-                        }
-                        className="h-7 text-[10px]"
+                        onClick={() => table.nextPage()}
+                        disabled={!table.getCanNextPage()}
+                        className="h-8 text-xs"
                     >
                         Next
                     </Button>
                 </div>
             </div>
         </div>
-    )
+    );
 }
