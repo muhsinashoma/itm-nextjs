@@ -298,6 +298,50 @@ export const categoryApi = {
     create: (body: any) => api.post<ApiOk<{ id: number }>>("/categories", body),
 };
 
+export interface NonOperationalSummary {
+    ownership: number;
+    damaged: number;
+    lost: number;
+    total_non_operational: number;
+
+    main_table_damaged: number;
+    damage_inventory_damaged: number;
+    duplicate_in_both_tables: number;
+    damage_inventory_only: number;
+}
+
+
+
+export interface NonOperationalDevice {
+    id: number;
+
+    source: "asset_devices" | "damage_inventory";
+    source_id: number;
+
+    device_serial: string | null;
+    category: string | null;
+    brand: string | null;
+    model: string | null;
+
+    emp_id: string | null;
+    emp_name: string | null;
+    department: string | null;
+    designation: string | null;
+
+    mr_number: string | null;
+    pr_number: string | null;
+
+    assigned_date: string | null;
+    purchase_date: string | null;
+    warranty_date: string | null;
+
+    asset_status: number;
+    status_label: string;
+
+    remarks: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+}
 
 //Adding New
 
@@ -346,8 +390,21 @@ export const reportApi = {
     renewal: (params?: Record<string, any>) =>
         api.get<ApiOk<any[]>>(`/reports/renewal${toQuery(params)}`),
 
-    nonOperational: (params?: Record<string, any>) =>
-        api.get<ApiOk<any[]>>(`/reports/non-operational${toQuery(params)}`),
+    // nonOperational: (params?: Record<string, any>) =>
+    //     api.get<ApiOk<any[]>>(`/reports/non-operational${toQuery(params)}`),
+
+    nonOperational: (params?: {
+        status?: "all" | "damaged" | "lost";
+    }) =>
+        api.get<ApiOk<NonOperationalDevice[]>>(
+            `/assets/non-operational${toQuery(params)}`
+        ),
+
+    // Database-backed dashboard count
+    nonOperationalSummary: () =>
+        api.get<ApiOk<NonOperationalSummary>>(
+            "/assets/non-operational/summary"
+        ),
 };
 
 

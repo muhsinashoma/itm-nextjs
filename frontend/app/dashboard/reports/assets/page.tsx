@@ -123,41 +123,13 @@ export default function AssignedPage() {
                         sl: index + 1,
 
                         // Reference priority:
-                        // backend reference_no → MR → PR → serial → asset ID
-                        // referenceNumber:
-                        //     item.reference_no ||
-                        //     item.mr_number ||
-                        //     item.pr_number ||
-                        //     item.device_serial ||
-                        //     `Asset-${item.id || ""}`,
+                        // backend reference_no
 
                         referenceNumber: item.id ? String(item.id) : "—",
                         mrnNumber: item.mr_number || "",
                         prNumber: item.pr_number || "",
                         department: item.department || "",
 
-                        // mrnNumber: item.mr_number || "",
-                        // prNumber: item.pr_number || "",
-
-                        // // Default visible employee fields
-                        // employeeId: item.emp_id || "",
-                        // employeeName: item.emp_name || "",
-                        // designation: item.designation || "",
-                        // department: item.department || "",
-
-                        // // Default visible device fields
-                        // category: item.category || "",
-                        // deviceSl: item.device_serial || "",
-                        // model: item.model || item.model_no || "",
-
-                        // // Use API label first because it is cleaner:
-                        // // Assigned / Returned / Transferred
-                        // status: normalizeAssetStatus(
-                        //     item.status_label ||
-                        //     item.status ||
-                        //     status ||
-                        //     ""
-                        // ),
 
                         // Default visible employee fields
 
