@@ -169,22 +169,36 @@ export default function NonOperationalPage() {
         loadData();
     }, [selectedStatus]);
 
+    // const columns = useMemo(
+    //     () =>
+    //         assignedColumns({
+    //             onView: (device) => {
+    //                 const deviceId = Number(device.id);
+
+    //                 /*
+    //                  * Negative IDs are damage_inventory-only records.
+    //                  * They do not have a real asset_devices detail page.
+    //                  */
+    //                 if (
+    //                     Number.isFinite(deviceId) &&
+    //                     deviceId > 0
+    //                 ) {
+    //                     setViewDevice(device);
+    //                 }
+    //             },
+
+    //             onAssign: () => { },
+    //         }),
+    //     []
+    // );
+
     const columns = useMemo(
         () =>
             assignedColumns({
                 onView: (device) => {
-                    const deviceId = Number(device.id);
-
-                    /*
-                     * Negative IDs are damage_inventory-only records.
-                     * They do not have a real asset_devices detail page.
-                     */
-                    if (
-                        Number.isFinite(deviceId) &&
-                        deviceId > 0
-                    ) {
-                        setViewDevice(device);
-                    }
+                    // Open modal for every row:
+                    // asset_devices + damage_inventory rows.
+                    setViewDevice(device);
                 },
 
                 onAssign: () => { },
