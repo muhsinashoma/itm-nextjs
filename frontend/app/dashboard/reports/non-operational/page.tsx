@@ -64,16 +64,28 @@ function toAssignedDevice(
         id: item.id,
 
         sl: index + 1,
-        referenceNumber: `${referencePrefix}-${item.source_id}`,
+        // referenceNumber: `${referencePrefix}-${item.source_id}`,
+
+        referenceNumber:
+            item.mr_number ||
+            item.pr_number ||
+            item.device_serial ||
+            `${referencePrefix}-${item.source_id}`,
 
         mrnNumber: item.mr_number || "",
         prNumber: item.pr_number || "",
 
-        employeeId: item.emp_id || "",
-        employeeName: item.emp_name || "—",
 
-        designation: item.designation || "",
-        department: item.department || "",
+        employeeId: item.emp_id || "—",
+
+        employeeName:
+            item.emp_name ||
+            (item.source === "damage_inventory"
+                ? "No user assignment data"
+                : "Unassigned"),
+
+        designation: item.designation || "—",
+        department: item.department || "—",
 
         category: item.category || "",
         deviceSl: item.device_serial || "",
