@@ -339,6 +339,8 @@ export interface NonOperationalDevice {
     status_label: string;
 
     remarks: string | null;
+    damage_created_by: string | null;
+
     created_at: string | null;
     updated_at: string | null;
 }
@@ -391,10 +393,12 @@ export const reportApi = {
         api.get<ApiOk<any[]>>(`/reports/renewal${toQuery(params)}`),
 
     // nonOperational: (params?: Record<string, any>) =>
-    //     api.get<ApiOk<any[]>>(`/reports/non-operational${toQuery(params)}`),
+
+
 
     nonOperational: (params?: {
-        status?: "all" | "damaged" | "lost";
+        status?: string;
+        detail?: "all" | "main_table" | "damage_inventory" | "duplicates" | "inventory_only";
     }) =>
         api.get<ApiOk<NonOperationalDevice[]>>(
             `/assets/non-operational${toQuery(params)}`
