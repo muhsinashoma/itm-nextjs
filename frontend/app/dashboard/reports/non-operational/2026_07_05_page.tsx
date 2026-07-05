@@ -18,16 +18,7 @@ import {
     type NonOperationalSummary,
 } from "@/lib/api";
 
-import Link from "next/link";
-
 type ReportStatus = "all" | "damaged" | "lost";
-
-type DamageDetail =
-    | "all"
-    | "main_table"
-    | "damage_inventory"
-    | "duplicates"
-    | "inventory_only";
 
 const normalize = (value?: string | null) =>
     value?.toLowerCase().trim() || "";
@@ -123,18 +114,9 @@ export default function NonOperationalPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const selectedStatus = getSelectedStatus(searchParams.get("status"));
-    //const selectedDetail = searchParams.get("detail") || "all";
-
-    const rawDetail = searchParams.get("detail") || "all";
-
-    const selectedDetail: DamageDetail =
-        rawDetail === "main_table" ||
-            rawDetail === "damage_inventory" ||
-            rawDetail === "duplicates" ||
-            rawDetail === "inventory_only"
-            ? rawDetail
-            : "all";
+    const selectedStatus = getSelectedStatus(
+        searchParams.get("status")
+    );
 
     const [data, setData] = useState<AssignedDevice[]>([]);
 
@@ -150,8 +132,6 @@ export default function NonOperationalPage() {
             duplicate_in_both_tables: 0,
             damage_inventory_only: 0,
         });
-
-
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -169,7 +149,6 @@ export default function NonOperationalPage() {
                     await Promise.all([
                         reportApi.nonOperational({
                             status: selectedStatus,
-                            detail: selectedDetail,
                         }),
                         reportApi.nonOperationalSummary(),
                     ]);
@@ -200,49 +179,9 @@ export default function NonOperationalPage() {
         }
 
         loadData();
-        //}, [selectedStatus]);
-    }, [selectedStatus, selectedDetail]);
+    }, [selectedStatus]);
 
 
-
-    function MiniStat({
-        label,
-        value,
-        description,
-        href,
-    }: {
-        label: string;
-        value: number;
-        description: string;
-        href: string;
-    }) {
-        return (
-            <Link
-                href={href}
-                className="group rounded-xl border border-border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
-            >
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-xs font-medium text-muted-foreground">
-                            {label}
-                        </p>
-
-                        <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
-                            {value.toLocaleString()}
-                        </p>
-
-                        <p className="mt-2 text-xs text-muted-foreground">
-                            {description}
-                        </p>
-                    </div>
-
-                    <span className="mt-1 text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
-                        Details →
-                    </span>
-                </div>
-            </Link>
-        );
-    }
 
     const columns = useMemo(
         () =>
@@ -343,37 +282,27 @@ export default function NonOperationalPage() {
                 />
             </div>
 
-
             {/* Optional reconciliation information */}
-            {/* Damaged reconciliation details */}
             {selectedStatus === "damaged" && (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                     <MiniStat
                         label="Main Table Damaged"
                         value={summary.main_table_damaged}
-                        description="Current damaged assets with employee assignment"
-                        href="/dashboard/reports/non-operational?status=damaged&detail=main_table"
                     />
 
                     <MiniStat
                         label="Damage Inventory"
                         value={summary.damage_inventory_damaged}
-                        description="All submitted damage inventory records"
-                        href="/dashboard/reports/non-operational?status=damaged&detail=damage_inventory"
                     />
 
                     <MiniStat
                         label="Duplicate Devices"
                         value={summary.duplicate_in_both_tables}
-                        description="Damage records already found in asset registry"
-                        href="/dashboard/reports/non-operational?status=damaged&detail=duplicates"
                     />
 
                     <MiniStat
                         label="Inventory Only"
                         value={summary.damage_inventory_only}
-                        description="Damage records without a matching asset row"
-                        href="/dashboard/reports/non-operational?status=damaged&detail=inventory_only"
                     />
                 </div>
             )}
@@ -459,3 +388,20 @@ function StatusCard({
     );
 }
 
+function MiniStat({
+    label,
+    value,
+}: {
+    label: string;
+    value: number;
+}) {
+    return (
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+            <p className="text-xs text-muted-foreground">{label}</p>
+
+            <p className="mt-1 text-lg font-bold tabular-nums text-foreground">
+                {value.toLocaleString()}
+            </p>
+        </div>
+    );
+}
