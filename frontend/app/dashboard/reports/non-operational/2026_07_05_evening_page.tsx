@@ -205,46 +205,6 @@ export default function NonOperationalPage() {
 
 
 
-    // function MiniStat({
-    //     label,
-    //     value,
-    //     description,
-    //     href,
-    // }: {
-    //     label: string;
-    //     value: number;
-    //     description: string;
-    //     href: string;
-    // }) {
-    //     return (
-    //         <Link
-    //             href={href}
-    //             className="group rounded-xl border border-border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
-    //         >
-    //             <div className="flex items-start justify-between gap-3">
-    //                 <div className="min-w-0">
-    //                     <p className="text-xs font-medium text-muted-foreground">
-    //                         {label}
-    //                     </p>
-
-    //                     <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
-    //                         {value.toLocaleString()}
-    //                     </p>
-
-    //                     <p className="mt-2 text-xs text-muted-foreground">
-    //                         {description}
-    //                     </p>
-    //                 </div>
-
-    //                 <span className="mt-1 text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
-    //                     Details →
-    //                 </span>
-    //             </div>
-    //         </Link>
-    //     );
-    // }
-
-
     function MiniStat({
         label,
         value,
@@ -259,33 +219,31 @@ export default function NonOperationalPage() {
         return (
             <Link
                 href={href}
-                className="group min-h-[72px] rounded-lg border border-border bg-card px-3 py-2 transition hover:border-primary/40 hover:shadow-sm"
+                className="group rounded-xl border border-border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
             >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <p className="truncate text-[11px] font-semibold text-muted-foreground">
+                        <p className="text-xs font-medium text-muted-foreground">
                             {label}
                         </p>
 
-                        <p className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
+                        <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
                             {value.toLocaleString()}
                         </p>
 
-                        <p
-                            className="mt-0.5 truncate text-[10px] text-muted-foreground"
-                            title={description}
-                        >
+                        <p className="mt-2 text-xs text-muted-foreground">
                             {description}
                         </p>
                     </div>
 
-                    <span className="pt-0.5 text-xs font-semibold text-primary opacity-0 transition group-hover:opacity-100">
-                        →
+                    <span className="mt-1 text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
+                        Details →
                     </span>
                 </div>
             </Link>
         );
     }
+
     const columns = useMemo(
         () =>
             assignedColumns({
@@ -335,10 +293,8 @@ export default function NonOperationalPage() {
     }
 
     return (
-        //  <div className="space-y-6 p-6">
-
-        <div className="space-y-3 p-4">
-            {/* <div>
+        <div className="space-y-6 p-6">
+            <div>
                 <h1 className="text-xl font-semibold text-foreground">
                     {title}
                 </h1>
@@ -347,20 +303,10 @@ export default function NonOperationalPage() {
                     Damaged devices combine main registry records and
                     non-duplicate damage inventory records.
                 </p>
-            </div> */}
-
-            <div>
-                <h1 className="text-lg font-semibold text-foreground">
-                    {title}
-                </h1>
-
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                    Damaged devices combine main registry records and non-duplicate damage inventory records.
-                </p>
             </div>
 
             {/* Summary Cards */}
-            {/* <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <StatusCard
                     title="Damaged"
                     count={summary.damaged}
@@ -395,13 +341,12 @@ export default function NonOperationalPage() {
                         )
                     }
                 />
-            </div> */}
+            </div>
 
 
             {/* Optional reconciliation information */}
             {/* Damaged reconciliation details */}
-
-            {/* {selectedStatus === "damaged" && (
+            {selectedStatus === "damaged" && (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                     <MiniStat
                         label="Main Table Damaged"
@@ -431,77 +376,11 @@ export default function NonOperationalPage() {
                         href="/dashboard/reports/non-operational?status=damaged&detail=inventory_only"
                     />
                 </div>
-            )} */}
-
-            {/* Compact summary and damaged breakdown cards */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7">
-                <StatusCard
-                    title="Damaged"
-                    count={summary.damaged}
-                    color="orange"
-                    active={selectedStatus === "damaged" && selectedDetail === "all"}
-                    onClick={() =>
-                        router.push(
-                            "/dashboard/reports/non-operational?status=damaged"
-                        )
-                    }
-                />
-
-                <StatusCard
-                    title="Lost"
-                    count={summary.lost}
-                    color="red"
-                    active={selectedStatus === "lost"}
-                    onClick={() =>
-                        router.push(
-                            "/dashboard/reports/non-operational?status=lost"
-                        )
-                    }
-                />
-
-                <StatusCard
-                    title="Ownership"
-                    count={summary.ownership}
-                    color="blue"
-                    onClick={() =>
-                        router.push(
-                            "/dashboard/disposal/ownership-assets"
-                        )
-                    }
-                />
-
-                <MiniStat
-                    label="Main Table"
-                    value={summary.main_table_damaged}
-                    description="Current registry"
-                    href="/dashboard/reports/non-operational?status=damaged&detail=main_table"
-                />
-
-                <MiniStat
-                    label="Damage Inventory"
-                    value={summary.damage_inventory_damaged}
-                    description="All damage reports"
-                    href="/dashboard/reports/non-operational?status=damaged&detail=damage_inventory"
-                />
-
-                <MiniStat
-                    label="Duplicates"
-                    value={summary.duplicate_in_both_tables}
-                    description="Already matched"
-                    href="/dashboard/reports/non-operational?status=damaged&detail=duplicates"
-                />
-
-                <MiniStat
-                    label="Inventory Only"
-                    value={summary.damage_inventory_only}
-                    description="No asset match"
-                    href="/dashboard/reports/non-operational?status=damaged&detail=inventory_only"
-                />
-            </div>
+            )}
 
             {/* Table */}
-            <div className="overflow-hidden rounded-lg border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border px-3 py-2">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+                <div className="flex items-center justify-between border-b border-border px-4 py-3">
                     <div>
                         <p className="text-sm font-semibold text-foreground">
                             {data.length.toLocaleString()} Records
@@ -568,14 +447,12 @@ function StatusCard({
         <button
             type="button"
             onClick={onClick}
-            // className={`rounded-xl border p-4 text-left transition hover:shadow-sm ${colors[color]
-            //     } ${active ? "ring-2 ring-primary/30" : ""}`}
-            className={`min-h-[72px] rounded-lg border px-3 py-2 text-left transition hover:shadow-sm ${colors[color]
+            className={`rounded-xl border p-4 text-left transition hover:shadow-sm ${colors[color]
                 } ${active ? "ring-2 ring-primary/30" : ""}`}
         >
-            <p className="truncate text-[11px] font-semibold">{title}</p>
+            <p className="text-sm font-medium">{title}</p>
 
-            <p className="mt-0.5 text-xl font-bold tabular-nums">
+            <p className="mt-1 text-2xl font-bold tabular-nums">
                 {count.toLocaleString()}
             </p>
         </button>
