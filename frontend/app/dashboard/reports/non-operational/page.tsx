@@ -20,6 +20,18 @@ import {
 
 import Link from "next/link";
 
+import {
+    AlertTriangle,
+    BadgeCheck,
+    Boxes,
+    CircleOff,
+    ClipboardList,
+    Copy,
+    HardDrive,
+    Eye,
+    type LucideIcon,
+} from "lucide-react";
+
 type ReportStatus = "all" | "damaged" | "lost";
 
 type DamageDetail =
@@ -201,29 +213,72 @@ export default function NonOperationalPage() {
         //}, [selectedStatus]);
     }, [selectedStatus, selectedDetail]);
 
+
+
+
+
+
     // function MiniStat({
     //     label,
     //     value,
     //     description,
     //     href,
+    //     tone,
     // }: {
     //     label: string;
     //     value: number;
     //     description: string;
     //     href: string;
+    //     tone: "indigo" | "amber" | "violet" | "emerald";
     // }) {
+    //     const toneClasses = {
+    //         indigo: {
+    //             card: "border-indigo-200 bg-indigo-50 hover:border-indigo-300 hover:bg-indigo-100/70",
+    //             label: "text-indigo-700",
+    //             value: "text-indigo-900",
+    //             arrow: "text-indigo-600",
+    //         },
+
+    //         amber: {
+    //             card: "border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100/70",
+    //             label: "text-amber-700",
+    //             value: "text-amber-900",
+    //             arrow: "text-amber-600",
+    //         },
+
+    //         violet: {
+    //             card: "border-violet-200 bg-violet-50 hover:border-violet-300 hover:bg-violet-100/70",
+    //             label: "text-violet-700",
+    //             value: "text-violet-900",
+    //             arrow: "text-violet-600",
+    //         },
+
+    //         emerald: {
+    //             card: "border-emerald-200 bg-emerald-50 hover:border-emerald-300 hover:bg-emerald-100/70",
+    //             label: "text-emerald-700",
+    //             value: "text-emerald-900",
+    //             arrow: "text-emerald-600",
+    //         },
+    //     };
+
+    //     const style = toneClasses[tone];
+
     //     return (
     //         <Link
     //             href={href}
-    //             className="group min-h-[72px] rounded-lg border border-border bg-card px-3 py-2 transition hover:border-primary/40 hover:shadow-sm"
+    //             className={`group min-h-[72px] rounded-lg border px-3 py-2 transition hover:shadow-sm ${style.card}`}
     //         >
     //             <div className="flex items-start justify-between gap-2">
     //                 <div className="min-w-0">
-    //                     <p className="truncate text-[11px] font-semibold text-muted-foreground">
+    //                     <p
+    //                         className={`truncate text-[11px] font-semibold ${style.label}`}
+    //                     >
     //                         {label}
     //                     </p>
 
-    //                     <p className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
+    //                     <p
+    //                         className={`mt-0.5 text-xl font-bold tabular-nums ${style.value}`}
+    //                     >
     //                         {value.toLocaleString()}
     //                     </p>
 
@@ -235,7 +290,9 @@ export default function NonOperationalPage() {
     //                     </p>
     //                 </div>
 
-    //                 <span className="pt-0.5 text-xs font-semibold text-primary opacity-0 transition group-hover:opacity-100">
+    //                 <span
+    //                     className={`pt-0.5 text-xs font-semibold opacity-0 transition group-hover:opacity-100 ${style.arrow}`}
+    //                 >
     //                     →
     //                 </span>
     //             </div>
@@ -243,47 +300,137 @@ export default function NonOperationalPage() {
     //     );
     // }
 
+    // function MiniStat({
+    //     label,
+    //     value,
+    //     description,
+    //     href,
+    //     tone,
+    //     icon: Icon,
+    // }: {
+    //     label: string;
+    //     value: number;
+    //     description: string;
+    //     href: string;
+    //     tone: "indigo" | "amber" | "violet" | "emerald";
+    //     icon: LucideIcon;
+    // }) {
+    //     const toneClasses = {
+    //         indigo: {
+    //             card: "border-indigo-200 bg-indigo-50 hover:border-indigo-300 hover:bg-indigo-100/70",
+    //             label: "text-indigo-700",
+    //             value: "text-indigo-900",
+    //             icon: "bg-indigo-100 text-indigo-700",
+    //             arrow: "text-indigo-600",
+    //         },
+
+    //         amber: {
+    //             card: "border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100/70",
+    //             label: "text-amber-700",
+    //             value: "text-amber-900",
+    //             icon: "bg-amber-100 text-amber-700",
+    //             arrow: "text-amber-600",
+    //         },
+
+    //         violet: {
+    //             card: "border-violet-200 bg-violet-50 hover:border-violet-300 hover:bg-violet-100/70",
+    //             label: "text-violet-700",
+    //             value: "text-violet-900",
+    //             icon: "bg-violet-100 text-violet-700",
+    //             arrow: "text-violet-600",
+    //         },
+
+    //         emerald: {
+    //             card: "border-emerald-200 bg-emerald-50 hover:border-emerald-300 hover:bg-emerald-100/70",
+    //             label: "text-emerald-700",
+    //             value: "text-emerald-900",
+    //             icon: "bg-emerald-100 text-emerald-700",
+    //             arrow: "text-emerald-600",
+    //         },
+    //     };
+
+    //     const style = toneClasses[tone];
+
+    //     return (
+    //         <Link
+    //             href={href}
+    //             className={`group min-h-[76px] rounded-lg border px-3 py-2 transition-all hover:-translate-y-0.5 hover:shadow-md ${style.card}`}
+    //         >
+    //             <div className="flex items-start justify-between gap-2">
+    //                 <div className="min-w-0">
+    //                     <p
+    //                         className={`truncate text-[11px] font-semibold ${style.label}`}
+    //                         title={label}
+    //                     >
+    //                         {label}
+    //                     </p>
+
+    //                     <p
+    //                         className={`mt-0.5 text-xl font-bold tabular-nums ${style.value}`}
+    //                     >
+    //                         {value.toLocaleString()}
+    //                     </p>
+
+    //                     <p
+    //                         className="mt-0.5 truncate text-[10px] text-muted-foreground"
+    //                         title={description}
+    //                     >
+    //                         {description}
+    //                     </p>
+    //                 </div>
+
+    //                 <div
+    //                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${style.icon}`}
+    //                 >
+    //                     <Icon className="h-4 w-4" strokeWidth={2.2} />
+    //                 </div>
+    //             </div>
+
+    //             <span
+    //                 className={`mt-1 block text-[10px] font-semibold opacity-0 transition group-hover:opacity-100 ${style.arrow}`}
+    //             >
+    //                 View details →
+    //             </span>
+    //         </Link>
+    //     );
+    // }
 
     function MiniStat({
         label,
         value,
-        description,
         href,
         tone,
+        icon: Icon,
     }: {
         label: string;
         value: number;
-        description: string;
         href: string;
-        tone: "blue" | "orange" | "violet" | "teal";
+        tone: "indigo" | "amber" | "violet" | "emerald";
+        icon: LucideIcon;
     }) {
         const toneClasses = {
-            blue: {
-                card: "border-blue-200 bg-blue-50 hover:border-blue-300 hover:bg-blue-100/60",
-                label: "text-blue-700",
-                value: "text-blue-800",
-                arrow: "text-blue-600",
+            indigo: {
+                card: "border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-300 hover:bg-indigo-100/70",
+                iconBox: "bg-white/80 text-indigo-600",
+                action: "text-indigo-600",
             },
 
-            orange: {
-                card: "border-orange-200 bg-orange-50 hover:border-orange-300 hover:bg-orange-100/60",
-                label: "text-orange-700",
-                value: "text-orange-800",
-                arrow: "text-orange-600",
+            amber: {
+                card: "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 hover:bg-amber-100/70",
+                iconBox: "bg-white/80 text-amber-600",
+                action: "text-amber-600",
             },
 
             violet: {
-                card: "border-violet-200 bg-violet-50 hover:border-violet-300 hover:bg-violet-100/60",
-                label: "text-violet-700",
-                value: "text-violet-800",
-                arrow: "text-violet-600",
+                card: "border-violet-200 bg-violet-50 text-violet-700 hover:border-violet-300 hover:bg-violet-100/70",
+                iconBox: "bg-white/80 text-violet-600",
+                action: "text-violet-600",
             },
 
-            teal: {
-                card: "border-teal-200 bg-teal-50 hover:border-teal-300 hover:bg-teal-100/60",
-                label: "text-teal-700",
-                value: "text-teal-800",
-                arrow: "text-teal-600",
+            emerald: {
+                card: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100/70",
+                iconBox: "bg-white/80 text-emerald-600",
+                action: "text-emerald-600",
             },
         };
 
@@ -292,40 +439,36 @@ export default function NonOperationalPage() {
         return (
             <Link
                 href={href}
-                className={`group min-h-[72px] rounded-lg border px-3 py-2 transition hover:shadow-sm ${style.card}`}
+                className={`group min-h-[76px] rounded-lg border px-3 py-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${style.card}`}
             >
                 <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                        <p
-                            className={`truncate text-[11px] font-semibold ${style.label}`}
-                        >
+                        <p className="truncate text-[11px] font-semibold">
                             {label}
                         </p>
 
-                        <p
-                            className={`mt-0.5 text-xl font-bold tabular-nums ${style.value}`}
-                        >
+                        <p className="mt-0.5 text-xl font-bold tabular-nums">
                             {value.toLocaleString()}
-                        </p>
-
-                        <p
-                            className="mt-0.5 truncate text-[10px] text-muted-foreground"
-                            title={description}
-                        >
-                            {description}
                         </p>
                     </div>
 
-                    <span
-                        className={`pt-0.5 text-xs font-semibold opacity-0 transition group-hover:opacity-100 ${style.arrow}`}
+                    <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${style.iconBox}`}
                     >
-                        →
-                    </span>
+                        <Icon className="h-4 w-4" strokeWidth={2.2} />
+                    </div>
                 </div>
+
+                <span
+                    className={`mt-1 flex items-center gap-1 text-[10px] font-medium opacity-80 transition group-hover:opacity-100 ${style.action}`}
+                >
+                    <Eye className="h-3 w-3" strokeWidth={2.2} />
+                    View records
+                    <span>→</span>
+                </span>
             </Link>
         );
     }
-
     const columns = useMemo(
         () =>
             assignedColumns({
@@ -389,12 +532,15 @@ export default function NonOperationalPage() {
             </div>
 
 
+
+
             {/* Compact summary and damaged breakdown cards */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7">
                 <StatusCard
                     title="Damaged"
                     count={summary.damaged}
-                    color="orange"
+                    color="red"
+                    icon={AlertTriangle}
                     active={selectedStatus === "damaged" && selectedDetail === "all"}
                     onClick={() =>
                         router.push(
@@ -406,7 +552,8 @@ export default function NonOperationalPage() {
                 <StatusCard
                     title="Lost"
                     count={summary.lost}
-                    color="red"
+                    color="rose"
+                    icon={CircleOff}
                     active={selectedStatus === "lost"}
                     onClick={() =>
                         router.push(
@@ -419,6 +566,7 @@ export default function NonOperationalPage() {
                     title="Ownership"
                     count={summary.ownership}
                     color="blue"
+                    icon={BadgeCheck}
                     onClick={() =>
                         router.push(
                             "/dashboard/disposal/ownership-assets"
@@ -426,66 +574,37 @@ export default function NonOperationalPage() {
                     }
                 />
 
-                {/* <MiniStat
-                    label="Main Table"
+                <MiniStat
+                    label="Registered Damaged Assets"
                     value={summary.main_table_damaged}
-                    description="Current registry"
                     href="/dashboard/reports/non-operational?status=damaged&detail=main_table"
+                    tone="indigo"
+                    icon={HardDrive}
                 />
 
                 <MiniStat
                     label="Damage Inventory"
                     value={summary.damage_inventory_damaged}
-                    description="All damage reports"
                     href="/dashboard/reports/non-operational?status=damaged&detail=damage_inventory"
+                    tone="amber"
+                    icon={ClipboardList}
                 />
 
                 <MiniStat
                     label="Duplicates"
                     value={summary.duplicate_in_both_tables}
-                    description="Already matched"
-                    href="/dashboard/reports/non-operational?status=damaged&detail=duplicates"
-                />
-
-                <MiniStat
-                    label="Inventory Only"
-                    value={summary.damage_inventory_only}
-                    description="No asset match"
-                    href="/dashboard/reports/non-operational?status=damaged&detail=inventory_only"
-                /> */}
-
-                <MiniStat
-                    label="Main Table"
-                    value={summary.main_table_damaged}
-                    description="Current registry"
-                    href="/dashboard/reports/non-operational?status=damaged&detail=main_table"
-                    tone="blue"
-                />
-
-                <MiniStat
-                    label="Damage Inventory"
-                    value={summary.damage_inventory_damaged}
-                    description="All damage reports"
-                    href="/dashboard/reports/non-operational?status=damaged&detail=damage_inventory"
-                    tone="orange"
-                />
-
-                <MiniStat
-                    label="Duplicates"
-                    value={summary.duplicate_in_both_tables}
-                    description="Already matched"
                     href="/dashboard/reports/non-operational?status=damaged&detail=duplicates"
                     tone="violet"
+                    icon={Copy}
                 />
 
                 <MiniStat
                     label="Inventory Only"
                     value={summary.damage_inventory_only}
-                    description="No asset match"
                     href="/dashboard/reports/non-operational?status=damaged&detail=inventory_only"
-                    tone="teal"
+                    tone="emerald"
+                    icon={Boxes}
                 />
-
             </div>
 
             {/* Table */}
@@ -538,33 +657,64 @@ function StatusCard({
     title,
     count,
     color,
+    icon: Icon,
     active = false,
     onClick,
 }: {
     title: string;
     count: number;
-    color: "red" | "orange" | "blue";
+    color: "red" | "rose" | "blue";
+    icon: LucideIcon;
     active?: boolean;
     onClick: () => void;
 }) {
     const colors = {
-        red: "border-red-200 bg-red-50 text-red-700",
-        orange: "border-orange-200 bg-orange-50 text-orange-700",
-        blue: "border-blue-200 bg-blue-50 text-blue-700",
+        red: "border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100/70",
+        rose: "border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100/70",
+        blue: "border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 hover:bg-sky-100/70",
     };
+
+    // return (
+    //     <button
+    //         type="button"
+    //         onClick={onClick}
+
+    //         className={`min-h-[72px] rounded-lg border px-3 py-2 text-left transition hover:shadow-sm ${colors[color]
+    //             } ${active ? "ring-2 ring-primary/30" : ""}`}
+    //     >
+    //         <p className="truncate text-[11px] font-semibold">{title}</p>
+
+    //         <p className="mt-0.5 text-xl font-bold tabular-nums">
+    //             {count.toLocaleString()}
+    //         </p>
+    //     </button>
+    // );
 
     return (
         <button
             type="button"
             onClick={onClick}
-
-            className={`min-h-[72px] rounded-lg border px-3 py-2 text-left transition hover:shadow-sm ${colors[color]
-                } ${active ? "ring-2 ring-primary/30" : ""}`}
+            className={`group min-h-[76px] rounded-lg border px-3 py-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${colors[color]} ${active ? "ring-2 ring-primary/30" : ""
+                }`}
         >
-            <p className="truncate text-[11px] font-semibold">{title}</p>
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                    <p className="truncate text-[11px] font-semibold">
+                        {title}
+                    </p>
 
-            <p className="mt-0.5 text-xl font-bold tabular-nums">
-                {count.toLocaleString()}
+                    <p className="mt-0.5 text-xl font-bold tabular-nums">
+                        {count.toLocaleString()}
+                    </p>
+                </div>
+
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/70">
+                    <Icon className="h-4 w-4" strokeWidth={2.2} />
+                </div>
+            </div>
+
+            <p className="mt-1 text-[10px] opacity-75">
+                View records →
             </p>
         </button>
     );
