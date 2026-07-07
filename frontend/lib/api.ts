@@ -264,6 +264,73 @@ export const assetDeviceApi = {
 };
 
 
+//Device Ownership
+
+export interface OwnershipSummary {
+    user_ownership: number;
+    vendor_ownership: number;
+    total_ownership: number;
+    current_asset_count: number;
+}
+
+export interface OwnershipAsset {
+    id: number;
+    reference: string;
+    ownership_category: number;
+    ownership_type: "User" | "Vendor" | "Unknown";
+
+    device_serial: string | null;
+    category: string | null;
+    brand: string | null;
+    model: string | null;
+
+    emp_id: string | null;
+    emp_name: string | null;
+    department: string | null;
+    designation: string | null;
+
+    assigned_date: string | null;
+    purchase_date: string | null;
+    warranty_date: string | null;
+
+    transfer_date: string | null;
+    remarks: string | null;
+
+    asset_status: number;
+    status_label: string;
+
+    created_at: string | null;
+    updated_at: string | null;
+}
+
+export const ownershipApi = {
+    summary: () =>
+        api.get<ApiOk<OwnershipSummary>>(
+            "/assets/ownership/summary"
+        ),
+
+    list: (params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        category?: "all" | "user" | "vendor";
+    }) => {
+        const query = new URLSearchParams();
+
+        Object.entries(params ?? {}).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== "") {
+                query.set(key, String(value));
+            }
+        });
+
+        const qs = query.toString();
+
+        return api.get<ApiPage<OwnershipAsset>>(
+            `/assets/ownership${qs ? `?${qs}` : ""}`
+        );
+    },
+};
+
 export interface Employee { employee_id: string; employee_name: string; designation: string; department: string; work_field: string; sub_function: string; active: string; personal_cell: string; official_cell: string; email: string; picture: string; device_count?: number; }
 export const employeeApi = {
     list: (p?: { page?: number; page_size?: number; active?: string }) => api.get<ApiPage<Employee>>(`/employees?${new URLSearchParams(p as any).toString()}`),
