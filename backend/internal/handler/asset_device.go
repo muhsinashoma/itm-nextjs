@@ -31,9 +31,14 @@ func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
 	g.GET("/non-operational/summary", h.NonOperationalSummary)
 	g.GET("/non-operational", h.NonOperationalList)
 
+	// Ownership page APIs.
+	g.GET("/ownership/summary", h.OwnershipSummary)
+	g.GET("/ownership", h.OwnershipList)
+
 	// Keep this route before /devices/:id.
 	g.GET("/devices/:id/history", h.History)
 	g.GET("/devices/:id", h.GetByID)
+
 }
 
 type AssetDevice struct {
@@ -150,6 +155,47 @@ type NonOperationalDevice struct {
 	UpdatedAt *string `json:"updated_at"`
 }
 
+type OwnershipSummary struct {
+	UserOwnership   int64 `json:"user_ownership"`
+	VendorOwnership int64 `json:"vendor_ownership"`
+	TotalOwnership  int64 `json:"total_ownership"`
+
+	// Current ownership assets from asset_devices.
+	CurrentAssetCount int64 `json:"current_asset_count"`
+}
+
+type OwnershipAsset struct {
+	ID int64 `json:"id"`
+
+	Reference string `json:"reference"`
+
+	OwnershipCategory int16  `json:"ownership_category"`
+	OwnershipType     string `json:"ownership_type"`
+
+	DeviceSerial *string `json:"device_serial"`
+	Category     *string `json:"category"`
+	Brand        *string `json:"brand"`
+	Model        *string `json:"model"`
+
+	EmpID       *string `json:"emp_id"`
+	EmpName     *string `json:"emp_name"`
+	Department  *string `json:"department"`
+	Designation *string `json:"designation"`
+
+	AssignedDate *string `json:"assigned_date"`
+	PurchaseDate *string `json:"purchase_date"`
+	WarrantyDate *string `json:"warranty_date"`
+
+	TransferDate *string `json:"transfer_date"`
+	Remarks      *string `json:"remarks"`
+
+	AssetStatus int16  `json:"asset_status"`
+	StatusLabel string `json:"status_label"`
+
+	CreatedAt *string `json:"created_at"`
+	UpdatedAt *string `json:"updated_at"`
+}
+
 func (h *AssetDeviceHandler) NonOperationalSummary(c *gin.Context) {
 	const query = `
 		WITH raw_damage_source AS (
@@ -261,6 +307,330 @@ func (h *AssetDeviceHandler) NonOperationalSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": summary,
 	})
+}
+
+func (h *AssetDeviceHandler) OwnershipSummary(c *gin.Context) {
+	const query = `
+		SELECT
+			COUNT(*) FILTER (
+				WHERE owst_category = 1
+				  AND status = 1
+			) AS user_ownership,
+
+			COUNT(*) FILTER (
+				WHERE owst_category = 2
+				  AND status = 1
+			) AS vendor_ownership,
+
+			COUNT(*) FILTER (
+				WHERE owst_category IN (1, 2)
+				  AND status = 1
+			) AS total_ownership,
+
+			(
+				SELECT COUNT(*)
+				FROM public.asset_devices
+				WHERE asset_status = 7
+				  AND row_status = 1
+			) AS current_asset_count
+
+		FROM public.ownership_transfers
+	`
+
+	var summary OwnershipSummary
+
+	err := h.db.QueryRow(
+		c.Request.Context(),
+		query,
+	).Scan(
+		&summary.UserOwnership,
+		&summary.VendorOwnership,
+		&summary.TotalOwnership,
+		&summary.CurrentAssetCount,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    summary,
+	})
+}
+
+func (h *AssetDeviceHandler) OwnershipList(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 {
+		limit = 20
+	}
+
+	if limit > 100 {
+		limit = 100
+	}
+
+	category := strings.ToLower(
+		strings.TrimSpace(c.DefaultQuery("category", "all")),
+	)
+
+	var categoryValue *int16
+
+	switch category {
+	case "all":
+		categoryValue = nil
+
+	case "user":
+		value := int16(1)
+		categoryValue = &value
+
+	case "vendor":
+		value := int16(2)
+		categoryValue = &value
+
+	default:
+		response.BadRequest(c, "category must be one of: all, user, vendor")
+		return
+	}
+
+	search := strings.TrimSpace(c.Query("search"))
+	offset := (page - 1) * limit
+
+	args := make([]any, 0)
+
+	whereParts := []string{
+		"WHERE ot.status = 1",
+		"AND ot.owst_category IN (1, 2)",
+		"AND NULLIF(BTRIM(ot.device_sl_no), '') IS NOT NULL",
+	}
+
+	placeholder := 1
+
+	if categoryValue != nil {
+		args = append(args, *categoryValue)
+
+		whereParts = append(
+			whereParts,
+			fmt.Sprintf("AND ot.owst_category = $%d", placeholder),
+		)
+
+		placeholder++
+	}
+
+	if search != "" {
+		args = append(args, "%"+search+"%")
+
+		whereParts = append(
+			whereParts,
+			fmt.Sprintf(`
+				AND (
+					ot.device_sl_no ILIKE $%d
+					OR ot.employee_id ILIKE $%d
+					OR ot.item_name ILIKE $%d
+					OR COALESCE(ad.emp_id, '') ILIKE $%d
+					OR COALESCE(ad.emp_name, '') ILIKE $%d
+					OR COALESCE(ad.department, '') ILIKE $%d
+					OR COALESCE(ad.designation, '') ILIKE $%d
+					OR COALESCE(ad.category, '') ILIKE $%d
+					OR COALESCE(ad.brand, '') ILIKE $%d
+					OR COALESCE(ad.model, '') ILIKE $%d
+				)
+			`,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+			),
+		)
+
+		placeholder++
+	}
+
+	where := strings.Join(whereParts, "\n")
+
+	ownershipRowsCTE := `
+		WITH ownership_rows AS (
+			SELECT
+				ot.*,
+
+				UPPER(
+					REGEXP_REPLACE(
+						BTRIM(ot.device_sl_no),
+						'[^A-Za-z0-9]+',
+						'',
+						'g'
+					)
+				) AS serial_key
+
+			FROM public.ownership_transfers ot
+		)
+	`
+
+	countQuery := fmt.Sprintf(`
+		%s
+
+		SELECT COUNT(*)
+
+		FROM ownership_rows ot
+		LEFT JOIN public.asset_devices ad
+			ON ad.device_serial_key = ot.serial_key
+		   AND ad.row_status = 1
+
+		%s
+	`, ownershipRowsCTE, where)
+
+	var total int
+
+	if err := h.db.QueryRow(
+		c.Request.Context(),
+		countQuery,
+		args...,
+	).Scan(&total); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	listArgs := append(args, limit, offset)
+
+	listQuery := fmt.Sprintf(`
+		%s
+
+		SELECT
+			ot.id,
+			ot.id::text AS reference,
+
+			ot.owst_category,
+
+			CASE ot.owst_category
+				WHEN 1 THEN 'User'
+				WHEN 2 THEN 'Vendor'
+				ELSE 'Unknown'
+			END AS ownership_type,
+
+			COALESCE(
+				NULLIF(BTRIM(ad.device_serial), ''),
+				NULLIF(BTRIM(ot.device_sl_no), '')
+			) AS device_serial,
+
+			COALESCE(
+				NULLIF(BTRIM(ad.category), ''),
+				NULLIF(BTRIM(ot.item_name), '')
+			) AS category,
+
+			NULLIF(BTRIM(ad.brand), '') AS brand,
+			NULLIF(BTRIM(ad.model), '') AS model,
+
+			COALESCE(
+				NULLIF(BTRIM(ad.emp_id), ''),
+				NULLIF(BTRIM(ot.employee_id), '')
+			) AS emp_id,
+
+			NULLIF(BTRIM(ad.emp_name), '') AS emp_name,
+			NULLIF(BTRIM(ad.department), '') AS department,
+			NULLIF(BTRIM(ad.designation), '') AS designation,
+
+			ad.assigned_date::text,
+			ad.purchase_date::text,
+			ad.warranty_date::text,
+
+			ot.gate_pass_date::text AS transfer_date,
+			NULLIF(BTRIM(ot.remarks), '') AS remarks,
+
+			COALESCE(ad.asset_status, 7)::smallint AS asset_status,
+
+			CASE ot.owst_category
+				WHEN 1 THEN 'User Ownership'
+				WHEN 2 THEN 'Vendor Ownership'
+				ELSE 'Ownership'
+			END AS status_label,
+
+			ot.created_at::text,
+			COALESCE(ad.updated_at::text, ot.created_at::text) AS updated_at
+
+		FROM ownership_rows ot
+		LEFT JOIN public.asset_devices ad
+			ON ad.device_serial_key = ot.serial_key
+		   AND ad.row_status = 1
+
+		%s
+
+		ORDER BY
+			ot.gate_pass_date DESC NULLS LAST,
+			ot.id DESC
+
+		LIMIT $%d OFFSET $%d
+	`, ownershipRowsCTE, where, placeholder, placeholder+1)
+
+	rows, err := h.db.Query(
+		c.Request.Context(),
+		listQuery,
+		listArgs...,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer rows.Close()
+
+	items := make([]OwnershipAsset, 0)
+
+	for rows.Next() {
+		var item OwnershipAsset
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.Reference,
+
+			&item.OwnershipCategory,
+			&item.OwnershipType,
+
+			&item.DeviceSerial,
+			&item.Category,
+			&item.Brand,
+			&item.Model,
+
+			&item.EmpID,
+			&item.EmpName,
+			&item.Department,
+			&item.Designation,
+
+			&item.AssignedDate,
+			&item.PurchaseDate,
+			&item.WarrantyDate,
+
+			&item.TransferDate,
+			&item.Remarks,
+
+			&item.AssetStatus,
+			&item.StatusLabel,
+
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.Paginated(c, items, total, page, limit)
 }
 
 func (h *AssetDeviceHandler) NonOperationalList(c *gin.Context) {
