@@ -173,9 +173,9 @@ function exportPDF(data: OwnershipAsset[]) {
                     <td>${getDeviceName(item)}</td>
                     <td>${item.device_serial || "—"}</td>
                     <td>${formatDate(
-                        item.transfer_date ||
-                        item.assigned_date ||
-                        item.updated_at,
+                item.transfer_date ||
+                item.assigned_date ||
+                item.updated_at,
             )}</td>
                     <td>Ownership</td>
                 </tr>
@@ -528,7 +528,7 @@ export default function WarrantyOwnershipPage() {
     const [summary, setSummary] = useState<OwnershipSummary | null>(null);
 
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(20);  //set default page size to 10
+    const [pageSize] = useState(20);
     const [total, setTotal] = useState(0);
 
     const [isLoading, setIsLoading] = useState(true);
@@ -627,33 +627,13 @@ export default function WarrantyOwnershipPage() {
         exportPDF([item]);
     };
 
-    const totalForms = summary?.total_ownership ?? 0;
-
-    const userPercentage =
-        totalForms > 0
-            ? Math.round(((summary?.user_ownership ?? 0) / totalForms) * 100)
-            : 0;
-
-    const vendorPercentage =
-        totalForms > 0
-            ? Math.round(((summary?.vendor_ownership ?? 0) / totalForms) * 100)
-            : 0;
-
-    const activeCategoryLabel =
-        selectedCategory === "user"
-            ? "User Ownership"
-            : selectedCategory === "vendor"
-                ? "Vendor Ownership"
-                : "All Ownership Transfers";
-
     return (
-        <div className="space-y-3 p-3 sm:p-4">
-
-            <div className="rounded-xl border border-border bg-card p-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-purple-100 bg-purple-50">
-                            <ShieldCheck className="h-4.5 w-4.5 text-purple-600" />
+        <div className="space-y-4 p-4 sm:p-6">
+            <div className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-purple-100 bg-purple-50">
+                            <ShieldCheck className="h-5 w-5 text-purple-600" />
                         </div>
 
                         <div>
@@ -661,116 +641,85 @@ export default function WarrantyOwnershipPage() {
                                 Device Ownership
                             </h1>
 
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                Ownership transfer records and asset tracking
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                Manage and monitor ownership transfer records
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <span className="hidden rounded-full border border-border bg-muted px-2.5 py-1 text-[10px] font-medium text-muted-foreground sm:inline-flex">
-                            {activeCategoryLabel}
-                        </span>
-
+                    <div className="flex gap-2">
                         <button
                             onClick={() => exportCSV(filtered)}
                             disabled={isLoading || filtered.length === 0}
-                            className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            <FileSpreadsheet size={12} />
+                            <FileSpreadsheet size={13} />
                             Excel
                         </button>
 
                         <button
                             onClick={() => exportPDF(filtered)}
                             disabled={isLoading || filtered.length === 0}
-                            className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            <FileText size={12} />
+                            <FileText size={13} />
                             PDF
                         </button>
                     </div>
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     {[
                         {
                             label: "Transfer Forms",
-                            value: totalForms,
-                            helper: "All ownership records",
-                            color: "text-slate-800",
-                            card: "border-slate-200 bg-slate-50 hover:border-slate-300",
-                            iconBox: "bg-white text-slate-600",
+                            value: summary?.total_ownership ?? 0,
+                            color: "text-foreground",
+                            bg: "border-border bg-muted",
                             icon: <ShieldCheck size={14} />,
                             category: "all" as const,
                         },
                         {
                             label: "User Ownership",
                             value: summary?.user_ownership ?? 0,
-                            helper: `${userPercentage}% of transfer forms`,
-                            color: "text-emerald-700",
-                            card: "border-emerald-200 bg-emerald-50 hover:border-emerald-300",
-                            iconBox: "bg-white text-emerald-600",
+                            color: "text-green-700",
+                            bg: "border-green-100 bg-green-50",
                             icon: <Users size={14} />,
                             category: "user" as const,
                         },
                         {
                             label: "Vendor Ownership",
                             value: summary?.vendor_ownership ?? 0,
-                            helper: `${vendorPercentage}% of transfer forms`,
-                            color: "text-rose-700",
-                            card: "border-rose-200 bg-rose-50 hover:border-rose-300",
-                            iconBox: "bg-white text-rose-600",
+                            color: "text-red-700",
+                            bg: "border-red-100 bg-red-50",
                             icon: <Store size={14} />,
                             category: "vendor" as const,
-                        },
-                        {
-                            label: "Current Assets",
-                            value: summary?.current_asset_count ?? 0,
-                            helper: `${total} records in current view`,
-                            color: "text-violet-700",
-                            card: "border-violet-200 bg-violet-50 hover:border-violet-300",
-                            iconBox: "bg-white text-violet-600",
-                            icon: <Package size={14} />,
-                            category: null,
                         },
                     ].map((item) => (
                         <button
                             key={item.label}
                             type="button"
                             onClick={() => {
-                                if (!item.category) return;
-
                                 setSelectedCategory(item.category);
                                 setPage(1);
                             }}
-                            className={`group h-[62px] rounded-md border px-2 py-1 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm ${item.card
-                                } ${item.category && selectedCategory === item.category
-                                    ? "ring-2 ring-inset ring-primary"
+                            className={`rounded-xl border px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${item.bg
+                                } ${selectedCategory === item.category
+                                    ? "ring-2 ring-primary ring-offset-1"
                                     : ""
                                 }`}
                         >
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                    <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                        {item.label}
-                                    </p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                    {item.label}
+                                </p>
 
-                                    <p className={`mt-0.5 text-lg font-bold tabular-nums ${item.color}`}>
-                                        {isLoading
-                                            ? "—"
-                                            : item.value.toLocaleString()}
-                                    </p>
-                                </div>
-
-                                <div
-                                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md shadow-sm ${item.iconBox}`}
-                                >
+                                <span className={`${item.color} opacity-60`}>
                                     {item.icon}
-                                </div>
+                                </span>
                             </div>
 
-                            <p className="mt-0.5 truncate text-[9px] text-muted-foreground">
-                                {item.helper}
+                            <p className={`mt-1 text-xl font-bold ${item.color}`}>
+                                {isLoading ? "—" : item.value.toLocaleString()}
                             </p>
                         </button>
                     ))}
@@ -778,7 +727,7 @@ export default function WarrantyOwnershipPage() {
             </div>
 
             <div className="overflow-hidden rounded-xl border border-border bg-card">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
                     <div>
                         <p className="text-[11px] text-muted-foreground">
                             Showing{" "}
@@ -797,20 +746,15 @@ export default function WarrantyOwnershipPage() {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <span className="hidden text-[10px] font-medium text-muted-foreground lg:block">
-                            Search
-                        </span>
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
 
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-                            <Input
-                                placeholder="Search employee, serial or device..."
-                                value={searchInput}
-                                onChange={(event) => setSearchInput(event.target.value)}
-                                className="h-8 w-72 rounded-md border border-slate-300 bg-white pl-8 pr-3 text-[11px] shadow-sm placeholder:text-slate-400 transition-all hover:border-slate-400 focus-visible:border-primary focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-primary/20"
-                            />
-                        </div>
+                        <Input
+                            placeholder="Search employee, serial, device..."
+                            value={searchInput}
+                            onChange={(event) => setSearchInput(event.target.value)}
+                            className="h-7 w-60 pl-7 text-xs"
+                        />
                     </div>
                 </div>
 
@@ -830,13 +774,13 @@ export default function WarrantyOwnershipPage() {
                                     "Employee",
                                     "Device",
                                     "Serial",
-                                    "Transfer Date",
+                                    "Assigned",
                                     "Status",
                                     "Actions",
                                 ].map((column) => (
                                     <th
                                         key={column}
-                                        className="whitespace-nowrap px-2.5 py-2 text-left text-[9px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                        className="whitespace-nowrap px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
                                     >
                                         {column}
                                     </th>
@@ -867,17 +811,17 @@ export default function WarrantyOwnershipPage() {
                                         key={item.id}
                                         className="transition-colors hover:bg-muted/30"
                                     >
-                                        <td className="px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                                        <td className="px-3 py-2.5 text-[11px] text-muted-foreground">
                                             {(page - 1) * pageSize + index + 1}
                                         </td>
 
-                                        <td className="px-2.5 py-1.5">
+                                        <td className="px-3 py-2.5">
                                             <span className="rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600">
                                                 #{item.reference}
                                             </span>
                                         </td>
 
-                                        <td className="px-2.5 py-1.5">
+                                        <td className="px-3 py-2.5">
                                             <div className="flex items-center gap-2">
                                                 <Avatar
                                                     name={
@@ -899,7 +843,7 @@ export default function WarrantyOwnershipPage() {
                                             </div>
                                         </td>
 
-                                        <td className="px-2.5 py-1.5 text-[11px] font-medium text-foreground">
+                                        <td className="px-3 py-2.5 text-[11px] font-medium text-foreground">
                                             <p>{getDeviceName(item)}</p>
 
                                             {item.department && (
@@ -909,22 +853,22 @@ export default function WarrantyOwnershipPage() {
                                             )}
                                         </td>
 
-                                        <td className="px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
+                                        <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
                                             {item.device_serial || "—"}
                                         </td>
-                                        <td className="whitespace-nowrap px-2.5 py-1.5 text-[10px] text-muted-foreground">
+
+                                        <td className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">
                                             {formatDate(
-                                                item.transfer_date ||
                                                 item.assigned_date ||
                                                 item.updated_at,
                                             )}
                                         </td>
 
-                                        <td className="px-2.5 py-1.5">
+                                        <td className="px-3 py-2.5">
                                             <StatusBadge ownershipType={item.ownership_type} />
                                         </td>
 
-                                        <td className="px-2.5 py-1.5">
+                                        <td className="px-3 py-2.5">
                                             <ActionsDropdown
                                                 item={item}
                                                 onView={setViewItem}
@@ -1001,5 +945,4 @@ export default function WarrantyOwnershipPage() {
         </div>
     );
 }
-
 
