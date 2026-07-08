@@ -128,42 +128,29 @@ const cleanTooltipProps = {
 };
 
 const PieLabel = (props: any) => {
-    const { cx, cy, outerRadius, percent, value, name } = props;
+    const { cx, cy, midAngle, outerRadius, percent, value } = props;
 
     if (!value || percent <= 0) return null;
 
-    const label = `${(percent * 100).toFixed(1)}%`;
+    const RADIAN = Math.PI / 180;
+    //const radius = outerRadius + 12;
 
-    const labelPositions: Record<string, { x: number; y: number }> = {
-        Damaged: {
-            x: cx + outerRadius + 8,
-            y: cy - 28,
-        },
-        Lost: {
-            x: cx + outerRadius + 18,
-            y: cy - 2,
-        },
-        Ownership: {
-            x: cx,
-            y: cy + outerRadius + 16,
-        },
-    };
+    const radius = outerRadius + 5;
 
-    const position = labelPositions[name];
-
-    if (!position) return null;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
     return (
         <text
-            x={position.x}
-            y={position.y}
+            x={x}
+            y={y}
             fill="#111827"
-            textAnchor="middle"
+            textAnchor={x > cx ? "start" : "end"}
             dominantBaseline="central"
             fontSize={9}
             fontWeight={700}
         >
-            {label}
+            {(percent * 100).toFixed(1)}%
         </text>
     );
 };
@@ -676,10 +663,10 @@ export default function DashboardPage() {
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart
                                     margin={{
-                                        top: 4,
-                                        right: 30,
-                                        bottom: 4,
-                                        left: 20,
+                                        top: 10,
+                                        right: 44,
+                                        bottom: 14,
+                                        left: 44,
                                     }}
                                 >
                                     <Pie
@@ -688,8 +675,8 @@ export default function DashboardPage() {
                                         nameKey="label"
                                         cx="46%"
                                         cy="50%"
-                                        outerRadius={48}
-                                        innerRadius={30}
+                                        outerRadius={43}
+                                        innerRadius={27}
                                         paddingAngle={3}
                                         labelLine={false}
                                         label={(props) => (
