@@ -705,23 +705,29 @@ export default function WarrantyOwnershipPage() {
                             icon: <ShieldCheck size={14} />,
                             category: "all" as const,
                         },
+
                         {
                             label: "User Ownership",
                             value: summary?.user_ownership ?? 0,
-                            helper: `${userPercentage}% of transfer forms`,
+                            helper: "of transfer forms",
+                            percentage: `${userPercentage}%`,
                             color: "text-emerald-700",
                             card: "border-emerald-200 bg-emerald-50 hover:border-emerald-300",
                             iconBox: "bg-white text-emerald-600",
+                            percentBadge: "border-emerald-200 bg-white text-emerald-700",
                             icon: <Users size={14} />,
                             category: "user" as const,
                         },
+
                         {
                             label: "Vendor Ownership",
                             value: summary?.vendor_ownership ?? 0,
-                            helper: `${vendorPercentage}% of transfer forms`,
+                            helper: "of transfer forms",
+                            percentage: `${vendorPercentage}%`,
                             color: "text-rose-700",
                             card: "border-rose-200 bg-rose-50 hover:border-rose-300",
                             iconBox: "bg-white text-rose-600",
+                            percentBadge: "border-rose-200 bg-white text-rose-700",
                             icon: <Store size={14} />,
                             category: "vendor" as const,
                         },
@@ -757,11 +763,25 @@ export default function WarrantyOwnershipPage() {
                                         {item.label}
                                     </p>
 
-                                    <p className={`mt-0.5 text-lg font-bold tabular-nums ${item.color}`}>
+                                    {/* <p className={`mt-0.5 text-lg font-bold tabular-nums ${item.color}`}>
                                         {isLoading
                                             ? "—"
                                             : item.value.toLocaleString()}
-                                    </p>
+                                    </p> */}
+
+                                    <div className="mt-0.5 flex items-center gap-1.5">
+                                        <p className={`text-base font-bold leading-none tabular-nums ${item.color}`}>
+                                            {isLoading ? "—" : item.value.toLocaleString()}
+                                        </p>
+
+                                        {item.percentage && (
+                                            <span
+                                                className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold leading-none shadow-sm ${item.percentBadge}`}
+                                            >
+                                                {item.percentage}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div
@@ -771,7 +791,11 @@ export default function WarrantyOwnershipPage() {
                                 </div>
                             </div>
 
-                            <p className="mt-0.5 truncate text-[9px] text-muted-foreground">
+                            {/* <p className="mt-0.5 truncate text-[9px] text-muted-foreground">
+                                {item.helper}
+                            </p> */}
+
+                            <p className="mt-0.5 truncate text-[8px] leading-3 text-muted-foreground">
                                 {item.helper}
                             </p>
                         </button>
