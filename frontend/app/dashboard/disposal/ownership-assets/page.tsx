@@ -81,7 +81,9 @@ function Avatar({ name }: { name: string }) {
 
     return (
         <span
-            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${colors[colorIndex] || colors[0]
+
+            className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${colors[colorIndex] || colors[0]
+
                 }`}
         >
             {initials || "—"}
@@ -173,9 +175,9 @@ function exportPDF(data: OwnershipAsset[]) {
                     <td>${getDeviceName(item)}</td>
                     <td>${item.device_serial || "—"}</td>
                     <td>${formatDate(
-                        item.transfer_date ||
-                        item.assigned_date ||
-                        item.updated_at,
+                item.transfer_date ||
+                item.assigned_date ||
+                item.updated_at,
             )}</td>
                     <td>Ownership</td>
                 </tr>
@@ -675,7 +677,7 @@ export default function WarrantyOwnershipPage() {
                         <button
                             onClick={() => exportCSV(filtered)}
                             disabled={isLoading || filtered.length === 0}
-                            className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <FileSpreadsheet size={12} />
                             Excel
@@ -684,7 +686,7 @@ export default function WarrantyOwnershipPage() {
                         <button
                             onClick={() => exportPDF(filtered)}
                             disabled={isLoading || filtered.length === 0}
-                            className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <FileText size={12} />
                             PDF
@@ -790,9 +792,9 @@ export default function WarrantyOwnershipPage() {
 
                         {!isLoading && summary && (
                             <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                Transfer forms: {summary.total_ownership} ·
+                                {/* Transfer forms: {summary.total_ownership} ·
                                 Current registry assets:{" "}
-                                {summary.current_asset_count}
+                                {summary.current_asset_count} */}
                             </p>
                         )}
                     </div>
@@ -836,7 +838,8 @@ export default function WarrantyOwnershipPage() {
                                 ].map((column) => (
                                     <th
                                         key={column}
-                                        className="whitespace-nowrap px-2.5 py-2 text-left text-[9px] font-semibold uppercase tracking-wider text-muted-foreground"
+
+                                        className="whitespace-nowrap px-2 py-1.5 text-left text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
                                     >
                                         {column}
                                     </th>
@@ -867,17 +870,17 @@ export default function WarrantyOwnershipPage() {
                                         key={item.id}
                                         className="transition-colors hover:bg-muted/30"
                                     >
-                                        <td className="px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                                        <td className="px-2 py-1 text-[11px] text-muted-foreground">
                                             {(page - 1) * pageSize + index + 1}
                                         </td>
 
-                                        <td className="px-2.5 py-1.5">
+                                        <td className="px-2 py-1">
                                             <span className="rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600">
                                                 #{item.reference}
                                             </span>
                                         </td>
 
-                                        <td className="px-2.5 py-1.5">
+                                        <td className="px-2 py-1">
                                             <div className="flex items-center gap-2">
                                                 <Avatar
                                                     name={
@@ -899,7 +902,7 @@ export default function WarrantyOwnershipPage() {
                                             </div>
                                         </td>
 
-                                        <td className="px-2.5 py-1.5 text-[11px] font-medium text-foreground">
+                                        <td className="px-2 py-1 text-[11px] font-medium text-foreground">
                                             <p>{getDeviceName(item)}</p>
 
                                             {item.department && (
@@ -909,10 +912,10 @@ export default function WarrantyOwnershipPage() {
                                             )}
                                         </td>
 
-                                        <td className="px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
+                                        <td className="px-2 py-1 font-mono text-[11px] text-muted-foreground">
                                             {item.device_serial || "—"}
                                         </td>
-                                        <td className="whitespace-nowrap px-2.5 py-1.5 text-[10px] text-muted-foreground">
+                                        <td className="whitespace-nowrap px-2 py-1 text-[10px] text-muted-foreground">
                                             {formatDate(
                                                 item.transfer_date ||
                                                 item.assigned_date ||
@@ -920,11 +923,11 @@ export default function WarrantyOwnershipPage() {
                                             )}
                                         </td>
 
-                                        <td className="px-2.5 py-1.5">
+                                        <td className="px-2 py-1">
                                             <StatusBadge ownershipType={item.ownership_type} />
                                         </td>
 
-                                        <td className="px-2.5 py-1.5">
+                                        <td className="px-2 py-1">
                                             <ActionsDropdown
                                                 item={item}
                                                 onView={setViewItem}
