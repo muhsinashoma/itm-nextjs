@@ -476,6 +476,11 @@ export const reportApi = {
         api.get<ApiOk<NonOperationalSummary>>(
             "/assets/non-operational/summary"
         ),
+
+    warrantySummary: () =>
+        api.get<ApiOk<DashboardSummaryGroup>>(
+            "/assets/warranty/summary"
+        ),
 };
 
 

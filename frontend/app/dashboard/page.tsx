@@ -324,15 +324,22 @@ export default function DashboardPage() {
                 setNonOpLoading(true);
                 setError("");
 
-                const [dashboardRes, nonOpRes] = await Promise.allSettled([
+                const [dashboardRes, nonOpRes, warrantyRes] = await Promise.allSettled([
                     dashboardApi.summary(),
                     reportApi.nonOperationalSummary(),
+                    reportApi.warrantySummary(),
                 ]);
 
                 if (!mounted) return;
 
                 if (dashboardRes.status === "fulfilled") {
-                    setSummary(dashboardRes.value.data);
+                    const dashboardData = dashboardRes.value.data;
+
+                    if (warrantyRes.status === "fulfilled") {
+                        dashboardData.warranty = warrantyRes.value.data;
+                    }
+
+                    setSummary(dashboardData);
                 } else {
                     setError("Unable to load dashboard data");
                 }
@@ -447,9 +454,11 @@ export default function DashboardPage() {
         status: item.label,
     }));
 
+    const currentYear = new Date().getFullYear().toString();
+
     const warrantyBarData = [
         {
-            year: "2026",
+            year: currentYear,
             claimed: getSummaryValue(summary.warranty.items, "claim"),
             vendor: getSummaryValue(summary.warranty.items, "vendor"),
             recovered: getSummaryValue(summary.warranty.items, "recover"),
@@ -764,7 +773,8 @@ export default function DashboardPage() {
                 {/* ── Card 3: Warranty Overview ── */}
                 <CardShell>
                     <CardHead
-                        title="Warranty Overview"
+               
+                        title={`Warranty Overview ${currentYear}`}
                         kpi={totalWarranty.toLocaleString()}
                         badge="Live"
                         onKpiClick={() =>
@@ -810,7 +820,11 @@ export default function DashboardPage() {
                                 >
                                     <XAxis
                                         dataKey="year"
-                                        tick={{ fontSize: 9 }}
+                                        tick={{
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            fill: "#374151",
+                                        }}
                                         axisLine={false}
                                         tickLine={false}
                                     />
