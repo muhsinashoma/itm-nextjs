@@ -35,6 +35,9 @@ func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
 	g.GET("/ownership/summary", h.OwnershipSummary)
 	g.GET("/ownership", h.OwnershipList)
 
+	// Warranty overview API.
+    g.GET("/warranty/summary", h.WarrantyOverviewSummary)
+
 	// Keep this route before /devices/:id.
 	g.GET("/devices/:id/history", h.History)
 	g.GET("/devices/:id", h.GetByID)
@@ -164,6 +167,108 @@ type OwnershipSummary struct {
 	CurrentAssetCount int64 `json:"current_asset_count"`
 }
 
+
+func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
+	const query = `
+		WITH claimed_assets AS (
+			SELECT
+				ad.id,
+				ad.device_serial
+			FROM public.asset_devices ad
+			WHERE ad.asset_status = 8
+			  AND ad.row_status = 1
+		),
+
+		latest_claim_per_device AS (
+			SELECT DISTINCT ON (dc.device_sl_no)
+				dc.id,
+				dc.device_sl_no,
+				dc.reference_no_claim,
+				dc.claim_status,
+				dc.previous_status,
+				dc.remarks,
+				dc.problems
+			FROM public.device_claims dc
+			WHERE dc.device_sl_no IS NOT NULL
+			ORDER BY dc.device_sl_no, dc.id DESC
+		),
+
+		expired_summary AS (
+			SELECT COUNT(*) AS expired
+			FROM public.asset_devices ad
+			WHERE ad.row_status = 1
+			  AND ad.warranty_date IS NOT NULL
+			  AND ad.warranty_date::date < CURRENT_DATE
+		)
+
+		SELECT
+			COUNT(DISTINCT ca.id) AS claimed,
+
+			COUNT(*) FILTER (
+				WHERE lc.claim_status = 9
+			) AS to_vendor,
+
+			COUNT(*) FILTER (
+				WHERE lc.claim_status = 10
+			) AS recovered,
+
+			COALESCE((SELECT expired FROM expired_summary), 0) AS expired,
+
+			(
+				COUNT(DISTINCT ca.id)
+				+ COUNT(*) FILTER (WHERE lc.claim_status = 9)
+				+ COUNT(*) FILTER (WHERE lc.claim_status = 10)
+				+ COALESCE((SELECT expired FROM expired_summary), 0)
+			) AS total
+
+		FROM claimed_assets ca
+		LEFT JOIN latest_claim_per_device lc
+			ON lc.device_sl_no = ca.device_serial
+	`
+
+	var summary WarrantyOverviewSummary
+
+	err := h.db.QueryRow(
+		c.Request.Context(),
+		query,
+	).Scan(
+		&summary.Claimed,
+		&summary.ToVendor,
+		&summary.Recovered,
+		&summary.Expired,
+		&summary.Total,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"total": summary.Total,
+			"items": []gin.H{
+				{
+					"label": "Claimed",
+					"value": summary.Claimed,
+				},
+				{
+					"label": "To Vendor",
+					"value": summary.ToVendor,
+				},
+				{
+					"label": "Recovered",
+					"value": summary.Recovered,
+				},
+				{
+					"label": "Expired",
+					"value": summary.Expired,
+				},
+			},
+			"raw": summary,
+		},
+	})
+}
 type OwnershipAsset struct {
 	ID int64 `json:"id"`
 
@@ -195,6 +300,20 @@ type OwnershipAsset struct {
 	CreatedAt *string `json:"created_at"`
 	UpdatedAt *string `json:"updated_at"`
 }
+
+
+
+
+type WarrantyOverviewSummary struct {
+	Claimed   int64 `json:"claimed"`
+	ToVendor  int64 `json:"to_vendor"`
+	Recovered int64 `json:"recovered"`
+	Expired   int64 `json:"expired"`
+	Total     int64 `json:"total"`
+}
+
+
+
 
 func (h *AssetDeviceHandler) NonOperationalSummary(c *gin.Context) {
 	const query = `
