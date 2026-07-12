@@ -170,7 +170,13 @@ type OwnershipSummary struct {
 
 func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 	const query = `
-		WITH claimed_assets AS (
+		WITH year_bounds AS (
+			SELECT
+				DATE_TRUNC('year', CURRENT_DATE)::date AS year_start,
+				(DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year')::date AS next_year_start
+		),
+
+		claimed_assets AS (
 			SELECT
 				ad.id,
 				ad.device_serial
@@ -187,17 +193,24 @@ func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 				dc.claim_status,
 				dc.previous_status,
 				dc.remarks,
-				dc.problems
+				dc.problems,
+				dc.created_at
 			FROM public.device_claims dc
+			CROSS JOIN year_bounds yb
 			WHERE dc.device_sl_no IS NOT NULL
+			  AND dc.created_at::date >= yb.year_start
+			  AND dc.created_at::date < yb.next_year_start
 			ORDER BY dc.device_sl_no, dc.id DESC
 		),
 
 		expired_summary AS (
 			SELECT COUNT(*) AS expired
 			FROM public.asset_devices ad
+			CROSS JOIN year_bounds yb
 			WHERE ad.row_status = 1
 			  AND ad.warranty_date IS NOT NULL
+			  AND ad.warranty_date::date >= yb.year_start
+			  AND ad.warranty_date::date < yb.next_year_start
 			  AND ad.warranty_date::date < CURRENT_DATE
 		)
 
@@ -269,6 +282,8 @@ func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 		},
 	})
 }
+
+
 type OwnershipAsset struct {
 	ID int64 `json:"id"`
 
