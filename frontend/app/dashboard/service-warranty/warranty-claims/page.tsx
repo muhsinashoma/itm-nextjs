@@ -573,7 +573,7 @@ export default function WarrantyClaimsPage() {
                     <table className="w-full min-w-[900px]">
                         <thead className="border-b border-border bg-muted/50">
                             <tr>
-                                {["#", "Reference", "Employee", "Dept", "Category", "Warranty", "Status", "Vendor", "Actions"].map((column) => (
+                                {["#", "Reference", "Employee", "Dept", "Category", "Created At", "Warranty", "Status", "Vendor", "Actions"].map((column) => (
                                     <th key={column} className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wide text-muted-foreground">
                                         {column}
                                     </th>
@@ -583,7 +583,7 @@ export default function WarrantyClaimsPage() {
                         <tbody className="divide-y divide-border/50">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={9} className="py-10 text-center">
+                                    <td colSpan={10} className="py-10 text-center">
                                         <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                                             <Loader2 size={16} className="animate-spin" />
                                             Loading warranty claims...
@@ -610,6 +610,9 @@ export default function WarrantyClaimsPage() {
                                             <p className="text-[11px] font-medium">{text(item.category)}</p>
                                             <p className="text-[9px] text-muted-foreground">{[item.brand, item.model].filter(Boolean).join(" · ") || "—"}</p>
                                         </td>
+                                        <td className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">
+                                            {formatDate(item.created_at)}
+                                        </td>
                                         <td className="px-3 py-2.5 text-[11px] text-muted-foreground">{formatDate(item.warranty_date)}</td>
                                         <td className="px-3 py-2.5"><StatusBadge status={item.status} /></td>
                                         <td className="px-3 py-2.5 text-[11px]">{text(item.vendor)}</td>
@@ -626,7 +629,7 @@ export default function WarrantyClaimsPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={9} className="py-10 text-center text-xs text-muted-foreground">
+                                    <td colSpan={10} className="py-10 text-center text-xs text-muted-foreground">
                                         No warranty claim records found.
                                     </td>
                                 </tr>
