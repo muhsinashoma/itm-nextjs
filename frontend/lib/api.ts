@@ -137,36 +137,6 @@ export const deviceApi = {
     delete: (id: number) => api.del(`/devices/${id}`),
 };
 
-// export interface AssetDevice {
-//     id: number;
-//     device_serial: string | null;
-//     category: string | null;
-//     brand: string | null;
-//     model: string | null;
-//     device_type: string | null;
-
-//     asset_status: number;
-//     status_label: string;
-
-//     emp_id: string | null;
-//     emp_name: string | null;
-//     department: string | null;
-//     designation: string | null;
-//     assigned_date: string | null;
-
-//     vendor_id: number | null;
-//     vendor_name: string | null;
-//     vendor_flag: number | null;
-
-//     mr_number: string | null;
-//     pr_number: string | null;
-
-//     purchase_date: string | null;
-//     warranty_date: string | null;
-
-//     created_at: string | null;
-//     updated_at: string | null;
-// }
 
 
 export interface AssetDevice {
@@ -412,6 +382,40 @@ export interface NonOperationalDevice {
     updated_at: string | null;
 }
 
+
+export interface WarrantyClaimItem {
+    id: number;
+    reference: string;
+    employee: string | null;
+    emp_id: string | null;
+    department: string | null;
+    designation: string | null;
+    category: string | null;
+    brand: string | null;
+    model: string | null;
+    device_serial: string | null;
+    warranty_date: string | null;
+    status: "Claimed" | "To Vendor" | "Recovered" | "Expired";
+    vendor: string | null;
+    problems: string | null;
+    created_at: string | null;
+}
+
+export interface WarrantySummaryRaw {
+    claimed: number;
+    to_vendor: number;
+    recovered: number;
+    expired: number;
+    total: number;
+}
+
+export interface WarrantySummary {
+    total: number;
+    items: DashboardSummaryItem[];
+    raw?: WarrantySummaryRaw;
+}
+
+
 //Adding New
 
 function toQuery(params?: Record<string, any>) {
@@ -431,57 +435,96 @@ function toQuery(params?: Record<string, any>) {
 
 //Adding New : Reports API
 
+
+
 export const reportApi = {
     assets: (params?: Record<string, any>) =>
-        api.get<ApiOk<Device[]>>(`/reports/assets${toQuery(params)}`),
+        api.get<ApiOk<Device[]>>(
+            `/reports/assets${toQuery(params)}`
+        ),
 
     assigned: (params?: Record<string, any>) =>
-        api.get<ApiOk<Device[]>>(`/reports/assigned${toQuery(params)}`),
+        api.get<ApiOk<Device[]>>(
+            `/reports/assigned${toQuery(params)}`
+        ),
 
+    // Keep this only once
     warranty: (params?: Record<string, any>) =>
-        api.get<ApiOk<Claim[]>>(`/reports/warranty${toQuery(params)}`),
+        api.get<ApiOk<Claim[]>>(
+            `/reports/warranty${toQuery(params)}`
+        ),
 
     service: (params?: Record<string, any>) =>
-        api.get<ApiOk<Claim[]>>(`/reports/service${toQuery(params)}`),
+        api.get<ApiOk<Claim[]>>(
+            `/reports/service${toQuery(params)}`
+        ),
 
     users: (params?: Record<string, any>) =>
-        api.get<ApiOk<Employee[]>>(`/reports/users${toQuery(params)}`),
+        api.get<ApiOk<Employee[]>>(
+            `/reports/users${toQuery(params)}`
+        ),
 
     disposal: (params?: Record<string, any>) =>
-        api.get<ApiOk<any[]>>(`/reports/disposal${toQuery(params)}`),
+        api.get<ApiOk<any[]>>(
+            `/reports/disposal${toQuery(params)}`
+        ),
 
     stockStatus: (params?: Record<string, any>) =>
-        api.get<ApiOk<any[]>>(`/reports/stock-status${toQuery(params)}`),
+        api.get<ApiOk<any[]>>(
+            `/reports/stock-status${toQuery(params)}`
+        ),
 
     resignation: (params?: Record<string, any>) =>
-        api.get<ApiOk<any[]>>(`/reports/resignation${toQuery(params)}`),
+        api.get<ApiOk<any[]>>(
+            `/reports/resignation${toQuery(params)}`
+        ),
 
     renewal: (params?: Record<string, any>) =>
-        api.get<ApiOk<any[]>>(`/reports/renewal${toQuery(params)}`),
-
-    // nonOperational: (params?: Record<string, any>) =>
-
-
+        api.get<ApiOk<any[]>>(
+            `/reports/renewal${toQuery(params)}`
+        ),
 
     nonOperational: (params?: {
         status?: string;
-        detail?: "all" | "main_table" | "damage_inventory" | "duplicates" | "inventory_only";
+        detail?:
+        | "all"
+        | "main_table"
+        | "damage_inventory"
+        | "duplicates"
+        | "inventory_only";
     }) =>
         api.get<ApiOk<NonOperationalDevice[]>>(
             `/assets/non-operational${toQuery(params)}`
         ),
 
-    // Database-backed dashboard count
     nonOperationalSummary: () =>
         api.get<ApiOk<NonOperationalSummary>>(
             "/assets/non-operational/summary"
         ),
 
+    // Warranty Claims page summary
     warrantySummary: () =>
-        api.get<ApiOk<DashboardSummaryGroup>>(
+        api.get<ApiOk<WarrantySummary>>(
             "/assets/warranty/summary"
+        ),
+
+    // Warranty Claims page table
+    warrantyClaims: (params?: {
+        page?: number;
+        limit?: number;
+        status?:
+        | "all"
+        | "Claimed"
+        | "To Vendor"
+        | "Recovered"
+        | "Expired";
+        search?: string;
+    }) =>
+        api.get<ApiPage<WarrantyClaimItem>>(
+            `/assets/warranty/claims${toQuery(params)}`
         ),
 };
 
+;
 
 export const reportsApi = reportApi;
