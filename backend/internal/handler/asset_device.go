@@ -1,4 +1,4 @@
-//backend/interbal/handler/asset_device.go
+//backend/internal/handler/asset_device.go
 
 package handler
 
@@ -22,26 +22,50 @@ func NewAssetDeviceHandler(db *pgxpool.Pool) *AssetDeviceHandler {
 	return &AssetDeviceHandler{db: db}
 }
 
+// func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
+// 	g := rg.Group("/assets")
+
+// 	g.GET("/devices", h.List)
+
+// 	// Dashboard and report endpoints.
+// 	g.GET("/non-operational/summary", h.NonOperationalSummary)
+// 	g.GET("/non-operational", h.NonOperationalList)
+
+// 	// Ownership page APIs.
+// 	g.GET("/ownership/summary", h.OwnershipSummary)
+// 	g.GET("/ownership", h.OwnershipList)
+
+// 	// Warranty overview API.
+//     g.GET("/warranty/summary", h.WarrantyOverviewSummary)
+// 	g.GET("/warranty/claims", h.WarrantyClaimsList)
+
+// 	// Keep this route before /devices/:id.
+// 	g.GET("/devices/:id/history", h.History)
+// 	g.GET("/devices/:id", h.GetByID)
+
+// }
+
 func (h *AssetDeviceHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/assets")
 
+	// Asset devices.
 	g.GET("/devices", h.List)
 
-	// Dashboard and report endpoints.
+	// Non-operational assets.
 	g.GET("/non-operational/summary", h.NonOperationalSummary)
 	g.GET("/non-operational", h.NonOperationalList)
 
-	// Ownership page APIs.
+	// Ownership.
 	g.GET("/ownership/summary", h.OwnershipSummary)
 	g.GET("/ownership", h.OwnershipList)
 
-	// Warranty overview API.
-    g.GET("/warranty/summary", h.WarrantyOverviewSummary)
+	// Warranty.
+	g.GET("/warranty/summary", h.WarrantyOverviewSummary)
+	g.GET("/warranty/claims", h.WarrantyClaimsList)
 
-	// Keep this route before /devices/:id.
+	// Keep parameter routes last.
 	g.GET("/devices/:id/history", h.History)
 	g.GET("/devices/:id", h.GetByID)
-
 }
 
 type AssetDevice struct {
@@ -167,7 +191,6 @@ type OwnershipSummary struct {
 	CurrentAssetCount int64 `json:"current_asset_count"`
 }
 
-
 func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 	const query = `
 		WITH year_bounds AS (
@@ -283,6 +306,413 @@ func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 	})
 }
 
+func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
+	status := strings.ToLower(
+		strings.TrimSpace(
+			c.DefaultQuery("status", "all"),
+		),
+	)
+
+	search := strings.TrimSpace(c.Query("search"))
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil || limit < 1 {
+		limit = 20
+	}
+
+	if limit > 100 {
+		limit = 100
+	}
+
+	switch status {
+	case "all", "claimed", "to vendor", "tovendor", "recovered", "expired":
+	default:
+		response.BadRequest(
+			c,
+			"status must be one of: all, Claimed, To Vendor, Recovered, Expired",
+		)
+		return
+	}
+
+	if status == "tovendor" {
+		status = "to vendor"
+	}
+
+	offset := (page - 1) * limit
+
+	const baseCTE = `
+		WITH year_bounds AS (
+			SELECT
+				DATE_TRUNC('year', CURRENT_DATE)::date AS year_start,
+				(
+					DATE_TRUNC('year', CURRENT_DATE)
+					+ INTERVAL '1 year'
+				)::date AS next_year_start
+		),
+
+		claimed_rows AS (
+			SELECT
+				ad.id,
+				ad.id::text AS reference,
+
+				NULLIF(BTRIM(ad.emp_name), '') AS employee,
+				NULLIF(BTRIM(ad.emp_id), '') AS emp_id,
+				NULLIF(BTRIM(ad.department), '') AS department,
+				NULLIF(BTRIM(ad.designation), '') AS designation,
+
+				NULLIF(BTRIM(ad.category), '') AS category,
+				NULLIF(BTRIM(ad.brand), '') AS brand,
+				NULLIF(BTRIM(ad.model), '') AS model,
+				NULLIF(BTRIM(ad.device_serial), '') AS device_serial,
+
+				ad.warranty_date::text AS warranty_date,
+
+				'Claimed'::text AS status,
+
+				NULLIF(BTRIM(ad.vendor_name), '') AS vendor,
+				NULL::text AS problems,
+
+				COALESCE(
+					ad.updated_at,
+					ad.created_at
+				) AS sort_at
+
+			FROM public.asset_devices ad
+
+			WHERE ad.asset_status = 8
+			  AND ad.row_status = 1
+		),
+
+		latest_claim_per_device AS (
+			SELECT DISTINCT ON (dc.device_sl_no)
+				dc.id,
+				dc.reference_no_claim::text AS reference,
+
+				NULL::text AS employee,
+				NULL::text AS emp_id,
+				NULL::text AS department,
+				NULL::text AS designation,
+
+				NULLIF(BTRIM(dc.category), '') AS category,
+				NULLIF(BTRIM(dc.brand), '') AS brand,
+				NULLIF(BTRIM(dc.model_no), '') AS model,
+				NULLIF(BTRIM(dc.device_sl_no), '') AS device_serial,
+
+				NULL::text AS warranty_date,
+
+				CASE
+					WHEN dc.claim_status = 9 THEN 'To Vendor'
+					WHEN dc.claim_status = 10 THEN 'Recovered'
+					ELSE 'Claimed'
+				END AS status,
+
+				COALESCE(
+					NULLIF(BTRIM(wv.vendor_name), ''),
+					dc.vendor::text
+				) AS vendor,
+
+				NULLIF(BTRIM(dc.problems), '') AS problems,
+
+				dc.created_at AS sort_at
+
+			FROM public.device_claims dc
+
+			CROSS JOIN year_bounds yb
+
+			LEFT JOIN public.warranty_vendors wv
+				ON wv.id = dc.vendor
+
+			WHERE NULLIF(BTRIM(dc.device_sl_no), '') IS NOT NULL
+			  AND dc.created_at::date >= yb.year_start
+			  AND dc.created_at::date < yb.next_year_start
+			  AND dc.claim_status IN (9, 10)
+
+			ORDER BY
+				dc.device_sl_no,
+				dc.created_at DESC NULLS LAST,
+				dc.id DESC
+		),
+
+		expired_rows AS (
+			SELECT
+				ad.id,
+				ad.id::text AS reference,
+
+				NULLIF(BTRIM(ad.emp_name), '') AS employee,
+				NULLIF(BTRIM(ad.emp_id), '') AS emp_id,
+				NULLIF(BTRIM(ad.department), '') AS department,
+				NULLIF(BTRIM(ad.designation), '') AS designation,
+
+				NULLIF(BTRIM(ad.category), '') AS category,
+				NULLIF(BTRIM(ad.brand), '') AS brand,
+				NULLIF(BTRIM(ad.model), '') AS model,
+				NULLIF(BTRIM(ad.device_serial), '') AS device_serial,
+
+				ad.warranty_date::text AS warranty_date,
+
+				'Expired'::text AS status,
+
+				NULLIF(BTRIM(ad.vendor_name), '') AS vendor,
+				NULL::text AS problems,
+
+				ad.warranty_date::timestamp AS sort_at
+
+			FROM public.asset_devices ad
+
+			CROSS JOIN year_bounds yb
+
+			WHERE ad.row_status = 1
+			  AND ad.warranty_date IS NOT NULL
+			  AND ad.warranty_date::date >= yb.year_start
+			  AND ad.warranty_date::date < yb.next_year_start
+			  AND ad.warranty_date::date < CURRENT_DATE
+		),
+
+		warranty_rows AS (
+			SELECT
+				id,
+				reference,
+				employee,
+				emp_id,
+				department,
+				designation,
+				category,
+				brand,
+				model,
+				device_serial,
+				warranty_date,
+				status,
+				vendor,
+				problems,
+				sort_at
+			FROM claimed_rows
+
+			UNION ALL
+
+			SELECT
+				id,
+				reference,
+				employee,
+				emp_id,
+				department,
+				designation,
+				category,
+				brand,
+				model,
+				device_serial,
+				warranty_date,
+				status,
+				vendor,
+				problems,
+				sort_at
+			FROM latest_claim_per_device
+
+			UNION ALL
+
+			SELECT
+				id,
+				reference,
+				employee,
+				emp_id,
+				department,
+				designation,
+				category,
+				brand,
+				model,
+				device_serial,
+				warranty_date,
+				status,
+				vendor,
+				problems,
+				sort_at
+			FROM expired_rows
+		)
+	`
+
+	args := make([]any, 0)
+	whereParts := []string{"WHERE 1 = 1"}
+	placeholder := 1
+
+	if status != "all" {
+		args = append(args, status)
+
+		whereParts = append(
+			whereParts,
+			fmt.Sprintf(
+				"AND LOWER(wr.status) = $%d",
+				placeholder,
+			),
+		)
+
+		placeholder++
+	}
+
+	if search != "" {
+		args = append(args, "%"+search+"%")
+
+		whereParts = append(
+			whereParts,
+			fmt.Sprintf(`
+				AND (
+					COALESCE(wr.reference, '') ILIKE $%d
+					OR COALESCE(wr.employee, '') ILIKE $%d
+					OR COALESCE(wr.emp_id, '') ILIKE $%d
+					OR COALESCE(wr.department, '') ILIKE $%d
+					OR COALESCE(wr.designation, '') ILIKE $%d
+					OR COALESCE(wr.category, '') ILIKE $%d
+					OR COALESCE(wr.brand, '') ILIKE $%d
+					OR COALESCE(wr.model, '') ILIKE $%d
+					OR COALESCE(wr.device_serial, '') ILIKE $%d
+					OR COALESCE(wr.vendor, '') ILIKE $%d
+				)
+			`,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+			),
+		)
+
+		placeholder++
+	}
+
+	whereClause := strings.Join(whereParts, "\n")
+
+	countSQL := fmt.Sprintf(`
+		%s
+
+		SELECT COUNT(*)
+		FROM warranty_rows wr
+
+		%s
+	`, baseCTE, whereClause)
+
+	var total int
+
+	if err := h.db.QueryRow(
+		c.Request.Context(),
+		countSQL,
+		args...,
+	).Scan(&total); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	listArgs := append(
+		append([]any{}, args...),
+		limit,
+		offset,
+	)
+
+	listSQL := fmt.Sprintf(`
+		%s
+
+		SELECT
+			wr.id,
+			wr.reference,
+			wr.employee,
+			wr.emp_id,
+			wr.department,
+			wr.designation,
+			wr.category,
+			wr.brand,
+			wr.model,
+			wr.device_serial,
+			wr.warranty_date,
+			wr.status,
+			wr.vendor,
+			wr.problems,
+			wr.sort_at::text AS created_at
+
+		FROM warranty_rows wr
+
+		%s
+
+		ORDER BY
+			CASE wr.status
+				WHEN 'Claimed' THEN 1
+				WHEN 'To Vendor' THEN 2
+				WHEN 'Recovered' THEN 3
+				WHEN 'Expired' THEN 4
+				ELSE 5
+			END,
+
+			wr.sort_at DESC NULLS LAST,
+			wr.id DESC
+
+		LIMIT $%d
+		OFFSET $%d
+	`,
+		baseCTE,
+		whereClause,
+		placeholder,
+		placeholder+1,
+	)
+
+	rows, err := h.db.Query(
+		c.Request.Context(),
+		listSQL,
+		listArgs...,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer rows.Close()
+
+	items := make([]WarrantyClaimItem, 0)
+
+	for rows.Next() {
+		var item WarrantyClaimItem
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.Reference,
+			&item.Employee,
+			&item.EmpID,
+			&item.Department,
+			&item.Designation,
+			&item.Category,
+			&item.Brand,
+			&item.Model,
+			&item.DeviceSerial,
+			&item.WarrantyDate,
+			&item.Status,
+			&item.Vendor,
+			&item.Problems,
+			&item.CreatedAt,
+		); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.Paginated(
+		c,
+		items,
+		total,
+		page,
+		limit,
+	)
+}
 
 type OwnershipAsset struct {
 	ID int64 `json:"id"`
@@ -316,9 +746,6 @@ type OwnershipAsset struct {
 	UpdatedAt *string `json:"updated_at"`
 }
 
-
-
-
 type WarrantyOverviewSummary struct {
 	Claimed   int64 `json:"claimed"`
 	ToVendor  int64 `json:"to_vendor"`
@@ -327,8 +754,23 @@ type WarrantyOverviewSummary struct {
 	Total     int64 `json:"total"`
 }
 
-
-
+type WarrantyClaimItem struct {
+	ID           int64   `json:"id"`
+	Reference    string  `json:"reference"`
+	Employee     *string `json:"employee"`
+	EmpID        *string `json:"emp_id"`
+	Department   *string `json:"department"`
+	Designation  *string `json:"designation"`
+	Category     *string `json:"category"`
+	Brand        *string `json:"brand"`
+	Model        *string `json:"model"`
+	DeviceSerial *string `json:"device_serial"`
+	WarrantyDate *string `json:"warranty_date"`
+	Status       string  `json:"status"`
+	Vendor       *string `json:"vendor"`
+	Problems     *string `json:"problems"`
+	CreatedAt    *string `json:"created_at"`
+}
 
 func (h *AssetDeviceHandler) NonOperationalSummary(c *gin.Context) {
 	const query = `
