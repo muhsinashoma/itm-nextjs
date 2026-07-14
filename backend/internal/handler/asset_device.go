@@ -191,6 +191,130 @@ type OwnershipSummary struct {
 	CurrentAssetCount int64 `json:"current_asset_count"`
 }
 
+// func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
+	
+// 	const query = `
+// 	WITH year_bounds AS (
+// 		SELECT
+// 			DATE_TRUNC('year', CURRENT_DATE)::date AS year_start,
+// 			(DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year')::date AS next_year_start
+// 	),
+
+// 	claimed_assets AS (
+// 		SELECT
+// 			ad.id,
+// 			ad.device_serial
+// 		FROM public.asset_devices ad
+// 		WHERE ad.asset_status = 8
+// 		  AND ad.row_status = 1
+// 	),
+
+// 	to_vendor_claims AS (
+// 		SELECT DISTINCT ON (dc.reference_no_claim)
+// 			dc.reference_no_claim,
+// 			dc.device_sl_no,
+// 			dc.created_at
+// 		FROM public.device_claims dc
+// 		CROSS JOIN year_bounds yb
+// 		WHERE dc.claim_status = 9
+// 		  AND dc.reference_no_claim IS NOT NULL
+// 		  AND dc.created_at IS NOT NULL
+// 		  AND dc.created_at::date >= yb.year_start
+// 		  AND dc.created_at::date < yb.next_year_start
+// 		ORDER BY
+// 			dc.reference_no_claim,
+// 			dc.created_at DESC NULLS LAST,
+// 			dc.id DESC
+// 	),
+
+// 	recovered_claims AS (
+// 		SELECT
+// 			dc.reference_no_claim,
+// 			MAX(dc.return_date) AS closing_date
+// 		FROM public.device_claims dc
+// 		CROSS JOIN year_bounds yb
+// 		WHERE dc.claim_status = 10
+// 		  AND dc.reference_no_claim IS NOT NULL
+// 		  AND dc.return_date IS NOT NULL
+// 		  AND dc.return_date::date >= yb.year_start
+// 		  AND dc.return_date::date < yb.next_year_start
+// 		GROUP BY dc.reference_no_claim
+// 	),
+
+// 	expired_summary AS (
+// 		SELECT COUNT(*) AS expired
+// 		FROM public.asset_devices ad
+// 		CROSS JOIN year_bounds yb
+// 		WHERE ad.row_status = 1
+// 		  AND ad.warranty_date IS NOT NULL
+// 		  AND ad.warranty_date::date >= yb.year_start
+// 		  AND ad.warranty_date::date < yb.next_year_start
+// 		  AND ad.warranty_date::date < CURRENT_DATE
+// 	)
+
+// 	SELECT
+// 		COUNT(DISTINCT ca.id) AS claimed,
+
+// 		COALESCE((SELECT COUNT(*) FROM to_vendor_claims), 0) AS to_vendor,
+
+// 		COALESCE((SELECT COUNT(*) FROM recovered_claims), 0) AS recovered,
+
+// 		COALESCE((SELECT expired FROM expired_summary), 0) AS expired,
+
+// 		(
+// 			COUNT(DISTINCT ca.id)
+// 			+ COALESCE((SELECT COUNT(*) FROM to_vendor_claims), 0)
+// 			+ COALESCE((SELECT COUNT(*) FROM recovered_claims), 0)
+// 			+ COALESCE((SELECT expired FROM expired_summary), 0)
+// 		) AS total
+
+// 	FROM claimed_assets ca
+// `
+// 	var summary WarrantyOverviewSummary
+
+// 	err := h.db.QueryRow(
+// 		c.Request.Context(),
+// 		query,
+// 	).Scan(
+// 		&summary.Claimed,
+// 		&summary.ToVendor,
+// 		&summary.Recovered,
+// 		&summary.Expired,
+// 		&summary.Total,
+// 	)
+// 	if err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"success": true,
+// 		"data": gin.H{
+// 			"total": summary.Total,
+// 			"items": []gin.H{
+// 				{
+// 					"label": "Claimed",
+// 					"value": summary.Claimed,
+// 				},
+// 				{
+// 					"label": "To Vendor",
+// 					"value": summary.ToVendor,
+// 				},
+// 				{
+// 					"label": "Recovered",
+// 					"value": summary.Recovered,
+// 				},
+// 				{
+// 					"label": "Expired",
+// 					"value": summary.Expired,
+// 				},
+// 			},
+// 			"raw": summary,
+// 		},
+// 	})
+// }
+
+
 func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 	const query = `
 		WITH year_bounds AS (
@@ -208,22 +332,36 @@ func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 			  AND ad.row_status = 1
 		),
 
-		latest_claim_per_device AS (
-			SELECT DISTINCT ON (dc.device_sl_no)
-				dc.id,
-				dc.device_sl_no,
+		to_vendor_claims AS (
+			SELECT DISTINCT ON (dc.reference_no_claim)
 				dc.reference_no_claim,
-				dc.claim_status,
-				dc.previous_status,
-				dc.remarks,
-				dc.problems,
+				dc.device_sl_no,
 				dc.created_at
 			FROM public.device_claims dc
 			CROSS JOIN year_bounds yb
-			WHERE dc.device_sl_no IS NOT NULL
+			WHERE dc.claim_status = 9
+			  AND dc.reference_no_claim IS NOT NULL
+			  AND dc.created_at IS NOT NULL
 			  AND dc.created_at::date >= yb.year_start
 			  AND dc.created_at::date < yb.next_year_start
-			ORDER BY dc.device_sl_no, dc.id DESC
+			ORDER BY
+				dc.reference_no_claim,
+				dc.created_at DESC NULLS LAST,
+				dc.id DESC
+		),
+
+		recovered_claims AS (
+			SELECT
+				dc.reference_no_claim,
+				MAX(dc.return_date) AS closing_date
+			FROM public.device_claims dc
+			CROSS JOIN year_bounds yb
+			WHERE dc.claim_status = 10
+			  AND dc.reference_no_claim IS NOT NULL
+			  AND dc.return_date IS NOT NULL
+			  AND dc.return_date::date >= yb.year_start
+			  AND dc.return_date::date < yb.next_year_start
+			GROUP BY dc.reference_no_claim
 		),
 
 		expired_summary AS (
@@ -240,26 +378,20 @@ func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 		SELECT
 			COUNT(DISTINCT ca.id) AS claimed,
 
-			COUNT(*) FILTER (
-				WHERE lc.claim_status = 9
-			) AS to_vendor,
+			COALESCE((SELECT COUNT(*) FROM to_vendor_claims), 0) AS to_vendor,
 
-			COUNT(*) FILTER (
-				WHERE lc.claim_status = 10
-			) AS recovered,
+			COALESCE((SELECT COUNT(*) FROM recovered_claims), 0) AS recovered,
 
 			COALESCE((SELECT expired FROM expired_summary), 0) AS expired,
 
 			(
 				COUNT(DISTINCT ca.id)
-				+ COUNT(*) FILTER (WHERE lc.claim_status = 9)
-				+ COUNT(*) FILTER (WHERE lc.claim_status = 10)
+				+ COALESCE((SELECT COUNT(*) FROM to_vendor_claims), 0)
+				+ COALESCE((SELECT COUNT(*) FROM recovered_claims), 0)
 				+ COALESCE((SELECT expired FROM expired_summary), 0)
 			) AS total
 
 		FROM claimed_assets ca
-		LEFT JOIN latest_claim_per_device lc
-			ON lc.device_sl_no = ca.device_serial
 	`
 
 	var summary WarrantyOverviewSummary
@@ -306,6 +438,414 @@ func (h *AssetDeviceHandler) WarrantyOverviewSummary(c *gin.Context) {
 	})
 }
 
+// func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
+// 	status := strings.ToLower(
+// 		strings.TrimSpace(
+// 			c.DefaultQuery("status", "all"),
+// 		),
+// 	)
+
+// 	search := strings.TrimSpace(c.Query("search"))
+
+// 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+// 	if err != nil || page < 1 {
+// 		page = 1
+// 	}
+
+// 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+// 	if err != nil || limit < 1 {
+// 		limit = 20
+// 	}
+
+// 	if limit > 100 {
+// 		limit = 100
+// 	}
+
+// 	switch status {
+// 	case "all", "claimed", "to vendor", "tovendor", "recovered", "expired":
+// 	default:
+// 		response.BadRequest(
+// 			c,
+// 			"status must be one of: all, Claimed, To Vendor, Recovered, Expired",
+// 		)
+// 		return
+// 	}
+
+// 	if status == "tovendor" {
+// 		status = "to vendor"
+// 	}
+
+// 	offset := (page - 1) * limit
+
+// 	const baseCTE = `
+// 		WITH year_bounds AS (
+// 			SELECT
+// 				DATE_TRUNC('year', CURRENT_DATE)::date AS year_start,
+// 				(
+// 					DATE_TRUNC('year', CURRENT_DATE)
+// 					+ INTERVAL '1 year'
+// 				)::date AS next_year_start
+// 		),
+
+// 		claimed_rows AS (
+// 			SELECT
+// 				ad.id,
+// 				ad.id::text AS reference,
+
+// 				NULLIF(BTRIM(ad.emp_name), '') AS employee,
+// 				NULLIF(BTRIM(ad.emp_id), '') AS emp_id,
+// 				NULLIF(BTRIM(ad.department), '') AS department,
+// 				NULLIF(BTRIM(ad.designation), '') AS designation,
+
+// 				NULLIF(BTRIM(ad.category), '') AS category,
+// 				NULLIF(BTRIM(ad.brand), '') AS brand,
+// 				NULLIF(BTRIM(ad.model), '') AS model,
+// 				NULLIF(BTRIM(ad.device_serial), '') AS device_serial,
+
+// 				ad.warranty_date::text AS warranty_date,
+
+// 				'Claimed'::text AS status,
+
+// 				NULLIF(BTRIM(ad.vendor_name), '') AS vendor,
+// 				NULL::text AS problems,
+
+// 				COALESCE(
+// 					ad.updated_at,
+// 					ad.created_at
+// 				) AS sort_at
+
+// 			FROM public.asset_devices ad
+
+// 			WHERE ad.asset_status = 8
+// 			  AND ad.row_status = 1
+// 		),
+
+// 		latest_claim_per_device AS (
+// 			SELECT DISTINCT ON (dc.device_sl_no)
+// 				dc.id,
+// 				dc.reference_no_claim::text AS reference,
+
+// 				NULL::text AS employee,
+// 				NULL::text AS emp_id,
+// 				NULL::text AS department,
+// 				NULL::text AS designation,
+
+// 				NULLIF(BTRIM(dc.category), '') AS category,
+// 				NULLIF(BTRIM(dc.brand), '') AS brand,
+// 				NULLIF(BTRIM(dc.model_no), '') AS model,
+// 				NULLIF(BTRIM(dc.device_sl_no), '') AS device_serial,
+
+// 				NULL::text AS warranty_date,
+
+// 				CASE
+// 					WHEN dc.claim_status = 9 THEN 'To Vendor'
+// 					WHEN dc.claim_status = 10 THEN 'Recovered'
+// 					ELSE 'Claimed'
+// 				END AS status,
+
+// 				COALESCE(
+// 					NULLIF(BTRIM(wv.vendor_name), ''),
+// 					dc.vendor::text
+// 				) AS vendor,
+
+// 				NULLIF(BTRIM(dc.problems), '') AS problems,
+
+// 				dc.created_at AS sort_at
+
+// 			FROM public.device_claims dc
+
+// 			CROSS JOIN year_bounds yb
+
+// 			LEFT JOIN public.warranty_vendors wv
+// 				ON wv.id = dc.vendor
+
+// 			WHERE NULLIF(BTRIM(dc.device_sl_no), '') IS NOT NULL
+// 			  AND dc.created_at::date >= yb.year_start
+// 			  AND dc.created_at::date < yb.next_year_start
+// 			  AND dc.claim_status IN (9, 10)
+
+// 			ORDER BY
+// 				dc.device_sl_no,
+// 				dc.created_at DESC NULLS LAST,
+// 				dc.id DESC
+// 		),
+
+// 		expired_rows AS (
+// 			SELECT
+// 				ad.id,
+// 				ad.id::text AS reference,
+
+// 				NULLIF(BTRIM(ad.emp_name), '') AS employee,
+// 				NULLIF(BTRIM(ad.emp_id), '') AS emp_id,
+// 				NULLIF(BTRIM(ad.department), '') AS department,
+// 				NULLIF(BTRIM(ad.designation), '') AS designation,
+
+// 				NULLIF(BTRIM(ad.category), '') AS category,
+// 				NULLIF(BTRIM(ad.brand), '') AS brand,
+// 				NULLIF(BTRIM(ad.model), '') AS model,
+// 				NULLIF(BTRIM(ad.device_serial), '') AS device_serial,
+
+// 				ad.warranty_date::text AS warranty_date,
+
+// 				'Expired'::text AS status,
+
+// 				NULLIF(BTRIM(ad.vendor_name), '') AS vendor,
+// 				NULL::text AS problems,
+
+// 				ad.warranty_date::timestamp AS sort_at
+
+// 			FROM public.asset_devices ad
+
+// 			CROSS JOIN year_bounds yb
+
+// 			WHERE ad.row_status = 1
+// 			  AND ad.warranty_date IS NOT NULL
+// 			  AND ad.warranty_date::date >= yb.year_start
+// 			  AND ad.warranty_date::date < yb.next_year_start
+// 			  AND ad.warranty_date::date < CURRENT_DATE
+// 		),
+
+// 		warranty_rows AS (
+// 			SELECT
+// 				id,
+// 				reference,
+// 				employee,
+// 				emp_id,
+// 				department,
+// 				designation,
+// 				category,
+// 				brand,
+// 				model,
+// 				device_serial,
+// 				warranty_date,
+// 				status,
+// 				vendor,
+// 				problems,
+// 				sort_at
+// 			FROM claimed_rows
+
+// 			UNION ALL
+
+// 			SELECT
+// 				id,
+// 				reference,
+// 				employee,
+// 				emp_id,
+// 				department,
+// 				designation,
+// 				category,
+// 				brand,
+// 				model,
+// 				device_serial,
+// 				warranty_date,
+// 				status,
+// 				vendor,
+// 				problems,
+// 				sort_at
+// 			FROM latest_claim_per_device
+
+// 			UNION ALL
+
+// 			SELECT
+// 				id,
+// 				reference,
+// 				employee,
+// 				emp_id,
+// 				department,
+// 				designation,
+// 				category,
+// 				brand,
+// 				model,
+// 				device_serial,
+// 				warranty_date,
+// 				status,
+// 				vendor,
+// 				problems,
+// 				sort_at
+// 			FROM expired_rows
+// 		)
+// 	`
+
+// 	args := make([]any, 0)
+// 	whereParts := []string{"WHERE 1 = 1"}
+// 	placeholder := 1
+
+// 	if status != "all" {
+// 		args = append(args, status)
+
+// 		whereParts = append(
+// 			whereParts,
+// 			fmt.Sprintf(
+// 				"AND LOWER(wr.status) = $%d",
+// 				placeholder,
+// 			),
+// 		)
+
+// 		placeholder++
+// 	}
+
+// 	if search != "" {
+// 		args = append(args, "%"+search+"%")
+
+// 		whereParts = append(
+// 			whereParts,
+// 			fmt.Sprintf(`
+// 				AND (
+// 					COALESCE(wr.reference, '') ILIKE $%d
+// 					OR COALESCE(wr.employee, '') ILIKE $%d
+// 					OR COALESCE(wr.emp_id, '') ILIKE $%d
+// 					OR COALESCE(wr.department, '') ILIKE $%d
+// 					OR COALESCE(wr.designation, '') ILIKE $%d
+// 					OR COALESCE(wr.category, '') ILIKE $%d
+// 					OR COALESCE(wr.brand, '') ILIKE $%d
+// 					OR COALESCE(wr.model, '') ILIKE $%d
+// 					OR COALESCE(wr.device_serial, '') ILIKE $%d
+// 					OR COALESCE(wr.vendor, '') ILIKE $%d
+// 				)
+// 			`,
+// 				placeholder,
+// 				placeholder,
+// 				placeholder,
+// 				placeholder,
+// 				placeholder,
+// 				placeholder,
+// 				placeholder,
+// 				placeholder,
+// 				placeholder,
+// 				placeholder,
+// 			),
+// 		)
+
+// 		placeholder++
+// 	}
+
+// 	whereClause := strings.Join(whereParts, "\n")
+
+// 	countSQL := fmt.Sprintf(`
+// 		%s
+
+// 		SELECT COUNT(*)
+// 		FROM warranty_rows wr
+
+// 		%s
+// 	`, baseCTE, whereClause)
+
+// 	var total int
+
+// 	if err := h.db.QueryRow(
+// 		c.Request.Context(),
+// 		countSQL,
+// 		args...,
+// 	).Scan(&total); err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+
+// 	listArgs := append(
+// 		append([]any{}, args...),
+// 		limit,
+// 		offset,
+// 	)
+
+// 	listSQL := fmt.Sprintf(`
+// 		%s
+
+// 		SELECT
+// 			wr.id,
+// 			wr.reference,
+// 			wr.employee,
+// 			wr.emp_id,
+// 			wr.department,
+// 			wr.designation,
+// 			wr.category,
+// 			wr.brand,
+// 			wr.model,
+// 			wr.device_serial,
+// 			wr.warranty_date,
+// 			wr.status,
+// 			wr.vendor,
+// 			wr.problems,
+// 			wr.sort_at::text AS created_at
+
+// 		FROM warranty_rows wr
+
+// 		%s
+
+// 		ORDER BY
+// 			CASE wr.status
+// 				WHEN 'Claimed' THEN 1
+// 				WHEN 'To Vendor' THEN 2
+// 				WHEN 'Recovered' THEN 3
+// 				WHEN 'Expired' THEN 4
+// 				ELSE 5
+// 			END,
+
+// 			wr.sort_at DESC NULLS LAST,
+// 			wr.id DESC
+
+// 		LIMIT $%d
+// 		OFFSET $%d
+// 	`,
+// 		baseCTE,
+// 		whereClause,
+// 		placeholder,
+// 		placeholder+1,
+// 	)
+
+// 	rows, err := h.db.Query(
+// 		c.Request.Context(),
+// 		listSQL,
+// 		listArgs...,
+// 	)
+// 	if err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+// 	defer rows.Close()
+
+// 	items := make([]WarrantyClaimItem, 0)
+
+// 	for rows.Next() {
+// 		var item WarrantyClaimItem
+
+// 		if err := rows.Scan(
+// 			&item.ID,
+// 			&item.Reference,
+// 			&item.Employee,
+// 			&item.EmpID,
+// 			&item.Department,
+// 			&item.Designation,
+// 			&item.Category,
+// 			&item.Brand,
+// 			&item.Model,
+// 			&item.DeviceSerial,
+// 			&item.WarrantyDate,
+// 			&item.Status,
+// 			&item.Vendor,
+// 			&item.Problems,
+// 			&item.CreatedAt,
+// 		); err != nil {
+// 			response.ServerError(c, err)
+// 			return
+// 		}
+
+// 		items = append(items, item)
+// 	}
+
+// 	if err := rows.Err(); err != nil {
+// 		response.ServerError(c, err)
+// 		return
+// 	}
+
+// 	response.Paginated(
+// 		c,
+// 		items,
+// 		total,
+// 		page,
+// 		limit,
+// 	)
+// }
+
 func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 	status := strings.ToLower(
 		strings.TrimSpace(
@@ -349,10 +889,7 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 		WITH year_bounds AS (
 			SELECT
 				DATE_TRUNC('year', CURRENT_DATE)::date AS year_start,
-				(
-					DATE_TRUNC('year', CURRENT_DATE)
-					+ INTERVAL '1 year'
-				)::date AS next_year_start
+				(DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year')::date AS next_year_start
 		),
 
 		claimed_rows AS (
@@ -377,19 +914,15 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 				NULLIF(BTRIM(ad.vendor_name), '') AS vendor,
 				NULL::text AS problems,
 
-				COALESCE(
-					ad.updated_at,
-					ad.created_at
-				) AS sort_at
+				COALESCE(ad.updated_at, ad.created_at) AS sort_at
 
 			FROM public.asset_devices ad
-
 			WHERE ad.asset_status = 8
 			  AND ad.row_status = 1
 		),
 
-		latest_claim_per_device AS (
-			SELECT DISTINCT ON (dc.device_sl_no)
+		to_vendor_rows AS (
+			SELECT DISTINCT ON (dc.reference_no_claim)
 				dc.id,
 				dc.reference_no_claim::text AS reference,
 
@@ -405,11 +938,7 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 
 				NULL::text AS warranty_date,
 
-				CASE
-					WHEN dc.claim_status = 9 THEN 'To Vendor'
-					WHEN dc.claim_status = 10 THEN 'Recovered'
-					ELSE 'Claimed'
-				END AS status,
+				'To Vendor'::text AS status,
 
 				COALESCE(
 					NULLIF(BTRIM(wv.vendor_name), ''),
@@ -427,14 +956,62 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 			LEFT JOIN public.warranty_vendors wv
 				ON wv.id = dc.vendor
 
-			WHERE NULLIF(BTRIM(dc.device_sl_no), '') IS NOT NULL
+			WHERE dc.claim_status = 9
+			  AND dc.reference_no_claim IS NOT NULL
+			  AND dc.created_at IS NOT NULL
 			  AND dc.created_at::date >= yb.year_start
 			  AND dc.created_at::date < yb.next_year_start
-			  AND dc.claim_status IN (9, 10)
 
 			ORDER BY
-				dc.device_sl_no,
+				dc.reference_no_claim,
 				dc.created_at DESC NULLS LAST,
+				dc.id DESC
+		),
+
+		recovered_rows AS (
+			SELECT DISTINCT ON (dc.reference_no_claim)
+				dc.id,
+				dc.reference_no_claim::text AS reference,
+
+				NULL::text AS employee,
+				NULL::text AS emp_id,
+				NULL::text AS department,
+				NULL::text AS designation,
+
+				NULLIF(BTRIM(dc.category), '') AS category,
+				NULLIF(BTRIM(dc.brand), '') AS brand,
+				NULLIF(BTRIM(dc.model_no), '') AS model,
+				NULLIF(BTRIM(dc.device_sl_no), '') AS device_serial,
+
+				NULL::text AS warranty_date,
+
+				'Recovered'::text AS status,
+
+				COALESCE(
+					NULLIF(BTRIM(wv.vendor_name), ''),
+					dc.vendor::text
+				) AS vendor,
+
+				NULLIF(BTRIM(dc.problems), '') AS problems,
+
+				dc.return_date AS sort_at
+
+			FROM public.device_claims dc
+
+			CROSS JOIN year_bounds yb
+
+			LEFT JOIN public.warranty_vendors wv
+				ON wv.id = dc.vendor
+
+			WHERE dc.claim_status = 10
+			  AND dc.reference_no_claim IS NOT NULL
+			  AND dc.return_date IS NOT NULL
+			  AND dc.return_date::date >= yb.year_start
+			  AND dc.return_date::date < yb.next_year_start
+
+			ORDER BY
+				dc.reference_no_claim,
+				dc.return_date DESC NULLS LAST,
 				dc.id DESC
 		),
 
@@ -510,7 +1087,27 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 				vendor,
 				problems,
 				sort_at
-			FROM latest_claim_per_device
+			FROM to_vendor_rows
+
+			UNION ALL
+
+			SELECT
+				id,
+				reference,
+				employee,
+				emp_id,
+				department,
+				designation,
+				category,
+				brand,
+				model,
+				device_serial,
+				warranty_date,
+				status,
+				vendor,
+				problems,
+				sort_at
+			FROM recovered_rows
 
 			UNION ALL
 

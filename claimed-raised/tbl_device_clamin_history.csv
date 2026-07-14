@@ -1,0 +1,7 @@
+id,reference_no_claim,device_sl_no,user_id_forward,user_id_received,previos_status,current_status,remarks_all_status,vendor_representor,created_by,create_at,status,vendor_personnel_name,vendor_mobile,attach_file,tbl_it_inventory_device_id,service_type
+370,14533,"C5BLDHL041025016       M- 25361B009098",02-2181,02-2181,8,8,Urgent,,02-2181,"2026-02-19 11:04:55",1,,,NULL,0,2
+400,14533,"C5BLDHL041025016       M- 25361B009098",02-2181,02-2181,8,9,URGENT,,02-2181,"2026-03-15 15:02:42",1,"Masud Rana",01713651635,,0,2
+401,14533,"C5BLDHL041025016       M- 25361B009098",02-2181,02-2181,9,10,"power supply changed",,02-2181,"2026-03-15 15:03:09",1,"Masud Rana",01713651635,,0,2
+439,14533,"C5BLDHL041025016       M- 25361B009098",02-2181,02-2181,8,8,"Urgent ",,02-2181,"2026-06-11 17:15:10",1,,,NULL,0,2
+440,14533,"C5BLDHL041025016       M- 25361B009098",02-2181,02-2181,8,9,Urgent,,02-2181,"2026-06-15 14:44:41",1,"Rick Engineer Star Tech",01713651625,,0,2
+441,14533,"C5BLDHL041025016       M- 25361B009098",02-2181,02-2181,9,10,"BOIS issues",,02-2181,"2026-06-15 14:45:15",1,"Rick Engineer Star Tech",01713651625,,0,2
