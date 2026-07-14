@@ -382,7 +382,6 @@ export interface NonOperationalDevice {
     updated_at: string | null;
 }
 
-
 export interface WarrantyClaimItem {
     id: number;
     reference: string;
