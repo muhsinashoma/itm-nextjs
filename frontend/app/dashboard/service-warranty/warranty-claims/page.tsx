@@ -5,27 +5,35 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ReactNode,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import * as Dialog from "@radix-ui/react-dialog";
+
 import {
     AlertCircle,
+    CalendarDays,
     CheckCircle2,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     Eye,
     FileSpreadsheet,
     FileText,
+    Hash,
+    Info,
     Loader2,
+    Monitor,
     Package,
     RefreshCw,
     RotateCcw,
     Search,
     ShieldCheck,
+    UserRound,
     X,
 } from "lucide-react";
+
 
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +41,14 @@ import {
     type WarrantyClaimItem,
     type WarrantySummary,
 } from "@/lib/api";
+
+
+//To Add New
+
+import { AppFormModal } from "@/components/common/form/AppFormModal";
+import { AppFormSection } from "@/components/common/form/AppFormSection";
+import { AppInfoField } from "@/components/common/form/AppInfoField";
+import { AppFormFooter } from "@/components/common/form/AppFormFooter";
 
 type WarrantyStatus = "Claimed" | "To Vendor" | "Recovered" | "Expired";
 
@@ -227,38 +243,321 @@ function printRows(rows: WarrantyClaimItem[]) {
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;");
 
-    const tableRows = rows
-        .map(
-            (row, index) => `<tr>
-                <td>${index + 1}</td>
-                <td>${escape(row.reference)}</td>
-                <td>${escape(text(row.employee))}</td>
-                <td>${escape(text(row.department))}</td>
-                <td>${escape(text(row.category))}</td>
-                <td>${escape(formatDate(row.warranty_date))}</td>
-                <td>${escape(row.status)}</td>
-                <td>${escape(text(row.vendor))}</td>
-            </tr>`,
-        )
-        .join("");
+    const printedAt = new Date().toLocaleString();
 
-    const popup = window.open("", "_blank", "noopener,noreferrer");
-    if (!popup) return;
+    const dateLabel = (status?: string) =>
+        status === "Recovered"
+            ? "Closing Date"
+            : status === "To Vendor"
+                ? "Forward Date"
+                : status === "Expired"
+                    ? "Expired Date"
+                    : "Claim Date";
 
-    popup.document.write(`<!doctype html><html><head><title>Warranty Claims</title>
-        <style>
-            body{font-family:Arial,sans-serif;padding:24px;font-size:11px}
-            table{width:100%;border-collapse:collapse}
-            th{background:#f1f5f9;text-align:left;padding:8px}
-            td{padding:8px;border-bottom:1px solid #e2e8f0}
-        </style></head><body>
-        <h2>Warranty Claims Report</h2>
-        <p>${rows.length} record(s)</p>
-        <table><thead><tr><th>#</th><th>Reference</th><th>Employee</th><th>Department</th><th>Category</th><th>Warranty</th><th>Status</th><th>Vendor</th></tr></thead>
-        <tbody>${tableRows}</tbody></table>
-        <script>window.onload=()=>window.print()</script>
-        </body></html>`);
-    popup.document.close();
+    const detailCard = (row: WarrantyClaimItem, index: number) => `
+        <section class="claim-page">
+            <div class="header">
+                <div>
+                    <h1>Warranty Claim Information</h1>
+                    <p>Reference: <b>${escape(row.reference)}</b></p>
+                </div>
+                <div class="printed">
+                    <p>Printed: ${escape(printedAt)}</p>
+                    <p>Record: ${index + 1} of ${rows.length}</p>
+                </div>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-box">
+                    <span>Reference</span>
+                    <b class="blue">${escape(row.reference)}</b>
+                </div>
+                <div class="summary-box">
+                    <span>Status</span>
+                    <b>${escape(row.status)}</b>
+                </div>
+                <div class="summary-box">
+                    <span>${escape(dateLabel(row.status))}</span>
+                    <b>${escape(formatDate(row.created_at))}</b>
+                </div>
+                <div class="summary-box">
+                    <span>Vendor</span>
+                    <b>${escape(text(row.vendor))}</b>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Employee Information</div>
+                <div class="field-grid four">
+                    <div class="field">
+                        <span>Employee</span>
+                        <b>${escape(text(row.employee))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Employee ID</span>
+                        <b>${escape(text(row.emp_id))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Department</span>
+                        <b>${escape(text(row.department))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Designation</span>
+                        <b>${escape(text(row.designation))}</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Device Information</div>
+                <div class="field-grid three">
+                    <div class="field">
+                        <span>Category</span>
+                        <b>${escape(text(row.category))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Brand</span>
+                        <b>${escape(text(row.brand))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Model</span>
+                        <b>${escape(text(row.model))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Device Serial</span>
+                        <b class="mono">${escape(text(row.device_serial))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Warranty Date</span>
+                        <b>${escape(formatDate(row.warranty_date))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Vendor</span>
+                        <b>${escape(text(row.vendor))}</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Warranty & Claim Information</div>
+                <div class="field-grid three">
+                    <div class="field">
+                        <span>Warranty Date</span>
+                        <b>${escape(formatDate(row.warranty_date))}</b>
+                    </div>
+                    <div class="field">
+                        <span>${escape(dateLabel(row.status))}</span>
+                        <b>${escape(formatDate(row.created_at))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Current Status</span>
+                        <b>${escape(row.status)}</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Problem / Remarks</div>
+                <div class="remarks">
+                    ${escape(text(row.problems))}
+                </div>
+            </div>
+        </section>
+    `;
+
+    const html = `
+        <!doctype html>
+        <html>
+            <head>
+                <meta charset="utf-8" />
+                <title>Warranty Claim Information</title>
+
+                <style>
+                    * {
+                        box-sizing: border-box;
+                    }
+
+                    @page {
+                        size: A4 portrait;
+                        margin: 12mm;
+                    }
+
+                    body {
+                        margin: 0;
+                        color: #111827;
+                        font-family: Arial, sans-serif;
+                        font-size: 11px;
+                        background: #ffffff;
+                    }
+
+                    .claim-page {
+                        page-break-after: always;
+                    }
+
+                    .claim-page:last-child {
+                        page-break-after: auto;
+                    }
+
+                    .header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        gap: 16px;
+                        border-bottom: 2px solid #111827;
+                        padding-bottom: 10px;
+                        margin-bottom: 12px;
+                    }
+
+                    h1 {
+                        margin: 0;
+                        font-size: 18px;
+                        line-height: 1.2;
+                    }
+
+                    p {
+                        margin: 3px 0 0;
+                    }
+
+                    .printed {
+                        color: #6b7280;
+                        font-size: 10px;
+                        text-align: right;
+                        white-space: nowrap;
+                    }
+
+                    .summary-grid {
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        border: 1px solid #d1d5db;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        margin-bottom: 10px;
+                    }
+
+                    .summary-box {
+                        min-height: 54px;
+                        padding: 9px 10px;
+                        border-right: 1px solid #e5e7eb;
+                    }
+
+                    .summary-box:last-child {
+                        border-right: 0;
+                    }
+
+                    .summary-box span,
+                    .field span {
+                        display: block;
+                        color: #6b7280;
+                        font-size: 9px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.03em;
+                        margin-bottom: 4px;
+                    }
+
+                    .summary-box b,
+                    .field b {
+                        display: block;
+                        color: #111827;
+                        font-size: 11px;
+                        line-height: 1.35;
+                        word-break: break-word;
+                    }
+
+                    .summary-box .blue {
+                        color: #1d4ed8;
+                        font-size: 13px;
+                    }
+
+                    .section {
+                        border: 1px solid #d1d5db;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        margin-bottom: 10px;
+                    }
+
+                    .section-title {
+                        background: #f1f5f9;
+                        border-bottom: 1px solid #d1d5db;
+                        color: #111827;
+                        font-size: 12px;
+                        font-weight: 700;
+                        padding: 8px 10px;
+                    }
+
+                    .field-grid {
+                        display: grid;
+                    }
+
+                    .field-grid.four {
+                        grid-template-columns: repeat(4, 1fr);
+                    }
+
+                    .field-grid.three {
+                        grid-template-columns: repeat(3, 1fr);
+                    }
+
+                    .field {
+                        min-height: 50px;
+                        padding: 9px 10px;
+                        border-right: 1px solid #e5e7eb;
+                        border-bottom: 1px solid #e5e7eb;
+                    }
+
+                    .field:nth-child(4n) {
+                        border-right: 0;
+                    }
+
+                    .field-grid.three .field:nth-child(3n) {
+                        border-right: 0;
+                    }
+
+                    .mono {
+                        font-family: Consolas, "Courier New", monospace;
+                    }
+
+                    .remarks {
+                        min-height: 70px;
+                        padding: 10px;
+                        line-height: 1.5;
+                        color: #111827;
+                        word-break: break-word;
+                    }
+
+                    @media print {
+                        body {
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                    }
+                </style>
+            </head>
+
+            <body>
+                ${rows.map(detailCard).join("")}
+
+                <script>
+                    window.addEventListener("load", function () {
+                        setTimeout(function () {
+                            window.focus();
+                            window.print();
+                        }, 300);
+                    });
+                </script>
+            </body>
+        </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+        alert("Popup blocked. Please allow popups for this site.");
+        return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
 }
 
 function ClaimModal({
@@ -268,60 +567,215 @@ function ClaimModal({
     item: WarrantyClaimItem;
     onClose: () => void;
 }) {
-    const field = (label: string, value?: string | null) => (
-        <div>
-            <p className="text-[9px] uppercase text-muted-foreground">{label}</p>
-            <p className="mt-0.5 text-[11px] font-semibold text-foreground">
-                {text(value)}
-            </p>
-        </div>
-    );
+    const dateLabel =
+        item.status === "Recovered"
+            ? "Closing Date"
+            : item.status === "To Vendor"
+                ? "Forward Date"
+                : item.status === "Expired"
+                    ? "Expired Date"
+                    : "Claim Date";
 
     return (
-        <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
-            <Dialog.Portal>
-                <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-                <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[95vw] max-w-[620px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
-                    <div className="flex items-center justify-between bg-primary px-5 py-4">
-                        <div>
-                            <Dialog.Title className="text-sm font-semibold text-primary-foreground">
-                                Warranty Claim Details
-                            </Dialog.Title>
-                            <p className="text-[11px] text-primary-foreground/70">
-                                Reference: {item.reference}
-                            </p>
-                        </div>
-                        <Dialog.Close className="rounded-lg p-1 text-primary-foreground">
-                            <X size={16} />
-                        </Dialog.Close>
-                    </div>
+        <AppFormModal
+            open={true}
+            onOpenChange={(open) => {
+                if (!open) onClose();
+            }}
+            title="Warranty Claim Information"
+            subtitle={`Reference: ${item.reference}`}
+            icon={<Hash size={18} />}
+            footer={
+                <AppFormFooter
+                    onCancel={onClose}
+                    cancelText="Close"
+                    hideSubmit
+                />
+            }
+        >
+            <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <AppInfoField label="Reference" value={item.reference} />
+                    <AppInfoField label="Status" value={item.status} />
+                    <AppInfoField
+                        label={dateLabel}
+                        value={formatDate(item.created_at)}
+                    />
+                    <AppInfoField label="Vendor" value={item.vendor} />
+                </div>
 
-                    <div className="space-y-4 p-5">
-                        <div className="grid grid-cols-2 gap-4 rounded-xl border border-border p-4 sm:grid-cols-4">
-                            {field("Employee", item.employee)}
-                            {field("Employee ID", item.emp_id)}
-                            {field("Department", item.department)}
-                            {field("Designation", item.designation)}
-                        </div>
+                <AppFormSection
+                    title="Employee Information"
+                    icon={<UserRound size={14} />}
+                    columns="four"
+                >
+                    <AppInfoField label="Employee" value={item.employee} />
+                    <AppInfoField label="Employee ID" value={item.emp_id} />
+                    <AppInfoField label="Department" value={item.department} />
+                    <AppInfoField label="Designation" value={item.designation} />
+                </AppFormSection>
 
-                        <div className="grid grid-cols-2 gap-4 rounded-xl border border-border p-4 sm:grid-cols-3">
-                            {field("Category", item.category)}
-                            {field("Brand", item.brand)}
-                            {field("Model", item.model)}
-                            {field("Serial", item.device_serial)}
-                            {field("Warranty", formatDate(item.warranty_date))}
-                            {field("Vendor", item.vendor)}
-                        </div>
+                <AppFormSection
+                    title="Device Information"
+                    icon={<Monitor size={14} />}
+                    columns="three"
+                >
+                    <AppInfoField label="Category" value={item.category} />
+                    <AppInfoField label="Brand" value={item.brand} />
+                    <AppInfoField label="Model" value={item.model} />
+                    <AppInfoField
+                        label="Device Serial"
+                        value={item.device_serial}
+                        mono
+                    />
+                    <AppInfoField
+                        label="Warranty Date"
+                        value={formatDate(item.warranty_date)}
+                    />
+                    <AppInfoField label="Vendor" value={item.vendor} />
+                </AppFormSection>
 
-                        <div className="space-y-3 rounded-xl border border-border p-4">
-                            <StatusBadge status={item.status} />
-                            {field("Problems", item.problems)}
-                            {field("Created", formatDate(item.created_at))}
-                        </div>
-                    </div>
-                </Dialog.Content>
-            </Dialog.Portal>
-        </Dialog.Root>
+                <AppFormSection
+                    title="Warranty & Claim Information"
+                    icon={<CalendarDays size={14} />}
+                    columns="three"
+                >
+                    <AppInfoField
+                        label="Warranty Date"
+                        value={formatDate(item.warranty_date)}
+                    />
+                    <AppInfoField
+                        label={dateLabel}
+                        value={formatDate(item.created_at)}
+                    />
+                    <AppInfoField label="Current Status" value={item.status} />
+                </AppFormSection>
+
+                <AppFormSection
+                    title="Problem / Remarks"
+                    icon={<Info size={14} />}
+                    columns="one"
+                >
+                    <AppInfoField
+                        label="Problem Details"
+                        value={item.problems}
+                        span
+                    />
+                </AppFormSection>
+            </div>
+        </AppFormModal>
+    );
+}
+
+function WarrantyRowActions({
+    item,
+    onView,
+    onPrint,
+}: {
+    item: WarrantyClaimItem;
+    onView: (item: WarrantyClaimItem) => void;
+    onPrint: (item: WarrantyClaimItem) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [position, setPosition] = useState<{
+        top: number;
+        right: number;
+    } | null>(null);
+
+    const buttonRef = useRef<HTMLButtonElement | null>(null);
+    const menuRef = useRef<HTMLDivElement | null>(null);
+
+    const toggleMenu = () => {
+        const rect = buttonRef.current?.getBoundingClientRect();
+
+        if (!rect) return;
+
+        setPosition({
+            top: rect.bottom + 6,
+            right: window.innerWidth - rect.right,
+        });
+
+        setOpen((value) => !value);
+    };
+
+    useEffect(() => {
+        if (!open) return;
+
+        function handleClick(event: MouseEvent) {
+            const target = event.target as Node;
+
+            if (
+                buttonRef.current?.contains(target) ||
+                menuRef.current?.contains(target)
+            ) {
+                return;
+            }
+
+            setOpen(false);
+        }
+
+        function closeMenu() {
+            setOpen(false);
+        }
+
+        document.addEventListener("mousedown", handleClick);
+        window.addEventListener("scroll", closeMenu, true);
+        window.addEventListener("resize", closeMenu);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClick);
+            window.removeEventListener("scroll", closeMenu, true);
+            window.removeEventListener("resize", closeMenu);
+        };
+    }, [open]);
+
+    return (
+        <>
+            <button
+                ref={buttonRef}
+                type="button"
+                onClick={toggleMenu}
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-border"
+            >
+                Actions
+                <ChevronDown size={12} />
+            </button>
+
+            {open && position && (
+                <div
+                    ref={menuRef}
+                    className="fixed z-[80] w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-xl"
+                    style={{
+                        top: position.top,
+                        right: position.right,
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setOpen(false);
+                            onView(item);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-foreground transition hover:bg-muted"
+                    >
+                        <Eye size={13} />
+                        View Details
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setOpen(false);
+                            onPrint(item);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-foreground transition hover:bg-muted"
+                    >
+                        <FileText size={13} />
+                        Print
+                    </button>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -335,6 +789,7 @@ export default function WarrantyClaimsPage() {
         ? statusParam
         : null;
 
+    //will have unchanged
     const [rows, setRows] = useState<WarrantyClaimItem[]>([]);
     const [summary, setSummary] = useState<WarrantySummary>(EMPTY_SUMMARY);
     const [total, setTotal] = useState(0);
@@ -553,34 +1008,124 @@ export default function WarrantyClaimsPage() {
                         <b className="text-foreground">{total}</b> records
                     </p>
 
-                    <div className="relative">
+                    <div className="group relative w-full sm:w-[340px]">
                         <Search
-                            size={12}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            size={15}
+                            className="
+            pointer-events-none
+            absolute
+            left-3
+            top-1/2
+            z-10
+            -translate-y-1/2
+            text-slate-400
+            transition-colors
+                            duration-200
+                            group-focus-within:text-red-500
+                             "
                         />
+
                         <Input
+                            autoFocus
                             value={searchInput}
                             onChange={(event) =>
                                 setSearchInput(event.target.value)
                             }
-                            placeholder="Search name, ref, category..."
-                            className="h-8 w-64 pl-7 text-xs"
+                            placeholder="Search name, reference, category..."
+                            className="
+                            h-10
+                            w-full
+                            rounded-lg
+                            border
+                            border-slate-300
+                            bg-white
+                            pl-9
+                            pr-10
+                            text-xs
+                            shadow-sm
+                            transition-all
+                            duration-200
+                            placeholder:text-slate-400
+
+                            hover:border-slate-400
+
+                            focus-visible:border-red-500
+                            focus-visible:ring-2
+                            focus-visible:ring-red-500/20
+                            focus-visible:ring-offset-0
+                          "
                         />
+
+                        {searchInput && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchInput("");
+                                    setSearch("");
+                                    setPage(1);
+                                }}
+                                className="
+                                absolute
+                                right-2.5
+                                top-1/2
+                                -translate-y-1/2
+                                rounded-md
+                                p-1
+                                text-slate-400
+                                transition-colors
+                                hover:bg-red-50
+                                hover:text-red-600
+                                "
+                                aria-label="Clear search"
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
+                {/* Table  */}
+
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px]">
-                        <thead className="border-b border-border bg-muted/50">
-                            <tr>
-                                {["#", "Reference", "Employee", "Dept", "Category", "Created At", "Warranty", "Status", "Vendor", "Actions"].map((column) => (
-                                    <th key={column} className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <thead className="sticky top-0 z-10">
+                            {/* <tr className="bg-slate-300/90 shadow-sm"> */}
+                            <tr className="bg-[#DDE4E7]">
+                                {[
+                                    "#",
+                                    "Reference",
+                                    "Employee",
+                                    "Dept",
+                                    "Category",
+                                    "Created At",
+                                    "Warranty",
+                                    "Status",
+                                    "Vendor",
+                                    "Actions",
+                                ].map((column) => (
+                                    <th
+                                        key={column}
+                                        className="
+                                        whitespace-nowrap
+                                        border-b
+                                        border-slate-400
+                                        px-3
+                                        py-3
+                                        text-left
+                                        text-[10px]
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.06em]
+                                        text-slate-800
+                                        "
+                                    >
                                         {column}
                                     </th>
+
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border/50">
+                        <tbody className="divide-y divide-slate-200">
                             {loading ? (
                                 <tr>
                                     <td colSpan={10} className="py-10 text-center">
@@ -592,20 +1137,61 @@ export default function WarrantyClaimsPage() {
                                 </tr>
                             ) : rows.length ? (
                                 rows.map((item, index) => (
-                                    <tr key={`${item.status}-${item.id}-${item.reference}`} className="hover:bg-muted/30">
+
+                                    <tr
+                                        key={`${item.status}-${item.id}-${item.reference}`}
+                                        className={`
+                                                group
+                                                transition-colors
+                                                duration-150
+                                                ${index % 2 === 0
+                                                ? "bg-[#F4FAFA]"
+                                                : "bg-white"
+                                            }
+                                                hover:bg-[#E8F5F4]
+                                            `}
+                                    >
                                         <td className="px-3 py-2.5 text-[11px] text-muted-foreground">
                                             {(page - 1) * PAGE_SIZE + index + 1}
                                         </td>
-                                        <td className="px-3 py-2.5">
-                                            <span className="rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600">
+                                        <td className="px-3 py-3">
+                                            <span
+                                                className="
+                                                    inline-flex
+                                                    items-center
+                                                    rounded-md
+                                                    border
+                                                    border-blue-200/70
+                                                    bg-blue-50
+                                                    px-2
+                                                    py-1
+                                                    font-mono
+                                                    text-[11px]
+                                                    font-semibold
+                                                    text-blue-700
+                                                   "
+                                            >
                                                 {item.reference}
                                             </span>
                                         </td>
-                                        <td className="px-3 py-2.5">
-                                            <p className="text-[11px] font-medium">{text(item.employee)}</p>
-                                            <p className="text-[9px] text-muted-foreground">{text(item.emp_id)}</p>
+                                        <td className="px-3 py-3">
+                                            <div className="min-w-[150px]">
+                                                <p className="text-[11px] font-semibold leading-4 text-foreground">
+                                                    {text(item.employee)}
+                                                </p>
+
+                                                <p className="mt-0.5 text-[9px] font-medium text-muted-foreground">
+                                                    {text(item.emp_id)}
+                                                </p>
+                                            </div>
                                         </td>
-                                        <td className="px-3 py-2.5 text-[11px] text-muted-foreground">{text(item.department)}</td>
+
+                                        <td className="px-3 py-3">
+                                            <p className="max-w-[180px] text-[11px] leading-4 text-muted-foreground">
+                                                {text(item.department)}
+                                            </p>
+                                        </td>
+
                                         <td className="px-3 py-2.5">
                                             <p className="text-[11px] font-medium">{text(item.category)}</p>
                                             <p className="text-[9px] text-muted-foreground">{[item.brand, item.model].filter(Boolean).join(" · ") || "—"}</p>
@@ -617,13 +1203,11 @@ export default function WarrantyClaimsPage() {
                                         <td className="px-3 py-2.5"><StatusBadge status={item.status} /></td>
                                         <td className="px-3 py-2.5 text-[11px]">{text(item.vendor)}</td>
                                         <td className="px-3 py-2.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => setViewItem(item)}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted px-2.5 py-1 text-[11px]"
-                                            >
-                                                <Eye size={12} /> View
-                                            </button>
+                                            <WarrantyRowActions
+                                                item={item}
+                                                onView={setViewItem}
+                                                onPrint={(selectedItem) => printRows([selectedItem])}
+                                            />
                                         </td>
                                     </tr>
                                 ))
