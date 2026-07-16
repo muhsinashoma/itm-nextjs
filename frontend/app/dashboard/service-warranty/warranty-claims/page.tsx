@@ -874,20 +874,7 @@ export default function WarrantyClaimsPage() {
     const first = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
     const last = Math.min(page * PAGE_SIZE, total);
 
-    // const changeStatus = (status: WarrantyStatus | null) => {
-    //     const next = activeStatus === status ? null : status;
-    //     const params = new URLSearchParams(searchParams.toString());
-
-    //     if (next) params.set("status", next);
-    //     else params.delete("status");
-
-    //     const query = params.toString();
-    //     router.replace(query ? `${pathname}?${query}` : pathname, {
-    //         scroll: false,
-    //     });
-
-    // };
-
+   
     const changeStatus = (status: WarrantyStatus | null) => {
         const nextStatus = activeStatus === status ? null : status;
         const params = new URLSearchParams(searchParams.toString());
