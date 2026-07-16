@@ -921,100 +921,183 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 			  AND ad.row_status = 1
 		),
 
-		to_vendor_rows AS (
-			SELECT DISTINCT ON (dc.reference_no_claim)
-				dc.id,
-				dc.reference_no_claim::text AS reference,
+	to_vendor_rows AS (
+    SELECT DISTINCT ON (dc.reference_no_claim)
+        dc.id,
+        dc.reference_no_claim::text AS reference,
 
-				NULL::text AS employee,
-				NULL::text AS emp_id,
-				NULL::text AS department,
-				NULL::text AS designation,
+        NULLIF(BTRIM(ad.emp_name), '') AS employee,
+        NULLIF(BTRIM(ad.emp_id), '') AS emp_id,
+        NULLIF(BTRIM(ad.department), '') AS department,
+        NULLIF(BTRIM(ad.designation), '') AS designation,
 
-				NULLIF(BTRIM(dc.category), '') AS category,
-				NULLIF(BTRIM(dc.brand), '') AS brand,
-				NULLIF(BTRIM(dc.model_no), '') AS model,
-				NULLIF(BTRIM(dc.device_sl_no), '') AS device_serial,
+        COALESCE(
+            NULLIF(BTRIM(dc.category), ''),
+            NULLIF(BTRIM(ad.category), '')
+        ) AS category,
 
-				NULL::text AS warranty_date,
+        COALESCE(
+            NULLIF(BTRIM(dc.brand), ''),
+            NULLIF(BTRIM(ad.brand), '')
+        ) AS brand,
 
-				'To Vendor'::text AS status,
+        COALESCE(
+            NULLIF(BTRIM(dc.model_no), ''),
+            NULLIF(BTRIM(ad.model), '')
+        ) AS model,
 
-				COALESCE(
-					NULLIF(BTRIM(wv.vendor_name), ''),
-					dc.vendor::text
-				) AS vendor,
+        COALESCE(
+            NULLIF(BTRIM(dc.device_sl_no), ''),
+            NULLIF(BTRIM(ad.device_serial), '')
+        ) AS device_serial,
 
-				NULLIF(BTRIM(dc.problems), '') AS problems,
+        ad.warranty_date::text AS warranty_date,
 
-				dc.created_at AS sort_at
+        'To Vendor'::text AS status,
 
-			FROM public.device_claims dc
+        COALESCE(
+            NULLIF(BTRIM(wv.vendor_name), ''),
+            NULLIF(BTRIM(ad.vendor_name), ''),
+            dc.vendor::text
+        ) AS vendor,
 
-			CROSS JOIN year_bounds yb
+        NULLIF(BTRIM(dc.problems), '') AS problems,
 
-			LEFT JOIN public.warranty_vendors wv
-				ON wv.id = dc.vendor
+        dc.created_at AS sort_at
 
-			WHERE dc.claim_status = 9
-			  AND dc.reference_no_claim IS NOT NULL
-			  AND dc.created_at IS NOT NULL
-			  AND dc.created_at::date >= yb.year_start
-			  AND dc.created_at::date < yb.next_year_start
+    FROM public.device_claims dc
 
-			ORDER BY
-				dc.reference_no_claim,
-				dc.created_at DESC NULLS LAST,
-				dc.id DESC
-		),
+    CROSS JOIN year_bounds yb
 
-		recovered_rows AS (
-			SELECT DISTINCT ON (dc.reference_no_claim)
-				dc.id,
-				dc.reference_no_claim::text AS reference,
+    LEFT JOIN LATERAL (
+        SELECT
+            ad.emp_name,
+            ad.emp_id,
+            ad.department,
+            ad.designation,
+            ad.category,
+            ad.brand,
+            ad.model,
+            ad.device_serial,
+            ad.warranty_date,
+            ad.vendor_name
+        FROM public.asset_devices ad
+        WHERE ad.row_status = 1
+          AND ad.device_serial_key = UPPER(
+              REGEXP_REPLACE(
+                  BTRIM(dc.device_sl_no),
+                  '[^A-Za-z0-9]+',
+                  '',
+                  'g'
+              )
+          )
+        ORDER BY ad.id DESC
+        LIMIT 1
+    ) ad ON TRUE
 
-				NULL::text AS employee,
-				NULL::text AS emp_id,
-				NULL::text AS department,
-				NULL::text AS designation,
+    LEFT JOIN public.warranty_vendors wv
+        ON wv.id = dc.vendor
 
-				NULLIF(BTRIM(dc.category), '') AS category,
-				NULLIF(BTRIM(dc.brand), '') AS brand,
-				NULLIF(BTRIM(dc.model_no), '') AS model,
-				NULLIF(BTRIM(dc.device_sl_no), '') AS device_serial,
+    WHERE dc.claim_status = 9
+      AND dc.reference_no_claim IS NOT NULL
+      AND dc.created_at IS NOT NULL
+      AND dc.created_at::date >= yb.year_start
+      AND dc.created_at::date < yb.next_year_start
 
-				NULL::text AS warranty_date,
+    ORDER BY
+        dc.reference_no_claim,
+        dc.created_at DESC NULLS LAST,
+        dc.id DESC
+),
 
-				'Recovered'::text AS status,
+	recovered_rows AS (
+    SELECT DISTINCT ON (dc.reference_no_claim)
+        dc.id,
+        dc.reference_no_claim::text AS reference,
 
-				COALESCE(
-					NULLIF(BTRIM(wv.vendor_name), ''),
-					dc.vendor::text
-				) AS vendor,
+        NULLIF(BTRIM(ad.emp_name), '') AS employee,
+        NULLIF(BTRIM(ad.emp_id), '') AS emp_id,
+        NULLIF(BTRIM(ad.department), '') AS department,
+        NULLIF(BTRIM(ad.designation), '') AS designation,
 
-				NULLIF(BTRIM(dc.problems), '') AS problems,
+        COALESCE(
+            NULLIF(BTRIM(dc.category), ''),
+            NULLIF(BTRIM(ad.category), '')
+        ) AS category,
 
-				dc.return_date AS sort_at
+        COALESCE(
+            NULLIF(BTRIM(dc.brand), ''),
+            NULLIF(BTRIM(ad.brand), '')
+        ) AS brand,
 
-			FROM public.device_claims dc
+        COALESCE(
+            NULLIF(BTRIM(dc.model_no), ''),
+            NULLIF(BTRIM(ad.model), '')
+        ) AS model,
 
-			CROSS JOIN year_bounds yb
+        COALESCE(
+            NULLIF(BTRIM(dc.device_sl_no), ''),
+            NULLIF(BTRIM(ad.device_serial), '')
+        ) AS device_serial,
 
-			LEFT JOIN public.warranty_vendors wv
-				ON wv.id = dc.vendor
+        ad.warranty_date::text AS warranty_date,
 
-			WHERE dc.claim_status = 10
-			  AND dc.reference_no_claim IS NOT NULL
-			  AND dc.return_date IS NOT NULL
-			  AND dc.return_date::date >= yb.year_start
-			  AND dc.return_date::date < yb.next_year_start
+        'Recovered'::text AS status,
 
-			ORDER BY
-				dc.reference_no_claim,
-				dc.return_date DESC NULLS LAST,
-				dc.id DESC
-		),
+        COALESCE(
+            NULLIF(BTRIM(wv.vendor_name), ''),
+            NULLIF(BTRIM(ad.vendor_name), ''),
+            dc.vendor::text
+        ) AS vendor,
 
+        NULLIF(BTRIM(dc.problems), '') AS problems,
+
+        dc.return_date AS sort_at
+
+    FROM public.device_claims dc
+
+    CROSS JOIN year_bounds yb
+
+    LEFT JOIN LATERAL (
+        SELECT
+            ad.emp_name,
+            ad.emp_id,
+            ad.department,
+            ad.designation,
+            ad.category,
+            ad.brand,
+            ad.model,
+            ad.device_serial,
+            ad.warranty_date,
+            ad.vendor_name
+        FROM public.asset_devices ad
+        WHERE ad.row_status = 1
+          AND ad.device_serial_key = UPPER(
+              REGEXP_REPLACE(
+                  BTRIM(dc.device_sl_no),
+                  '[^A-Za-z0-9]+',
+                  '',
+                  'g'
+              )
+          )
+        ORDER BY ad.id DESC
+        LIMIT 1
+    ) ad ON TRUE
+
+    LEFT JOIN public.warranty_vendors wv
+        ON wv.id = dc.vendor
+
+    WHERE dc.claim_status = 10
+      AND dc.reference_no_claim IS NOT NULL
+      AND dc.return_date IS NOT NULL
+      AND dc.return_date::date >= yb.year_start
+      AND dc.return_date::date < yb.next_year_start
+
+    ORDER BY
+        dc.reference_no_claim,
+        dc.return_date DESC NULLS LAST,
+        dc.id DESC
+),
 		expired_rows AS (
 			SELECT
 				ad.id,
