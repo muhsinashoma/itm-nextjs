@@ -14,11 +14,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
     AlertCircle,
     CalendarDays,
+    Check,
     CheckCircle2,
     ChevronDown,
     ChevronLeft,
     ChevronRight,
     Eye,
+    EyeOff,
     FileSpreadsheet,
     FileText,
     Hash,
@@ -30,10 +32,10 @@ import {
     RotateCcw,
     Search,
     ShieldCheck,
+    SlidersHorizontal,
     UserRound,
     X,
 } from "lucide-react";
-
 
 import { Input } from "@/components/ui/input";
 import {
@@ -41,7 +43,6 @@ import {
     type WarrantyClaimItem,
     type WarrantySummary,
 } from "@/lib/api";
-
 
 //To Add New
 
@@ -51,6 +52,98 @@ import { AppInfoField } from "@/components/common/form/AppInfoField";
 import { AppFormFooter } from "@/components/common/form/AppFormFooter";
 
 type WarrantyStatus = "Claimed" | "To Vendor" | "Recovered" | "Expired";
+
+type WarrantyColumnKey =
+    | "reference"
+    | "employee"
+    | "emp_id"
+    | "device_serial"
+    | "mr_no"
+    | "pr_no"
+    | "department"
+    | "designation"
+    | "category"
+    | "brand"
+    | "model"
+    | "device_type"
+    | "created_at"
+    | "assigned_date"
+    | "returned_date"
+    | "transferred_date"
+    | "purchase_date"
+    | "warranty_date"
+    | "device_age"
+    | "status"
+    | "vendor"
+    | "problems";
+
+type WarrantyColumnOption = {
+    key: WarrantyColumnKey;
+    label: string;
+};
+
+type WarrantyClaimRow = WarrantyClaimItem & {
+    mr?: string | null;
+    mr_no?: string | null;
+    mrNo?: string | null;
+    mr_number?: string | null;
+    pr?: string | null;
+    pr_no?: string | null;
+    prNo?: string | null;
+    pr_number?: string | null;
+    device_type?: string | null;
+    deviceType?: string | null;
+    assigned_date?: string | null;
+    assignedDate?: string | null;
+    returned_date?: string | null;
+    return_date?: string | null;
+    returnedDate?: string | null;
+    transferred_date?: string | null;
+    transfer_date?: string | null;
+    transferredDate?: string | null;
+    purchase_date?: string | null;
+    purchased_date?: string | null;
+    purchaseDate?: string | null;
+    device_age?: string | number | null;
+    deviceAge?: string | number | null;
+};
+
+const WARRANTY_COLUMN_OPTIONS: WarrantyColumnOption[] = [
+    { key: "reference", label: "Reference" },
+    { key: "employee", label: "Employee Name / ID" },
+    { key: "emp_id", label: "Employee ID" },
+    { key: "device_serial", label: "Device Serial No" },
+    { key: "mr_no", label: "MR No" },
+    { key: "pr_no", label: "PR No" },
+    { key: "department", label: "Department" },
+    { key: "category", label: "Category" },
+    { key: "brand", label: "Brand" },
+    { key: "model", label: "Model" },
+    { key: "device_type", label: "Device Type" },
+    { key: "designation", label: "Designation" },
+    { key: "created_at", label: "Created At" },
+    { key: "assigned_date", label: "Assigned Date" },
+    { key: "returned_date", label: "Returned Date" },
+    { key: "transferred_date", label: "Transferred Date" },
+    { key: "purchase_date", label: "Purchase Date" },
+    { key: "warranty_date", label: "Warranty Date" },
+    { key: "device_age", label: "Device Age" },
+    { key: "status", label: "Status" },
+    { key: "vendor", label: "Vendor" },
+    { key: "problems", label: "Problems / Remarks" },
+];
+
+const DEFAULT_VISIBLE_WARRANTY_COLUMNS: WarrantyColumnKey[] = [
+    "reference",
+    "employee",
+    "device_serial",
+    "department",
+    "category",
+    "warranty_date",
+    "status",
+];
+
+const WARRANTY_COLUMNS_STORAGE_KEY = "itm:warranty-claims:visible-columns:v5";
 
 const PAGE_SIZE = 20;
 
@@ -162,6 +255,100 @@ function formatDate(value?: string | null) {
     }).format(date);
 }
 
+function getEmployeeInitials(value?: string | null) {
+    const name = value?.trim().replace(/\s+/g, " ");
+
+    if (!name) return "NA";
+
+    const parts = name.split(" ").filter(Boolean);
+
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+    }
+
+    const firstInitial = parts[0]?.charAt(0) ?? "";
+    const lastInitial = parts[parts.length - 1]?.charAt(0) ?? "";
+
+    return `${firstInitial}${lastInitial}`.toUpperCase();
+}
+
+const EMPLOYEE_AVATAR_COLORS = [
+    "bg-indigo-600 text-white ring-indigo-100",
+    "bg-emerald-600 text-white ring-emerald-100",
+    "bg-sky-600 text-white ring-sky-100",
+    "bg-violet-600 text-white ring-violet-100",
+    "bg-rose-600 text-white ring-rose-100",
+    "bg-amber-500 text-white ring-amber-100",
+    "bg-teal-600 text-white ring-teal-100",
+    "bg-fuchsia-600 text-white ring-fuchsia-100",
+] as const;
+
+function getEmployeeAvatarColor(value?: string | null) {
+    const normalized = value?.trim().toLowerCase() || "unknown";
+    let hash = 0;
+
+    for (let index = 0; index < normalized.length; index += 1) {
+        hash = (hash * 31 + normalized.charCodeAt(index)) >>> 0;
+    }
+
+    return EMPLOYEE_AVATAR_COLORS[hash % EMPLOYEE_AVATAR_COLORS.length];
+}
+
+function firstString(...values: Array<string | null | undefined>) {
+    for (const value of values) {
+        if (typeof value === "string" && value.trim()) {
+            return value.trim();
+        }
+    }
+
+    return undefined;
+}
+
+function formatOptionalDate(...values: Array<string | null | undefined>) {
+    return formatDate(firstString(...values));
+}
+
+function formatDeviceAge(item: WarrantyClaimRow) {
+    const directAge = item.device_age ?? item.deviceAge;
+
+    if (
+        directAge !== null &&
+        directAge !== undefined &&
+        String(directAge).trim()
+    ) {
+        return String(directAge);
+    }
+
+    const purchaseDate = firstString(
+        item.purchase_date,
+        item.purchased_date,
+        item.purchaseDate,
+    );
+
+    if (!purchaseDate) return "—";
+
+    const purchasedAt = new Date(purchaseDate);
+    if (Number.isNaN(purchasedAt.getTime())) return "—";
+
+    const today = new Date();
+    let months =
+        (today.getFullYear() - purchasedAt.getFullYear()) * 12 +
+        (today.getMonth() - purchasedAt.getMonth());
+
+    if (today.getDate() < purchasedAt.getDate()) {
+        months -= 1;
+    }
+
+    if (months < 0) return "—";
+
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+
+    if (years && remainingMonths) return `${years}y ${remainingMonths}m`;
+    if (years) return `${years}y`;
+    return `${remainingMonths}m`;
+}
+
 function StatusBadge({ status }: { status: string }) {
     const config = STATUS_CONFIG[status as WarrantyStatus];
 
@@ -183,18 +370,238 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
-function exportCSV(rows: WarrantyClaimItem[]) {
+function renderWarrantyCell(
+    column: WarrantyColumnKey,
+    item: WarrantyClaimRow,
+    visibleColumns: Set<WarrantyColumnKey>,
+) {
+    switch (column) {
+        case "reference":
+            return (
+                <span className="inline-flex items-center rounded-md border border-blue-200/70 bg-blue-50 px-2 py-1 font-mono text-[11px] font-semibold text-blue-700">
+                    {item.reference}
+                </span>
+            );
+
+        case "employee":
+            return (
+                <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold tracking-wide shadow-sm ring-2 ${getEmployeeAvatarColor(item.employee)}`}
+                        aria-label={`Employee initials ${getEmployeeInitials(item.employee)}`}
+                        title={text(item.employee)}
+                    >
+                        {getEmployeeInitials(item.employee)}
+                    </span>
+
+                    <div className="min-w-0">
+                        <p
+                            className="truncate text-[11px] font-semibold leading-4 text-foreground"
+                            title={item.employee || undefined}
+                        >
+                            {text(item.employee)}
+                        </p>
+
+                        <p className="mt-0.5 whitespace-nowrap text-[9px] font-medium text-muted-foreground">
+                            {text(item.emp_id)}
+                        </p>
+                    </div>
+                </div>
+            );
+
+        case "emp_id":
+            return (
+                <span className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                    {text(item.emp_id)}
+                </span>
+            );
+
+        case "device_serial":
+            return (
+                <span
+                    className="
+                        inline-block max-w-full break-all rounded-md border
+                        border-slate-200 bg-slate-50 px-2 py-1 font-mono
+                        text-[10px] font-semibold leading-4 text-slate-700
+                    "
+                    title={item.device_serial || undefined}
+                >
+                    {text(item.device_serial)}
+                </span>
+            );
+
+        case "mr_no":
+            return (
+                <span className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                    {text(firstString(item.mr_no, item.mrNo, item.mr_number, item.mr))}
+                </span>
+            );
+
+        case "pr_no":
+            return (
+                <span className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                    {text(firstString(item.pr_no, item.prNo, item.pr_number, item.pr))}
+                </span>
+            );
+
+        case "department":
+            return (
+                <p className="max-w-[190px] text-[11px] leading-4 text-muted-foreground">
+                    {text(item.department)}
+                </p>
+            );
+
+        case "designation":
+            return (
+                <p className="max-w-[180px] text-[11px] leading-4">
+                    {text(item.designation)}
+                </p>
+            );
+
+        case "category": {
+            const hiddenDeviceDetails = [
+                !visibleColumns.has("brand") ? item.brand : null,
+                !visibleColumns.has("model") ? item.model : null,
+            ]
+                .filter(Boolean)
+                .join(" · ");
+
+            return (
+                <div className="min-w-0">
+                    <p className="text-[11px] font-semibold leading-4">
+                        {text(item.category)}
+                    </p>
+
+                    {hiddenDeviceDetails && (
+                        <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">
+                            {hiddenDeviceDetails}
+                        </p>
+                    )}
+                </div>
+            );
+        }
+
+        case "brand":
+            return <span className="text-[11px]">{text(item.brand)}</span>;
+
+        case "model":
+            return <span className="text-[11px]">{text(item.model)}</span>;
+
+        case "device_type":
+            return (
+                <span className="text-[11px]">
+                    {text(firstString(item.device_type, item.deviceType))}
+                </span>
+            );
+
+        case "created_at":
+            return (
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                    {formatDate(item.created_at)}
+                </span>
+            );
+
+        case "assigned_date":
+            return (
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                    {formatOptionalDate(item.assigned_date, item.assignedDate)}
+                </span>
+            );
+
+        case "returned_date":
+            return (
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                    {formatOptionalDate(
+                        item.returned_date,
+                        item.return_date,
+                        item.returnedDate,
+                    )}
+                </span>
+            );
+
+        case "transferred_date":
+            return (
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                    {formatOptionalDate(
+                        item.transferred_date,
+                        item.transfer_date,
+                        item.transferredDate,
+                    )}
+                </span>
+            );
+
+        case "purchase_date":
+            return (
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                    {formatOptionalDate(
+                        item.purchase_date,
+                        item.purchased_date,
+                        item.purchaseDate,
+                    )}
+                </span>
+            );
+
+        case "warranty_date":
+            return (
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                    {formatDate(item.warranty_date)}
+                </span>
+            );
+
+        case "device_age":
+            return (
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                    {formatDeviceAge(item)}
+                </span>
+            );
+
+        case "status":
+            return <StatusBadge status={item.status} />;
+
+        case "vendor":
+            return (
+                <p className="max-w-[190px] text-[11px] leading-4">
+                    {text(item.vendor)}
+                </p>
+            );
+
+        case "problems":
+            return (
+                <p
+                    className="max-w-[280px] truncate text-[11px] leading-4 text-muted-foreground"
+                    title={item.problems || undefined}
+                >
+                    {text(item.problems)}
+                </p>
+            );
+
+        default:
+            return null;
+    }
+}
+
+function exportCSV(rows: WarrantyClaimRow[]) {
     const headers = [
         "SL",
         "Reference",
         "Employee",
         "Employee ID",
+        "Device Serial No",
+        "MR No",
+        "PR No",
         "Department",
+        "Designation",
         "Category",
         "Brand",
         "Model",
-        "Device Serial",
+        "Device Type",
+        "Created At",
+        "Assigned Date",
+        "Returned Date",
+        "Transferred Date",
+        "Purchase Date",
         "Warranty Date",
+        "Device Age",
         "Status",
         "Vendor",
         "Problems",
@@ -208,12 +615,22 @@ function exportCSV(rows: WarrantyClaimItem[]) {
         row.reference,
         row.employee,
         row.emp_id,
+        row.device_serial,
+        firstString(row.mr_no, row.mrNo, row.mr_number, row.mr),
+        firstString(row.pr_no, row.prNo, row.pr_number, row.pr),
         row.department,
+        row.designation,
         row.category,
         row.brand,
         row.model,
-        row.device_serial,
+        firstString(row.device_type, row.deviceType),
+        row.created_at,
+        firstString(row.assigned_date, row.assignedDate),
+        firstString(row.returned_date, row.return_date, row.returnedDate),
+        firstString(row.transferred_date, row.transfer_date, row.transferredDate),
+        firstString(row.purchase_date, row.purchased_date, row.purchaseDate),
         row.warranty_date,
+        formatDeviceAge(row),
         row.status,
         row.vendor,
         row.problems,
@@ -586,21 +1003,14 @@ function ClaimModal({
             subtitle={`Reference: ${item.reference}`}
             icon={<Hash size={18} />}
             footer={
-                <AppFormFooter
-                    onCancel={onClose}
-                    cancelText="Close"
-                    hideSubmit
-                />
+                <AppFormFooter onCancel={onClose} cancelText="Close" hideSubmit />
             }
         >
             <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <AppInfoField label="Reference" value={item.reference} />
                     <AppInfoField label="Status" value={item.status} />
-                    <AppInfoField
-                        label={dateLabel}
-                        value={formatDate(item.created_at)}
-                    />
+                    <AppInfoField label={dateLabel} value={formatDate(item.created_at)} />
                     <AppInfoField label="Vendor" value={item.vendor} />
                 </div>
 
@@ -623,11 +1033,7 @@ function ClaimModal({
                     <AppInfoField label="Category" value={item.category} />
                     <AppInfoField label="Brand" value={item.brand} />
                     <AppInfoField label="Model" value={item.model} />
-                    <AppInfoField
-                        label="Device Serial"
-                        value={item.device_serial}
-                        mono
-                    />
+                    <AppInfoField label="Device Serial" value={item.device_serial} mono />
                     <AppInfoField
                         label="Warranty Date"
                         value={formatDate(item.warranty_date)}
@@ -644,10 +1050,7 @@ function ClaimModal({
                         label="Warranty Date"
                         value={formatDate(item.warranty_date)}
                     />
-                    <AppInfoField
-                        label={dateLabel}
-                        value={formatDate(item.created_at)}
-                    />
+                    <AppInfoField label={dateLabel} value={formatDate(item.created_at)} />
                     <AppInfoField label="Current Status" value={item.status} />
                 </AppFormSection>
 
@@ -656,14 +1059,273 @@ function ClaimModal({
                     icon={<Info size={14} />}
                     columns="one"
                 >
-                    <AppInfoField
-                        label="Problem Details"
-                        value={item.problems}
-                        span
-                    />
+                    <AppInfoField label="Problem Details" value={item.problems} span />
                 </AppFormSection>
             </div>
         </AppFormModal>
+    );
+}
+
+function WarrantyColumnSelector({
+    visibleColumns,
+    onToggle,
+    onShowAll,
+    onReset,
+}: {
+    visibleColumns: Set<WarrantyColumnKey>;
+    onToggle: (key: WarrantyColumnKey) => void;
+    onShowAll: () => void;
+    onReset: () => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [columnSearch, setColumnSearch] = useState("");
+
+    const selectorRef = useRef<HTMLDivElement | null>(null);
+    const searchRef = useRef<HTMLInputElement | null>(null);
+
+    const filteredColumns = useMemo(() => {
+        const query = columnSearch.trim().toLowerCase();
+
+        if (!query) {
+            return WARRANTY_COLUMN_OPTIONS;
+        }
+
+        return WARRANTY_COLUMN_OPTIONS.filter((column) =>
+            column.label.toLowerCase().includes(query),
+        );
+    }, [columnSearch]);
+
+    useEffect(() => {
+        if (!open) return;
+
+        const handleOutsideClick = (event: MouseEvent) => {
+            const target = event.target as Node;
+
+            if (selectorRef.current && !selectorRef.current.contains(target)) {
+                setOpen(false);
+            }
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+        document.addEventListener("keydown", handleKeyDown);
+
+        const focusTimer = window.setTimeout(() => {
+            searchRef.current?.focus();
+        }, 50);
+
+        return () => {
+            window.clearTimeout(focusTimer);
+            document.removeEventListener("mousedown", handleOutsideClick);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [open]);
+
+    return (
+        <div ref={selectorRef} className="relative">
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                aria-expanded={open}
+                aria-haspopup="menu"
+                className={`
+                    inline-flex h-10 items-center gap-2 rounded-lg border
+                    bg-white px-3 text-xs font-semibold text-slate-700
+                    shadow-sm transition-all duration-200
+                    hover:border-slate-400 hover:bg-slate-50
+                    ${open
+                        ? "border-red-400 ring-2 ring-red-500/15"
+                        : "border-slate-300"
+                    }
+                `}
+            >
+                <SlidersHorizontal size={14} />
+
+                <span>Columns</span>
+
+                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                    {visibleColumns.size}
+                </span>
+
+                <ChevronDown
+                    size={13}
+                    className={`transition-transform ${open ? "rotate-180" : ""}`}
+                />
+            </button>
+
+            {open && (
+                <div
+                    role="menu"
+                    className="
+                        absolute right-0 top-full z-[70] mt-2 w-[310px]
+                        overflow-hidden rounded-xl border border-slate-200
+                        bg-white shadow-[0_18px_45px_rgba(15,23,42,0.18)]
+                    "
+                >
+                    <div className="border-b border-slate-200 px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-bold text-slate-900">
+                                    Show / Hide Columns
+                                </p>
+
+                                <p className="mt-0.5 text-[10px] text-slate-500">
+                                    {visibleColumns.size} of {WARRANTY_COLUMN_OPTIONS.length}{" "}
+                                    visible
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                aria-label="Close columns menu"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+
+                        <div className="relative mt-3">
+                            <Search
+                                size={13}
+                                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                            />
+
+                            <input
+                                ref={searchRef}
+                                value={columnSearch}
+                                onChange={(event) => setColumnSearch(event.target.value)}
+                                placeholder="Find a column..."
+                                className="
+                                    h-8 w-full rounded-lg border border-slate-200
+                                    bg-slate-50 pl-8 pr-8 text-[11px]
+                                    text-slate-700 outline-none transition
+                                    placeholder:text-slate-400
+                                    focus:border-red-400 focus:bg-white
+                                    focus:ring-2 focus:ring-red-500/10
+                                "
+                            />
+
+                            {columnSearch && (
+                                <button
+                                    type="button"
+                                    onClick={() => setColumnSearch("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700"
+                                    aria-label="Clear column search"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-3 py-2">
+                        <button
+                            type="button"
+                            onClick={onShowAll}
+                            className="text-[10px] font-semibold text-blue-600 transition hover:text-blue-700"
+                        >
+                            Show all
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={onReset}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 transition hover:text-slate-800"
+                        >
+                            <RotateCcw size={11} />
+                            Reset default
+                        </button>
+                    </div>
+
+                    <div className="max-h-[360px] overflow-y-auto py-1.5">
+                        {filteredColumns.length ? (
+                            filteredColumns.map((column) => {
+                                const isVisible = visibleColumns.has(column.key);
+
+                                return (
+                                    <button
+                                        key={column.key}
+                                        type="button"
+                                        role="menuitemcheckbox"
+                                        aria-checked={isVisible}
+                                        onClick={() => onToggle(column.key)}
+                                        className={`
+                                            group flex w-full items-center
+                                            gap-2.5 px-3 py-2 text-left
+                                            transition-colors
+                                            ${isVisible
+                                                ? "text-slate-900 hover:bg-[#F4FAFA]"
+                                                : "text-slate-500 hover:bg-slate-50"
+                                            }
+                                        `}
+                                    >
+                                        <span
+                                            className={`
+                                                flex h-4 w-4 shrink-0 items-center
+                                                justify-center rounded border
+                                                transition
+                                                ${isVisible
+                                                    ? "border-emerald-500 bg-emerald-500 text-white"
+                                                    : "border-slate-300 bg-white"
+                                                }
+                                            `}
+                                        >
+                                            {isVisible && <Check size={11} />}
+                                        </span>
+
+                                        {isVisible ? (
+                                            <Eye size={14} className="shrink-0 text-slate-600" />
+                                        ) : (
+                                            <EyeOff size={14} className="shrink-0 text-slate-400" />
+                                        )}
+
+                                        <span
+                                            className={`flex-1 text-[11px] ${isVisible ? "font-semibold" : "font-medium"
+                                                }`}
+                                        >
+                                            {column.label}
+                                        </span>
+
+                                        <span
+                                            className={`
+                                                rounded-full px-1.5 py-0.5
+                                                text-[9px] font-semibold
+                                                ${isVisible
+                                                    ? "bg-emerald-50 text-emerald-700"
+                                                    : "bg-slate-100 text-slate-500"
+                                                }
+                                            `}
+                                        >
+                                            {isVisible ? "Shown" : "Hidden"}
+                                        </span>
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="px-4 py-8 text-center">
+                                <Search size={20} className="mx-auto text-slate-300" />
+
+                                <p className="mt-2 text-[11px] font-medium text-slate-500">
+                                    No matching columns
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5">
+                        <p className="text-[9px] leading-4 text-slate-500">
+                            Row number and Actions are always visible.
+                        </p>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -790,7 +1452,7 @@ export default function WarrantyClaimsPage() {
         : null;
 
     //will have unchanged
-    const [rows, setRows] = useState<WarrantyClaimItem[]>([]);
+    const [rows, setRows] = useState<WarrantyClaimRow[]>([]);
     const [summary, setSummary] = useState<WarrantySummary>(EMPTY_SUMMARY);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -800,6 +1462,33 @@ export default function WarrantyClaimsPage() {
     const [summaryLoading, setSummaryLoading] = useState(true);
     const [error, setError] = useState("");
     const [viewItem, setViewItem] = useState<WarrantyClaimItem | null>(null);
+
+    const [visibleColumns, setVisibleColumns] = useState<Set<WarrantyColumnKey>>(
+        () => new Set(DEFAULT_VISIBLE_WARRANTY_COLUMNS),
+    );
+
+    useEffect(() => {
+        try {
+            const storedColumns = window.localStorage.getItem(
+                WARRANTY_COLUMNS_STORAGE_KEY,
+            );
+
+            if (!storedColumns) return;
+
+            const parsedColumns = JSON.parse(storedColumns);
+
+            if (!Array.isArray(parsedColumns)) return;
+
+            const validColumns = parsedColumns.filter(
+                (key): key is WarrantyColumnKey =>
+                    WARRANTY_COLUMN_OPTIONS.some((column) => column.key === key),
+            );
+
+            setVisibleColumns(new Set(validColumns));
+        } catch (storageError) {
+            console.error("Unable to restore warranty claim columns:", storageError);
+        }
+    }, []);
 
     useEffect(() => {
         const timer = window.setTimeout(() => {
@@ -838,14 +1527,12 @@ export default function WarrantyClaimsPage() {
                 search: search || undefined,
             });
 
-            setRows(response.data ?? []);
+            setRows((response.data ?? []) as WarrantyClaimRow[]);
             setTotal(response.total ?? 0);
         } catch (err) {
             setRows([]);
             setTotal(0);
-            setError(
-                err instanceof Error ? err.message : "Unable to load claims",
-            );
+            setError(err instanceof Error ? err.message : "Unable to load claims");
         } finally {
             setLoading(false);
         }
@@ -874,7 +1561,6 @@ export default function WarrantyClaimsPage() {
     const first = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
     const last = Math.min(page * PAGE_SIZE, total);
 
-   
     const changeStatus = (status: WarrantyStatus | null) => {
         const nextStatus = activeStatus === status ? null : status;
         const params = new URLSearchParams(searchParams.toString());
@@ -889,13 +1575,55 @@ export default function WarrantyClaimsPage() {
 
         const query = params.toString();
 
-        router.replace(
-            query ? `${pathname}?${query}` : pathname,
-            {
-                scroll: false,
-            },
+        router.replace(query ? `${pathname}?${query}` : pathname, {
+            scroll: false,
+        });
+    };
+
+    const persistVisibleColumns = (nextColumns: Set<WarrantyColumnKey>) => {
+        setVisibleColumns(nextColumns);
+
+        try {
+            window.localStorage.setItem(
+                WARRANTY_COLUMNS_STORAGE_KEY,
+                JSON.stringify(Array.from(nextColumns)),
+            );
+        } catch (storageError) {
+            console.error("Unable to save warranty claim columns:", storageError);
+        }
+    };
+
+    const toggleColumn = (key: WarrantyColumnKey) => {
+        const nextColumns = new Set(visibleColumns);
+
+        if (nextColumns.has(key)) {
+            nextColumns.delete(key);
+        } else {
+            nextColumns.add(key);
+        }
+
+        persistVisibleColumns(nextColumns);
+    };
+
+    const showAllColumns = () => {
+        persistVisibleColumns(
+            new Set(WARRANTY_COLUMN_OPTIONS.map((column) => column.key)),
         );
     };
+
+    const resetColumns = () => {
+        persistVisibleColumns(new Set(DEFAULT_VISIBLE_WARRANTY_COLUMNS));
+    };
+
+    const visibleColumnOptions = WARRANTY_COLUMN_OPTIONS.filter((column) =>
+        visibleColumns.has(column.key),
+    );
+
+    const visibleTableColumnCount = visibleColumnOptions.length + 2;
+
+    const hasExtraVisibleColumns = visibleColumnOptions.some(
+        (column) => !DEFAULT_VISIBLE_WARRANTY_COLUMNS.includes(column.key),
+    );
 
     return (
         <div className="space-y-4 p-4 sm:p-6">
@@ -950,11 +1678,9 @@ export default function WarrantyClaimsPage() {
                         const count =
                             card.key === null
                                 ? summary.total
-                                : summaryMap.get(card.key) ?? 0;
+                                : (summaryMap.get(card.key) ?? 0);
                         const selected =
-                            card.key === null
-                                ? !activeStatus
-                                : activeStatus === card.key;
+                            card.key === null ? !activeStatus : activeStatus === card.key;
 
                         return (
                             <button
@@ -991,131 +1717,140 @@ export default function WarrantyClaimsPage() {
             <div className="overflow-hidden rounded-xl border border-border bg-card">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
                     <p className="text-[11px] text-muted-foreground">
-                        Showing <b className="text-foreground">{first}-{last}</b> of{" "}
-                        <b className="text-foreground">{total}</b> records
+                        Showing{" "}
+                        <b className="text-foreground">
+                            {first}-{last}
+                        </b>{" "}
+                        of <b className="text-foreground">{total}</b> records
                     </p>
 
-                    <div className="group relative w-full sm:w-[340px]">
-                        <Search
-                            size={15}
-                            className="
-            pointer-events-none
-            absolute
-            left-3
-            top-1/2
-            z-10
-            -translate-y-1/2
-            text-slate-400
-            transition-colors
-                            duration-200
-                            group-focus-within:text-red-500
-                             "
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                        <WarrantyColumnSelector
+                            visibleColumns={visibleColumns}
+                            onToggle={toggleColumn}
+                            onShowAll={showAllColumns}
+                            onReset={resetColumns}
                         />
 
-                        <Input
-                            autoFocus
-                            value={searchInput}
-                            onChange={(event) =>
-                                setSearchInput(event.target.value)
-                            }
-                            placeholder="Search name, reference, category..."
-                            className="
-                            h-10
-                            w-full
-                            rounded-lg
-                            border
-                            border-slate-300
-                            bg-white
-                            pl-9
-                            pr-10
-                            text-xs
-                            shadow-sm
-                            transition-all
-                            duration-200
-                            placeholder:text-slate-400
-
-                            hover:border-slate-400
-
-                            focus-visible:border-red-500
-                            focus-visible:ring-2
-                            focus-visible:ring-red-500/20
-                            focus-visible:ring-offset-0
-                          "
-                        />
-
-                        {searchInput && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setSearchInput("");
-                                    setSearch("");
-                                    setPage(1);
-                                }}
+                        <div className="group relative w-full sm:w-[340px]">
+                            <Search
+                                size={15}
                                 className="
-                                absolute
-                                right-2.5
-                                top-1/2
-                                -translate-y-1/2
-                                rounded-md
-                                p-1
-                                text-slate-400
-                                transition-colors
-                                hover:bg-red-50
-                                hover:text-red-600
+                                    pointer-events-none absolute left-3 top-1/2
+                                    z-10 -translate-y-1/2 text-slate-400
+                                    transition-colors duration-200
+                                    group-focus-within:text-red-500
                                 "
-                                aria-label="Clear search"
-                            >
-                                <X size={14} />
-                            </button>
-                        )}
+                            />
+
+                            <Input
+                                autoFocus
+                                value={searchInput}
+                                onChange={(event) => setSearchInput(event.target.value)}
+                                placeholder="Search name, reference, category..."
+                                className="
+                                    h-10 w-full rounded-lg border border-slate-300
+                                    bg-white pl-9 pr-10 text-xs shadow-sm
+                                    transition-all duration-200
+                                    placeholder:text-slate-400
+                                    hover:border-slate-400
+                                    focus-visible:border-red-500
+                                    focus-visible:ring-2
+                                    focus-visible:ring-red-500/20
+                                    focus-visible:ring-offset-0
+                                "
+                            />
+
+                            {searchInput && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearchInput("");
+                                        setSearch("");
+                                        setPage(1);
+                                    }}
+                                    className="
+                                        absolute right-2.5 top-1/2
+                                        -translate-y-1/2 rounded-md p-1
+                                        text-slate-400 transition-colors
+                                        hover:bg-red-50 hover:text-red-600
+                                    "
+                                    aria-label="Clear search"
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Table  */}
 
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[900px]">
+                <div
+                    className={
+                        hasExtraVisibleColumns
+                            ? "overflow-x-auto"
+                            : "overflow-hidden"
+                    }
+                >
+                    <table
+                        className={
+                            hasExtraVisibleColumns
+                                ? "w-full min-w-max"
+                                : "w-full table-fixed"
+                        }
+                    >
                         <thead className="sticky top-0 z-10">
-                            {/* <tr className="bg-slate-300/90 shadow-sm"> */}
                             <tr className="bg-[#DDE4E7]">
-                                {[
-                                    "#",
-                                    "Reference",
-                                    "Employee",
-                                    "Dept",
-                                    "Category",
-                                    "Created At",
-                                    "Warranty",
-                                    "Status",
-                                    "Vendor",
-                                    "Actions",
-                                ].map((column) => (
+                                <th
+                                    scope="col"
+                                    className="
+                                        w-12 whitespace-nowrap border-b
+                                        border-slate-400 px-3 py-3 text-left
+                                        text-[10px] font-bold uppercase
+                                        tracking-[0.06em] text-slate-800
+                                    "
+                                >
+                                    #
+                                </th>
+
+                                {visibleColumnOptions.map((column) => (
                                     <th
-                                        key={column}
+                                        key={column.key}
+                                        scope="col"
                                         className="
-                                        whitespace-nowrap
-                                        border-b
-                                        border-slate-400
-                                        px-3
-                                        py-3
-                                        text-left
-                                        text-[10px]
-                                        font-bold
-                                        uppercase
-                                        tracking-[0.06em]
-                                        text-slate-800
+                                            whitespace-nowrap border-b
+                                            border-slate-400 px-3 py-3
+                                            text-left text-[10px] font-bold
+                                            uppercase tracking-[0.06em]
+                                            text-slate-800
                                         "
                                     >
-                                        {column}
+                                        {column.label}
                                     </th>
-
                                 ))}
+
+                                <th
+                                    scope="col"
+                                    className="
+                                        w-24 whitespace-nowrap border-b
+                                        border-slate-400 px-3 py-3 text-left
+                                        text-[10px] font-bold uppercase
+                                        tracking-[0.06em] text-slate-800
+                                    "
+                                >
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
+
                         <tbody className="divide-y divide-slate-200">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={10} className="py-10 text-center">
+                                    <td
+                                        colSpan={visibleTableColumnCount}
+                                        className="bg-white py-10 text-center"
+                                    >
                                         <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                                             <Loader2 size={16} className="animate-spin" />
                                             Loading warranty claims...
@@ -1124,72 +1859,28 @@ export default function WarrantyClaimsPage() {
                                 </tr>
                             ) : rows.length ? (
                                 rows.map((item, index) => (
-
                                     <tr
                                         key={`${item.status}-${item.id}-${item.reference}`}
                                         className={`
-                                                group
-                                                transition-colors
-                                                duration-150
-                                                ${index % 2 === 0
+                                            group transition-colors duration-150
+                                            ${index % 2 === 0
                                                 ? "bg-[#F4FAFA]"
                                                 : "bg-white"
                                             }
-                                                hover:bg-[#E8F5F4]
-                                            `}
+                                            hover:bg-[#E8F5F4]
+                                        `}
                                     >
-                                        <td className="px-3 py-2.5 text-[11px] text-muted-foreground">
+                                        <td className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">
                                             {(page - 1) * PAGE_SIZE + index + 1}
                                         </td>
-                                        <td className="px-3 py-3">
-                                            <span
-                                                className="
-                                                    inline-flex
-                                                    items-center
-                                                    rounded-md
-                                                    border
-                                                    border-blue-200/70
-                                                    bg-blue-50
-                                                    px-2
-                                                    py-1
-                                                    font-mono
-                                                    text-[11px]
-                                                    font-semibold
-                                                    text-blue-700
-                                                   "
-                                            >
-                                                {item.reference}
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-3">
-                                            <div className="min-w-[150px]">
-                                                <p className="text-[11px] font-semibold leading-4 text-foreground">
-                                                    {text(item.employee)}
-                                                </p>
 
-                                                <p className="mt-0.5 text-[9px] font-medium text-muted-foreground">
-                                                    {text(item.emp_id)}
-                                                </p>
-                                            </div>
-                                        </td>
+                                        {visibleColumnOptions.map((column) => (
+                                            <td key={column.key} className="px-3 py-2.5 align-middle">
+                                                {renderWarrantyCell(column.key, item, visibleColumns)}
+                                            </td>
+                                        ))}
 
-                                        <td className="px-3 py-3">
-                                            <p className="max-w-[180px] text-[11px] leading-4 text-muted-foreground">
-                                                {text(item.department)}
-                                            </p>
-                                        </td>
-
-                                        <td className="px-3 py-2.5">
-                                            <p className="text-[11px] font-medium">{text(item.category)}</p>
-                                            <p className="text-[9px] text-muted-foreground">{[item.brand, item.model].filter(Boolean).join(" · ") || "—"}</p>
-                                        </td>
-                                        <td className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">
-                                            {formatDate(item.created_at)}
-                                        </td>
-                                        <td className="px-3 py-2.5 text-[11px] text-muted-foreground">{formatDate(item.warranty_date)}</td>
-                                        <td className="px-3 py-2.5"><StatusBadge status={item.status} /></td>
-                                        <td className="px-3 py-2.5 text-[11px]">{text(item.vendor)}</td>
-                                        <td className="px-3 py-2.5">
+                                        <td className="whitespace-nowrap px-3 py-2.5">
                                             <WarrantyRowActions
                                                 item={item}
                                                 onView={setViewItem}
@@ -1200,7 +1891,10 @@ export default function WarrantyClaimsPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={10} className="py-10 text-center text-xs text-muted-foreground">
+                                    <td
+                                        colSpan={visibleTableColumnCount}
+                                        className="bg-white py-10 text-center text-xs text-muted-foreground"
+                                    >
                                         No warranty claim records found.
                                     </td>
                                 </tr>
@@ -1225,7 +1919,9 @@ export default function WarrantyClaimsPage() {
                         <button
                             type="button"
                             disabled={page >= totalPages || loading}
-                            onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                            onClick={() =>
+                                setPage((value) => Math.min(totalPages, value + 1))
+                            }
                             className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-[11px] disabled:opacity-40"
                         >
                             Next <ChevronRight size={12} />
