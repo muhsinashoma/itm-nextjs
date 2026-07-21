@@ -415,6 +415,44 @@ export interface WarrantySummary {
 }
 
 
+//service request status
+export interface ServiceRequestSummaryRaw {
+    service_request: number;
+    to_vendor: number;
+    closed: number;
+    total: number;
+}
+
+//service request summary
+export interface ServiceRequestSummary {
+    total: number;
+    items: DashboardSummaryItem[];
+    raw?: ServiceRequestSummaryRaw;
+}
+
+
+
+export interface ServiceRequestClaimItem {
+    id: number;
+    reference: string;
+    employee: string | null;
+    emp_id: string | null;
+    department: string | null;
+    designation: string | null;
+    category: string | null;
+    brand: string | null;
+    model: string | null;
+    device_serial: string | null;
+    warranty_date: string | null;
+    status:
+    | "Service Request"
+    | "Transferred to Vendor"
+    | "Closed";
+    vendor: string | null;
+    problems: string | null;
+    created_at: string | null;
+}
+
 //Adding New
 
 function toQuery(params?: Record<string, any>) {
@@ -433,8 +471,6 @@ function toQuery(params?: Record<string, any>) {
 }
 
 //Adding New : Reports API
-
-
 
 export const reportApi = {
     assets: (params?: Record<string, any>) =>
@@ -507,6 +543,27 @@ export const reportApi = {
             "/assets/warranty/summary"
         ),
 
+    serviceRequestSummary: () =>
+        api.get<ApiOk<ServiceRequestSummary>>(
+            "/assets/service-requests/summary"
+        ),
+
+
+    // Service Request page table
+    serviceRequestClaims: (params?: {
+        page?: number;
+        limit?: number;
+        status?:
+        | "all"
+        | "Service Request"
+        | "Transferred to Vendor"
+        | "Closed";
+        search?: string;
+    }) =>
+        api.get<ApiPage<ServiceRequestClaimItem>>(
+            `/assets/service-requests/claims${toQuery(params)}`
+        ),
+
     // Warranty Claims page table
     warrantyClaims: (params?: {
         page?: number;
@@ -522,8 +579,9 @@ export const reportApi = {
         api.get<ApiPage<WarrantyClaimItem>>(
             `/assets/warranty/claims${toQuery(params)}`
         ),
+
+
 };
 
-;
 
 export const reportsApi = reportApi;

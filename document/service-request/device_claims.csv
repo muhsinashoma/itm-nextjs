@@ -1,0 +1,18 @@
+"id","reference_no_claim","category","brand","model_no","attach_file","device_sl_no","claim_status","previous_status","vendor","remarks","problems","designated_email_to","designated_email_cc","vendor_receiver","vndr_receiver_mobile","received_date","received_by","gate_pass_date","unit","quantity","return_issue","return_date","return_by_it_person","gate_pass_remarks","created_by","created_at","edited_by","edited_at","status","tbl_it_inventory_device_id","service_type","approved_val","approved_by","approved_date","vendor_id"
+125,12007,"LAPTOP-LC2",NULL,NULL,NULL,"PF2FJC7A",15,0,10,NULL,"Display damaged",NULL,"""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2181","2026-01-22 13:20:49+06",NULL,NULL,1,0,1,1,"02-2014","2026-01-27 11:11:08+06",10
+93,14208,"HDMI Cable",NULL,NULL,NULL,"N0SNSGIG",15,0,11,NULL,"erewtwe",NULL,"""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-0007","2025-10-09 15:58:24+06",NULL,NULL,1,0,1,1,"02-0007","2025-10-09 15:58:34+06",11
+112,11869,"Laptop",NULL,NULL,NULL,"9QN0P93",15,0,10,NULL,"1. Keyboard: Some buttons are not working.
+2. Battery problem
+3. Hang and Slow. (SSD Issues)",NULL,"""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2181","2025-12-04 10:29:37+06",NULL,NULL,1,0,1,1,"02-2014","2025-12-04 10:51:51+06",10
+121,12181,"LAPTOP-LC2",NULL,NULL,NULL,"K2202N0108485",15,0,11,NULL,"The HDMI port is not detecting the monitor.",NULL,"""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2181","2025-12-24 11:44:33+06",NULL,NULL,1,0,1,1,"02-2014","2026-01-01 09:33:27+06",11
+122,12211,"LAPTOP-LC2",NULL,NULL,NULL,"K2202N0108562",15,0,11,NULL,"User is facing Wi-Fi related issue. Several troubleshoot has been taken but the problem still remains. This laptop has no warranty period. So its needs service. 
+
+Seeking attention & approval  from our IT operations LM.","itsolutions_bd@hotmail.com","""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2297","2026-01-15 09:55:35+06",NULL,NULL,1,0,1,1,"02-2014","2026-01-27 10:42:17+06",11
+140,12358,"USB LAN",NULL,NULL,NULL,"XC2020032300465",15,0,11,NULL,"Lock is broken. Need to fixed it","Fiber@home","""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2248","2026-03-10 12:09:08+06",NULL,NULL,1,0,1,0,NULL,NULL,11
+141,12270,"LAPTOP-LC2",NULL,NULL,NULL,"K2202N0108574",15,0,11,NULL,"The laptop hinge is broken, Need to fixed it","Fiber@home","""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2248","2026-03-10 12:12:22+06",NULL,NULL,1,0,1,1,"02-2014","2026-04-01 13:57:42+06",11
+148,12307,"LAPTOP-LC2",NULL,NULL,NULL,"K2202N0108529",15,0,11,NULL,"No power",NULL,"""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2181","2026-04-22 18:51:54+06",NULL,NULL,1,0,1,1,"02-2014","2026-04-28 10:34:26+06",11
+150,12032,"LAPTOP - LC2",NULL,NULL,NULL,"5CD1470YC7",15,0,10,NULL,"No  power
+Display Damaged
+Keyboard issues",NULL,"""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2181","2026-05-09 20:56:04+06",NULL,NULL,1,0,1,1,"02-2014","2026-05-10 18:32:06+06",10
+151,12602,"Laptop-LC2 ",NULL,NULL,NULL,"57DSGJ3",15,0,10,NULL,"Display damaged with no sound",NULL,"""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2181","2026-05-09 20:57:01+06",NULL,NULL,1,0,1,1,"02-2014","2026-05-10 18:31:42+06",10
+152,12750,"Laptop-LC2 ",NULL,NULL,NULL,"F4X0HJ3",15,0,11,NULL,"NO POWER",NULL,"""itm@fiberathome.net""",NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,NULL,NULL,"02-2181","2026-05-10 18:35:05+06",NULL,NULL,1,0,1,1,"02-2014","2026-05-10 18:35:11+06",11
