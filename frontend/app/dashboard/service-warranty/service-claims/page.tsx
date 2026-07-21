@@ -2210,7 +2210,7 @@ const STAT_CARDS: Array<{
         },
         {
             key: "Transferred to Vendor",
-            label: "Transferred to Vendor",
+            label: "Transf to Vendor",
             color: "text-amber-700",
             bg: "bg-amber-50 border-amber-100",
             icon: <RotateCcw size={14} />,
