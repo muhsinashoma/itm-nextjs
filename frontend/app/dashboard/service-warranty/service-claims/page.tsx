@@ -1,369 +1,3970 @@
 
-// app/dashboard/service-warranty/service-claims/page.tsx
+// //itm/frontend/app/dashboard/service-warranty/service-claims/page.tsx
+// "use client";
+
+// import {
+//     useCallback,
+//     useEffect,
+//     useMemo,
+//     useRef,
+//     useState,
+//     type ReactNode,
+// } from "react";
+// import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+// import {
+//     AlertCircle,
+//     CalendarDays,
+//     Check,
+//     CheckCircle2,
+//     ChevronDown,
+//     ChevronLeft,
+//     ChevronRight,
+//     Eye,
+//     EyeOff,
+//     FileSpreadsheet,
+//     FileText,
+//     Hash,
+//     Info,
+//     Loader2,
+//     Monitor,
+//     Package,
+//     RefreshCw,
+//     RotateCcw,
+//     Search,
+//     ShieldCheck,
+//     SlidersHorizontal,
+//     UserRound,
+//     X,
+// } from "lucide-react";
+
+// import { Input } from "@/components/ui/input";
+// import {
+//     reportApi,
+//     type WarrantyClaimItem,
+//     type WarrantySummary,
+// } from "@/lib/api";
+
+// //To Add New
+
+// import { AppFormModal } from "@/components/common/form/AppFormModal";
+// import { AppFormSection } from "@/components/common/form/AppFormSection";
+// import { AppInfoField } from "@/components/common/form/AppInfoField";
+// import { AppFormFooter } from "@/components/common/form/AppFormFooter";
+
+// type WarrantyStatus = "Claimed" | "To Vendor" | "Recovered" | "Expired";
+
+// type WarrantyColumnKey =
+//     | "reference"
+//     | "employee"
+//     | "emp_id"
+//     | "device_serial"
+//     | "mr_no"
+//     | "pr_no"
+//     | "department"
+//     | "designation"
+//     | "category"
+//     | "brand"
+//     | "model"
+//     | "device_type"
+//     | "created_at"
+//     | "assigned_date"
+//     | "returned_date"
+//     | "transferred_date"
+//     | "purchase_date"
+//     | "warranty_date"
+//     | "device_age"
+//     | "status"
+//     | "vendor"
+//     | "problems";
+
+// type WarrantyColumnOption = {
+//     key: WarrantyColumnKey;
+//     label: string;
+// };
+
+// type WarrantyClaimRow = WarrantyClaimItem & {
+//     mr?: string | null;
+//     mr_no?: string | null;
+//     mrNo?: string | null;
+//     mr_number?: string | null;
+//     pr?: string | null;
+//     pr_no?: string | null;
+//     prNo?: string | null;
+//     pr_number?: string | null;
+//     device_type?: string | null;
+//     deviceType?: string | null;
+//     assigned_date?: string | null;
+//     assignedDate?: string | null;
+//     returned_date?: string | null;
+//     return_date?: string | null;
+//     returnedDate?: string | null;
+//     transferred_date?: string | null;
+//     transfer_date?: string | null;
+//     transferredDate?: string | null;
+//     purchase_date?: string | null;
+//     purchased_date?: string | null;
+//     purchaseDate?: string | null;
+//     device_age?: string | number | null;
+//     deviceAge?: string | number | null;
+// };
+
+// const WARRANTY_COLUMN_OPTIONS: WarrantyColumnOption[] = [
+//     { key: "reference", label: "Reference" },
+//     { key: "employee", label: "Employee Name / ID" },
+//     { key: "emp_id", label: "Employee ID" },
+//     { key: "device_serial", label: "Device Serial No" },
+//     { key: "mr_no", label: "MR No" },
+//     { key: "pr_no", label: "PR No" },
+//     { key: "department", label: "Department" },
+//     { key: "category", label: "Category" },
+//     { key: "brand", label: "Brand" },
+//     { key: "model", label: "Model" },
+//     { key: "device_type", label: "Device Type" },
+//     { key: "designation", label: "Designation" },
+//     { key: "created_at", label: "Created At" },
+//     { key: "assigned_date", label: "Assigned Date" },
+//     { key: "returned_date", label: "Returned Date" },
+//     { key: "transferred_date", label: "Transferred Date" },
+//     { key: "purchase_date", label: "Purchase Date" },
+//     { key: "warranty_date", label: "Warranty Date" },
+//     { key: "device_age", label: "Device Age" },
+//     { key: "status", label: "Status" },
+//     { key: "vendor", label: "Vendor" },
+//     { key: "problems", label: "Problems / Remarks" },
+// ];
+
+// const DEFAULT_VISIBLE_WARRANTY_COLUMNS: WarrantyColumnKey[] = [
+//     "reference",
+//     "employee",
+//     "device_serial",
+//     "department",
+//     "category",
+//     "warranty_date",
+//     "status",
+// ];
+
+// const DEFAULT_TABLE_COLUMN_WIDTHS: Partial<
+//     Record<WarrantyColumnKey, string>
+// > = {
+//     reference: "8%",
+//     employee: "17%",
+//     device_serial: "12%",
+//     department: "13%",
+//     category: "16%",
+//     warranty_date: "10%",
+//     status: "9%",
+// };
+
+// const WARRANTY_COLUMNS_STORAGE_KEY = "itm:warranty-claims:visible-columns:v5";
+
+// const PAGE_SIZE = 20;
+
+// const EMPTY_SUMMARY: WarrantySummary = {
+//     total: 0,
+//     items: [
+//         { label: "Claimed", value: 0 },
+//         { label: "To Vendor", value: 0 },
+//         { label: "Recovered", value: 0 },
+//         { label: "Expired", value: 0 },
+//     ],
+// };
+
+// const STATUS_CONFIG: Record<
+//     WarrantyStatus,
+//     { color: string; bg: string; border: string; icon: ReactNode }
+// > = {
+//     Claimed: {
+//         color: "text-orange-700",
+//         bg: "bg-orange-50",
+//         border: "border-orange-200",
+//         icon: <Package size={11} />,
+//     },
+//     "To Vendor": {
+//         color: "text-violet-700",
+//         bg: "bg-violet-50",
+//         border: "border-violet-200",
+//         icon: <RotateCcw size={11} />,
+//     },
+//     Recovered: {
+//         color: "text-blue-700",
+//         bg: "bg-blue-50",
+//         border: "border-blue-200",
+//         icon: <CheckCircle2 size={11} />,
+//     },
+//     Expired: {
+//         color: "text-red-700",
+//         bg: "bg-red-50",
+//         border: "border-red-200",
+//         icon: <AlertCircle size={11} />,
+//     },
+// };
+
+// const STAT_CARDS: Array<{
+//     key: WarrantyStatus | null;
+//     label: string;
+//     color: string;
+//     bg: string;
+//     icon: ReactNode;
+// }> = [
+//         {
+//             key: null,
+//             label: "Total",
+//             color: "text-foreground",
+//             bg: "bg-muted border-border",
+//             icon: <ShieldCheck size={14} />,
+//         },
+//         {
+//             key: "Claimed",
+//             label: "Claimed",
+//             color: "text-orange-700",
+//             bg: "bg-orange-50 border-orange-100",
+//             icon: <Package size={14} />,
+//         },
+//         {
+//             key: "To Vendor",
+//             label: "To Vendor",
+//             color: "text-violet-700",
+//             bg: "bg-violet-50 border-violet-100",
+//             icon: <RotateCcw size={14} />,
+//         },
+//         {
+//             key: "Recovered",
+//             label: "Recovered",
+//             color: "text-blue-700",
+//             bg: "bg-blue-50 border-blue-100",
+//             icon: <CheckCircle2 size={14} />,
+//         },
+//         {
+//             key: "Expired",
+//             label: "Expired",
+//             color: "text-red-700",
+//             bg: "bg-red-50 border-red-100",
+//             icon: <AlertCircle size={14} />,
+//         },
+//     ];
+
+// function isWarrantyStatus(value: string | null): value is WarrantyStatus {
+//     return (
+//         value === "Claimed" ||
+//         value === "To Vendor" ||
+//         value === "Recovered" ||
+//         value === "Expired"
+//     );
+// }
+
+// function text(value?: string | null) {
+//     return value?.trim() || "—";
+// }
+
+// function formatDate(value?: string | null) {
+//     if (!value) return "—";
+//     const date = new Date(value);
+//     if (Number.isNaN(date.getTime())) return value;
+//     return new Intl.DateTimeFormat("en-GB", {
+//         day: "2-digit",
+//         month: "short",
+//         year: "numeric",
+//     }).format(date);
+// }
+
+// function getEmployeeInitials(value?: string | null) {
+//     const name = value?.trim().replace(/\s+/g, " ");
+
+//     if (!name) return "NA";
+
+//     const parts = name.split(" ").filter(Boolean);
+
+//     if (parts.length === 1) {
+//         return parts[0].slice(0, 2).toUpperCase();
+//     }
+
+//     const firstInitial = parts[0]?.charAt(0) ?? "";
+//     const lastInitial = parts[parts.length - 1]?.charAt(0) ?? "";
+
+//     return `${firstInitial}${lastInitial}`.toUpperCase();
+// }
+
+// const EMPLOYEE_AVATAR_COLORS = [
+//     "bg-indigo-600 text-white ring-indigo-100",
+//     "bg-emerald-600 text-white ring-emerald-100",
+//     "bg-sky-600 text-white ring-sky-100",
+//     "bg-violet-600 text-white ring-violet-100",
+//     "bg-rose-600 text-white ring-rose-100",
+//     "bg-amber-500 text-white ring-amber-100",
+//     "bg-teal-600 text-white ring-teal-100",
+//     "bg-fuchsia-600 text-white ring-fuchsia-100",
+// ] as const;
+
+// function getEmployeeAvatarColor(value?: string | null) {
+//     const normalized = value?.trim().toLowerCase() || "unknown";
+//     let hash = 0;
+
+//     for (let index = 0; index < normalized.length; index += 1) {
+//         hash = (hash * 31 + normalized.charCodeAt(index)) >>> 0;
+//     }
+
+//     return EMPLOYEE_AVATAR_COLORS[hash % EMPLOYEE_AVATAR_COLORS.length];
+// }
+
+// function firstString(...values: Array<string | null | undefined>) {
+//     for (const value of values) {
+//         if (typeof value === "string" && value.trim()) {
+//             return value.trim();
+//         }
+//     }
+
+//     return undefined;
+// }
+
+// function formatOptionalDate(...values: Array<string | null | undefined>) {
+//     return formatDate(firstString(...values));
+// }
+
+// function formatDeviceAge(item: WarrantyClaimRow) {
+//     const directAge = item.device_age ?? item.deviceAge;
+
+//     if (
+//         directAge !== null &&
+//         directAge !== undefined &&
+//         String(directAge).trim()
+//     ) {
+//         return String(directAge);
+//     }
+
+//     const purchaseDate = firstString(
+//         item.purchase_date,
+//         item.purchased_date,
+//         item.purchaseDate,
+//     );
+
+//     if (!purchaseDate) return "—";
+
+//     const purchasedAt = new Date(purchaseDate);
+//     if (Number.isNaN(purchasedAt.getTime())) return "—";
+
+//     const today = new Date();
+//     let months =
+//         (today.getFullYear() - purchasedAt.getFullYear()) * 12 +
+//         (today.getMonth() - purchasedAt.getMonth());
+
+//     if (today.getDate() < purchasedAt.getDate()) {
+//         months -= 1;
+//     }
+
+//     if (months < 0) return "—";
+
+//     const years = Math.floor(months / 12);
+//     const remainingMonths = months % 12;
+
+//     if (years && remainingMonths) return `${years}y ${remainingMonths}m`;
+//     if (years) return `${years}y`;
+//     return `${remainingMonths}m`;
+// }
+
+// function StatusBadge({ status }: { status: string }) {
+//     const config = STATUS_CONFIG[status as WarrantyStatus];
+
+//     if (!config) {
+//         return (
+//             <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+//                 {status}
+//             </span>
+//         );
+//     }
+
+//     return (
+//         <span
+//             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${config.color} ${config.bg} ${config.border}`}
+//         >
+//             {config.icon}
+//             {status}
+//         </span>
+//     );
+// }
+
+// function renderWarrantyCell(
+//     column: WarrantyColumnKey,
+//     item: WarrantyClaimRow,
+//     visibleColumns: Set<WarrantyColumnKey>,
+// ) {
+//     switch (column) {
+//         case "reference":
+//             return (
+//                 <span className="inline-flex items-center rounded-md border border-blue-200/70 bg-blue-50 px-2 py-1 font-mono text-[10px] font-semibold text-blue-700">
+//                     {item.reference}
+//                 </span>
+//             );
+
+//         case "employee":
+//             return (
+//                 <div className="flex min-w-0 items-center gap-2.5">
+//                     <span
+//                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold tracking-wide shadow-sm ring-2 ${getEmployeeAvatarColor(item.employee)}`}
+//                         aria-label={`Employee initials ${getEmployeeInitials(item.employee)}`}
+//                         title={text(item.employee)}
+//                     >
+//                         {getEmployeeInitials(item.employee)}
+//                     </span>
+
+//                     <div className="min-w-0">
+//                         <p
+//                             className="truncate text-[10px] font-semibold leading-[14px] text-foreground"
+//                             title={item.employee || undefined}
+//                         >
+//                             {text(item.employee)}
+//                         </p>
+
+//                         <p className="mt-0.5 whitespace-nowrap text-[8px] font-medium leading-3 text-muted-foreground">
+//                             {text(item.emp_id)}
+//                         </p>
+//                     </div>
+//                 </div>
+//             );
+
+//         case "emp_id":
+//             return (
+//                 <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+//                     {text(item.emp_id)}
+//                 </span>
+//             );
+
+//         case "device_serial":
+//             return (
+//                 <span
+//                     className="
+//                         inline-block max-w-full break-all rounded-md border
+//                         border-slate-200 bg-slate-50 px-2 py-1 font-mono
+//                         text-[9px] font-semibold leading-[13px] text-slate-700
+//                     "
+//                     title={item.device_serial || undefined}
+//                 >
+//                     {text(item.device_serial)}
+//                 </span>
+//             );
+
+//         case "mr_no":
+//             return (
+//                 <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+//                     {text(firstString(item.mr_no, item.mrNo, item.mr_number, item.mr))}
+//                 </span>
+//             );
+
+//         case "pr_no":
+//             return (
+//                 <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+//                     {text(firstString(item.pr_no, item.prNo, item.pr_number, item.pr))}
+//                 </span>
+//             );
+
+//         case "department":
+//             return (
+//                 <p className="max-w-[190px] text-[10px] leading-[14px] text-muted-foreground">
+//                     {text(item.department)}
+//                 </p>
+//             );
+
+//         case "designation":
+//             return (
+//                 <p className="max-w-[180px] text-[10px] leading-[14px]">
+//                     {text(item.designation)}
+//                 </p>
+//             );
+
+//         case "category": {
+//             const hiddenDeviceDetails = [
+//                 !visibleColumns.has("brand") ? item.brand : null,
+//                 !visibleColumns.has("model") ? item.model : null,
+//             ]
+//                 .filter(Boolean)
+//                 .join(" · ");
+
+//             return (
+//                 <div className="min-w-0">
+//                     <p className="text-[10px] font-semibold leading-[14px]">
+//                         {text(item.category)}
+//                     </p>
+
+//                     {hiddenDeviceDetails && (
+//                         <p className="mt-0.5 text-[8px] leading-[12px] text-muted-foreground">
+//                             {hiddenDeviceDetails}
+//                         </p>
+//                     )}
+//                 </div>
+//             );
+//         }
+
+//         case "brand":
+//             return <span className="text-[10px]">{text(item.brand)}</span>;
+
+//         case "model":
+//             return <span className="text-[10px]">{text(item.model)}</span>;
+
+//         case "device_type":
+//             return (
+//                 <span className="text-[10px]">
+//                     {text(firstString(item.device_type, item.deviceType))}
+//                 </span>
+//             );
+
+//         case "created_at":
+//             return (
+//                 <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+//                     {formatDate(item.created_at)}
+//                 </span>
+//             );
+
+//         case "assigned_date":
+//             return (
+//                 <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+//                     {formatOptionalDate(item.assigned_date, item.assignedDate)}
+//                 </span>
+//             );
+
+//         case "returned_date":
+//             return (
+//                 <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+//                     {formatOptionalDate(
+//                         item.returned_date,
+//                         item.return_date,
+//                         item.returnedDate,
+//                     )}
+//                 </span>
+//             );
+
+//         case "transferred_date":
+//             return (
+//                 <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+//                     {formatOptionalDate(
+//                         item.transferred_date,
+//                         item.transfer_date,
+//                         item.transferredDate,
+//                     )}
+//                 </span>
+//             );
+
+//         case "purchase_date":
+//             return (
+//                 <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+//                     {formatOptionalDate(
+//                         item.purchase_date,
+//                         item.purchased_date,
+//                         item.purchaseDate,
+//                     )}
+//                 </span>
+//             );
+
+//         case "warranty_date":
+//             return (
+//                 <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+//                     {formatDate(item.warranty_date)}
+//                 </span>
+//             );
+
+//         case "device_age":
+//             return (
+//                 <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+//                     {formatDeviceAge(item)}
+//                 </span>
+//             );
+
+//         case "status":
+//             return <StatusBadge status={item.status} />;
+
+//         case "vendor":
+//             return (
+//                 <p className="max-w-[190px] text-[10px] leading-[14px]">
+//                     {text(item.vendor)}
+//                 </p>
+//             );
+
+//         case "problems":
+//             return (
+//                 <p
+//                     className="max-w-[280px] truncate text-[10px] leading-[14px] text-muted-foreground"
+//                     title={item.problems || undefined}
+//                 >
+//                     {text(item.problems)}
+//                 </p>
+//             );
+
+//         default:
+//             return null;
+//     }
+// }
+
+// function exportCSV(rows: WarrantyClaimRow[]) {
+//     const headers = [
+//         "SL",
+//         "Reference",
+//         "Employee",
+//         "Employee ID",
+//         "Device Serial No",
+//         "MR No",
+//         "PR No",
+//         "Department",
+//         "Designation",
+//         "Category",
+//         "Brand",
+//         "Model",
+//         "Device Type",
+//         "Created At",
+//         "Assigned Date",
+//         "Returned Date",
+//         "Transferred Date",
+//         "Purchase Date",
+//         "Warranty Date",
+//         "Device Age",
+//         "Status",
+//         "Vendor",
+//         "Problems",
+//     ];
+
+//     const escape = (value: unknown) =>
+//         `"${String(value ?? "").replaceAll('"', '""')}"`;
+
+//     const body = rows.map((row, index) => [
+//         index + 1,
+//         row.reference,
+//         row.employee,
+//         row.emp_id,
+//         row.device_serial,
+//         firstString(row.mr_no, row.mrNo, row.mr_number, row.mr),
+//         firstString(row.pr_no, row.prNo, row.pr_number, row.pr),
+//         row.department,
+//         row.designation,
+//         row.category,
+//         row.brand,
+//         row.model,
+//         firstString(row.device_type, row.deviceType),
+//         row.created_at,
+//         firstString(row.assigned_date, row.assignedDate),
+//         firstString(row.returned_date, row.return_date, row.returnedDate),
+//         firstString(row.transferred_date, row.transfer_date, row.transferredDate),
+//         firstString(row.purchase_date, row.purchased_date, row.purchaseDate),
+//         row.warranty_date,
+//         formatDeviceAge(row),
+//         row.status,
+//         row.vendor,
+//         row.problems,
+//     ]);
+
+//     const csv = [headers, ...body]
+//         .map((row) => row.map(escape).join(","))
+//         .join("\n");
+
+//     const url = URL.createObjectURL(
+//         new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
+//     );
+//     const anchor = document.createElement("a");
+//     anchor.href = url;
+//     anchor.download = `warranty-claims-${new Date()
+//         .toISOString()
+//         .slice(0, 10)}.csv`;
+//     anchor.click();
+//     URL.revokeObjectURL(url);
+// }
+
+// function printRows(rows: WarrantyClaimItem[]) {
+//     const escape = (value: unknown) =>
+//         String(value ?? "")
+//             .replaceAll("&", "&amp;")
+//             .replaceAll("<", "&lt;")
+//             .replaceAll(">", "&gt;")
+//             .replaceAll('"', "&quot;");
+
+//     const printedAt = new Date().toLocaleString();
+
+//     const dateLabel = (status?: string) =>
+//         status === "Recovered"
+//             ? "Closing Date"
+//             : status === "To Vendor"
+//                 ? "Forward Date"
+//                 : status === "Expired"
+//                     ? "Expired Date"
+//                     : "Claim Date";
+
+//     const detailCard = (row: WarrantyClaimItem, index: number) => `
+//         <section class="claim-page">
+//             <div class="header">
+//                 <div>
+//                     <h1>Warranty Claim Information</h1>
+//                     <p>Reference: <b>${escape(row.reference)}</b></p>
+//                 </div>
+//                 <div class="printed">
+//                     <p>Printed: ${escape(printedAt)}</p>
+//                     <p>Record: ${index + 1} of ${rows.length}</p>
+//                 </div>
+//             </div>
+
+//             <div class="summary-grid">
+//                 <div class="summary-box">
+//                     <span>Reference</span>
+//                     <b class="blue">${escape(row.reference)}</b>
+//                 </div>
+//                 <div class="summary-box">
+//                     <span>Status</span>
+//                     <b>${escape(row.status)}</b>
+//                 </div>
+//                 <div class="summary-box">
+//                     <span>${escape(dateLabel(row.status))}</span>
+//                     <b>${escape(formatDate(row.created_at))}</b>
+//                 </div>
+//                 <div class="summary-box">
+//                     <span>Vendor</span>
+//                     <b>${escape(text(row.vendor))}</b>
+//                 </div>
+//             </div>
+
+//             <div class="section">
+//                 <div class="section-title">Employee Information</div>
+//                 <div class="field-grid four">
+//                     <div class="field">
+//                         <span>Employee</span>
+//                         <b>${escape(text(row.employee))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Employee ID</span>
+//                         <b>${escape(text(row.emp_id))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Department</span>
+//                         <b>${escape(text(row.department))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Designation</span>
+//                         <b>${escape(text(row.designation))}</b>
+//                     </div>
+//                 </div>
+//             </div>
+
+//             <div class="section">
+//                 <div class="section-title">Device Information</div>
+//                 <div class="field-grid three">
+//                     <div class="field">
+//                         <span>Category</span>
+//                         <b>${escape(text(row.category))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Brand</span>
+//                         <b>${escape(text(row.brand))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Model</span>
+//                         <b>${escape(text(row.model))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Device Serial</span>
+//                         <b class="mono">${escape(text(row.device_serial))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Warranty Date</span>
+//                         <b>${escape(formatDate(row.warranty_date))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Vendor</span>
+//                         <b>${escape(text(row.vendor))}</b>
+//                     </div>
+//                 </div>
+//             </div>
+
+//             <div class="section">
+//                 <div class="section-title">Warranty & Claim Information</div>
+//                 <div class="field-grid three">
+//                     <div class="field">
+//                         <span>Warranty Date</span>
+//                         <b>${escape(formatDate(row.warranty_date))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>${escape(dateLabel(row.status))}</span>
+//                         <b>${escape(formatDate(row.created_at))}</b>
+//                     </div>
+//                     <div class="field">
+//                         <span>Current Status</span>
+//                         <b>${escape(row.status)}</b>
+//                     </div>
+//                 </div>
+//             </div>
+
+//             <div class="section">
+//                 <div class="section-title">Problem / Remarks</div>
+//                 <div class="remarks">
+//                     ${escape(text(row.problems))}
+//                 </div>
+//             </div>
+//         </section>
+//     `;
+
+//     const html = `
+//         <!doctype html>
+//         <html>
+//             <head>
+//                 <meta charset="utf-8" />
+//                 <title>Warranty Claim Information</title>
+
+//                 <style>
+//                     * {
+//                         box-sizing: border-box;
+//                     }
+
+//                     @page {
+//                         size: A4 portrait;
+//                         margin: 12mm;
+//                     }
+
+//                     body {
+//                         margin: 0;
+//                         color: #111827;
+//                         font-family: Arial, sans-serif;
+//                         font-size: 11px;
+//                         background: #ffffff;
+//                     }
+
+//                     .claim-page {
+//                         page-break-after: always;
+//                     }
+
+//                     .claim-page:last-child {
+//                         page-break-after: auto;
+//                     }
+
+//                     .header {
+//                         display: flex;
+//                         justify-content: space-between;
+//                         align-items: flex-start;
+//                         gap: 16px;
+//                         border-bottom: 2px solid #111827;
+//                         padding-bottom: 10px;
+//                         margin-bottom: 12px;
+//                     }
+
+//                     h1 {
+//                         margin: 0;
+//                         font-size: 18px;
+//                         line-height: 1.2;
+//                     }
+
+//                     p {
+//                         margin: 3px 0 0;
+//                     }
+
+//                     .printed {
+//                         color: #6b7280;
+//                         font-size: 10px;
+//                         text-align: right;
+//                         white-space: nowrap;
+//                     }
+
+//                     .summary-grid {
+//                         display: grid;
+//                         grid-template-columns: repeat(4, 1fr);
+//                         border: 1px solid #d1d5db;
+//                         border-radius: 8px;
+//                         overflow: hidden;
+//                         margin-bottom: 10px;
+//                     }
+
+//                     .summary-box {
+//                         min-height: 54px;
+//                         padding: 9px 10px;
+//                         border-right: 1px solid #e5e7eb;
+//                     }
+
+//                     .summary-box:last-child {
+//                         border-right: 0;
+//                     }
+
+//                     .summary-box span,
+//                     .field span {
+//                         display: block;
+//                         color: #6b7280;
+//                         font-size: 9px;
+//                         font-weight: 700;
+//                         text-transform: uppercase;
+//                         letter-spacing: 0.03em;
+//                         margin-bottom: 4px;
+//                     }
+
+//                     .summary-box b,
+//                     .field b {
+//                         display: block;
+//                         color: #111827;
+//                         font-size: 11px;
+//                         line-height: 1.35;
+//                         word-break: break-word;
+//                     }
+
+//                     .summary-box .blue {
+//                         color: #1d4ed8;
+//                         font-size: 13px;
+//                     }
+
+//                     .section {
+//                         border: 1px solid #d1d5db;
+//                         border-radius: 8px;
+//                         overflow: hidden;
+//                         margin-bottom: 10px;
+//                     }
+
+//                     .section-title {
+//                         background: #f1f5f9;
+//                         border-bottom: 1px solid #d1d5db;
+//                         color: #111827;
+//                         font-size: 12px;
+//                         font-weight: 700;
+//                         padding: 8px 10px;
+//                     }
+
+//                     .field-grid {
+//                         display: grid;
+//                     }
+
+//                     .field-grid.four {
+//                         grid-template-columns: repeat(4, 1fr);
+//                     }
+
+//                     .field-grid.three {
+//                         grid-template-columns: repeat(3, 1fr);
+//                     }
+
+//                     .field {
+//                         min-height: 50px;
+//                         padding: 9px 10px;
+//                         border-right: 1px solid #e5e7eb;
+//                         border-bottom: 1px solid #e5e7eb;
+//                     }
+
+//                     .field:nth-child(4n) {
+//                         border-right: 0;
+//                     }
+
+//                     .field-grid.three .field:nth-child(3n) {
+//                         border-right: 0;
+//                     }
+
+//                     .mono {
+//                         font-family: Consolas, "Courier New", monospace;
+//                     }
+
+//                     .remarks {
+//                         min-height: 70px;
+//                         padding: 10px;
+//                         line-height: 1.5;
+//                         color: #111827;
+//                         word-break: break-word;
+//                     }
+
+//                     @media print {
+//                         body {
+//                             -webkit-print-color-adjust: exact;
+//                             print-color-adjust: exact;
+//                         }
+//                     }
+//                 </style>
+//             </head>
+
+//             <body>
+//                 ${rows.map(detailCard).join("")}
+
+//                 <script>
+//                     window.addEventListener("load", function () {
+//                         setTimeout(function () {
+//                             window.focus();
+//                             window.print();
+//                         }, 300);
+//                     });
+//                 </script>
+//             </body>
+//         </html>
+//     `;
+
+//     const printWindow = window.open("", "_blank");
+
+//     if (!printWindow) {
+//         alert("Popup blocked. Please allow popups for this site.");
+//         return;
+//     }
+
+//     printWindow.document.open();
+//     printWindow.document.write(html);
+//     printWindow.document.close();
+// }
+
+// function ClaimModal({
+//     item,
+//     onClose,
+// }: {
+//     item: WarrantyClaimItem;
+//     onClose: () => void;
+// }) {
+//     const dateLabel =
+//         item.status === "Recovered"
+//             ? "Closing Date"
+//             : item.status === "To Vendor"
+//                 ? "Forward Date"
+//                 : item.status === "Expired"
+//                     ? "Expired Date"
+//                     : "Claim Date";
+
+//     return (
+//         <AppFormModal
+//             open={true}
+//             onOpenChange={(open) => {
+//                 if (!open) onClose();
+//             }}
+//             title="Warranty Claim Information"
+//             subtitle={`Reference: ${item.reference}`}
+//             icon={<Hash size={18} />}
+//             footer={
+//                 <AppFormFooter onCancel={onClose} cancelText="Close" hideSubmit />
+//             }
+//         >
+//             <div className="space-y-3">
+//                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+//                     <AppInfoField label="Reference" value={item.reference} />
+//                     <AppInfoField label="Status" value={item.status} />
+//                     <AppInfoField label={dateLabel} value={formatDate(item.created_at)} />
+//                     <AppInfoField label="Vendor" value={item.vendor} />
+//                 </div>
+
+//                 <AppFormSection
+//                     title="Employee Information"
+//                     icon={<UserRound size={14} />}
+//                     columns="four"
+//                 >
+//                     <AppInfoField label="Employee" value={item.employee} />
+//                     <AppInfoField label="Employee ID" value={item.emp_id} />
+//                     <AppInfoField label="Department" value={item.department} />
+//                     <AppInfoField label="Designation" value={item.designation} />
+//                 </AppFormSection>
+
+//                 <AppFormSection
+//                     title="Device Information"
+//                     icon={<Monitor size={14} />}
+//                     columns="three"
+//                 >
+//                     <AppInfoField label="Category" value={item.category} />
+//                     <AppInfoField label="Brand" value={item.brand} />
+//                     <AppInfoField label="Model" value={item.model} />
+//                     <AppInfoField label="Device Serial" value={item.device_serial} mono />
+//                     <AppInfoField
+//                         label="Warranty Date"
+//                         value={formatDate(item.warranty_date)}
+//                     />
+//                     <AppInfoField label="Vendor" value={item.vendor} />
+//                 </AppFormSection>
+
+//                 <AppFormSection
+//                     title="Warranty & Claim Information"
+//                     icon={<CalendarDays size={14} />}
+//                     columns="three"
+//                 >
+//                     <AppInfoField
+//                         label="Warranty Date"
+//                         value={formatDate(item.warranty_date)}
+//                     />
+//                     <AppInfoField label={dateLabel} value={formatDate(item.created_at)} />
+//                     <AppInfoField label="Current Status" value={item.status} />
+//                 </AppFormSection>
+
+//                 <AppFormSection
+//                     title="Problem / Remarks"
+//                     icon={<Info size={14} />}
+//                     columns="one"
+//                 >
+//                     <AppInfoField label="Problem Details" value={item.problems} span />
+//                 </AppFormSection>
+//             </div>
+//         </AppFormModal>
+//     );
+// }
+
+// function WarrantyColumnSelector({
+//     visibleColumns,
+//     onToggle,
+//     onShowAll,
+//     onReset,
+// }: {
+//     visibleColumns: Set<WarrantyColumnKey>;
+//     onToggle: (key: WarrantyColumnKey) => void;
+//     onShowAll: () => void;
+//     onReset: () => void;
+// }) {
+//     const [open, setOpen] = useState(false);
+//     const [columnSearch, setColumnSearch] = useState("");
+
+//     const selectorRef = useRef<HTMLDivElement | null>(null);
+//     const searchRef = useRef<HTMLInputElement | null>(null);
+
+//     const filteredColumns = useMemo(() => {
+//         const query = columnSearch.trim().toLowerCase();
+
+//         if (!query) {
+//             return WARRANTY_COLUMN_OPTIONS;
+//         }
+
+//         return WARRANTY_COLUMN_OPTIONS.filter((column) =>
+//             column.label.toLowerCase().includes(query),
+//         );
+//     }, [columnSearch]);
+
+//     useEffect(() => {
+//         if (!open) return;
+
+//         const handleOutsideClick = (event: MouseEvent) => {
+//             const target = event.target as Node;
+
+//             if (selectorRef.current && !selectorRef.current.contains(target)) {
+//                 setOpen(false);
+//             }
+//         };
+
+//         const handleKeyDown = (event: KeyboardEvent) => {
+//             if (event.key === "Escape") {
+//                 setOpen(false);
+//             }
+//         };
+
+//         document.addEventListener("mousedown", handleOutsideClick);
+//         document.addEventListener("keydown", handleKeyDown);
+
+//         const focusTimer = window.setTimeout(() => {
+//             searchRef.current?.focus();
+//         }, 50);
+
+//         return () => {
+//             window.clearTimeout(focusTimer);
+//             document.removeEventListener("mousedown", handleOutsideClick);
+//             document.removeEventListener("keydown", handleKeyDown);
+//         };
+//     }, [open]);
+
+//     return (
+//         <div ref={selectorRef} className="relative">
+//             <button
+//                 type="button"
+//                 onClick={() => setOpen((value) => !value)}
+//                 aria-expanded={open}
+//                 aria-haspopup="menu"
+//                 className={`
+//                     inline-flex h-10 items-center gap-2 rounded-lg border
+//                     bg-white px-3 text-xs font-semibold text-slate-700
+//                     shadow-sm transition-all duration-200
+//                     hover:border-slate-400 hover:bg-slate-50
+//                     ${open
+//                         ? "border-red-400 ring-2 ring-red-500/15"
+//                         : "border-slate-300"
+//                     }
+//                 `}
+//             >
+//                 <SlidersHorizontal size={14} />
+
+//                 <span>Columns</span>
+
+//                 <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+//                     {visibleColumns.size}
+//                 </span>
+
+//                 <ChevronDown
+//                     size={13}
+//                     className={`transition-transform ${open ? "rotate-180" : ""}`}
+//                 />
+//             </button>
+
+//             {open && (
+//                 <div
+//                     role="menu"
+//                     className="
+//                         absolute right-0 top-full z-[70] mt-2 w-[310px]
+//                         overflow-hidden rounded-xl border border-slate-200
+//                         bg-white shadow-[0_18px_45px_rgba(15,23,42,0.18)]
+//                     "
+//                 >
+//                     <div className="border-b border-slate-200 px-4 py-3">
+//                         <div className="flex items-start justify-between gap-3">
+//                             <div>
+//                                 <p className="text-xs font-bold text-slate-900">
+//                                     Show / Hide Columns
+//                                 </p>
+
+//                                 <p className="mt-0.5 text-[10px] text-slate-500">
+//                                     {visibleColumns.size} of {WARRANTY_COLUMN_OPTIONS.length}{" "}
+//                                     visible
+//                                 </p>
+//                             </div>
+
+//                             <button
+//                                 type="button"
+//                                 onClick={() => setOpen(false)}
+//                                 className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+//                                 aria-label="Close columns menu"
+//                             >
+//                                 <X size={14} />
+//                             </button>
+//                         </div>
+
+//                         <div className="relative mt-3">
+//                             <Search
+//                                 size={13}
+//                                 className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+//                             />
+
+//                             <input
+//                                 ref={searchRef}
+//                                 value={columnSearch}
+//                                 onChange={(event) => setColumnSearch(event.target.value)}
+//                                 placeholder="Find a column..."
+//                                 className="
+//                                     h-8 w-full rounded-lg border border-slate-200
+//                                     bg-slate-50 pl-8 pr-8 text-[11px]
+//                                     text-slate-700 outline-none transition
+//                                     placeholder:text-slate-400
+//                                     focus:border-red-400 focus:bg-white
+//                                     focus:ring-2 focus:ring-red-500/10
+//                                 "
+//                             />
+
+//                             {columnSearch && (
+//                                 <button
+//                                     type="button"
+//                                     onClick={() => setColumnSearch("")}
+//                                     className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700"
+//                                     aria-label="Clear column search"
+//                                 >
+//                                     <X size={12} />
+//                                 </button>
+//                             )}
+//                         </div>
+//                     </div>
+
+//                     <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-3 py-2">
+//                         <button
+//                             type="button"
+//                             onClick={onShowAll}
+//                             className="text-[10px] font-semibold text-blue-600 transition hover:text-blue-700"
+//                         >
+//                             Show all
+//                         </button>
+
+//                         <button
+//                             type="button"
+//                             onClick={onReset}
+//                             className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 transition hover:text-slate-800"
+//                         >
+//                             <RotateCcw size={11} />
+//                             Reset default
+//                         </button>
+//                     </div>
+
+//                     <div className="max-h-[360px] overflow-y-auto py-1.5">
+//                         {filteredColumns.length ? (
+//                             filteredColumns.map((column) => {
+//                                 const isVisible = visibleColumns.has(column.key);
+
+//                                 return (
+//                                     <button
+//                                         key={column.key}
+//                                         type="button"
+//                                         role="menuitemcheckbox"
+//                                         aria-checked={isVisible}
+//                                         onClick={() => onToggle(column.key)}
+//                                         className={`
+//                                             group flex w-full items-center
+//                                             gap-2.5 px-3 py-2 text-left
+//                                             transition-colors
+//                                             ${isVisible
+//                                                 ? "text-slate-900 hover:bg-[#F4FAFA]"
+//                                                 : "text-slate-500 hover:bg-slate-50"
+//                                             }
+//                                         `}
+//                                     >
+//                                         <span
+//                                             className={`
+//                                                 flex h-4 w-4 shrink-0 items-center
+//                                                 justify-center rounded border
+//                                                 transition
+//                                                 ${isVisible
+//                                                     ? "border-emerald-500 bg-emerald-500 text-white"
+//                                                     : "border-slate-300 bg-white"
+//                                                 }
+//                                             `}
+//                                         >
+//                                             {isVisible && <Check size={11} />}
+//                                         </span>
+
+//                                         {isVisible ? (
+//                                             <Eye size={14} className="shrink-0 text-slate-600" />
+//                                         ) : (
+//                                             <EyeOff size={14} className="shrink-0 text-slate-400" />
+//                                         )}
+
+//                                         <span
+//                                             className={`flex-1 text-[11px] ${isVisible ? "font-semibold" : "font-medium"
+//                                                 }`}
+//                                         >
+//                                             {column.label}
+//                                         </span>
+
+//                                         <span
+//                                             className={`
+//                                                 rounded-full px-1.5 py-0.5
+//                                                 text-[9px] font-semibold
+//                                                 ${isVisible
+//                                                     ? "bg-emerald-50 text-emerald-700"
+//                                                     : "bg-slate-100 text-slate-500"
+//                                                 }
+//                                             `}
+//                                         >
+//                                             {isVisible ? "Shown" : "Hidden"}
+//                                         </span>
+//                                     </button>
+//                                 );
+//                             })
+//                         ) : (
+//                             <div className="px-4 py-8 text-center">
+//                                 <Search size={20} className="mx-auto text-slate-300" />
+
+//                                 <p className="mt-2 text-[11px] font-medium text-slate-500">
+//                                     No matching columns
+//                                 </p>
+//                             </div>
+//                         )}
+//                     </div>
+
+//                     <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5">
+//                         <p className="text-[9px] leading-4 text-slate-500">
+//                             Row number and Actions are always visible.
+//                         </p>
+//                     </div>
+//                 </div>
+//             )}
+//         </div>
+//     );
+// }
+
+// function WarrantyRowActions({
+//     item,
+//     onView,
+//     onPrint,
+// }: {
+//     item: WarrantyClaimItem;
+//     onView: (item: WarrantyClaimItem) => void;
+//     onPrint: (item: WarrantyClaimItem) => void;
+// }) {
+//     const [open, setOpen] = useState(false);
+//     const [position, setPosition] = useState<{
+//         top: number;
+//         right: number;
+//     } | null>(null);
+
+//     const buttonRef = useRef<HTMLButtonElement | null>(null);
+//     const menuRef = useRef<HTMLDivElement | null>(null);
+
+//     const toggleMenu = () => {
+//         const rect = buttonRef.current?.getBoundingClientRect();
+
+//         if (!rect) return;
+
+//         setPosition({
+//             top: rect.bottom + 6,
+//             right: window.innerWidth - rect.right,
+//         });
+
+//         setOpen((value) => !value);
+//     };
+
+//     useEffect(() => {
+//         if (!open) return;
+
+//         function handleClick(event: MouseEvent) {
+//             const target = event.target as Node;
+
+//             if (
+//                 buttonRef.current?.contains(target) ||
+//                 menuRef.current?.contains(target)
+//             ) {
+//                 return;
+//             }
+
+//             setOpen(false);
+//         }
+
+//         function closeMenu() {
+//             setOpen(false);
+//         }
+
+//         document.addEventListener("mousedown", handleClick);
+//         window.addEventListener("scroll", closeMenu, true);
+//         window.addEventListener("resize", closeMenu);
+
+//         return () => {
+//             document.removeEventListener("mousedown", handleClick);
+//             window.removeEventListener("scroll", closeMenu, true);
+//             window.removeEventListener("resize", closeMenu);
+//         };
+//     }, [open]);
+
+//     return (
+//         <>
+//             <button
+//                 ref={buttonRef}
+//                 type="button"
+//                 onClick={toggleMenu}
+//                 className="inline-flex min-w-[86px] items-center justify-center gap-1 rounded-lg border border-border bg-muted px-2.5 py-1 text-[10px] font-medium text-foreground transition hover:bg-border"
+//             >
+//                 Actions
+//                 <ChevronDown size={12} />
+//             </button>
+
+//             {open && position && (
+//                 <div
+//                     ref={menuRef}
+//                     className="fixed z-[80] w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-xl"
+//                     style={{
+//                         top: position.top,
+//                         right: position.right,
+//                     }}
+//                 >
+//                     <button
+//                         type="button"
+//                         onClick={() => {
+//                             setOpen(false);
+//                             onView(item);
+//                         }}
+//                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-[10px] font-medium text-foreground transition hover:bg-muted"
+//                     >
+//                         <Eye size={13} />
+//                         View Details
+//                     </button>
+
+//                     <button
+//                         type="button"
+//                         onClick={() => {
+//                             setOpen(false);
+//                             onPrint(item);
+//                         }}
+//                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-[10px] font-medium text-foreground transition hover:bg-muted"
+//                     >
+//                         <FileText size={13} />
+//                         Print
+//                     </button>
+//                 </div>
+//             )}
+//         </>
+//     );
+// }
+
+// export default function WarrantyClaimsPage() {
+//     const router = useRouter();
+//     const pathname = usePathname();
+//     const searchParams = useSearchParams();
+
+//     const statusParam = searchParams.get("status");
+//     const activeStatus: WarrantyStatus | null = isWarrantyStatus(statusParam)
+//         ? statusParam
+//         : null;
+
+//     //will have unchanged
+//     const [rows, setRows] = useState<WarrantyClaimRow[]>([]);
+//     const [summary, setSummary] = useState<WarrantySummary>(EMPTY_SUMMARY);
+//     const [total, setTotal] = useState(0);
+//     const [page, setPage] = useState(1);
+//     const [searchInput, setSearchInput] = useState("");
+//     const [search, setSearch] = useState("");
+//     const [loading, setLoading] = useState(true);
+//     const [summaryLoading, setSummaryLoading] = useState(true);
+//     const [error, setError] = useState("");
+//     const [viewItem, setViewItem] = useState<WarrantyClaimItem | null>(null);
+
+//     const [visibleColumns, setVisibleColumns] = useState<Set<WarrantyColumnKey>>(
+//         () => new Set(DEFAULT_VISIBLE_WARRANTY_COLUMNS),
+//     );
+
+//     useEffect(() => {
+//         try {
+//             const storedColumns = window.localStorage.getItem(
+//                 WARRANTY_COLUMNS_STORAGE_KEY,
+//             );
+
+//             if (!storedColumns) return;
+
+//             const parsedColumns = JSON.parse(storedColumns);
+
+//             if (!Array.isArray(parsedColumns)) return;
+
+//             const validColumns = parsedColumns.filter(
+//                 (key): key is WarrantyColumnKey =>
+//                     WARRANTY_COLUMN_OPTIONS.some((column) => column.key === key),
+//             );
+
+//             setVisibleColumns(new Set(validColumns));
+//         } catch (storageError) {
+//             console.error("Unable to restore warranty claim columns:", storageError);
+//         }
+//     }, []);
+
+//     useEffect(() => {
+//         const timer = window.setTimeout(() => {
+//             setSearch(searchInput.trim());
+//             setPage(1);
+//         }, 350);
+//         return () => window.clearTimeout(timer);
+//     }, [searchInput]);
+
+//     useEffect(() => {
+//         setPage(1);
+//     }, [activeStatus]);
+
+//     const loadSummary = useCallback(async () => {
+//         setSummaryLoading(true);
+//         try {
+//             const response = await reportApi.warrantySummary();
+//             setSummary(response.data ?? EMPTY_SUMMARY);
+//         } catch (err) {
+//             console.error(err);
+//             setSummary(EMPTY_SUMMARY);
+//         } finally {
+//             setSummaryLoading(false);
+//         }
+//     }, []);
+
+//     const loadClaims = useCallback(async () => {
+//         setLoading(true);
+//         setError("");
+
+//         try {
+//             const response = await reportApi.warrantyClaims({
+//                 page,
+//                 limit: PAGE_SIZE,
+//                 status: activeStatus ?? "all",
+//                 search: search || undefined,
+//             });
+
+//             setRows((response.data ?? []) as WarrantyClaimRow[]);
+//             setTotal(response.total ?? 0);
+//         } catch (err) {
+//             setRows([]);
+//             setTotal(0);
+//             setError(err instanceof Error ? err.message : "Unable to load claims");
+//         } finally {
+//             setLoading(false);
+//         }
+//     }, [activeStatus, page, search]);
+
+//     useEffect(() => {
+//         void loadSummary();
+//     }, [loadSummary]);
+
+//     useEffect(() => {
+//         void loadClaims();
+//     }, [loadClaims]);
+
+//     const summaryMap = useMemo(
+//         () =>
+//             new Map(
+//                 (summary.items ?? []).map((item) => [
+//                     item.label,
+//                     Number(item.value) || 0,
+//                 ]),
+//             ),
+//         [summary.items],
+//     );
+
+//     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+//     const first = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+//     const last = Math.min(page * PAGE_SIZE, total);
+
+//     const changeStatus = (status: WarrantyStatus | null) => {
+//         const nextStatus = activeStatus === status ? null : status;
+//         const params = new URLSearchParams(searchParams.toString());
+
+//         if (nextStatus) {
+//             params.set("status", nextStatus);
+//         } else {
+//             params.delete("status");
+//         }
+
+//         setPage(1);
+
+//         const query = params.toString();
+
+//         router.replace(query ? `${pathname}?${query}` : pathname, {
+//             scroll: false,
+//         });
+//     };
+
+//     const persistVisibleColumns = (nextColumns: Set<WarrantyColumnKey>) => {
+//         setVisibleColumns(nextColumns);
+
+//         try {
+//             window.localStorage.setItem(
+//                 WARRANTY_COLUMNS_STORAGE_KEY,
+//                 JSON.stringify(Array.from(nextColumns)),
+//             );
+//         } catch (storageError) {
+//             console.error("Unable to save warranty claim columns:", storageError);
+//         }
+//     };
+
+//     const toggleColumn = (key: WarrantyColumnKey) => {
+//         const nextColumns = new Set(visibleColumns);
+
+//         if (nextColumns.has(key)) {
+//             nextColumns.delete(key);
+//         } else {
+//             nextColumns.add(key);
+//         }
+
+//         persistVisibleColumns(nextColumns);
+//     };
+
+//     const showAllColumns = () => {
+//         persistVisibleColumns(
+//             new Set(WARRANTY_COLUMN_OPTIONS.map((column) => column.key)),
+//         );
+//     };
+
+//     const resetColumns = () => {
+//         persistVisibleColumns(new Set(DEFAULT_VISIBLE_WARRANTY_COLUMNS));
+//     };
+
+//     const visibleColumnOptions = WARRANTY_COLUMN_OPTIONS.filter((column) =>
+//         visibleColumns.has(column.key),
+//     );
+
+//     const visibleTableColumnCount = visibleColumnOptions.length + 2;
+
+//     const hasExtraVisibleColumns = visibleColumnOptions.some(
+//         (column) => !DEFAULT_VISIBLE_WARRANTY_COLUMNS.includes(column.key),
+//     );
+
+//     return (
+//         <div className="space-y-4 p-4 sm:p-6">
+//             <div className="rounded-2xl border border-border bg-card p-5">
+//                 <div className="flex flex-wrap items-start justify-between gap-3">
+//                     <div className="flex items-center gap-3">
+//                         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50">
+//                             <ShieldCheck className="h-5 w-5 text-emerald-600" />
+//                         </div>
+//                         <div>
+//                             <h1 className="text-sm font-bold">Warranty Claims</h1>
+//                             <p className="text-xs text-muted-foreground">
+//                                 {activeStatus
+//                                     ? `Showing: ${activeStatus}`
+//                                     : "All warranty claim records"}
+//                             </p>
+//                         </div>
+//                     </div>
+
+//                     <div className="flex gap-2">
+//                         <button
+//                             type="button"
+//                             onClick={() => {
+//                                 void loadSummary();
+//                                 void loadClaims();
+//                             }}
+//                             className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs"
+//                         >
+//                             <RefreshCw size={13} /> Refresh
+//                         </button>
+//                         <button
+//                             type="button"
+//                             disabled={!rows.length}
+//                             onClick={() => exportCSV(rows)}
+//                             className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700 disabled:opacity-40"
+//                         >
+//                             <FileSpreadsheet size={13} /> Excel
+//                         </button>
+//                         <button
+//                             type="button"
+//                             disabled={!rows.length}
+//                             onClick={() => printRows(rows)}
+//                             className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700 disabled:opacity-40"
+//                         >
+//                             <FileText size={13} /> PDF
+//                         </button>
+//                     </div>
+//                 </div>
+
+//                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+//                     {STAT_CARDS.map((card) => {
+//                         const count =
+//                             card.key === null
+//                                 ? summary.total
+//                                 : (summaryMap.get(card.key) ?? 0);
+//                         const selected =
+//                             card.key === null ? !activeStatus : activeStatus === card.key;
+
+//                         return (
+//                             <button
+//                                 type="button"
+//                                 key={card.label}
+//                                 onClick={() => changeStatus(card.key)}
+//                                 className={`rounded-xl border px-3 py-3 text-left ring-2 transition hover:opacity-80 ${card.bg} ${selected ? "ring-primary" : "ring-transparent"
+//                                     }`}
+//                             >
+//                                 <div className="mb-1 flex items-center justify-between">
+//                                     <p className="text-[9px] uppercase text-muted-foreground">
+//                                         {card.label}
+//                                     </p>
+//                                     <span className={`${card.color} opacity-50`}>
+//                                         {card.icon}
+//                                     </span>
+//                                 </div>
+//                                 <p className={`text-xl font-bold ${card.color}`}>
+//                                     {summaryLoading ? "…" : count}
+//                                 </p>
+//                             </button>
+//                         );
+//                     })}
+//                 </div>
+//             </div>
+
+//             {error && (
+//                 <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+//                     <AlertCircle size={15} />
+//                     {error}
+//                 </div>
+//             )}
+
+//             <div className="overflow-hidden rounded-xl border border-border bg-card">
+//                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+//                     <p className="text-[11px] text-muted-foreground">
+//                         Showing{" "}
+//                         <b className="text-foreground">
+//                             {first}-{last}
+//                         </b>{" "}
+//                         of <b className="text-foreground">{total}</b> records
+//                     </p>
+
+//                     <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+//                         <WarrantyColumnSelector
+//                             visibleColumns={visibleColumns}
+//                             onToggle={toggleColumn}
+//                             onShowAll={showAllColumns}
+//                             onReset={resetColumns}
+//                         />
+
+//                         <div className="group relative w-full sm:w-[340px]">
+//                             <Search
+//                                 size={15}
+//                                 className="
+//                                     pointer-events-none absolute left-3 top-1/2
+//                                     z-10 -translate-y-1/2 text-slate-400
+//                                     transition-colors duration-200
+//                                     group-focus-within:text-red-500
+//                                 "
+//                             />
+
+//                             <Input
+//                                 autoFocus
+//                                 value={searchInput}
+//                                 onChange={(event) => setSearchInput(event.target.value)}
+//                                 placeholder="Search name, reference, category..."
+//                                 className="
+//                                     h-10 w-full rounded-lg border border-slate-300
+//                                     bg-white pl-9 pr-10 text-xs shadow-sm
+//                                     transition-all duration-200
+//                                     placeholder:text-slate-400
+//                                     hover:border-slate-400
+//                                     focus-visible:border-red-500
+//                                     focus-visible:ring-2
+//                                     focus-visible:ring-red-500/20
+//                                     focus-visible:ring-offset-0
+//                                 "
+//                             />
+
+//                             {searchInput && (
+//                                 <button
+//                                     type="button"
+//                                     onClick={() => {
+//                                         setSearchInput("");
+//                                         setSearch("");
+//                                         setPage(1);
+//                                     }}
+//                                     className="
+//                                         absolute right-2.5 top-1/2
+//                                         -translate-y-1/2 rounded-md p-1
+//                                         text-slate-400 transition-colors
+//                                         hover:bg-red-50 hover:text-red-600
+//                                     "
+//                                     aria-label="Clear search"
+//                                 >
+//                                     <X size={14} />
+//                                 </button>
+//                             )}
+//                         </div>
+//                     </div>
+//                 </div>
+
+//                 {/* Table  */}
+
+//                 <div
+//                     className={
+//                         hasExtraVisibleColumns
+//                             ? "overflow-x-auto"
+//                             : "overflow-hidden pr-0.5"
+//                     }
+//                 >
+//                     <table
+//                         className={
+//                             hasExtraVisibleColumns
+//                                 ? "w-full min-w-max font-sans text-[10px]"
+//                                 : "w-full table-fixed font-sans text-[10px]"
+//                         }
+//                     >
+//                         {!hasExtraVisibleColumns && (
+//                             <colgroup>
+//                                 <col style={{ width: "4%" }} />
+
+//                                 {visibleColumnOptions.map((column) => (
+//                                     <col
+//                                         key={column.key}
+//                                         style={{
+//                                             width:
+//                                                 DEFAULT_TABLE_COLUMN_WIDTHS[
+//                                                 column.key
+//                                                 ] ?? "12%",
+//                                         }}
+//                                     />
+//                                 ))}
+
+//                                 <col style={{ width: "11%" }} />
+//                             </colgroup>
+//                         )}
+
+//                         <thead className="sticky top-0 z-10">
+//                             <tr className="bg-[#DDE4E7]">
+//                                 <th
+//                                     scope="col"
+//                                     className="
+//                                         w-12 whitespace-nowrap border-b
+//                                         border-slate-400 px-3 py-3 text-left
+//                                         text-[10px] font-bold uppercase
+//                                         tracking-[0.06em] text-slate-800
+//                                     "
+//                                 >
+//                                     #
+//                                 </th>
+
+//                                 {visibleColumnOptions.map((column) => (
+//                                     <th
+//                                         key={column.key}
+//                                         scope="col"
+//                                         className="
+//                                             whitespace-nowrap border-b
+//                                             border-slate-400 px-3 py-2.5
+//                                             text-left text-[9px] font-bold
+//                                             uppercase tracking-[0.06em]
+//                                             text-slate-800
+//                                         "
+//                                     >
+//                                         {column.label}
+//                                     </th>
+//                                 ))}
+
+//                                 <th
+//                                     scope="col"
+//                                     className="
+//                                         w-[124px] whitespace-nowrap border-b
+//                                         border-l border-slate-300
+//                                         border-b-slate-400 px-3 py-2.5 text-center
+//                                         text-[9px] font-bold uppercase
+//                                         tracking-[0.06em] text-slate-800
+//                                     "
+//                                 >
+//                                     Actions
+//                                 </th>
+//                             </tr>
+//                         </thead>
+
+//                         <tbody className="divide-y divide-slate-200">
+//                             {loading ? (
+//                                 <tr>
+//                                     <td
+//                                         colSpan={visibleTableColumnCount}
+//                                         className="bg-white py-10 text-center"
+//                                     >
+//                                         <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+//                                             <Loader2 size={16} className="animate-spin" />
+//                                             Loading warranty claims...
+//                                         </span>
+//                                     </td>
+//                                 </tr>
+//                             ) : rows.length ? (
+//                                 rows.map((item, index) => (
+//                                     <tr
+//                                         key={`${item.status}-${item.id}-${item.reference}`}
+//                                         className={`
+//                                             group transition-colors duration-150
+//                                             ${index % 2 === 0
+//                                                 ? "bg-[#F4FAFA]"
+//                                                 : "bg-white"
+//                                             }
+//                                             hover:bg-[#E8F5F4]
+//                                         `}
+//                                     >
+//                                         <td className="whitespace-nowrap px-3 py-2 text-[10px] text-muted-foreground">
+//                                             {(page - 1) * PAGE_SIZE + index + 1}
+//                                         </td>
+
+//                                         {visibleColumnOptions.map((column) => (
+//                                             <td
+//                                                 key={column.key}
+//                                                 className={`
+//                                                     px-3 py-2 align-middle
+//                                                     ${hasExtraVisibleColumns
+//                                                         ? ""
+//                                                         : "overflow-hidden"
+//                                                     }
+//                                                 `}
+//                                             >
+//                                                 {renderWarrantyCell(
+//                                                     column.key,
+//                                                     item,
+//                                                     visibleColumns,
+//                                                 )}
+//                                             </td>
+//                                         ))}
+
+//                                         <td className="w-[124px] whitespace-nowrap border-l border-slate-200/80 px-3 py-2 text-center align-middle">
+//                                             <div className="flex w-full items-center justify-center">
+//                                                 <WarrantyRowActions
+//                                                     item={item}
+//                                                     onView={setViewItem}
+//                                                     onPrint={(selectedItem) =>
+//                                                         printRows([selectedItem])
+//                                                     }
+//                                                 />
+//                                             </div>
+//                                         </td>
+//                                     </tr>
+//                                 ))
+//                             ) : (
+//                                 <tr>
+//                                     <td
+//                                         colSpan={visibleTableColumnCount}
+//                                         className="bg-white py-10 text-center text-xs text-muted-foreground"
+//                                     >
+//                                         No warranty claim records found.
+//                                     </td>
+//                                 </tr>
+//                             )}
+//                         </tbody>
+//                     </table>
+//                 </div>
+
+//                 <div className="flex items-center justify-between border-t border-border px-4 py-3">
+//                     <p className="text-[10px] text-muted-foreground">
+//                         Page {page} of {totalPages}
+//                     </p>
+//                     <div className="flex gap-2">
+//                         <button
+//                             type="button"
+//                             disabled={page <= 1 || loading}
+//                             onClick={() => setPage((value) => Math.max(1, value - 1))}
+//                             className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-[11px] disabled:opacity-40"
+//                         >
+//                             <ChevronLeft size={12} /> Previous
+//                         </button>
+//                         <button
+//                             type="button"
+//                             disabled={page >= totalPages || loading}
+//                             onClick={() =>
+//                                 setPage((value) => Math.min(totalPages, value + 1))
+//                             }
+//                             className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-[11px] disabled:opacity-40"
+//                         >
+//                             Next <ChevronRight size={12} />
+//                         </button>
+//                     </div>
+//                 </div>
+//             </div>
+
+//             {viewItem && (
+//                 <ClaimModal item={viewItem} onClose={() => setViewItem(null)} />
+//             )}
+//         </div>
+//     );
+// }
+
+
+
+//itm/frontend/app/dashboard/service-warranty/service-claims/page.tsx
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+import {
+    AlertCircle,
+    CalendarDays,
+    Check,
+    CheckCircle2,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    Eye,
+    EyeOff,
+    FileSpreadsheet,
+    FileText,
+    Hash,
+    Info,
+    Loader2,
+    Monitor,
+    Package,
+    RefreshCw,
+    RotateCcw,
+    Search,
+    ShieldCheck,
+    SlidersHorizontal,
+    UserRound,
+    X,
+} from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import {
-    Search, FileSpreadsheet, FileText, Wrench, Package,
-    ArrowRightLeft, CheckCircle2, X, ChevronDown, Eye,
-    Pencil, Trash2, Printer, RotateCcw, Monitor, AlertCircle, Calendar
-} from "lucide-react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+    reportApi,
+    type ServiceRequestClaimItem,
+    type ServiceRequestSummary,
+} from "@/lib/api";
 
-interface Claim {
-    id: number;
-    reference: string;
-    category: string;
-    submitted: string;
-    deviceCategory: string;
-    serial: string;
-    problem: string;
-    status: string;
-    vendor: string;
-}
+// Shared form components
 
-const data: Claim[] = [
-    { id: 1, reference: "14494", category: "User Device", submitted: "2026-02-10 11:13:23", deviceCategory: "Mouse", serial: "2508APW6YT49", problem: "Mouse not working", status: "Service Requrest", vendor: "Startech" },
-    { id: 2, reference: "12794", category: "User Device", submitted: "2026-01-08 15:10:29", deviceCategory: "Laptop-LC1", serial: "2RL19T3", problem: "Touchpad not working", status: "Service Requrest", vendor: "Digital Equipment Ltd" },
-    { id: 3, reference: "12795", category: "User Device", submitted: "2026-01-07 15:10:29", deviceCategory: "Laptop-LC2", serial: "2RL19T3", problem: "Touchpad not working", status: "Service Requrest", vendor: "Digital Equipment Ltd" },
-    { id: 4, reference: "12796", category: "User Device", submitted: "2026-01-05 15:10:29", deviceCategory: "Laptop-LC3", serial: "2RL19T3", problem: "Touchpad not working", status: "Transferred to Vendor", vendor: "Digital Equipment Ltd" },
-    { id: 5, reference: "12797", category: "User Device", submitted: "2026-01-04 15:10:29", deviceCategory: "Mouse", serial: "2RL19T3", problem: "Touchpad not working", status: "Closed", vendor: "Digital Equipment Ltd" },
-    { id: 6, reference: "12798", category: "User Device", submitted: "2026-01-03 15:10:29", deviceCategory: "Laptop-LC3", serial: "2RL19T3", problem: "Touchpad not working", status: "Closed", vendor: "Digital Equipment Ltd" },
-    { id: 7, reference: "12799", category: "User Device", submitted: "2026-01-12 15:10:29", deviceCategory: "Laptop", serial: "2RL19T3", problem: "Touchpad not working", status: "Transferred to Vendor", vendor: "Digital Equipment Ltd" },
-    { id: 8, reference: "127800", category: "User Device", submitted: "2026-02-21 15:10:29", deviceCategory: "Desktop", serial: "2RL19T3", problem: "Touchpad not working", status: "Closed", vendor: "Digital Equipment Ltd" },
-    { id: 9, reference: "127801", category: "User Device", submitted: "2026-02-20 15:10:29", deviceCategory: "Laptop-LC2", serial: "2RL19T3", problem: "Touchpad not working", status: "Service Requrest", vendor: "Digital Equipment Ltd" },
-    { id: 10, reference: "127802", category: "User Device", submitted: "2026-01-21 15:10:29", deviceCategory: "RAM", serial: "2RL19T3", problem: "Touchpad not working", status: "Transferred to Vendor", vendor: "Digital Equipment Ltd" },
-];
+import { AppFormModal } from "@/components/common/form/AppFormModal";
+import { AppFormSection } from "@/components/common/form/AppFormSection";
+import { AppInfoField } from "@/components/common/form/AppInfoField";
+import { AppFormFooter } from "@/components/common/form/AppFormFooter";
 
-const statusCfg: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; desc: string }> = {
-    "Service Requrest": { color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200", icon: <Package size={10} />, desc: "Service request submitted and pending review." },
-    "Transferred to Vendor": { color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", icon: <ArrowRightLeft size={10} />, desc: "Device transferred to vendor for service." },
-    "Closed": { color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", icon: <CheckCircle2 size={10} />, desc: "Service claim resolved and closed." },
+type ServiceRequestStatus =
+    | "Service Request"
+    | "Transferred to Vendor"
+    | "Closed";
+
+type ServiceRequestColumnKey =
+    | "reference"
+    | "employee"
+    | "emp_id"
+    | "device_serial"
+    | "mr_no"
+    | "pr_no"
+    | "department"
+    | "designation"
+    | "category"
+    | "brand"
+    | "model"
+    | "device_type"
+    | "created_at"
+    | "assigned_date"
+    | "returned_date"
+    | "transferred_date"
+    | "purchase_date"
+    | "warranty_date"
+    | "device_age"
+    | "status"
+    | "vendor"
+    | "problems";
+
+type ServiceRequestColumnOption = {
+    key: ServiceRequestColumnKey;
+    label: string;
 };
 
-const STATUS_LIST = [
-    { key: "Service Requrest", label: "Service Request", color: "text-blue-700", bg: "bg-blue-50 border-blue-100", icon: <Package size={14} /> },
-    { key: "Transferred to Vendor", label: "Transferred to Vendor", color: "text-amber-700", bg: "bg-amber-50 border-amber-100", icon: <ArrowRightLeft size={14} /> },
-    { key: "Closed", label: "Closed", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-100", icon: <CheckCircle2 size={14} /> },
+type ServiceRequestClaimRow = ServiceRequestClaimItem & {
+    mr?: string | null;
+    mr_no?: string | null;
+    mrNo?: string | null;
+    mr_number?: string | null;
+    pr?: string | null;
+    pr_no?: string | null;
+    prNo?: string | null;
+    pr_number?: string | null;
+    device_type?: string | null;
+    deviceType?: string | null;
+    assigned_date?: string | null;
+    assignedDate?: string | null;
+    returned_date?: string | null;
+    return_date?: string | null;
+    returnedDate?: string | null;
+    transferred_date?: string | null;
+    transfer_date?: string | null;
+    transferredDate?: string | null;
+    purchase_date?: string | null;
+    purchased_date?: string | null;
+    purchaseDate?: string | null;
+    device_age?: string | number | null;
+    deviceAge?: string | number | null;
+};
+
+const SERVICE_REQUEST_COLUMN_OPTIONS: ServiceRequestColumnOption[] = [
+    { key: "reference", label: "Reference" },
+    { key: "employee", label: "Employee Name / ID" },
+    { key: "emp_id", label: "Employee ID" },
+    { key: "device_serial", label: "Device Serial No" },
+    { key: "mr_no", label: "MR No" },
+    { key: "pr_no", label: "PR No" },
+    { key: "department", label: "Department" },
+    { key: "category", label: "Category" },
+    { key: "brand", label: "Brand" },
+    { key: "model", label: "Model" },
+    { key: "device_type", label: "Device Type" },
+    { key: "designation", label: "Designation" },
+    { key: "created_at", label: "Created At" },
+    { key: "assigned_date", label: "Assigned Date" },
+    { key: "returned_date", label: "Returned Date" },
+    { key: "transferred_date", label: "Transferred Date" },
+    { key: "purchase_date", label: "Purchase Date" },
+    { key: "warranty_date", label: "Warranty Date" },
+    { key: "device_age", label: "Device Age" },
+    { key: "status", label: "Status" },
+    { key: "vendor", label: "Vendor" },
+    { key: "problems", label: "Problems / Remarks" },
 ];
 
-function StatusBadge({ status }: { status: string }) {
-    const cfg = statusCfg[status] || { color: "text-muted-foreground", bg: "bg-muted", border: "border-border", icon: null };
+const DEFAULT_VISIBLE_SERVICE_REQUEST_COLUMNS: ServiceRequestColumnKey[] = [
+    "reference",
+    "employee",
+    "device_serial",
+    "department",
+    "category",
+    "warranty_date",
+    "status",
+];
+
+const DEFAULT_TABLE_COLUMN_WIDTHS: Partial<
+    Record<ServiceRequestColumnKey, string>
+> = {
+    reference: "8%",
+    employee: "17%",
+    device_serial: "12%",
+    department: "13%",
+    category: "16%",
+    warranty_date: "10%",
+    status: "9%",
+};
+
+const SERVICE_REQUEST_COLUMNS_STORAGE_KEY = "itm:service-claims:visible-columns:v1";
+
+const PAGE_SIZE = 20;
+
+const EMPTY_SUMMARY: ServiceRequestSummary = {
+    total: 0,
+    items: [
+        { label: "Service Request", value: 0 },
+        { label: "Transferred to Vendor", value: 0 },
+        { label: "Closed", value: 0 },
+    ],
+};
+
+const STATUS_CONFIG: Record<
+    ServiceRequestStatus,
+    { color: string; bg: string; border: string; icon: ReactNode }
+> = {
+    "Service Request": {
+        color: "text-blue-700",
+        bg: "bg-blue-50",
+        border: "border-blue-200",
+        icon: <Package size={11} />,
+    },
+    "Transferred to Vendor": {
+        color: "text-amber-700",
+        bg: "bg-amber-50",
+        border: "border-amber-200",
+        icon: <RotateCcw size={11} />,
+    },
+    Closed: {
+        color: "text-emerald-700",
+        bg: "bg-emerald-50",
+        border: "border-emerald-200",
+        icon: <CheckCircle2 size={11} />,
+    },
+};
+
+const STAT_CARDS: Array<{
+    key: ServiceRequestStatus | null;
+    label: string;
+    color: string;
+    bg: string;
+    icon: ReactNode;
+}> = [
+        {
+            key: null,
+            label: "Total",
+            color: "text-foreground",
+            bg: "bg-muted border-border",
+            icon: <ShieldCheck size={14} />,
+        },
+        {
+            key: "Service Request",
+            label: "Service Request",
+            color: "text-blue-700",
+            bg: "bg-blue-50 border-blue-100",
+            icon: <Package size={14} />,
+        },
+        {
+            key: "Transferred to Vendor",
+            label: "Transferred to Vendor",
+            color: "text-amber-700",
+            bg: "bg-amber-50 border-amber-100",
+            icon: <RotateCcw size={14} />,
+        },
+        {
+            key: "Closed",
+            label: "Closed",
+            color: "text-emerald-700",
+            bg: "bg-emerald-50 border-emerald-100",
+            icon: <CheckCircle2 size={14} />,
+        },
+    ];
+
+function isServiceRequestStatus(
+    value: string | null
+): value is ServiceRequestStatus {
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full font-semibold border whitespace-nowrap ${cfg.bg} ${cfg.color} ${cfg.border}`}>
-            {cfg.icon} {status}
+        value === "Service Request" ||
+        value === "Transferred to Vendor" ||
+        value === "Closed"
+    );
+}
+
+function text(value?: string | null) {
+    return value?.trim() || "—";
+}
+
+function formatDate(value?: string | null) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    }).format(date);
+}
+
+function getEmployeeInitials(value?: string | null) {
+    const name = value?.trim().replace(/\s+/g, " ");
+
+    if (!name) return "NA";
+
+    const parts = name.split(" ").filter(Boolean);
+
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+    }
+
+    const firstInitial = parts[0]?.charAt(0) ?? "";
+    const lastInitial = parts[parts.length - 1]?.charAt(0) ?? "";
+
+    return `${firstInitial}${lastInitial}`.toUpperCase();
+}
+
+const EMPLOYEE_AVATAR_COLORS = [
+    "bg-indigo-600 text-white ring-indigo-100",
+    "bg-emerald-600 text-white ring-emerald-100",
+    "bg-sky-600 text-white ring-sky-100",
+    "bg-violet-600 text-white ring-violet-100",
+    "bg-rose-600 text-white ring-rose-100",
+    "bg-amber-500 text-white ring-amber-100",
+    "bg-teal-600 text-white ring-teal-100",
+    "bg-fuchsia-600 text-white ring-fuchsia-100",
+] as const;
+
+function getEmployeeAvatarColor(value?: string | null) {
+    const normalized = value?.trim().toLowerCase() || "unknown";
+    let hash = 0;
+
+    for (let index = 0; index < normalized.length; index += 1) {
+        hash = (hash * 31 + normalized.charCodeAt(index)) >>> 0;
+    }
+
+    return EMPLOYEE_AVATAR_COLORS[hash % EMPLOYEE_AVATAR_COLORS.length];
+}
+
+function firstString(...values: Array<string | null | undefined>) {
+    for (const value of values) {
+        if (typeof value === "string" && value.trim()) {
+            return value.trim();
+        }
+    }
+
+    return undefined;
+}
+
+function formatOptionalDate(...values: Array<string | null | undefined>) {
+    return formatDate(firstString(...values));
+}
+
+function formatDeviceAge(item: ServiceRequestClaimRow) {
+    const directAge = item.device_age ?? item.deviceAge;
+
+    if (
+        directAge !== null &&
+        directAge !== undefined &&
+        String(directAge).trim()
+    ) {
+        return String(directAge);
+    }
+
+    const purchaseDate = firstString(
+        item.purchase_date,
+        item.purchased_date,
+        item.purchaseDate,
+    );
+
+    if (!purchaseDate) return "—";
+
+    const purchasedAt = new Date(purchaseDate);
+    if (Number.isNaN(purchasedAt.getTime())) return "—";
+
+    const today = new Date();
+    let months =
+        (today.getFullYear() - purchasedAt.getFullYear()) * 12 +
+        (today.getMonth() - purchasedAt.getMonth());
+
+    if (today.getDate() < purchasedAt.getDate()) {
+        months -= 1;
+    }
+
+    if (months < 0) return "—";
+
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+
+    if (years && remainingMonths) return `${years}y ${remainingMonths}m`;
+    if (years) return `${years}y`;
+    return `${remainingMonths}m`;
+}
+
+function StatusBadge({ status }: { status: string }) {
+    const config = STATUS_CONFIG[status as ServiceRequestStatus];
+
+    if (!config) {
+        return (
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                {status}
+            </span>
+        );
+    }
+
+    return (
+        <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${config.color} ${config.bg} ${config.border}`}
+        >
+            {config.icon}
+            {status}
         </span>
     );
 }
 
-function exportCSV(rows: Claim[]) {
-    const headers = ["SL", "Reference", "Category", "Submitted", "Device", "Serial", "Problem", "Status", "Vendor"];
-    const csv = [headers, ...rows.map((r, i) => [i + 1, r.reference, r.category, r.submitted, r.deviceCategory, r.serial, r.problem, r.status, r.vendor])]
-        .map(row => row.map(c => `"${c}"`).join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = `service-claims-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+function renderServiceRequestCell(
+    column: ServiceRequestColumnKey,
+    item: ServiceRequestClaimRow,
+    visibleColumns: Set<ServiceRequestColumnKey>,
+) {
+    switch (column) {
+        case "reference":
+            return (
+                <span className="inline-flex items-center rounded-md border border-blue-200/70 bg-blue-50 px-2 py-1 font-mono text-[10px] font-semibold text-blue-700">
+                    {item.reference}
+                </span>
+            );
+
+        case "employee":
+            return (
+                <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold tracking-wide shadow-sm ring-2 ${getEmployeeAvatarColor(item.employee)}`}
+                        aria-label={`Employee initials ${getEmployeeInitials(item.employee)}`}
+                        title={text(item.employee)}
+                    >
+                        {getEmployeeInitials(item.employee)}
+                    </span>
+
+                    <div className="min-w-0">
+                        <p
+                            className="truncate text-[10px] font-semibold leading-[14px] text-foreground"
+                            title={item.employee || undefined}
+                        >
+                            {text(item.employee)}
+                        </p>
+
+                        <p className="mt-0.5 whitespace-nowrap text-[8px] font-medium leading-3 text-muted-foreground">
+                            {text(item.emp_id)}
+                        </p>
+                    </div>
+                </div>
+            );
+
+        case "emp_id":
+            return (
+                <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+                    {text(item.emp_id)}
+                </span>
+            );
+
+        case "device_serial":
+            return (
+                <span
+                    className="
+                        inline-block max-w-full break-all rounded-md border
+                        border-slate-200 bg-slate-50 px-2 py-1 font-mono
+                        text-[9px] font-semibold leading-[13px] text-slate-700
+                    "
+                    title={item.device_serial || undefined}
+                >
+                    {text(item.device_serial)}
+                </span>
+            );
+
+        case "mr_no":
+            return (
+                <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+                    {text(firstString(item.mr_no, item.mrNo, item.mr_number, item.mr))}
+                </span>
+            );
+
+        case "pr_no":
+            return (
+                <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+                    {text(firstString(item.pr_no, item.prNo, item.pr_number, item.pr))}
+                </span>
+            );
+
+        case "department":
+            return (
+                <p className="max-w-[190px] text-[10px] leading-[14px] text-muted-foreground">
+                    {text(item.department)}
+                </p>
+            );
+
+        case "designation":
+            return (
+                <p className="max-w-[180px] text-[10px] leading-[14px]">
+                    {text(item.designation)}
+                </p>
+            );
+
+        case "category": {
+            const hiddenDeviceDetails = [
+                !visibleColumns.has("brand") ? item.brand : null,
+                !visibleColumns.has("model") ? item.model : null,
+            ]
+                .filter(Boolean)
+                .join(" · ");
+
+            return (
+                <div className="min-w-0">
+                    <p className="text-[10px] font-semibold leading-[14px]">
+                        {text(item.category)}
+                    </p>
+
+                    {hiddenDeviceDetails && (
+                        <p className="mt-0.5 text-[8px] leading-[12px] text-muted-foreground">
+                            {hiddenDeviceDetails}
+                        </p>
+                    )}
+                </div>
+            );
+        }
+
+        case "brand":
+            return <span className="text-[10px]">{text(item.brand)}</span>;
+
+        case "model":
+            return <span className="text-[10px]">{text(item.model)}</span>;
+
+        case "device_type":
+            return (
+                <span className="text-[10px]">
+                    {text(firstString(item.device_type, item.deviceType))}
+                </span>
+            );
+
+        case "created_at":
+            return (
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                    {formatDate(item.created_at)}
+                </span>
+            );
+
+        case "assigned_date":
+            return (
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                    {formatOptionalDate(item.assigned_date, item.assignedDate)}
+                </span>
+            );
+
+        case "returned_date":
+            return (
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                    {formatOptionalDate(
+                        item.returned_date,
+                        item.return_date,
+                        item.returnedDate,
+                    )}
+                </span>
+            );
+
+        case "transferred_date":
+            return (
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                    {formatOptionalDate(
+                        item.transferred_date,
+                        item.transfer_date,
+                        item.transferredDate,
+                    )}
+                </span>
+            );
+
+        case "purchase_date":
+            return (
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                    {formatOptionalDate(
+                        item.purchase_date,
+                        item.purchased_date,
+                        item.purchaseDate,
+                    )}
+                </span>
+            );
+
+        case "warranty_date":
+            return (
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                    {formatDate(item.warranty_date)}
+                </span>
+            );
+
+        case "device_age":
+            return (
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                    {formatDeviceAge(item)}
+                </span>
+            );
+
+        case "status":
+            return <StatusBadge status={item.status} />;
+
+        case "vendor":
+            return (
+                <p className="max-w-[190px] text-[10px] leading-[14px]">
+                    {text(item.vendor)}
+                </p>
+            );
+
+        case "problems":
+            return (
+                <p
+                    className="max-w-[280px] truncate text-[10px] leading-[14px] text-muted-foreground"
+                    title={item.problems || undefined}
+                >
+                    {text(item.problems)}
+                </p>
+            );
+
+        default:
+            return null;
+    }
 }
 
-function exportPDF(rows: Claim[]) {
-    const trs = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.reference}</td><td>${r.deviceCategory}</td><td>${r.serial}</td><td>${r.problem}</td><td>${r.status}</td><td>${r.vendor}</td><td>${r.submitted}</td></tr>`).join("");
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Service Claims</title>
-    <style>body{font-family:Arial,sans-serif;font-size:11px;padding:24px}table{width:100%;border-collapse:collapse}th{background:#f1f5f9;text-align:left;padding:8px;font-size:10px;text-transform:uppercase;border-bottom:2px solid #e2e8f0}td{padding:7px;border-bottom:1px solid #e2e8f0}tr:nth-child(even) td{background:#f8fafc}</style>
-    </head><body><h2>Service Claims Report</h2><p style="color:#666;font-size:10px">Generated: ${new Date().toLocaleString()} · Total: ${rows.length}</p>
-    <table><thead><tr><th>#</th><th>Reference</th><th>Device</th><th>Serial</th><th>Problem</th><th>Status</th><th>Vendor</th><th>Submitted</th></tr></thead>
-    <tbody>${trs}</tbody></table></body></html>`;
-    const win = window.open(URL.createObjectURL(new Blob([html], { type: "text/html" })), "_blank");
-    win?.addEventListener("load", () => win.print());
+function exportCSV(rows: ServiceRequestClaimRow[]) {
+    const headers = [
+        "SL",
+        "Reference",
+        "Employee",
+        "Employee ID",
+        "Device Serial No",
+        "MR No",
+        "PR No",
+        "Department",
+        "Designation",
+        "Category",
+        "Brand",
+        "Model",
+        "Device Type",
+        "Created At",
+        "Assigned Date",
+        "Returned Date",
+        "Transferred Date",
+        "Purchase Date",
+        "Warranty Date",
+        "Device Age",
+        "Status",
+        "Vendor",
+        "Problems",
+    ];
+
+    const escape = (value: unknown) =>
+        `"${String(value ?? "").replaceAll('"', '""')}"`;
+
+    const body = rows.map((row, index) => [
+        index + 1,
+        row.reference,
+        row.employee,
+        row.emp_id,
+        row.device_serial,
+        firstString(row.mr_no, row.mrNo, row.mr_number, row.mr),
+        firstString(row.pr_no, row.prNo, row.pr_number, row.pr),
+        row.department,
+        row.designation,
+        row.category,
+        row.brand,
+        row.model,
+        firstString(row.device_type, row.deviceType),
+        row.created_at,
+        firstString(row.assigned_date, row.assignedDate),
+        firstString(row.returned_date, row.return_date, row.returnedDate),
+        firstString(row.transferred_date, row.transfer_date, row.transferredDate),
+        firstString(row.purchase_date, row.purchased_date, row.purchaseDate),
+        row.warranty_date,
+        formatDeviceAge(row),
+        row.status,
+        row.vendor,
+        row.problems,
+    ]);
+
+    const csv = [headers, ...body]
+        .map((row) => row.map(escape).join(","))
+        .join("\n");
+
+    const url = URL.createObjectURL(
+        new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `service-requests-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
 }
 
-function InfoField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function printRows(rows: ServiceRequestClaimItem[]) {
+    const escape = (value: unknown) =>
+        String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;");
+
+    const printedAt = new Date().toLocaleString();
+
+    const dateLabel = (status?: string) =>
+        status === "Closed"
+            ? "Closing Date"
+            : status === "Transferred to Vendor"
+                ? "Forward Date"
+                : "Request Date";
+
+    const detailCard = (row: ServiceRequestClaimItem, index: number) => `
+        <section class="claim-page">
+            <div class="header">
+                <div>
+                    <h1>Service Request Information</h1>
+                    <p>Reference: <b>${escape(row.reference)}</b></p>
+                </div>
+                <div class="printed">
+                    <p>Printed: ${escape(printedAt)}</p>
+                    <p>Record: ${index + 1} of ${rows.length}</p>
+                </div>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-box">
+                    <span>Reference</span>
+                    <b class="blue">${escape(row.reference)}</b>
+                </div>
+                <div class="summary-box">
+                    <span>Status</span>
+                    <b>${escape(row.status)}</b>
+                </div>
+                <div class="summary-box">
+                    <span>${escape(dateLabel(row.status))}</span>
+                    <b>${escape(formatDate(row.created_at))}</b>
+                </div>
+                <div class="summary-box">
+                    <span>Vendor</span>
+                    <b>${escape(text(row.vendor))}</b>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Employee Information</div>
+                <div class="field-grid four">
+                    <div class="field">
+                        <span>Employee</span>
+                        <b>${escape(text(row.employee))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Employee ID</span>
+                        <b>${escape(text(row.emp_id))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Department</span>
+                        <b>${escape(text(row.department))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Designation</span>
+                        <b>${escape(text(row.designation))}</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Device Information</div>
+                <div class="field-grid three">
+                    <div class="field">
+                        <span>Category</span>
+                        <b>${escape(text(row.category))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Brand</span>
+                        <b>${escape(text(row.brand))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Model</span>
+                        <b>${escape(text(row.model))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Device Serial</span>
+                        <b class="mono">${escape(text(row.device_serial))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Warranty Date</span>
+                        <b>${escape(formatDate(row.warranty_date))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Vendor</span>
+                        <b>${escape(text(row.vendor))}</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Service Request Information</div>
+                <div class="field-grid three">
+                    <div class="field">
+                        <span>Warranty Date</span>
+                        <b>${escape(formatDate(row.warranty_date))}</b>
+                    </div>
+                    <div class="field">
+                        <span>${escape(dateLabel(row.status))}</span>
+                        <b>${escape(formatDate(row.created_at))}</b>
+                    </div>
+                    <div class="field">
+                        <span>Current Status</span>
+                        <b>${escape(row.status)}</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Problem / Remarks</div>
+                <div class="remarks">
+                    ${escape(text(row.problems))}
+                </div>
+            </div>
+        </section>
+    `;
+
+    const html = `
+        <!doctype html>
+        <html>
+            <head>
+                <meta charset="utf-8" />
+                <title>Service Request Information</title>
+
+                <style>
+                    * {
+                        box-sizing: border-box;
+                    }
+
+                    @page {
+                        size: A4 portrait;
+                        margin: 12mm;
+                    }
+
+                    body {
+                        margin: 0;
+                        color: #111827;
+                        font-family: Arial, sans-serif;
+                        font-size: 11px;
+                        background: #ffffff;
+                    }
+
+                    .claim-page {
+                        page-break-after: always;
+                    }
+
+                    .claim-page:last-child {
+                        page-break-after: auto;
+                    }
+
+                    .header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        gap: 16px;
+                        border-bottom: 2px solid #111827;
+                        padding-bottom: 10px;
+                        margin-bottom: 12px;
+                    }
+
+                    h1 {
+                        margin: 0;
+                        font-size: 18px;
+                        line-height: 1.2;
+                    }
+
+                    p {
+                        margin: 3px 0 0;
+                    }
+
+                    .printed {
+                        color: #6b7280;
+                        font-size: 10px;
+                        text-align: right;
+                        white-space: nowrap;
+                    }
+
+                    .summary-grid {
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        border: 1px solid #d1d5db;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        margin-bottom: 10px;
+                    }
+
+                    .summary-box {
+                        min-height: 54px;
+                        padding: 9px 10px;
+                        border-right: 1px solid #e5e7eb;
+                    }
+
+                    .summary-box:last-child {
+                        border-right: 0;
+                    }
+
+                    .summary-box span,
+                    .field span {
+                        display: block;
+                        color: #6b7280;
+                        font-size: 9px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.03em;
+                        margin-bottom: 4px;
+                    }
+
+                    .summary-box b,
+                    .field b {
+                        display: block;
+                        color: #111827;
+                        font-size: 11px;
+                        line-height: 1.35;
+                        word-break: break-word;
+                    }
+
+                    .summary-box .blue {
+                        color: #1d4ed8;
+                        font-size: 13px;
+                    }
+
+                    .section {
+                        border: 1px solid #d1d5db;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        margin-bottom: 10px;
+                    }
+
+                    .section-title {
+                        background: #f1f5f9;
+                        border-bottom: 1px solid #d1d5db;
+                        color: #111827;
+                        font-size: 12px;
+                        font-weight: 700;
+                        padding: 8px 10px;
+                    }
+
+                    .field-grid {
+                        display: grid;
+                    }
+
+                    .field-grid.four {
+                        grid-template-columns: repeat(4, 1fr);
+                    }
+
+                    .field-grid.three {
+                        grid-template-columns: repeat(3, 1fr);
+                    }
+
+                    .field {
+                        min-height: 50px;
+                        padding: 9px 10px;
+                        border-right: 1px solid #e5e7eb;
+                        border-bottom: 1px solid #e5e7eb;
+                    }
+
+                    .field:nth-child(4n) {
+                        border-right: 0;
+                    }
+
+                    .field-grid.three .field:nth-child(3n) {
+                        border-right: 0;
+                    }
+
+                    .mono {
+                        font-family: Consolas, "Courier New", monospace;
+                    }
+
+                    .remarks {
+                        min-height: 70px;
+                        padding: 10px;
+                        line-height: 1.5;
+                        color: #111827;
+                        word-break: break-word;
+                    }
+
+                    @media print {
+                        body {
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                    }
+                </style>
+            </head>
+
+            <body>
+                ${rows.map(detailCard).join("")}
+
+                <script>
+                    window.addEventListener("load", function () {
+                        setTimeout(function () {
+                            window.focus();
+                            window.print();
+                        }, 300);
+                    });
+                </script>
+            </body>
+        </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+        alert("Popup blocked. Please allow popups for this site.");
+        return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+function ClaimModal({
+    item,
+    onClose,
+}: {
+    item: ServiceRequestClaimItem;
+    onClose: () => void;
+}) {
+    const dateLabel =
+        item.status === "Closed"
+            ? "Closing Date"
+            : item.status === "Transferred to Vendor"
+                ? "Forward Date"
+                : "Request Date";
+
     return (
-        <div className="min-w-0">
-            <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-            <p className={`text-[11px] font-semibold text-foreground mt-0.5 break-words ${mono ? "font-mono" : ""}`}>{value || "—"}</p>
-        </div>
+        <AppFormModal
+            open={true}
+            onOpenChange={(open) => {
+                if (!open) onClose();
+            }}
+            title="Service Request Information"
+            subtitle={`Reference: ${item.reference}`}
+            icon={<Hash size={18} />}
+            footer={
+                <AppFormFooter onCancel={onClose} cancelText="Close" hideSubmit />
+            }
+        >
+            <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <AppInfoField label="Reference" value={item.reference} />
+                    <AppInfoField label="Status" value={item.status} />
+                    <AppInfoField label={dateLabel} value={formatDate(item.created_at)} />
+                    <AppInfoField label="Vendor" value={item.vendor} />
+                </div>
+
+                <AppFormSection
+                    title="Employee Information"
+                    icon={<UserRound size={14} />}
+                    columns="four"
+                >
+                    <AppInfoField label="Employee" value={item.employee} />
+                    <AppInfoField label="Employee ID" value={item.emp_id} />
+                    <AppInfoField label="Department" value={item.department} />
+                    <AppInfoField label="Designation" value={item.designation} />
+                </AppFormSection>
+
+                <AppFormSection
+                    title="Device Information"
+                    icon={<Monitor size={14} />}
+                    columns="three"
+                >
+                    <AppInfoField label="Category" value={item.category} />
+                    <AppInfoField label="Brand" value={item.brand} />
+                    <AppInfoField label="Model" value={item.model} />
+                    <AppInfoField label="Device Serial" value={item.device_serial} mono />
+                    <AppInfoField
+                        label="Warranty Date"
+                        value={formatDate(item.warranty_date)}
+                    />
+                    <AppInfoField label="Vendor" value={item.vendor} />
+                </AppFormSection>
+
+                <AppFormSection
+                    title="Service Request Information"
+                    icon={<CalendarDays size={14} />}
+                    columns="three"
+                >
+                    <AppInfoField
+                        label="Warranty Date"
+                        value={formatDate(item.warranty_date)}
+                    />
+                    <AppInfoField label={dateLabel} value={formatDate(item.created_at)} />
+                    <AppInfoField label="Current Status" value={item.status} />
+                </AppFormSection>
+
+                <AppFormSection
+                    title="Problem / Remarks"
+                    icon={<Info size={14} />}
+                    columns="one"
+                >
+                    <AppInfoField label="Problem Details" value={item.problems} span />
+                </AppFormSection>
+            </div>
+        </AppFormModal>
     );
 }
 
-function ViewModal({ item, onClose }: { item: Claim; onClose: () => void }) {
-    const cfg = statusCfg[item.status];
-    return (
-        <DialogPrimitive.Root open onOpenChange={onClose}>
-            <DialogPrimitive.Portal>
-                <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-                <DialogPrimitive.Content className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] max-w-[560px] max-h-[88vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden bg-card border border-border">
-                    <div className="shrink-0 bg-primary px-5 py-3.5 flex items-center justify-between">
-                        <div>
-                            <DialogPrimitive.Title className="text-sm font-semibold text-primary-foreground">Service Claim Details</DialogPrimitive.Title>
-                            <p className="text-[11px] text-primary-foreground/70 mt-0.5">Ref: {item.reference}</p>
-                        </div>
-                        <DialogPrimitive.Close className="rounded-lg p-1.5 text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/10 transition-colors">
-                            <X className="h-4 w-4" />
-                        </DialogPrimitive.Close>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-5 space-y-3">
-                        <div className="rounded-xl border border-border overflow-hidden">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
-                                <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
-                                <p className="text-xs font-semibold text-foreground">Claim Information</p>
-                            </div>
-                            <div className="px-4 py-3 grid grid-cols-3 gap-3 bg-card">
-                                <InfoField label="Reference" value={item.reference} />
-                                <InfoField label="Category" value={item.category} />
-                                <InfoField label="Submitted" value={item.submitted} />
-                            </div>
-                        </div>
-                        <div className="rounded-xl border border-border overflow-hidden">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
-                                <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
-                                <p className="text-xs font-semibold text-foreground">Device Information</p>
-                            </div>
-                            <div className="px-4 py-3 grid grid-cols-3 gap-3 bg-card">
-                                <InfoField label="Device" value={item.deviceCategory} />
-                                <InfoField label="Serial" value={item.serial} mono />
-                                <InfoField label="Vendor" value={item.vendor} />
-                            </div>
-                        </div>
-                        <div className="rounded-xl border border-border overflow-hidden">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
-                                <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                                <p className="text-xs font-semibold text-foreground">Problem Description</p>
-                            </div>
-                            <div className="px-4 py-3 bg-card">
-                                <p className="text-[11px] text-foreground font-medium">{item.problem}</p>
-                            </div>
-                        </div>
-                        <div className="rounded-xl border border-border overflow-hidden">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
-                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                <p className="text-xs font-semibold text-foreground">Current Status</p>
-                            </div>
-                            <div className="px-4 py-3 bg-card flex items-center gap-3">
-                                <StatusBadge status={item.status} />
-                                {cfg && <p className="text-[10px] text-muted-foreground">{cfg.desc}</p>}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="shrink-0 px-5 py-3 border-t border-border bg-muted/40 flex justify-end">
-                        <button onClick={onClose} className="px-5 py-1.5 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity">Close</button>
-                    </div>
-                </DialogPrimitive.Content>
-            </DialogPrimitive.Portal>
-        </DialogPrimitive.Root>
-    );
-}
-
-function ActionsDropdown({ item, onView, onEdit, onDelete, onReturn, onPrint }: {
-    item: Claim; onView: (i: Claim) => void; onEdit: (i: Claim) => void;
-    onDelete: (id: number) => void; onReturn: (i: Claim) => void; onPrint: (i: Claim) => void;
+function ServiceRequestColumnSelector({
+    visibleColumns,
+    onToggle,
+    onShowAll,
+    onReset,
+}: {
+    visibleColumns: Set<ServiceRequestColumnKey>;
+    onToggle: (key: ServiceRequestColumnKey) => void;
+    onShowAll: () => void;
+    onReset: () => void;
 }) {
     const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const [columnSearch, setColumnSearch] = useState("");
+
+    const selectorRef = useRef<HTMLDivElement | null>(null);
+    const searchRef = useRef<HTMLInputElement | null>(null);
+
+    const filteredColumns = useMemo(() => {
+        const query = columnSearch.trim().toLowerCase();
+
+        if (!query) {
+            return SERVICE_REQUEST_COLUMN_OPTIONS;
+        }
+
+        return SERVICE_REQUEST_COLUMN_OPTIONS.filter((column) =>
+            column.label.toLowerCase().includes(query),
+        );
+    }, [columnSearch]);
+
     useEffect(() => {
-        const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-        document.addEventListener("mousedown", h);
-        return () => document.removeEventListener("mousedown", h);
-    }, []);
-    const close = () => setOpen(false);
+        if (!open) return;
+
+        const handleOutsideClick = (event: MouseEvent) => {
+            const target = event.target as Node;
+
+            if (selectorRef.current && !selectorRef.current.contains(target)) {
+                setOpen(false);
+            }
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+        document.addEventListener("keydown", handleKeyDown);
+
+        const focusTimer = window.setTimeout(() => {
+            searchRef.current?.focus();
+        }, 50);
+
+        return () => {
+            window.clearTimeout(focusTimer);
+            document.removeEventListener("mousedown", handleOutsideClick);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [open]);
+
     return (
-        <div ref={ref} className="relative inline-block">
-            <button onClick={() => setOpen(!open)} className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium bg-muted hover:bg-border rounded-lg border border-border transition text-foreground">
-                Actions <ChevronDown size={11} />
+        <div ref={selectorRef} className="relative">
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                aria-expanded={open}
+                aria-haspopup="menu"
+                className={`
+                    inline-flex h-10 items-center gap-2 rounded-lg border
+                    bg-white px-3 text-xs font-semibold text-slate-700
+                    shadow-sm transition-all duration-200
+                    hover:border-slate-400 hover:bg-slate-50
+                    ${open
+                        ? "border-red-400 ring-2 ring-red-500/15"
+                        : "border-slate-300"
+                    }
+                `}
+            >
+                <SlidersHorizontal size={14} />
+
+                <span>Columns</span>
+
+                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                    {visibleColumns.size}
+                </span>
+
+                <ChevronDown
+                    size={13}
+                    className={`transition-transform ${open ? "rotate-180" : ""}`}
+                />
             </button>
+
             {open && (
-                <div className="absolute right-0 mt-1 w-40 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden py-1">
-                    {[
-                        { icon: <Eye size={12} />, label: "View", color: "text-blue-600", fn: () => { onView(item); close(); } },
-                        { icon: <Pencil size={12} />, label: "Edit", color: "text-amber-600", fn: () => { onEdit(item); close(); } },
-                        { icon: <RotateCcw size={12} />, label: "Return", color: "text-purple-600", fn: () => { onReturn(item); close(); } },
-                        { icon: <Printer size={12} />, label: "Print Preview", color: "text-slate-600", fn: () => { onPrint(item); close(); } },
-                    ].map(b => (
-                        <button key={b.label} onClick={b.fn} className={`flex items-center gap-2 w-full px-3 py-1.5 text-[11px] font-medium ${b.color} hover:bg-muted transition`}>
-                            {b.icon} {b.label}
+                <div
+                    role="menu"
+                    className="
+                        absolute right-0 top-full z-[70] mt-2 w-[310px]
+                        overflow-hidden rounded-xl border border-slate-200
+                        bg-white shadow-[0_18px_45px_rgba(15,23,42,0.18)]
+                    "
+                >
+                    <div className="border-b border-slate-200 px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-bold text-slate-900">
+                                    Show / Hide Columns
+                                </p>
+
+                                <p className="mt-0.5 text-[10px] text-slate-500">
+                                    {visibleColumns.size} of {SERVICE_REQUEST_COLUMN_OPTIONS.length}{" "}
+                                    visible
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                aria-label="Close columns menu"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+
+                        <div className="relative mt-3">
+                            <Search
+                                size={13}
+                                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                            />
+
+                            <input
+                                ref={searchRef}
+                                value={columnSearch}
+                                onChange={(event) => setColumnSearch(event.target.value)}
+                                placeholder="Find a column..."
+                                className="
+                                    h-8 w-full rounded-lg border border-slate-200
+                                    bg-slate-50 pl-8 pr-8 text-[11px]
+                                    text-slate-700 outline-none transition
+                                    placeholder:text-slate-400
+                                    focus:border-red-400 focus:bg-white
+                                    focus:ring-2 focus:ring-red-500/10
+                                "
+                            />
+
+                            {columnSearch && (
+                                <button
+                                    type="button"
+                                    onClick={() => setColumnSearch("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700"
+                                    aria-label="Clear column search"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-3 py-2">
+                        <button
+                            type="button"
+                            onClick={onShowAll}
+                            className="text-[10px] font-semibold text-blue-600 transition hover:text-blue-700"
+                        >
+                            Show all
                         </button>
-                    ))}
-                    <div className="border-t border-border my-1" />
-                    <button onClick={() => { onDelete(item.id); close(); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] font-medium text-red-600 hover:bg-muted transition">
-                        <Trash2 size={12} /> Delete
-                    </button>
+
+                        <button
+                            type="button"
+                            onClick={onReset}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 transition hover:text-slate-800"
+                        >
+                            <RotateCcw size={11} />
+                            Reset default
+                        </button>
+                    </div>
+
+                    <div className="max-h-[360px] overflow-y-auto py-1.5">
+                        {filteredColumns.length ? (
+                            filteredColumns.map((column) => {
+                                const isVisible = visibleColumns.has(column.key);
+
+                                return (
+                                    <button
+                                        key={column.key}
+                                        type="button"
+                                        role="menuitemcheckbox"
+                                        aria-checked={isVisible}
+                                        onClick={() => onToggle(column.key)}
+                                        className={`
+                                            group flex w-full items-center
+                                            gap-2.5 px-3 py-2 text-left
+                                            transition-colors
+                                            ${isVisible
+                                                ? "text-slate-900 hover:bg-[#F4FAFA]"
+                                                : "text-slate-500 hover:bg-slate-50"
+                                            }
+                                        `}
+                                    >
+                                        <span
+                                            className={`
+                                                flex h-4 w-4 shrink-0 items-center
+                                                justify-center rounded border
+                                                transition
+                                                ${isVisible
+                                                    ? "border-emerald-500 bg-emerald-500 text-white"
+                                                    : "border-slate-300 bg-white"
+                                                }
+                                            `}
+                                        >
+                                            {isVisible && <Check size={11} />}
+                                        </span>
+
+                                        {isVisible ? (
+                                            <Eye size={14} className="shrink-0 text-slate-600" />
+                                        ) : (
+                                            <EyeOff size={14} className="shrink-0 text-slate-400" />
+                                        )}
+
+                                        <span
+                                            className={`flex-1 text-[11px] ${isVisible ? "font-semibold" : "font-medium"
+                                                }`}
+                                        >
+                                            {column.label}
+                                        </span>
+
+                                        <span
+                                            className={`
+                                                rounded-full px-1.5 py-0.5
+                                                text-[9px] font-semibold
+                                                ${isVisible
+                                                    ? "bg-emerald-50 text-emerald-700"
+                                                    : "bg-slate-100 text-slate-500"
+                                                }
+                                            `}
+                                        >
+                                            {isVisible ? "Shown" : "Hidden"}
+                                        </span>
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="px-4 py-8 text-center">
+                                <Search size={20} className="mx-auto text-slate-300" />
+
+                                <p className="mt-2 text-[11px] font-medium text-slate-500">
+                                    No matching columns
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5">
+                        <p className="text-[9px] leading-4 text-slate-500">
+                            Row number and Actions are always visible.
+                        </p>
+                    </div>
                 </div>
             )}
         </div>
     );
 }
 
-export default function ServiceClaimsPage() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
+function ServiceRequestRowActions({
+    item,
+    onView,
+    onPrint,
+}: {
+    item: ServiceRequestClaimItem;
+    onView: (item: ServiceRequestClaimItem) => void;
+    onPrint: (item: ServiceRequestClaimItem) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [position, setPosition] = useState<{
+        top: number;
+        right: number;
+    } | null>(null);
 
-    // ── Read status from URL (set by dashboard card click) ──
-    const urlStatus = searchParams.get("status");
+    const buttonRef = useRef<HTMLButtonElement | null>(null);
+    const menuRef = useRef<HTMLDivElement | null>(null);
 
-    const [search, setSearch] = useState("");
-    const [activeStatus, setActiveStatus] = useState<string | null>(urlStatus);
-    const [viewItem, setViewItem] = useState<Claim | null>(null);
+    const toggleMenu = () => {
+        const rect = buttonRef.current?.getBoundingClientRect();
 
-    // Sync activeStatus when URL changes
+        if (!rect) return;
+
+        setPosition({
+            top: rect.bottom + 6,
+            right: window.innerWidth - rect.right,
+        });
+
+        setOpen((value) => !value);
+    };
+
     useEffect(() => {
-        setActiveStatus(urlStatus);
-    }, [urlStatus]);
+        if (!open) return;
 
-    // Filter: URL status OR clicked card status, PLUS search text
-    const filtered = data.filter(item => {
-        const matchSearch = !search ||
-            item.reference.toLowerCase().includes(search.toLowerCase()) ||
-            item.deviceCategory.toLowerCase().includes(search.toLowerCase()) ||
-            item.vendor.toLowerCase().includes(search.toLowerCase()) ||
-            item.problem.toLowerCase().includes(search.toLowerCase());
-        const matchStatus = !activeStatus || item.status === activeStatus;
-        return matchSearch && matchStatus;
-    });
+        function handleClick(event: MouseEvent) {
+            const target = event.target as Node;
 
-    const handleStatusClick = (key: string | null) => {
-        const next = activeStatus === key ? null : key;
-        setActiveStatus(next);
-        // Update URL so browser back button works
-        if (next) {
-            router.push(`/dashboard/service-warranty/service-claims?status=${encodeURIComponent(next)}`);
+            if (
+                buttonRef.current?.contains(target) ||
+                menuRef.current?.contains(target)
+            ) {
+                return;
+            }
+
+            setOpen(false);
+        }
+
+        function closeMenu() {
+            setOpen(false);
+        }
+
+        document.addEventListener("mousedown", handleClick);
+        window.addEventListener("scroll", closeMenu, true);
+        window.addEventListener("resize", closeMenu);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClick);
+            window.removeEventListener("scroll", closeMenu, true);
+            window.removeEventListener("resize", closeMenu);
+        };
+    }, [open]);
+
+    return (
+        <>
+            <button
+                ref={buttonRef}
+                type="button"
+                onClick={toggleMenu}
+                className="inline-flex min-w-[86px] items-center justify-center gap-1 rounded-lg border border-border bg-muted px-2.5 py-1 text-[10px] font-medium text-foreground transition hover:bg-border"
+            >
+                Actions
+                <ChevronDown size={12} />
+            </button>
+
+            {open && position && (
+                <div
+                    ref={menuRef}
+                    className="fixed z-[80] w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-xl"
+                    style={{
+                        top: position.top,
+                        right: position.right,
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setOpen(false);
+                            onView(item);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[10px] font-medium text-foreground transition hover:bg-muted"
+                    >
+                        <Eye size={13} />
+                        View Details
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setOpen(false);
+                            onPrint(item);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[10px] font-medium text-foreground transition hover:bg-muted"
+                    >
+                        <FileText size={13} />
+                        Print
+                    </button>
+                </div>
+            )}
+        </>
+    );
+}
+
+export default function ServiceClaimsPage() {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    const statusParam = searchParams.get("status");
+    const activeStatus: ServiceRequestStatus | null = isServiceRequestStatus(statusParam)
+        ? statusParam
+        : null;
+
+    // Page state
+    const [rows, setRows] = useState<ServiceRequestClaimRow[]>([]);
+    const [summary, setSummary] = useState<ServiceRequestSummary>(EMPTY_SUMMARY);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [searchInput, setSearchInput] = useState("");
+    const [search, setSearch] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [summaryLoading, setSummaryLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [viewItem, setViewItem] = useState<ServiceRequestClaimItem | null>(null);
+
+    const [visibleColumns, setVisibleColumns] = useState<Set<ServiceRequestColumnKey>>(
+        () => new Set(DEFAULT_VISIBLE_SERVICE_REQUEST_COLUMNS),
+    );
+
+    useEffect(() => {
+        try {
+            const storedColumns = window.localStorage.getItem(
+                SERVICE_REQUEST_COLUMNS_STORAGE_KEY,
+            );
+
+            if (!storedColumns) return;
+
+            const parsedColumns = JSON.parse(storedColumns);
+
+            if (!Array.isArray(parsedColumns)) return;
+
+            const validColumns = parsedColumns.filter(
+                (key): key is ServiceRequestColumnKey =>
+                    SERVICE_REQUEST_COLUMN_OPTIONS.some((column) => column.key === key),
+            );
+
+            setVisibleColumns(new Set(validColumns));
+        } catch (storageError) {
+            console.warn("Unable to restore service request columns:", storageError);
+        }
+    }, []);
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setSearch(searchInput.trim());
+            setPage(1);
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [searchInput]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [activeStatus]);
+
+    const loadSummary = useCallback(async () => {
+        setSummaryLoading(true);
+        try {
+            const response = await reportApi.serviceRequestSummary();
+            setSummary(response.data ?? EMPTY_SUMMARY);
+        } catch (err) {
+            console.warn(err);
+            setSummary(EMPTY_SUMMARY);
+        } finally {
+            setSummaryLoading(false);
+        }
+    }, []);
+
+    const loadClaims = useCallback(async () => {
+        setLoading(true);
+        setError("");
+
+        try {
+            const response = await reportApi.serviceRequestClaims({
+                page,
+                limit: PAGE_SIZE,
+                status: activeStatus ?? "all",
+                search: search || undefined,
+            });
+
+            setRows((response.data ?? []) as ServiceRequestClaimRow[]);
+            setTotal(response.total ?? 0);
+        } catch (err) {
+            setRows([]);
+            setTotal(0);
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Unable to load service requests"
+            );
+        } finally {
+            setLoading(false);
+        }
+    }, [activeStatus, page, search]);
+
+    useEffect(() => {
+        void loadSummary();
+    }, [loadSummary]);
+
+    useEffect(() => {
+        void loadClaims();
+    }, [loadClaims]);
+
+    const summaryMap = useMemo(
+        () =>
+            new Map(
+                (summary.items ?? []).map((item) => [
+                    item.label,
+                    Number(item.value) || 0,
+                ]),
+            ),
+        [summary.items],
+    );
+
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const first = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+    const last = Math.min(page * PAGE_SIZE, total);
+
+    const changeStatus = (status: ServiceRequestStatus | null) => {
+        const nextStatus = activeStatus === status ? null : status;
+        const params = new URLSearchParams(searchParams.toString());
+
+        if (nextStatus) {
+            params.set("status", nextStatus);
         } else {
-            router.push("/dashboard/service-warranty/service-claims");
+            params.delete("status");
+        }
+
+        setPage(1);
+
+        const query = params.toString();
+
+        router.replace(query ? `${pathname}?${query}` : pathname, {
+            scroll: false,
+        });
+    };
+
+    const persistVisibleColumns = (nextColumns: Set<ServiceRequestColumnKey>) => {
+        setVisibleColumns(nextColumns);
+
+        try {
+            window.localStorage.setItem(
+                SERVICE_REQUEST_COLUMNS_STORAGE_KEY,
+                JSON.stringify(Array.from(nextColumns)),
+            );
+        } catch (storageError) {
+            console.warn("Unable to save service request columns:", storageError);
         }
     };
 
-    return (
-        <div className="p-4 sm:p-6 space-y-4">
+    const toggleColumn = (key: ServiceRequestColumnKey) => {
+        const nextColumns = new Set(visibleColumns);
 
-            {/* Header */}
-            <div className="bg-card border border-border rounded-2xl p-5">
+        if (nextColumns.has(key)) {
+            nextColumns.delete(key);
+        } else {
+            nextColumns.add(key);
+        }
+
+        persistVisibleColumns(nextColumns);
+    };
+
+    const showAllColumns = () => {
+        persistVisibleColumns(
+            new Set(SERVICE_REQUEST_COLUMN_OPTIONS.map((column) => column.key)),
+        );
+    };
+
+    const resetColumns = () => {
+        persistVisibleColumns(new Set(DEFAULT_VISIBLE_SERVICE_REQUEST_COLUMNS));
+    };
+
+    const visibleColumnOptions = SERVICE_REQUEST_COLUMN_OPTIONS.filter((column) =>
+        visibleColumns.has(column.key),
+    );
+
+    const visibleTableColumnCount = visibleColumnOptions.length + 2;
+
+    const hasExtraVisibleColumns = visibleColumnOptions.some(
+        (column) => !DEFAULT_VISIBLE_SERVICE_REQUEST_COLUMNS.includes(column.key),
+    );
+
+    return (
+        <div className="space-y-4 p-4 sm:p-6">
+            <div className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
-                            <Wrench className="w-5 h-5 text-violet-600" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-100 bg-blue-50">
+                            <ShieldCheck className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                            <h1 className="text-sm font-bold text-foreground">Service Claims</h1>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                {activeStatus ? `Showing: ${activeStatus}` : "All service claim requests"}
+                            <h1 className="text-sm font-bold">Service Requests</h1>
+                            <p className="text-xs text-muted-foreground">
+                                {activeStatus
+                                    ? `Showing: ${activeStatus}`
+                                    : "All service request records"}
                             </p>
                         </div>
-                        {activeStatus && (
-                            <button onClick={() => handleStatusClick(null)}
-                                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted transition">
-                                <X size={10} /> Clear filter
-                            </button>
-                        )}
                     </div>
+
                     <div className="flex gap-2">
-                        <button onClick={() => exportCSV(filtered)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void loadSummary();
+                                void loadClaims();
+                            }}
+                            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs"
+                        >
+                            <RefreshCw size={13} /> Refresh
+                        </button>
+                        <button
+                            type="button"
+                            disabled={!rows.length}
+                            onClick={() => exportCSV(rows)}
+                            className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700 disabled:opacity-40"
+                        >
                             <FileSpreadsheet size={13} /> Excel
                         </button>
-                        <button onClick={() => exportPDF(filtered)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg transition">
+                        <button
+                            type="button"
+                            disabled={!rows.length}
+                            onClick={() => printRows(rows)}
+                            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700 disabled:opacity-40"
+                        >
                             <FileText size={13} /> PDF
                         </button>
                     </div>
                 </div>
 
-                {/* Clickable status cards */}
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {/* Total */}
-                    <button
-                        onClick={() => handleStatusClick(null)}
-                        className={`rounded-xl border px-4 py-3 text-left transition ring-2 hover:opacity-80 bg-muted border-border ${!activeStatus ? "ring-primary" : "ring-transparent"}`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Total Claims</p>
-                            <Wrench size={14} className="text-muted-foreground opacity-50" />
-                        </div>
-                        <p className="text-xl font-bold text-foreground mt-1">{data.length}</p>
-                    </button>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {STAT_CARDS.map((card) => {
+                        const count =
+                            card.key === null
+                                ? summary.total
+                                : (summaryMap.get(card.key) ?? 0);
+                        const selected =
+                            card.key === null ? !activeStatus : activeStatus === card.key;
 
-                    {STATUS_LIST.map(s => {
-                        const count = data.filter(d => d.status === s.key).length;
-                        const isActive = activeStatus === s.key;
                         return (
-                            <button key={s.key}
-                                onClick={() => handleStatusClick(s.key)}
-                                className={`rounded-xl border px-4 py-3 text-left transition ring-2 hover:opacity-80 ${s.bg} ${isActive ? "ring-primary" : "ring-transparent"}`}
+                            <button
+                                type="button"
+                                key={card.label}
+                                onClick={() => changeStatus(card.key)}
+                                className={`rounded-xl border px-3 py-3 text-left ring-2 transition hover:opacity-80 ${card.bg} ${selected ? "ring-primary" : "ring-transparent"
+                                    }`}
                             >
-                                <div className="flex items-center justify-between">
-                                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground leading-tight">{s.label}</p>
-                                    <span className={`${s.color} opacity-50`}>{s.icon}</span>
+                                <div className="mb-1 flex items-center justify-between">
+                                    <p className="text-[9px] uppercase text-muted-foreground">
+                                        {card.label}
+                                    </p>
+                                    <span className={`${card.color} opacity-50`}>
+                                        {card.icon}
+                                    </span>
                                 </div>
-                                <p className={`text-xl font-bold mt-1 ${s.color}`}>{count}</p>
-                                {isActive && <p className="text-[9px] text-muted-foreground mt-0.5">Active ✓</p>}
+                                <p className={`text-xl font-bold ${card.color}`}>
+                                    {summaryLoading ? "…" : count}
+                                </p>
                             </button>
                         );
                     })}
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-border gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-[11px] text-muted-foreground">
-                            Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {data.length} entries
-                            {activeStatus && <span className="ml-1">· <span className="text-primary font-medium">{activeStatus}</span></span>}
-                        </p>
-                    </div>
-                    <div className="relative">
-                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <Input placeholder="Search reference, device, vendor..." value={search}
-                            onChange={e => setSearch(e.target.value)} className="pl-7 h-7 w-56 text-xs" />
+            {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+                    <AlertCircle size={15} />
+                    {error}
+                </div>
+            )}
+
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+                    <p className="text-[11px] text-muted-foreground">
+                        Showing{" "}
+                        <b className="text-foreground">
+                            {first}-{last}
+                        </b>{" "}
+                        of <b className="text-foreground">{total}</b> records
+                    </p>
+
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                        <ServiceRequestColumnSelector
+                            visibleColumns={visibleColumns}
+                            onToggle={toggleColumn}
+                            onShowAll={showAllColumns}
+                            onReset={resetColumns}
+                        />
+
+                        <div className="group relative w-full sm:w-[340px]">
+                            <Search
+                                size={15}
+                                className="
+                                    pointer-events-none absolute left-3 top-1/2
+                                    z-10 -translate-y-1/2 text-slate-400
+                                    transition-colors duration-200
+                                    group-focus-within:text-red-500
+                                "
+                            />
+
+                            <Input
+                                autoFocus
+                                value={searchInput}
+                                onChange={(event) => setSearchInput(event.target.value)}
+                                placeholder="Search name, reference, category..."
+                                className="
+                                    h-10 w-full rounded-lg border border-slate-300
+                                    bg-white pl-9 pr-10 text-xs shadow-sm
+                                    transition-all duration-200
+                                    placeholder:text-slate-400
+                                    hover:border-slate-400
+                                    focus-visible:border-red-500
+                                    focus-visible:ring-2
+                                    focus-visible:ring-red-500/20
+                                    focus-visible:ring-offset-0
+                                "
+                            />
+
+                            {searchInput && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearchInput("");
+                                        setSearch("");
+                                        setPage(1);
+                                    }}
+                                    className="
+                                        absolute right-2.5 top-1/2
+                                        -translate-y-1/2 rounded-md p-1
+                                        text-slate-400 transition-colors
+                                        hover:bg-red-50 hover:text-red-600
+                                    "
+                                    aria-label="Clear search"
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px]">
-                        <thead className="bg-muted/50 border-b border-border">
-                            <tr>
-                                {["#", "Reference", "Category", "Submitted", "Device", "Serial", "Problem", "Status", "Vendor", "Actions"].map(col => (
-                                    <th key={col} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{col}</th>
+                {/* Table  */}
+
+                <div
+                    className={
+                        hasExtraVisibleColumns
+                            ? "overflow-x-auto"
+                            : "overflow-hidden pr-0.5"
+                    }
+                >
+                    <table
+                        className={
+                            hasExtraVisibleColumns
+                                ? "w-full min-w-max font-sans text-[10px]"
+                                : "w-full table-fixed font-sans text-[10px]"
+                        }
+                    >
+                        {!hasExtraVisibleColumns && (
+                            <colgroup>
+                                <col style={{ width: "4%" }} />
+
+                                {visibleColumnOptions.map((column) => (
+                                    <col
+                                        key={column.key}
+                                        style={{
+                                            width:
+                                                DEFAULT_TABLE_COLUMN_WIDTHS[
+                                                column.key
+                                                ] ?? "12%",
+                                        }}
+                                    />
                                 ))}
+
+                                <col style={{ width: "11%" }} />
+                            </colgroup>
+                        )}
+
+                        <thead className="sticky top-0 z-10">
+                            <tr className="bg-[#DDE4E7]">
+                                <th
+                                    scope="col"
+                                    className="
+                                        w-12 whitespace-nowrap border-b
+                                        border-slate-400 px-3 py-3 text-left
+                                        text-[10px] font-bold uppercase
+                                        tracking-[0.06em] text-slate-800
+                                    "
+                                >
+                                    #
+                                </th>
+
+                                {visibleColumnOptions.map((column) => (
+                                    <th
+                                        key={column.key}
+                                        scope="col"
+                                        className="
+                                            whitespace-nowrap border-b
+                                            border-slate-400 px-3 py-2.5
+                                            text-left text-[9px] font-bold
+                                            uppercase tracking-[0.06em]
+                                            text-slate-800
+                                        "
+                                    >
+                                        {column.label}
+                                    </th>
+                                ))}
+
+                                <th
+                                    scope="col"
+                                    className="
+                                        w-[124px] whitespace-nowrap border-b
+                                        border-l border-slate-300
+                                        border-b-slate-400 px-3 py-2.5 text-center
+                                        text-[9px] font-bold uppercase
+                                        tracking-[0.06em] text-slate-800
+                                    "
+                                >
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border/50">
-                            {filtered.map((item, i) => (
-                                <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                                    <td className="px-3 py-2.5 text-[11px] text-muted-foreground">{i + 1}</td>
-                                    <td className="px-3 py-2.5">
-                                        <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">{item.reference}</span>
-                                    </td>
-                                    <td className="px-3 py-2.5 text-[11px] text-muted-foreground">{item.category}</td>
-                                    <td className="px-3 py-2.5 text-[11px] text-muted-foreground whitespace-nowrap">{item.submitted}</td>
-                                    <td className="px-3 py-2.5 text-[11px] text-foreground font-medium">{item.deviceCategory}</td>
-                                    <td className="px-3 py-2.5 text-[11px] text-muted-foreground font-mono">{item.serial}</td>
-                                    <td className="px-3 py-2.5 text-[11px] text-foreground max-w-[120px] truncate" title={item.problem}>{item.problem}</td>
-                                    <td className="px-3 py-2.5"><StatusBadge status={item.status} /></td>
-                                    <td className="px-3 py-2.5 text-[11px] text-foreground whitespace-nowrap">{item.vendor}</td>
-                                    <td className="px-3 py-2.5">
-                                        <ActionsDropdown item={item} onView={setViewItem}
-                                            onEdit={i => console.log("Edit", i)}
-                                            onDelete={id => console.log("Delete", id)}
-                                            onReturn={i => console.log("Return", i)}
-                                            onPrint={i => console.log("Print", i)} />
+
+                        <tbody className="divide-y divide-slate-200">
+                            {loading ? (
+                                <tr>
+                                    <td
+                                        colSpan={visibleTableColumnCount}
+                                        className="bg-white py-10 text-center"
+                                    >
+                                        <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Loader2 size={16} className="animate-spin" />
+                                            Loading service requests...
+                                        </span>
                                     </td>
                                 </tr>
-                            ))}
-                            {filtered.length === 0 && (
+                            ) : rows.length ? (
+                                rows.map((item, index) => (
+                                    <tr
+                                        key={`${item.status}-${item.id}-${item.reference}`}
+                                        className={`
+                                            group transition-colors duration-150
+                                            ${index % 2 === 0
+                                                ? "bg-[#F4FAFA]"
+                                                : "bg-white"
+                                            }
+                                            hover:bg-[#E8F5F4]
+                                        `}
+                                    >
+                                        <td className="whitespace-nowrap px-3 py-2 text-[10px] text-muted-foreground">
+                                            {(page - 1) * PAGE_SIZE + index + 1}
+                                        </td>
+
+                                        {visibleColumnOptions.map((column) => (
+                                            <td
+                                                key={column.key}
+                                                className={`
+                                                    px-3 py-2 align-middle
+                                                    ${hasExtraVisibleColumns
+                                                        ? ""
+                                                        : "overflow-hidden"
+                                                    }
+                                                `}
+                                            >
+                                                {renderServiceRequestCell(
+                                                    column.key,
+                                                    item,
+                                                    visibleColumns,
+                                                )}
+                                            </td>
+                                        ))}
+
+                                        <td className="w-[124px] whitespace-nowrap border-l border-slate-200/80 px-3 py-2 text-center align-middle">
+                                            <div className="flex w-full items-center justify-center">
+                                                <ServiceRequestRowActions
+                                                    item={item}
+                                                    onView={setViewItem}
+                                                    onPrint={(selectedItem) =>
+                                                        printRows([selectedItem])
+                                                    }
+                                                />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
                                 <tr>
-                                    <td colSpan={10} className="py-8 text-center text-xs text-muted-foreground">
-                                        No records match your filter.
-                                        {activeStatus && <button onClick={() => handleStatusClick(null)} className="ml-2 text-primary hover:underline">Clear filter</button>}
+                                    <td
+                                        colSpan={visibleTableColumnCount}
+                                        className="bg-white py-10 text-center text-xs text-muted-foreground"
+                                    >
+                                        No service request records found.
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
+
+                <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                    <p className="text-[10px] text-muted-foreground">
+                        Page {page} of {totalPages}
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            disabled={page <= 1 || loading}
+                            onClick={() => setPage((value) => Math.max(1, value - 1))}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-[11px] disabled:opacity-40"
+                        >
+                            <ChevronLeft size={12} /> Previous
+                        </button>
+                        <button
+                            type="button"
+                            disabled={page >= totalPages || loading}
+                            onClick={() =>
+                                setPage((value) => Math.min(totalPages, value + 1))
+                            }
+                            className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-[11px] disabled:opacity-40"
+                        >
+                            Next <ChevronRight size={12} />
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            {viewItem && <ViewModal item={viewItem} onClose={() => setViewItem(null)} />}
+            {viewItem && (
+                <ClaimModal item={viewItem} onClose={() => setViewItem(null)} />
+            )}
         </div>
     );
 }

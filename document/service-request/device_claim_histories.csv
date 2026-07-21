@@ -1,0 +1,18 @@
+"id","claim_reference_no","device_sl_no","forwarded_by_emp_id","received_by_emp_id","previous_status","current_status","remarks","vendor_representative","vendor_personnel_name","vendor_mobile","created_by","created_at","status","attachment_file","inventory_device_id","service_type","inserted_at","updated_at"
+1,"12007","PF2FJC7A",NULL,NULL,0,15,"Display damaged",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+95,"14208","N0SNSGIG",NULL,NULL,0,15,"erewtwe",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+115,"11869","9QN0P93",NULL,NULL,0,15,"1. Keyboard: Some buttons are not working.
+2. Battery problem
+3. Hang and Slow. (SSD Issues)",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+124,"12181","K2202N0108485",NULL,NULL,0,15,"The HDMI port is not detecting the monitor.",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+125,"12211","K2202N0108562",NULL,NULL,0,15,"User is facing Wi-Fi related issue. Several troubleshoot has been taken but the problem still remains. This laptop has no warranty period. So its needs service. 
+
+Seeking attention & approval  from our IT operations LM.",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+140,"12358","XC2020032300465",NULL,NULL,0,15,"Lock is broken. Need to fixed it",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+141,"12270","K2202N0108574",NULL,NULL,0,15,"The laptop hinge is broken, Need to fixed it",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+148,"12307","K2202N0108529",NULL,NULL,0,15,"No power",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+150,"12032","5CD1470YC7",NULL,NULL,0,15,"No  power
+Display Damaged
+Keyboard issues",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+151,"12602","57DSGJ3",NULL,NULL,0,15,"Display damaged with no sound",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
+152,"12750","F4X0HJ3",NULL,NULL,0,15,"NO POWER",NULL,NULL,NULL,NULL,"2026-07-09 16:23:29.086894",1,NULL,0,2,"2026-07-09 16:23:29.086894","2026-07-09 16:23:29.086894"
