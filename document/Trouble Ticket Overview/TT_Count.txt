@@ -1,0 +1,95 @@
+
+    
+
+
+SELECT COUNT(id) AS total_open_tt FROM itm.tbl_trouble_input WHERE DATE(fault_date_time) = '2026-07-21';
+
+
+Output : total_open_tt : 13
+
+
+
+TT Tables
+---------------------------------------------------------------------------------------------------------------------
+
+tbl_trouble_input
+
+tbl_tt_update        ---> TT History
+
+tbl_tt_reason
+
+tbl_track_tt         ----> TT Track 
+--------------------------------------------------------------------------------------------------------------------
+
+SELECT COUNT(id) AS total_close_tt FROM itm.tbl_trouble_input WHERE ticket_close_date LIKE '%2026-07-21%' AND status ='0'
+
+
+output : total_close_tt : 6
+
+
+
+SELECT COUNT(id) AS total_running_tt FROM itm.tbl_trouble_input WHERE device_requis_val NOT IN (1, 2) AND status = '1'
+
+
+output : total_running_tt : 105
+
+
+SELECT COUNT(reason.tt_no) AS total_procurement_tt 
+              FROM itm.tbl_tt_reason AS reason 
+              INNER JOIN itm.tbl_trouble_input AS trouble ON trouble.tt_no = reason.tt_no 
+              WHERE reason.status = '1' and trouble.status=1
+
+output : total_procurement_tt : 29
+
+----------------------------------------------------------------------------------------------------------------------
+public function homeContentCounts()
+    {
+        $this->Fconnection();
+        date_default_timezone_set("Asia/Dhaka");
+        $today = date('Y-m-d');
+
+        $data = [];
+
+        // Total Users
+        $sql = "SELECT COUNT(id) AS total_user FROM tbl_user_info WHERE user_type != '0' AND active ='Yes'";
+        $result = mysql_query($sql);
+        $row = mysql_fetch_assoc($result);
+        $data['total_user'] = $row['total_user'];
+
+        // Total Open TT
+        $query = "SELECT COUNT(id) AS total_open_tt FROM tbl_trouble_input WHERE DATE(fault_date_time) = '$today'";
+        $result = mysql_query($query);
+        $row = mysql_fetch_assoc($result);
+        $data['total_open_tt'] = $row['total_open_tt'];
+
+        // Total Close TT
+        $query = "SELECT COUNT(id) AS total_close_tt FROM tbl_trouble_input WHERE ticket_close_date LIKE '$today%' AND status ='0'";
+        $result = mysql_query($query);
+        $row = mysql_fetch_assoc($result);
+        $data['total_close_tt'] = $row['total_close_tt'];
+
+        // Total Running TT
+        $query = "SELECT COUNT(id) AS total_running_tt FROM tbl_trouble_input WHERE device_requis_val NOT IN (1, 2) AND status = '1'";
+        $result = mysql_query($query);
+        $row = mysql_fetch_assoc($result);
+        $data['total_running_tt'] = $row['total_running_tt'];
+
+        // Total Procurement TT
+        // $query = "SELECT COUNT(reason.tt_no) AS total_procurement_tt 
+        //       FROM tbl_tt_reason AS reason 
+        //       INNER JOIN tbl_trouble_input AS trouble ON trouble.tt_no = reason.tt_no 
+        //       WHERE reason.status = '1'";
+
+
+        $query = "SELECT COUNT(reason.tt_no) AS total_procurement_tt 
+              FROM tbl_tt_reason AS reason 
+              INNER JOIN tbl_trouble_input AS trouble ON trouble.tt_no = reason.tt_no 
+              WHERE reason.status = '1' and trouble.status=1";
+
+        $result = mysql_query($query);
+        $row = mysql_fetch_assoc($result);
+        $data['total_procurement_tt'] = $row['total_procurement_tt'];
+
+        return $data;
+    }
+
