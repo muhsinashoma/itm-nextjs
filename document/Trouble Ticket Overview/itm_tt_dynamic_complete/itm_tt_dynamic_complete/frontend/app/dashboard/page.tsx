@@ -1,4 +1,5 @@
 
+
 //itm/frontend/app/dashboard/page.tsx
 
 "use client";
@@ -11,15 +12,13 @@ import { DataTable } from "@/components/data-table";
 import {
     columns,
     toSection,
+    type Section,
 } from "@/components/tt-columns";
-
-import type {
-    Section,
-} from "@/types/tt";
 
 import {
     dashboardApi,
     reportApi,
+    ticketApi,
     type DashboardSummary,
     type NonOperationalSummary,
 } from "@/lib/api";
@@ -384,20 +383,14 @@ export default function DashboardPage() {
 
     const [nonOpLoading, setNonOpLoading] = useState(true);
 
-    const [
-        troubleTicketRows,
-        setTroubleTicketRows,
-    ] = useState<Section[]>([]);
+    const [ticketRows, setTicketRows] =
+        useState<Section[]>([]);
 
-    const [
-        troubleTicketLoading,
-        setTroubleTicketLoading,
-    ] = useState(true);
+    const [ticketLoading, setTicketLoading] =
+        useState(true);
 
-    const [
-        troubleTicketError,
-        setTroubleTicketError,
-    ] = useState("");
+    const [ticketError, setTicketError] =
+        useState("");
 
     useEffect(() => {
         let mounted = true;
@@ -564,42 +557,43 @@ export default function DashboardPage() {
         };
     }, []);
 
-
     useEffect(() => {
         let mounted = true;
 
-        async function loadTroubleTickets() {
+        async function loadLatestTickets() {
             try {
-                setTroubleTicketLoading(true);
-                setTroubleTicketError("");
+                setTicketLoading(true);
+                setTicketError("");
 
-                const response = await dashboardApi.troubleTickets({
-                    page: 1,
-                    limit: 100,
-                    status: "all",
-                });
+                const response =
+                    await ticketApi.list({
+                        page: 1,
+                        limit: 100,
+                        status: "all",
+                    });
 
                 if (!mounted) return;
 
-                const tickets = response.data ?? [];
-                setTroubleTicketRows(tickets.map(toSection));
+                setTicketRows(
+                    (response.data ?? []).map(toSection)
+                );
             } catch (reason: unknown) {
                 if (!mounted) return;
 
-                setTroubleTicketRows([]);
-                setTroubleTicketError(
+                setTicketRows([]);
+                setTicketError(
                     reason instanceof Error
                         ? reason.message
-                        : "Unable to load Trouble Ticket data"
+                        : "Unable to load Trouble Ticket table"
                 );
             } finally {
                 if (mounted) {
-                    setTroubleTicketLoading(false);
+                    setTicketLoading(false);
                 }
             }
         }
 
-        void loadTroubleTickets();
+        void loadLatestTickets();
 
         return () => {
             mounted = false;
@@ -1627,22 +1621,19 @@ export default function DashboardPage() {
                 </h2>
 
                 <div className="overflow-x-auto">
-                    {troubleTicketLoading ? (
+                    {ticketLoading ? (
                         <div className="py-8 text-center text-xs text-muted-foreground">
                             Loading Trouble Ticket data...
                         </div>
-                    ) : troubleTicketError ? (
+                    ) : ticketError ? (
                         <div className="py-8 text-center text-xs text-red-600">
-                            {troubleTicketError}
-                        </div>
-                    ) : troubleTicketRows.length === 0 ? (
-                        <div className="py-8 text-center text-xs text-muted-foreground">
-                            No Trouble Ticket records found.
+                            {ticketError}
                         </div>
                     ) : (
                         <DataTable
                             columns={columns}
-                            data={troubleTicketRows}
+                            data={ticketRows}
+                            dateColumn="created_at"
                         />
                     )}
                 </div>

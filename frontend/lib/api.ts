@@ -92,16 +92,124 @@ export type DashboardSummary = {
 };
 
 
+//Touble Ticket 
+
+export type TroubleTicketRange =
+    | "7d"
+    | "30d"
+    | "3m";
+
+export type TroubleTicketStatus =
+    | "Not Started"
+    | "Open"
+    | "In Progress"
+    | "Closed";
+
+export interface TroubleTicketOverviewPoint {
+    label: string;
+    open: number;
+    in_progress: number;
+    closed: number;
+}
+
+export interface TroubleTicketOverview {
+    range: TroubleTicketRange;
+    total: number;
+    items: TroubleTicketOverviewPoint[];
+}
+
+export interface TroubleTicketItem {
+    id: number;
+    tt_no: string;
+
+    employee_id: string;
+    employee_name: string;
+
+    assigned_id: string;
+    assigned_name: string;
+
+    query_type: string;
+    requisition_type: string;
+
+    status: TroubleTicketStatus;
+
+    dept_name: string;
+    func_name: string;
+
+    delivered_status: string;
+
+    created_at: string;
+    age_seconds: number;
+
+    mobile_no: string;
+}
+
 //Adding new
 
+// export const dashboardApi = {
+//     summary: () => api.get<ApiOk<DashboardSummary>>("/dashboard/summary"),
+
+//     getStats: () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
+//     stats: () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
+
+//     getTicketTrend: () => api.get<ApiOk<TicketTrend[]>>("/dashboard/ticket-trend"),
+//     ticketTrend: () => api.get<ApiOk<TicketTrend[]>>("/dashboard/ticket-trend"),
+// };
+
+//Dashboard API with Trouble Ticket Overview and Trouble Tickets List
+
 export const dashboardApi = {
-    summary: () => api.get<ApiOk<DashboardSummary>>("/dashboard/summary"),
+    summary: () =>
+        api.get<ApiOk<DashboardSummary>>(
+            "/dashboard/summary"
+        ),
 
-    getStats: () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
-    stats: () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
+    getStats: () =>
+        api.get<ApiOk<DashboardStats>>(
+            "/dashboard/stats"
+        ),
 
-    getTicketTrend: () => api.get<ApiOk<TicketTrend[]>>("/dashboard/ticket-trend"),
-    ticketTrend: () => api.get<ApiOk<TicketTrend[]>>("/dashboard/ticket-trend"),
+    stats: () =>
+        api.get<ApiOk<DashboardStats>>(
+            "/dashboard/stats"
+        ),
+
+    getTicketTrend: () =>
+        api.get<ApiOk<TicketTrend[]>>(
+            "/dashboard/ticket-trend"
+        ),
+
+    ticketTrend: () =>
+        api.get<ApiOk<TicketTrend[]>>(
+            "/dashboard/ticket-trend"
+        ),
+
+    troubleTicketOverview: (
+        range: TroubleTicketRange
+    ) =>
+        api.get<
+            ApiOk<TroubleTicketOverview>
+        >(
+            `/dashboard/trouble-ticket-overview${toQuery({
+                range,
+            })}`
+        ),
+
+    troubleTickets: (params?: {
+        page?: number;
+        limit?: number;
+        status?:
+        | TroubleTicketStatus
+        | "all";
+        search?: string;
+    }) =>
+        api.get<
+            ApiPage<TroubleTicketItem>
+        >(
+            `/dashboard/trouble-tickets${toQuery(
+                params
+            )}`
+        ),
 };
 
 export interface Ticket { id: number; tt_no: number; employee_id: string; employee_name: string; department: string; phone: string; email: string; client_name: string; fault_type: number; fault_type_name: string; reason_of_problem: string; fault_date_time: string; status_progress: number; attach_file: string; created_by: string; created_at: string; ticket_age: string; }
