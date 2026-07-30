@@ -142,12 +142,26 @@ type DashboardHandler struct{ db *pgxpool.Pool }
 
 func NewDashboardHandler(db *pgxpool.Pool) *DashboardHandler { return &DashboardHandler{db: db} }
 
+
 // func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 // 	g := rg.Group("/dashboard")
+
 // 	g.GET("/stats", h.Stats)
 // 	g.GET("/summary", h.Summary)
 // 	g.GET("/ticket-trend", h.TicketTrend)
+
+// 	// Trouble Ticket dashboard APIs
+// 	g.GET(
+// 		"/trouble-ticket-overview",
+// 		h.TroubleTicketOverview,
+// 	)
+
+// 	g.GET(
+// 		"/trouble-tickets",
+// 		h.TroubleTicketList,
+// 	)
 // }
+
 
 func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/dashboard")
@@ -156,7 +170,11 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	g.GET("/summary", h.Summary)
 	g.GET("/ticket-trend", h.TicketTrend)
 
-	// Trouble Ticket dashboard APIs
+	g.GET(
+		"/trouble-ticket-summary",
+		h.TroubleTicketSummary,
+	)
+
 	g.GET(
 		"/trouble-ticket-overview",
 		h.TroubleTicketOverview,
@@ -397,6 +415,114 @@ func (h *DashboardHandler) TicketTrend(c *gin.Context) {
 		res = []R{}
 	}
 	response.OK(c, res)
+}
+
+
+
+// TroubleTicketSummary returns the four dashboard KPI counts.
+//
+// Legacy mappings:
+// fault_date_time   -> created_at
+// ticket_close_date -> closed_at
+// status            -> source_status
+// device_requis_val -> source_device_requisition
+func (
+	h *DashboardHandler,
+) TroubleTicketSummary(
+	c *gin.Context,
+) {
+	ctx := c.Request.Context()
+
+	type Summary struct {
+		OpenedToday     int64 `json:"opened_today"`
+		ClosedToday     int64 `json:"closed_today"`
+		TotalRunning    int64 `json:"total_running_tt"`
+		TotalProcurement int64 `json:"total_procurement_tt"`
+	}
+
+	const query = `
+		WITH normalized_tickets AS (
+			SELECT
+				created_at,
+				closed_at,
+
+				COALESCE(
+					source_status,
+					CASE
+						WHEN status = 'Closed' THEN 0
+						ELSE 1
+					END
+				)::int AS legacy_status,
+
+				COALESCE(
+					source_device_requisition,
+					CASE
+						WHEN NULLIF(
+							BTRIM(requisition_type),
+							''
+						) IS NULL
+						THEN 0
+						ELSE 1
+					END
+				)::int AS requisition_value
+
+			FROM public.trouble_tickets
+		),
+
+		dhaka_clock AS (
+			SELECT
+				(
+					CURRENT_TIMESTAMP
+					AT TIME ZONE 'Asia/Dhaka'
+				)::date AS today
+		)
+
+		SELECT
+			COUNT(*) FILTER (
+				WHERE (
+					ticket.created_at
+					AT TIME ZONE 'Asia/Dhaka'
+				)::date = clock.today
+			)::bigint AS opened_today,
+
+			COUNT(*) FILTER (
+				WHERE (
+					ticket.closed_at
+					AT TIME ZONE 'Asia/Dhaka'
+				)::date = clock.today
+				AND ticket.legacy_status = 0
+			)::bigint AS closed_today,
+
+			COUNT(*) FILTER (
+				WHERE ticket.requisition_value NOT IN (1, 3)
+				AND ticket.legacy_status = 1
+			)::bigint AS total_running_tt,
+
+			COUNT(*) FILTER (
+				WHERE ticket.requisition_value <> 0
+				AND ticket.legacy_status = 1
+			)::bigint AS total_procurement_tt
+
+		FROM normalized_tickets AS ticket
+		CROSS JOIN dhaka_clock AS clock
+	`
+
+	var result Summary
+
+	if err := h.db.QueryRow(
+		ctx,
+		query,
+	).Scan(
+		&result.OpenedToday,
+		&result.ClosedToday,
+		&result.TotalRunning,
+		&result.TotalProcurement,
+	); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.OK(c, result)
 }
 
 //Touble Ticket Overview

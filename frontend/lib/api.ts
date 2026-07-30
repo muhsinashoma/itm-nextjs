@@ -112,6 +112,13 @@ export interface TroubleTicketOverviewPoint {
     closed: number;
 }
 
+export interface TroubleTicketDashboardSummary {
+    opened_today: number;
+    closed_today: number;
+    total_running_tt: number;
+    total_procurement_tt: number;
+}
+
 export interface TroubleTicketOverview {
     range: TroubleTicketRange;
     total: number;
@@ -177,6 +184,13 @@ export const dashboardApi = {
     getTicketTrend: () =>
         api.get<ApiOk<TicketTrend[]>>(
             "/dashboard/ticket-trend"
+        ),
+
+    troubleTicketSummary: () =>
+        api.get<
+            ApiOk<TroubleTicketDashboardSummary>
+        >(
+            "/dashboard/trouble-ticket-summary"
         ),
 
     ticketTrend: () =>
