@@ -1,0 +1,135 @@
+
+https://chatgpt.com/g/g-p-6a5378cdfc588191b929a3b5ca9c1c9a/c/6a58a9b1-fa0c-83ee-8051-ffd332cceb1f
+
+
+Excellent, BOSS. The development import completed successfully.
+
+Tickets imported: 7,663
+History imported: 11,927
+Malformed rows skipped: 197
+
+Now verify PostgreSQL before connecting the Go API.
+
+Step 1 — Verify ticket and history counts
+
+Open pgAdmin → itm_prod → Query Tool and run:
+
+SELECT
+    (SELECT COUNT(*)
+     FROM public.trouble_tickets) AS total_tickets,
+
+    (SELECT COUNT(*)
+     FROM public.trouble_ticket_history) AS total_history;
+
+Expected:
+
+total_tickets = 7663
+total_history = 11927
+Step 2 — Check imported date range
+SELECT
+    MIN(created_at) AS first_ticket,
+    MAX(created_at) AS latest_ticket
+FROM public.trouble_tickets;
+
+The current incomplete export should show the latest master ticket around:
+
+2020-01-08
+Step 3 — Check status totals
+SELECT
+    status,
+    COUNT(*) AS total
+FROM public.trouble_tickets
+GROUP BY status
+ORDER BY status;
+
+You should see statuses such as:
+
+Closed
+In Progress
+Open
+Not Started
+Step 4 — Verify Dashboard view data
+SELECT
+    id,
+    tt_no,
+    employee_id,
+    employee_name,
+    assigned_id,
+    assigned_name,
+    query_type,
+    requisition_type,
+    status,
+    dept_name,
+    func_name,
+    delivered_status,
+    created_at,
+    age_seconds,
+    mobile_no,
+    company_name
+FROM public.v_trouble_ticket_dashboard
+ORDER BY
+    created_at DESC,
+    id DESC
+LIMIT 20;
+
+This should now return rows instead of zero results.
+
+Step 5 — Verify history for one ticket
+SELECT
+    ticket.tt_no,
+    history.event_type,
+    history.previous_status,
+    history.current_status,
+    history.note,
+    history.assigned_to,
+    history.changed_by,
+    history.created_at
+FROM public.trouble_ticket_history AS history
+JOIN public.trouble_tickets AS ticket
+    ON ticket.id = history.ticket_id
+ORDER BY
+    history.created_at DESC,
+    history.id DESC
+LIMIT 30;
+Step 6 — Check imported years
+SELECT
+    EXTRACT(YEAR FROM created_at)::INTEGER AS ticket_year,
+    COUNT(*) AS total
+FROM public.trouble_tickets
+GROUP BY 1
+ORDER BY 1 DESC;
+
+Because the master CSV stops in 2020, the recent Dashboard chart will show zero for:
+
+7 Days
+30 Days
+3 Months
+
+That is expected until a complete 2026 tbl_trouble_input.csv is exported.
+
+Step 7 — Back up the imported data
+
+Before implementing the API, create a database backup in pgAdmin:
+
+Databases
+→ itm_prod
+→ Right-click
+→ Backup
+
+Suggested filename:
+
+itm_prod_after_trouble_ticket_import.backup
+Step 8 — Next implementation stage
+
+After the SQL verification succeeds, continue with the Go backend:
+
+PostgreSQL import completed
+→ Add Trouble Ticket Go handler
+→ Register API routes
+→ Test APIs with curl/Postman
+→ Update frontend api.ts
+→ Load OverviewChart dynamically
+→ Load DataTable dynamically
+→ Remove tt-data.ts
+
+Your immediate next action is to run the five PostgreSQL verification queries above.

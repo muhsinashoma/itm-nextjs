@@ -1,9 +1,10 @@
-//backend/internal/handler/handlers.go
+// backend/internal/handler/handlers.go
 package handler
 
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"itm-api/pkg/response"
 
@@ -15,6 +16,7 @@ import (
 // ─── Employee ────────────────────────────────────────────────────────────────
 
 type EmployeeHandler struct{ db *pgxpool.Pool }
+
 func NewEmployeeHandler(db *pgxpool.Pool) *EmployeeHandler { return &EmployeeHandler{db: db} }
 
 func (h *EmployeeHandler) Register(rg *gin.RouterGroup) {
@@ -27,8 +29,12 @@ func (h *EmployeeHandler) Register(rg *gin.RouterGroup) {
 func (h *EmployeeHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
-	if page < 1 { page = 1 }
-	if ps > 200 { ps = 200 }
+	if page < 1 {
+		page = 1
+	}
+	if ps > 200 {
+		ps = 200
+	}
 	offset := (page - 1) * ps
 	active := c.DefaultQuery("active", "Active")
 	var total int
@@ -40,21 +46,24 @@ func (h *EmployeeHandler) List(c *gin.Context) {
 		FROM employee_office_info o
 		LEFT JOIN employee_personal_info p ON p.employee_id=o.employee_id
 		WHERE o.active=$1 ORDER BY o.employee_name LIMIT $2 OFFSET $3`, active, ps, offset)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	type Emp struct {
-		EmpID    string  `json:"employee_id"`
-		Name     string  `json:"employee_name"`
-		Desig    *string `json:"designation"`
-		Dept     *string `json:"department"`
+		EmpID     string  `json:"employee_id"`
+		Name      string  `json:"employee_name"`
+		Desig     *string `json:"designation"`
+		Dept      *string `json:"department"`
 		WorkField *string `json:"work_field"`
-		SubFunc  *string `json:"sub_function"`
-		Active   *string `json:"active"`
-		PCell    *string `json:"personal_cell"`
-		OCell    *string `json:"official_cell"`
-		Email    *string `json:"email"`
-		OEmail   *string `json:"official_email"`
-		Picture  *string `json:"picture"`
+		SubFunc   *string `json:"sub_function"`
+		Active    *string `json:"active"`
+		PCell     *string `json:"personal_cell"`
+		OCell     *string `json:"official_cell"`
+		Email     *string `json:"email"`
+		OEmail    *string `json:"official_email"`
+		Picture   *string `json:"picture"`
 	}
 	var emps []Emp
 	for rows.Next() {
@@ -63,7 +72,9 @@ func (h *EmployeeHandler) List(c *gin.Context) {
 			&e.SubFunc, &e.Active, &e.PCell, &e.OCell, &e.Email, &e.OEmail, &e.Picture)
 		emps = append(emps, e)
 	}
-	if emps == nil { emps = []Emp{} }
+	if emps == nil {
+		emps = []Emp{}
+	}
 	response.Paginated(c, emps, total, page, ps)
 }
 
@@ -90,52 +101,83 @@ func (h *EmployeeHandler) Get(c *gin.Context) {
 		WHERE o.employee_id=$1`, c.Param("emp_id")).
 		Scan(&e.EmpID, &e.Name, &e.Desig, &e.Dept, &e.Active,
 			&e.PCell, &e.OCell, &e.Email, &e.Picture, &e.DevCount)
-	if err != nil { response.NotFound(c, "employee not found"); return }
+	if err != nil {
+		response.NotFound(c, "employee not found")
+		return
+	}
 	response.OK(c, e)
 }
 
 func (h *EmployeeHandler) Search(c *gin.Context) {
 	q := c.Query("q")
-	if q == "" { response.BadRequest(c, "q required"); return }
+	if q == "" {
+		response.BadRequest(c, "q required")
+		return
+	}
 	rows, _ := h.db.Query(c.Request.Context(), `
 		SELECT employee_id, employee_name, designation, department_name
 		FROM employee_office_info
 		WHERE (employee_id ILIKE $1 OR employee_name ILIKE $1) AND active='Active'
 		ORDER BY employee_name LIMIT 20`, "%"+q+"%")
 	defer rows.Close()
-	type R struct{ EmpID, Name string; Desig, Dept *string }
+	type R struct {
+		EmpID, Name string
+		Desig, Dept *string
+	}
 	var res []R
 	for rows.Next() {
-		var r R; rows.Scan(&r.EmpID, &r.Name, &r.Desig, &r.Dept); res = append(res, r)
+		var r R
+		rows.Scan(&r.EmpID, &r.Name, &r.Desig, &r.Dept)
+		res = append(res, r)
 	}
-	if res == nil { res = []R{} }
+	if res == nil {
+		res = []R{}
+	}
 	response.OK(c, res)
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 type DashboardHandler struct{ db *pgxpool.Pool }
+
 func NewDashboardHandler(db *pgxpool.Pool) *DashboardHandler { return &DashboardHandler{db: db} }
 
-
+// func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
+// 	g := rg.Group("/dashboard")
+// 	g.GET("/stats", h.Stats)
+// 	g.GET("/summary", h.Summary)
+// 	g.GET("/ticket-trend", h.TicketTrend)
+// }
 
 func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/dashboard")
+
 	g.GET("/stats", h.Stats)
 	g.GET("/summary", h.Summary)
 	g.GET("/ticket-trend", h.TicketTrend)
+
+	// Trouble Ticket dashboard APIs
+	g.GET(
+		"/trouble-ticket-overview",
+		h.TroubleTicketOverview,
+	)
+
+	g.GET(
+		"/trouble-tickets",
+		h.TroubleTicketList,
+	)
 }
 
 func (h *DashboardHandler) Stats(c *gin.Context) {
 	ctx := c.Request.Context()
 	type S struct {
-		TotalDevices    int `json:"total_devices"`
-		AssignedDevices int `json:"assigned_devices"`
-		StockDevices    int `json:"stock_devices"`
-		ActiveEmployees int `json:"active_employees"`
-		OpenTickets     int `json:"open_tickets"`
-		RunningTickets  int `json:"running_tickets"`
-		ClosedTickets   int `json:"closed_tickets"`
+		TotalDevices     int `json:"total_devices"`
+		AssignedDevices  int `json:"assigned_devices"`
+		StockDevices     int `json:"stock_devices"`
+		ActiveEmployees  int `json:"active_employees"`
+		OpenTickets      int `json:"open_tickets"`
+		RunningTickets   int `json:"running_tickets"`
+		ClosedTickets    int `json:"closed_tickets"`
 		WarrantyExpiring int `json:"warranty_expiring_30d"`
 	}
 	var s S
@@ -157,7 +199,7 @@ func (h *DashboardHandler) Summary(c *gin.Context) {
 
 	type Item struct {
 		Label string `json:"label"`
-		Value int   `json:"value"`
+		Value int    `json:"value"`
 	}
 
 	type Group struct {
@@ -167,14 +209,14 @@ func (h *DashboardHandler) Summary(c *gin.Context) {
 
 	resp := gin.H{}
 	var rows pgx.Rows
-    var err error
+	var err error
 
-var assigned int
-var returned int
-var transferred int
-var available int
+	var assigned int
+	var returned int
+	var transferred int
+	var available int
 
-_ = h.db.QueryRow(ctx, `
+	_ = h.db.QueryRow(ctx, `
 	SELECT COUNT(*)
 	FROM it_equipment
 	WHERE COALESCE(active, 0) > 0
@@ -184,7 +226,7 @@ _ = h.db.QueryRow(ctx, `
 	)
 `).Scan(&assigned)
 
-_ = h.db.QueryRow(ctx, `
+	_ = h.db.QueryRow(ctx, `
 	SELECT COUNT(*)
 	FROM it_equipment
 	WHERE COALESCE(active, 0) > 0
@@ -194,7 +236,7 @@ _ = h.db.QueryRow(ctx, `
 	)
 `).Scan(&returned)
 
-_ = h.db.QueryRow(ctx, `
+	_ = h.db.QueryRow(ctx, `
 	SELECT COUNT(*)
 	FROM it_equipment
 	WHERE COALESCE(active, 0) > 0
@@ -204,24 +246,23 @@ _ = h.db.QueryRow(ctx, `
 	)
 `).Scan(&transferred)
 
-_ = h.db.QueryRow(ctx, `
+	_ = h.db.QueryRow(ctx, `
 	SELECT COUNT(*)
 	FROM stack_inventory
 	WHERE COALESCE(status, 1) = 1
 	AND COALESCE(device_assigned_status, 0) = 0
 `).Scan(&available)
 
-resp["active_assets"] = Group{
-	Total: assigned + returned + transferred + available,
-	Items: []Item{
-		{Label: "Assigned", Value: assigned},
-		{Label: "Returned", Value: returned},
-		{Label: "Transferred", Value: transferred},
-		{Label: "Available", Value: available},
-	},
-}
+	resp["active_assets"] = Group{
+		Total: assigned + returned + transferred + available,
+		Items: []Item{
+			{Label: "Assigned", Value: assigned},
+			{Label: "Returned", Value: returned},
+			{Label: "Transferred", Value: transferred},
+			{Label: "Available", Value: available},
+		},
+	}
 
-	
 	// Non-operational assets
 	var damaged int
 	var ownership int
@@ -239,7 +280,7 @@ resp["active_assets"] = Group{
 	}
 
 	// Service requests
-	
+
 	rows, err = h.db.Query(ctx, `
 	SELECT
 		CASE
@@ -334,7 +375,10 @@ func (h *DashboardHandler) TicketTrend(c *gin.Context) {
 		WHERE active=TRUE AND status_update_date >= NOW()-INTERVAL '30 days'
 		GROUP BY DATE_TRUNC('day', status_update_date)
 		ORDER BY day`)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	type R struct {
 		Day     string `json:"day"`
@@ -345,15 +389,532 @@ func (h *DashboardHandler) TicketTrend(c *gin.Context) {
 	}
 	var res []R
 	for rows.Next() {
-		var r R; rows.Scan(&r.Day, &r.Open, &r.Running, &r.Closed, &r.Total); res = append(res, r)
+		var r R
+		rows.Scan(&r.Day, &r.Open, &r.Running, &r.Closed, &r.Total)
+		res = append(res, r)
 	}
-	if res == nil { res = []R{} }
+	if res == nil {
+		res = []R{}
+	}
 	response.OK(c, res)
+}
+
+//Touble Ticket Overview
+
+func (
+	h *DashboardHandler,
+) TroubleTicketOverview(
+	c *gin.Context,
+) {
+	ctx := c.Request.Context()
+
+	rangeKey := c.DefaultQuery(
+		"range",
+		"7d",
+	)
+
+	type OverviewItem struct {
+		Label      string `json:"label"`
+		Open       int    `json:"open"`
+		InProgress int    `json:"in_progress"`
+		Closed     int    `json:"closed"`
+	}
+
+	var (
+		rows pgx.Rows
+		err  error
+	)
+
+	switch rangeKey {
+	case "7d", "30d":
+		days := 7
+
+		if rangeKey == "30d" {
+			days = 30
+		}
+
+		rows, err = h.db.Query(
+			ctx,
+			`
+			WITH date_buckets AS (
+				SELECT generate_series(
+					CURRENT_DATE
+						- (
+							($1::int - 1)
+							* INTERVAL '1 day'
+						),
+					CURRENT_DATE,
+					INTERVAL '1 day'
+				) AS bucket
+			),
+			ticket_counts AS (
+				SELECT
+					DATE_TRUNC(
+						'day',
+						created_at
+					) AS bucket,
+
+					COUNT(*) FILTER (
+						WHERE status IN (
+							'Open',
+							'Not Started'
+						)
+					)::int AS open_count,
+
+					COUNT(*) FILTER (
+						WHERE status = 'In Progress'
+					)::int AS in_progress_count,
+
+					COUNT(*) FILTER (
+						WHERE status = 'Closed'
+					)::int AS closed_count
+				FROM public.trouble_tickets
+				WHERE created_at >=
+					CURRENT_DATE
+					- (
+						($1::int - 1)
+						* INTERVAL '1 day'
+					)
+				GROUP BY
+					DATE_TRUNC(
+						'day',
+						created_at
+					)
+			)
+			SELECT
+				TO_CHAR(
+					date_buckets.bucket,
+					'DD Mon'
+				) AS label,
+
+				COALESCE(
+					ticket_counts.open_count,
+					0
+				)::int AS open_count,
+
+				COALESCE(
+					ticket_counts.in_progress_count,
+					0
+				)::int AS in_progress_count,
+
+				COALESCE(
+					ticket_counts.closed_count,
+					0
+				)::int AS closed_count
+			FROM date_buckets
+			LEFT JOIN ticket_counts
+				ON ticket_counts.bucket =
+					date_buckets.bucket
+			ORDER BY
+				date_buckets.bucket
+			`,
+			days,
+		)
+
+	case "3m":
+		rows, err = h.db.Query(
+			ctx,
+			`
+			WITH month_buckets AS (
+				SELECT generate_series(
+					DATE_TRUNC(
+						'month',
+						CURRENT_DATE
+					) - INTERVAL '2 months',
+
+					DATE_TRUNC(
+						'month',
+						CURRENT_DATE
+					),
+
+					INTERVAL '1 month'
+				) AS bucket
+			),
+			ticket_counts AS (
+				SELECT
+					DATE_TRUNC(
+						'month',
+						created_at
+					) AS bucket,
+
+					COUNT(*) FILTER (
+						WHERE status IN (
+							'Open',
+							'Not Started'
+						)
+					)::int AS open_count,
+
+					COUNT(*) FILTER (
+						WHERE status = 'In Progress'
+					)::int AS in_progress_count,
+
+					COUNT(*) FILTER (
+						WHERE status = 'Closed'
+					)::int AS closed_count
+				FROM public.trouble_tickets
+				WHERE created_at >=
+					DATE_TRUNC(
+						'month',
+						CURRENT_DATE
+					) - INTERVAL '2 months'
+				GROUP BY
+					DATE_TRUNC(
+						'month',
+						created_at
+					)
+			)
+			SELECT
+				TO_CHAR(
+					month_buckets.bucket,
+					'Mon YYYY'
+				) AS label,
+
+				COALESCE(
+					ticket_counts.open_count,
+					0
+				)::int AS open_count,
+
+				COALESCE(
+					ticket_counts.in_progress_count,
+					0
+				)::int AS in_progress_count,
+
+				COALESCE(
+					ticket_counts.closed_count,
+					0
+				)::int AS closed_count
+			FROM month_buckets
+			LEFT JOIN ticket_counts
+				ON ticket_counts.bucket =
+					month_buckets.bucket
+			ORDER BY
+				month_buckets.bucket
+			`,
+		)
+
+	default:
+		response.BadRequest(
+			c,
+			"range must be 7d, 30d, or 3m",
+		)
+		return
+	}
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	defer rows.Close()
+
+	items := make(
+		[]OverviewItem,
+		0,
+	)
+
+	total := 0
+
+	for rows.Next() {
+		var item OverviewItem
+
+		if err := rows.Scan(
+			&item.Label,
+			&item.Open,
+			&item.InProgress,
+			&item.Closed,
+		); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		total +=
+			item.Open +
+				item.InProgress +
+				item.Closed
+
+		items = append(
+			items,
+			item,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.OK(
+		c,
+		gin.H{
+			"range": rangeKey,
+			"total": total,
+			"items": items,
+		},
+	)
+}
+
+// Touble Ticket List API
+func (
+	h *DashboardHandler,
+) TroubleTicketList(
+	c *gin.Context,
+) {
+	ctx := c.Request.Context()
+
+	page, _ := strconv.Atoi(
+		c.DefaultQuery(
+			"page",
+			"1",
+		),
+	)
+
+	limit, _ := strconv.Atoi(
+		c.DefaultQuery(
+			"limit",
+			"100",
+		),
+	)
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 {
+		limit = 100
+	}
+
+	if limit > 200 {
+		limit = 200
+	}
+
+	offset := (page - 1) * limit
+
+	status := strings.TrimSpace(
+		c.DefaultQuery(
+			"status",
+			"all",
+		),
+	)
+
+	search := strings.TrimSpace(
+		c.Query("search"),
+	)
+
+	where := "WHERE 1 = 1"
+
+	args := []any{}
+	argNumber := 1
+
+	if status != "" &&
+		!strings.EqualFold(
+			status,
+			"all",
+		) {
+		where += fmt.Sprintf(
+			`
+			AND LOWER(status) =
+				LOWER($%d)
+			`,
+			argNumber,
+		)
+
+		args = append(
+			args,
+			status,
+		)
+
+		argNumber++
+	}
+
+	if search != "" {
+		searchValue :=
+			"%" + search + "%"
+
+		where += fmt.Sprintf(
+			`
+			AND (
+				tt_no ILIKE $%d
+				OR employee_id ILIKE $%d
+				OR employee_name ILIKE $%d
+				OR query_type ILIKE $%d
+				OR dept_name ILIKE $%d
+			)
+			`,
+			argNumber,
+			argNumber,
+			argNumber,
+			argNumber,
+			argNumber,
+		)
+
+		args = append(
+			args,
+			searchValue,
+		)
+
+		argNumber++
+	}
+
+	var total int
+
+	countQuery := fmt.Sprintf(
+		`
+		SELECT COUNT(*)
+		FROM public.v_trouble_ticket_dashboard
+		%s
+		`,
+		where,
+	)
+
+	if err := h.db.QueryRow(
+		ctx,
+		countQuery,
+		args...,
+	).Scan(&total); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	type TroubleTicketRow struct {
+		ID int64 `json:"id"`
+
+		TTNo string `json:"tt_no"`
+
+		EmployeeID string `json:"employee_id"`
+
+		EmployeeName string `json:"employee_name"`
+
+		AssignedID string `json:"assigned_id"`
+
+		AssignedName string `json:"assigned_name"`
+
+		QueryType string `json:"query_type"`
+
+		RequisitionType string `json:"requisition_type"`
+
+		Status string `json:"status"`
+
+		Department string `json:"dept_name"`
+
+		FunctionName string `json:"func_name"`
+
+		DeliveredStatus string `json:"delivered_status"`
+
+		CreatedAt string `json:"created_at"`
+
+		AgeSeconds int64 `json:"age_seconds"`
+
+		MobileNo string `json:"mobile_no"`
+	}
+
+	listQuery := fmt.Sprintf(
+		`
+		SELECT
+			id,
+			COALESCE(tt_no, ''),
+			COALESCE(employee_id, ''),
+			COALESCE(employee_name, ''),
+			COALESCE(assigned_id, ''),
+			COALESCE(assigned_name, ''),
+			COALESCE(query_type, ''),
+			COALESCE(requisition_type, ''),
+			COALESCE(status, ''),
+			COALESCE(dept_name, ''),
+			COALESCE(func_name, ''),
+			COALESCE(delivered_status, ''),
+			COALESCE(created_at::text, ''),
+			COALESCE(age_seconds, 0)::bigint,
+			COALESCE(mobile_no, '')
+		FROM public.v_trouble_ticket_dashboard
+		%s
+		ORDER BY
+			created_at DESC,
+			id DESC
+		LIMIT $%d
+		OFFSET $%d
+		`,
+		where,
+		argNumber,
+		argNumber+1,
+	)
+
+	listArgs := append(
+		[]any{},
+		args...,
+	)
+
+	listArgs = append(
+		listArgs,
+		limit,
+		offset,
+	)
+
+	rows, err := h.db.Query(
+		ctx,
+		listQuery,
+		listArgs...,
+	)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	defer rows.Close()
+
+	items := make(
+		[]TroubleTicketRow,
+		0,
+	)
+
+	for rows.Next() {
+		var item TroubleTicketRow
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.TTNo,
+			&item.EmployeeID,
+			&item.EmployeeName,
+			&item.AssignedID,
+			&item.AssignedName,
+			&item.QueryType,
+			&item.RequisitionType,
+			&item.Status,
+			&item.Department,
+			&item.FunctionName,
+			&item.DeliveredStatus,
+			&item.CreatedAt,
+			&item.AgeSeconds,
+			&item.MobileNo,
+		); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		items = append(
+			items,
+			item,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.Paginated(
+		c,
+		items,
+		total,
+		page,
+		limit,
+	)
 }
 
 // ─── Claim ───────────────────────────────────────────────────────────────────
 
 type ClaimHandler struct{ db *pgxpool.Pool }
+
 func NewClaimHandler(db *pgxpool.Pool) *ClaimHandler { return &ClaimHandler{db: db} }
 
 func (h *ClaimHandler) Register(rg *gin.RouterGroup) {
@@ -367,17 +928,22 @@ func (h *ClaimHandler) Register(rg *gin.RouterGroup) {
 func (h *ClaimHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	if page < 1 { page = 1 }
-	offset := (page-1)*ps
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * ps
 	sType := c.Query("service_type")
 	args := []any{}
 	where := "WHERE cl.status=1"
 	i := 1
 	if sType != "" {
-		args = append(args, sType); where += fmt.Sprintf(" AND cl.service_type::text=$%d", i); i++
+		args = append(args, sType)
+		where += fmt.Sprintf(" AND cl.service_type::text=$%d", i)
+		i++
 	}
 	var total int
-	ca := make([]any, len(args)); copy(ca, args)
+	ca := make([]any, len(args))
+	copy(ca, args)
 	h.db.QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM device_claims cl "+where, ca...).Scan(&total)
 	args = append(args, ps, offset)
 	rows, err := h.db.Query(c.Request.Context(), fmt.Sprintf(`
@@ -388,11 +954,15 @@ func (h *ClaimHandler) List(c *gin.Context) {
 		FROM device_claims cl
 		LEFT JOIN warranty_vendors v ON v.id=cl.vendor
 		%s ORDER BY cl.id DESC LIMIT $%d OFFSET $%d`, where, i, i+1), args...)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var claims []map[string]any
 	for rows.Next() {
-		var id, refNo, cs, st, av int; var vendorID *int
+		var id, refNo, cs, st, av int
+		var vendorID *int
 		var cat, brand, model, serial, probs, vname, rcd, retd, cb, ca *string
 		rows.Scan(&id, &refNo, &cat, &brand, &model, &serial, &probs, &cs, &st,
 			&vendorID, &vname, &rcd, &retd, &av, &cb, &ca)
@@ -404,13 +974,16 @@ func (h *ClaimHandler) List(c *gin.Context) {
 			"approved_val": av, "created_by": cb, "created_at": ca,
 		})
 	}
-	if claims == nil { claims = []map[string]any{} }
+	if claims == nil {
+		claims = []map[string]any{}
+	}
 	response.Paginated(c, claims, total, page, ps)
 }
 
 func (h *ClaimHandler) Get(c *gin.Context) {
 	var m map[string]any
-	var id, refNo, cs, st, av int; var vendorID *int
+	var id, refNo, cs, st, av int
+	var vendorID *int
 	var cat, brand, model, serial, probs, vname, rcd, retd, cb, ca *string
 	err := h.db.QueryRow(c.Request.Context(), `
 		SELECT cl.id, cl.reference_no_claim, cl.category, cl.brand, cl.model_no,
@@ -422,7 +995,10 @@ func (h *ClaimHandler) Get(c *gin.Context) {
 		WHERE cl.id=$1`, c.Param("id")).
 		Scan(&id, &refNo, &cat, &brand, &model, &serial, &probs, &cs, &st,
 			&vendorID, &vname, &rcd, &retd, &av, &cb, &ca)
-	if err != nil { response.NotFound(c, "claim not found"); return }
+	if err != nil {
+		response.NotFound(c, "claim not found")
+		return
+	}
 	m = map[string]any{
 		"id": id, "reference_no": refNo, "category": cat, "brand": brand,
 		"model_no": model, "device_serial": serial, "problems": probs,
@@ -436,7 +1012,10 @@ func (h *ClaimHandler) Get(c *gin.Context) {
 func (h *ClaimHandler) Create(c *gin.Context) {
 	empID := c.GetString("employee_id")
 	var req map[string]any
-	if err := c.ShouldBindJSON(&req); err != nil { response.BadRequest(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	var refNo int
 	h.db.QueryRow(c.Request.Context(), "SELECT COALESCE(MAX(reference_no_claim),0)+1 FROM device_claims").Scan(&refNo)
 	var id int
@@ -459,8 +1038,13 @@ func (h *ClaimHandler) Create(c *gin.Context) {
 
 func (h *ClaimHandler) UpdateStatus(c *gin.Context) {
 	empID := c.GetString("employee_id")
-	var req struct{ ClaimStatus int `json:"claim_status" binding:"required"` }
-	if err := c.ShouldBindJSON(&req); err != nil { response.BadRequest(c, err.Error()); return }
+	var req struct {
+		ClaimStatus int `json:"claim_status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	h.db.Exec(c.Request.Context(),
 		`UPDATE device_claims SET claim_status=$1, edited_by=$2, edited_at=NOW() WHERE id=$3`,
 		req.ClaimStatus, empID, c.Param("id"))
@@ -470,6 +1054,7 @@ func (h *ClaimHandler) UpdateStatus(c *gin.Context) {
 // ─── Stock ───────────────────────────────────────────────────────────────────
 
 type StockHandler struct{ db *pgxpool.Pool }
+
 func NewStockHandler(db *pgxpool.Pool) *StockHandler { return &StockHandler{db: db} }
 
 func (h *StockHandler) Register(rg *gin.RouterGroup) {
@@ -483,8 +1068,10 @@ func (h *StockHandler) Register(rg *gin.RouterGroup) {
 func (h *StockHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	if page < 1 { page = 1 }
-	offset := (page-1)*ps
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * ps
 	var total int
 	h.db.QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM stack_inventory WHERE status=1").Scan(&total)
 	rows, err := h.db.Query(c.Request.Context(), `
@@ -493,7 +1080,10 @@ func (h *StockHandler) List(c *gin.Context) {
 		       item_group, item_name, total_item, device_assigned_status,
 		       device_type, inventory_type, created_at::text
 		FROM stack_inventory WHERE status=1 ORDER BY id DESC LIMIT $1 OFFSET $2`, ps, offset)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var stocks []map[string]any
 	for rows.Next() {
@@ -509,7 +1099,9 @@ func (h *StockHandler) List(c *gin.Context) {
 			"device_assigned_status": as, "device_type": dt, "inventory_type": invt, "created_at": ca,
 		})
 	}
-	if stocks == nil { stocks = []map[string]any{} }
+	if stocks == nil {
+		stocks = []map[string]any{}
+	}
 	response.Paginated(c, stocks, total, page, ps)
 }
 
@@ -524,7 +1116,10 @@ func (h *StockHandler) Get(c *gin.Context) {
 		FROM stack_inventory WHERE id=$1`, c.Param("id")).
 		Scan(&id, &mr, &pr, &vn, &sn, &pd, &cat, &brand, &model, &cpu, &ram, &ssd,
 			&mon, &wd, &ig, &iname, &tot, &as, &dt, &invt, &ca)
-	if err != nil { response.NotFound(c, "stock not found"); return }
+	if err != nil {
+		response.NotFound(c, "stock not found")
+		return
+	}
 	response.OK(c, map[string]any{
 		"id": id, "mr_id": mr, "pr_id": pr, "vendor_name": vn, "serial_no": sn,
 		"purchase_date": pd, "category": cat, "brand": brand, "model": model,
@@ -537,7 +1132,10 @@ func (h *StockHandler) Get(c *gin.Context) {
 func (h *StockHandler) Create(c *gin.Context) {
 	empID := c.GetString("employee_id")
 	var req map[string]any
-	if err := c.ShouldBindJSON(&req); err != nil { response.BadRequest(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	var id int
 	h.db.QueryRow(c.Request.Context(), `
 		INSERT INTO stack_inventory
@@ -576,6 +1174,7 @@ func (h *StockHandler) Update(c *gin.Context) {
 // ─── Vendor ──────────────────────────────────────────────────────────────────
 
 type VendorHandler struct{ db *pgxpool.Pool }
+
 func NewVendorHandler(db *pgxpool.Pool) *VendorHandler { return &VendorHandler{db: db} }
 
 func (h *VendorHandler) Register(rg *gin.RouterGroup) {
@@ -591,12 +1190,20 @@ func (h *VendorHandler) List(c *gin.Context) {
 		SELECT id, vendor_name, vendor_address, vendor_mobile, vendor_email, status
 		FROM warranty_vendors WHERE status=1 ORDER BY vendor_name`)
 	defer rows.Close()
-	type V struct{ ID int; Name, Addr, Mobile, Email *string; Status int }
+	type V struct {
+		ID                        int
+		Name, Addr, Mobile, Email *string
+		Status                    int
+	}
 	var vs []V
 	for rows.Next() {
-		var v V; rows.Scan(&v.ID, &v.Name, &v.Addr, &v.Mobile, &v.Email, &v.Status); vs = append(vs, v)
+		var v V
+		rows.Scan(&v.ID, &v.Name, &v.Addr, &v.Mobile, &v.Email, &v.Status)
+		vs = append(vs, v)
 	}
-	if vs == nil { vs = []V{} }
+	if vs == nil {
+		vs = []V{}
+	}
 	response.OK(c, vs)
 }
 
@@ -608,7 +1215,10 @@ func (h *VendorHandler) Create(c *gin.Context) {
 		Mobile *string `json:"vendor_mobile"`
 		Email  *string `json:"vendor_email"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil { response.BadRequest(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	var id int
 	h.db.QueryRow(c.Request.Context(), `
 		INSERT INTO warranty_vendors (vendor_name, vendor_address, vendor_mobile, vendor_email,
@@ -619,7 +1229,8 @@ func (h *VendorHandler) Create(c *gin.Context) {
 }
 
 func (h *VendorHandler) Update(c *gin.Context) {
-	var req map[string]any; c.ShouldBindJSON(&req)
+	var req map[string]any
+	c.ShouldBindJSON(&req)
 	h.db.Exec(c.Request.Context(), `
 		UPDATE warranty_vendors SET
 		  vendor_name=COALESCE($1::text,vendor_name),
@@ -639,6 +1250,7 @@ func (h *VendorHandler) Delete(c *gin.Context) {
 // ─── Category ────────────────────────────────────────────────────────────────
 
 type CategoryHandler struct{ db *pgxpool.Pool }
+
 func NewCategoryHandler(db *pgxpool.Pool) *CategoryHandler { return &CategoryHandler{db: db} }
 
 func (h *CategoryHandler) Register(rg *gin.RouterGroup) {
@@ -653,12 +1265,12 @@ func (h *CategoryHandler) List(c *gin.Context) {
 		FROM inventory_categories WHERE status=1 ORDER BY inventory_category_list`)
 	defer rows.Close()
 	type Cat struct {
-		ID       int     `json:"id"`
-		Name     *string `json:"category_name"`
-		ParentID int     `json:"parent_id"`
-		SubParentID int  `json:"sub_parent_id"`
-		Type     *string `json:"type"`
-		Status   int     `json:"status"`
+		ID          int     `json:"id"`
+		Name        *string `json:"category_name"`
+		ParentID    int     `json:"parent_id"`
+		SubParentID int     `json:"sub_parent_id"`
+		Type        *string `json:"type"`
+		Status      int     `json:"status"`
 	}
 	var cats []Cat
 	for rows.Next() {
@@ -666,7 +1278,9 @@ func (h *CategoryHandler) List(c *gin.Context) {
 		rows.Scan(&cat.ID, &cat.Name, &cat.ParentID, &cat.SubParentID, &cat.Type, &cat.Status)
 		cats = append(cats, cat)
 	}
-	if cats == nil { cats = []Cat{} }
+	if cats == nil {
+		cats = []Cat{}
+	}
 	response.OK(c, cats)
 }
 
@@ -677,7 +1291,10 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 		ParentID int     `json:"parent_id"`
 		Type     *string `json:"type"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil { response.BadRequest(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	var id int
 	h.db.QueryRow(c.Request.Context(), `
 		INSERT INTO inventory_categories (inventory_category_list, parent_id, type, created_by, status)
@@ -689,8 +1306,8 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
 type ReportHandler struct{ db *pgxpool.Pool }
-func NewReportHandler(db *pgxpool.Pool) *ReportHandler { return &ReportHandler{db: db} }
 
+func NewReportHandler(db *pgxpool.Pool) *ReportHandler { return &ReportHandler{db: db} }
 
 func (h *ReportHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/reports")
@@ -707,8 +1324,6 @@ func (h *ReportHandler) Register(rg *gin.RouterGroup) {
 	g.GET("/renewal", h.Renewal)
 	g.GET("/non-operational", h.NonOperational)
 }
-
-
 
 func (h *ReportHandler) Assigned(c *gin.Context) {
 	status := c.Query("status")
@@ -810,13 +1425,12 @@ func (h *ReportHandler) Assigned(c *gin.Context) {
 			})
 		}
 
-
 		fmt.Printf("Available first category: %s, total: %d\n", func() string {
-	if len(result) == 0 {
-		return "none"
-	}
-	return fmt.Sprint(result[0]["category"])
-}(), len(result))
+			if len(result) == 0 {
+				return "none"
+			}
+			return fmt.Sprint(result[0]["category"])
+		}(), len(result))
 		response.OK(c, result)
 		return
 	}
@@ -957,33 +1571,31 @@ func (h *ReportHandler) Assigned(c *gin.Context) {
 		}
 
 		result = append(result, map[string]any{
-			"id":             id,
-			"emp_id":         empID,
-			"emp_name":       empName,
-			"department":     department,
-			"designation":    designation,
-			"category":       category,
-			"brand":          brand,
-			"device_serial":  serialNo,
-			"model_no":       modelNo,
-			"device_type":    deviceType,
-			"status":         displayStatus,
-			"assign_date":    assignDate,
-			"warranty_date":  warrantyDate,
-			"mr_number":      mrNumber,
-			"pr_number":      prNumber,
-			"vendor":         vendor,
-			"device_age":     deviceAge,
-			"warranty_left":  warrantyLeft,
-			"assigned_by":    "",
-			"remarks":        "",
+			"id":            id,
+			"emp_id":        empID,
+			"emp_name":      empName,
+			"department":    department,
+			"designation":   designation,
+			"category":      category,
+			"brand":         brand,
+			"device_serial": serialNo,
+			"model_no":      modelNo,
+			"device_type":   deviceType,
+			"status":        displayStatus,
+			"assign_date":   assignDate,
+			"warranty_date": warrantyDate,
+			"mr_number":     mrNumber,
+			"pr_number":     prNumber,
+			"vendor":        vendor,
+			"device_age":    deviceAge,
+			"warranty_left": warrantyLeft,
+			"assigned_by":   "",
+			"remarks":       "",
 		})
 	}
 
 	response.OK(c, result)
 }
-
-
 
 func (h *ReportHandler) Warranty(c *gin.Context) {
 	rows, err := h.db.Query(c.Request.Context(), `
@@ -993,11 +1605,15 @@ func (h *ReportHandler) Warranty(c *gin.Context) {
 		FROM device_claims cl
 		LEFT JOIN warranty_vendors v ON v.id=cl.vendor
 		WHERE cl.service_type=0 AND cl.status=1 ORDER BY cl.id DESC`)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var res []map[string]any
 	for rows.Next() {
-		var id, ref, cs, av int; var cat, brand, model, serial, vn, rd, ret, ca *string
+		var id, ref, cs, av int
+		var cat, brand, model, serial, vn, rd, ret, ca *string
 		rows.Scan(&id, &ref, &cat, &brand, &model, &serial, &cs, &vn, &rd, &ret, &av, &ca)
 		res = append(res, map[string]any{
 			"id": id, "reference_no": ref, "category": cat, "brand": brand, "model_no": model,
@@ -1005,7 +1621,9 @@ func (h *ReportHandler) Warranty(c *gin.Context) {
 			"received_date": rd, "return_date": ret, "approved_val": av, "created_at": ca,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+	if res == nil {
+		res = []map[string]any{}
+	}
 	response.OK(c, res)
 }
 
@@ -1017,11 +1635,15 @@ func (h *ReportHandler) Service(c *gin.Context) {
 		FROM device_claims cl
 		LEFT JOIN warranty_vendors v ON v.id=cl.vendor
 		WHERE cl.service_type=1 AND cl.status=1 ORDER BY cl.id DESC`)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var res []map[string]any
 	for rows.Next() {
-		var id, ref, cs, av int; var cat, brand, model, serial, vn, rd, ret, ca *string
+		var id, ref, cs, av int
+		var cat, brand, model, serial, vn, rd, ret, ca *string
 		rows.Scan(&id, &ref, &cat, &brand, &model, &serial, &cs, &vn, &rd, &ret, &av, &ca)
 		res = append(res, map[string]any{
 			"id": id, "reference_no": ref, "category": cat, "brand": brand, "model_no": model,
@@ -1029,7 +1651,9 @@ func (h *ReportHandler) Service(c *gin.Context) {
 			"received_date": rd, "return_date": ret, "approved_val": av, "created_at": ca,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+	if res == nil {
+		res = []map[string]any{}
+	}
 	response.OK(c, res)
 }
 
@@ -1042,11 +1666,15 @@ func (h *ReportHandler) Users(c *gin.Context) {
 		FROM employee_office_info o
 		LEFT JOIN employee_personal_info p ON p.employee_id=o.employee_id
 		WHERE o.active=$1 ORDER BY o.employee_name`, active)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var res []map[string]any
 	for rows.Next() {
-		var empID, empN string; var desig, wf, dept, act, pc, oc, em *string
+		var empID, empN string
+		var desig, wf, dept, act, pc, oc, em *string
 		rows.Scan(&empID, &empN, &desig, &wf, &dept, &act, &pc, &oc, &em)
 		res = append(res, map[string]any{
 			"employee_id": empID, "employee_name": empN, "designation": desig,
@@ -1054,7 +1682,9 @@ func (h *ReportHandler) Users(c *gin.Context) {
 			"personal_cell": pc, "official_cell": oc, "email": em,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+	if res == nil {
+		res = []map[string]any{}
+	}
 	response.OK(c, res)
 }
 
@@ -1063,11 +1693,15 @@ func (h *ReportHandler) Disposal(c *gin.Context) {
 		SELECT id, department, function_name, device_category, device_sl_no,
 		       model, device_status, remarks, created_by, created_at::text
 		FROM damage_inventory WHERE status=1 ORDER BY id DESC`)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var res []map[string]any
 	for rows.Next() {
-		var id, ds int; var dept, fn, cat, serial, model, remarks, cb, ca *string
+		var id, ds int
+		var dept, fn, cat, serial, model, remarks, cb, ca *string
 		rows.Scan(&id, &dept, &fn, &cat, &serial, &model, &ds, &remarks, &cb, &ca)
 		res = append(res, map[string]any{
 			"id": id, "department": dept, "function": fn, "category": cat,
@@ -1075,7 +1709,9 @@ func (h *ReportHandler) Disposal(c *gin.Context) {
 			"remarks": remarks, "created_by": cb, "created_at": ca,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+	if res == nil {
+		res = []map[string]any{}
+	}
 	response.OK(c, res)
 }
 
@@ -1087,18 +1723,24 @@ func (h *ReportHandler) StockStatus(c *gin.Context) {
 		       COUNT(*) FILTER (WHERE status='Returned') AS returned,
 		       COUNT(*) FILTER (WHERE device_warranty_date < NOW()) AS warranty_expired
 		FROM it_equipment WHERE active>0 GROUP BY category ORDER BY category`)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var res []map[string]any
 	for rows.Next() {
-		var cat *string; var tot, ass, ins, ret, exp int
+		var cat *string
+		var tot, ass, ins, ret, exp int
 		rows.Scan(&cat, &tot, &ass, &ins, &ret, &exp)
 		res = append(res, map[string]any{
 			"category": cat, "total": tot, "assigned": ass,
 			"in_stock": ins, "returned": ret, "warranty_expired": exp,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+	if res == nil {
+		res = []map[string]any{}
+	}
 	response.OK(c, res)
 }
 
@@ -1113,11 +1755,16 @@ func (h *ReportHandler) Resignation(c *gin.Context) {
 		GROUP BY o.employee_id, o.employee_name, o.designation,
 		         o.department_name, o.separation_mode, o.separation_date
 		ORDER BY o.separation_date DESC NULLS LAST`)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var res []map[string]any
 	for rows.Next() {
-		var empID, empN string; var desig, dept, sepMode, sepDate *string; var dc int
+		var empID, empN string
+		var desig, dept, sepMode, sepDate *string
+		var dc int
 		rows.Scan(&empID, &empN, &desig, &dept, &sepMode, &sepDate, &dc)
 		res = append(res, map[string]any{
 			"employee_id": empID, "employee_name": empN, "designation": desig,
@@ -1125,7 +1772,9 @@ func (h *ReportHandler) Resignation(c *gin.Context) {
 			"assigned_devices": dc,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+	if res == nil {
+		res = []map[string]any{}
+	}
 	response.OK(c, res)
 }
 
@@ -1139,11 +1788,15 @@ func (h *ReportHandler) Renewal(c *gin.Context) {
 		LEFT JOIN employee_office_info e ON e.employee_id=d.emp_id
 		WHERE d.active>0 AND d.device_warranty_date BETWEEN NOW() AND NOW()+INTERVAL '90 days'
 		ORDER BY d.device_warranty_date ASC`)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var res []map[string]any
 	for rows.Next() {
-		var id int64; var empID, empN, cat, brand, serial, model, wd, vendor, dl *string
+		var id int64
+		var empID, empN, cat, brand, serial, model, wd, vendor, dl *string
 		rows.Scan(&id, &empID, &empN, &cat, &brand, &serial, &model, &wd, &vendor, &dl)
 		res = append(res, map[string]any{
 			"id": id, "emp_id": empID, "emp_name": empN, "category": cat,
@@ -1151,7 +1804,9 @@ func (h *ReportHandler) Renewal(c *gin.Context) {
 			"warranty_date": wd, "vendor": vendor, "days_left": dl,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+	if res == nil {
+		res = []map[string]any{}
+	}
 	response.OK(c, res)
 }
 
@@ -1164,11 +1819,15 @@ func (h *ReportHandler) NonOperational(c *gin.Context) {
 		LEFT JOIN employee_office_info e ON e.employee_id=d.emp_id
 		WHERE d.active>0 AND d.status IN ('Damaged','Lost','Stolen','Obsolete')
 		ORDER BY d.id DESC`)
-	if err != nil { response.ServerError(c, err); return }
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 	defer rows.Close()
 	var res []map[string]any
 	for rows.Next() {
-		var id int64; var empID, empN, cat, brand, serial, model, status, ad, wd, vendor *string
+		var id int64
+		var empID, empN, cat, brand, serial, model, status, ad, wd, vendor *string
 		rows.Scan(&id, &empID, &empN, &cat, &brand, &serial, &model, &status, &ad, &wd, &vendor)
 		res = append(res, map[string]any{
 			"id": id, "emp_id": empID, "emp_name": empN, "category": cat,
@@ -1176,6 +1835,8 @@ func (h *ReportHandler) NonOperational(c *gin.Context) {
 			"assign_date": ad, "warranty_date": wd, "vendor": vendor,
 		})
 	}
-	if res == nil { res = []map[string]any{} }
+	if res == nil {
+		res = []map[string]any{}
+	}
 	response.OK(c, res)
 }

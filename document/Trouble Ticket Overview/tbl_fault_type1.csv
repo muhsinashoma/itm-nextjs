@@ -1,0 +1,121 @@
+id,fault_name,fault_register,fault_desc,date,status,edited_by,edited_at
+129,"Cooling Fan",nur.hosen,"Cooling Fan",2026-04-20,1,NULL,NULL
+128,"M365 (Email) Password Reset",nur.hosen,"M365 (Email) Password Reset",2026-03-30,1,NULL,NULL
+127,"RJ 45 Connector Replacement ",nur.hosen,"RJ 45 Connector Replacement ",2025-07-15,1,NULL,NULL
+126,"M 365 Authenticator",nur.hosen,"MS 365 Authenticator",2025-07-15,1,nur.hosen,"2025-07-15 11:33:32"
+125,M365,nur.hosen,"Microsoft office 356",2025-07-07,1,nur.hosen,"2025-07-07 11:58:11"
+124,"IT Equipment Return",nur.hosen,"IT Equipment Return",2025-01-28,1,NULL,NULL
+123,"Printer Toner/Cartridge/Ink Replace",nur.hosen,"Printer Toner/Cartridge/Ink Replace",2025-01-22,1,NULL,NULL
+122,CourierÂ ,nur.hosen,CourierÂ ,2025-01-22,1,NULL,NULL
+121,"IT Equipment Collection",nur.hosen,"IT Equipment Collection",2025-01-22,1,NULL,NULL
+120,"IT Equipment Delivery",nur.hosen,"IT Equipment Delivery",2025-01-22,1,NULL,NULL
+119,Mouse,nur.hosen,Mouse,2025-01-22,1,NULL,NULL
+118,"USB HUB",nur.hosen,"USB HUB",2025-01-22,1,NULL,NULL
+117,Converter,nur.hosen,Converter,2025-01-22,1,NULL,NULL
+116,"Desktop Brand",nur.hosen,"Desktop Brand",2025-01-22,1,NULL,NULL
+115,"Desktop Clone ",nur.hosen,"Desktop Clone ",2025-01-22,1,nur.hosen,"2025-01-22 09:32:29"
+114,"IT Equipments Entry",nur.hosen,"IT Equipments Entry",2025-01-22,1,NULL,NULL
+113,"UTP Patch Cord(Cat-6)",nur.hosen,"UTP Patch Cord(Cat-6)",2025-01-22,1,NULL,NULL
+112,SSD,nur.hosen,SSD,2025-01-22,1,nur.hosen,"2025-01-22 09:28:40"
+111,"Exit Clearance",nur.hosen,"Exit Clearance",2024-10-20,1,nur.hosen,"2024-10-20 17:14:43"
+110,"Mail Migration",nur.hosen,"Mail Migration",2024-08-01,1,NULL,NULL
+109,"Test Purpose - Test Purpose",nur.hosen,"Test Purpose - Test Purpose",2024-08-01,1,nur.hosen,"2024-08-01 14:24:15"
+108,Service,shakil.khan,"Laptop-Desktop- Other IT equipment Servicing",2023-06-22,1,NULL,NULL
+107,,shakil.khan,,2023-06-13,1,NULL,NULL
+106,"GIS Sentral Issue ",shihab,,2021-01-17,1,NULL,NULL
+105,"IP Phone Repair ",shihab,,2020-10-20,1,NULL,NULL
+104,"1. Printer Access",shihab,,2009-10-10,1,NULL,NULL
+103,Service&Repair-(vendor),shihab,,2020-06-21,1,NULL,NULL
+102,VPN,shihab,"vnp related issue ",2020-03-23,1,NULL,NULL
+101,"PABX-Land Phone Connection Issue ",shihab,,2020-02-03,1,NULL,NULL
+100,"HDD Partition- ( with Format and OS ) ",shihab,,2020-01-09,1,NULL,NULL
+99,"IP Phone Config -( Device and Soft Phone) ",shihab,,2020-01-09,1,nur.hosen,"2025-07-07 12:01:35"
+98,"Display Problem- ( Not Hardware ) ",shihab,,2020-01-09,1,NULL,NULL
+97,Other,,"Other Queries",2019-12-31,0,NULL,NULL
+96,Desktop,shakil.khan,,2019-12-29,1,NULL,NULL
+95,Laptop,shakil.khan,,2019-12-29,1,NULL,NULL
+94,"Web Administration ",shihab,,2019-06-09,1,NULL,NULL
+93,"Cable ",shihab,"Any Kind of Cable Delivery or Repair ",2019-03-28,1,NULL,NULL
+92,"PETTY CASH PURCHASE ",shihab,,2019-02-07,1,NULL,NULL
+91,"PURCHASE ",shihab,,2019-02-07,1,NULL,NULL
+90,"HARDWARE INSTALLATION",shihab,,2019-02-07,1,NULL,NULL
+89,"IP Phone Extension (new extension)",shihab,,2019-01-31,1,nur.hosen,"2025-07-07 12:02:28"
+88,"Desk Reallocation Support ",shihab,"Desk Reallocation Support ",2019-01-20,1,NULL,NULL
+87,"Video Conference",shakil.khan,,2018-11-25,1,NULL,NULL
+86,"Copier Troubleshoot- Taj Marriot",shihab,,2018-10-23,1,NULL,NULL
+85,"Copier Troubleshoot- HO 4th Floor",shihab,,2018-10-23,1,NULL,NULL
+84,"Copier Troubleshoot- HO 1st Floor",shihab,,2018-10-23,1,NULL,NULL
+83,"Copier Troubleshoot- NMC 2nd Floor",shihab,,2018-10-23,1,NULL,NULL
+82,"Copier Troubleshoot- NMC 1st Floor ",shihab,,2018-10-23,1,NULL,NULL
+81,"Administrator Account ",shihab,,2018-10-15,1,NULL,NULL
+80,"Office Activation",shakil.khan,,2018-10-14,1,NULL,NULL
+79,Cable-Power,shakil.khan,,2018-10-14,1,NULL,NULL
+78,"CC Camera",shakil.khan,,2018-10-14,1,NULL,NULL
+77,"Cache Clear",shakil.khan,,2018-10-14,1,NULL,NULL
+76,"Tally Issue",shakil.khan,,2018-10-14,1,NULL,NULL
+75,"Office Network",shakil.khan,Network,2018-10-14,1,NULL,NULL
+74,"Windows login",shakil.khan,,2018-10-10,1,NULL,NULL
+73,Support,shakil.khan,"Device Support",2018-10-09,1,NULL,NULL
+72,BIOS,shakil.khan,"BIOS SETUP-PASSWORD",2018-10-09,1,NULL,NULL
+71,"New Device Req",shakil.khan,"To require new IT equipment or accessories",2018-06-10,1,NULL,NULL
+70,Printer,shakil.khan,"printer instalaltion",2015-12-10,1,NULL,NULL
+69,"Card Entry",shakil.khan,"HRIS card Entry",2015-12-09,1,NULL,NULL
+68,"HRIS entry error",sifatul,test,2015-09-20,1,NULL,NULL
+67,Troubleshootings,hasanus.safa,Troubleshootings,2015-09-20,1,NULL,NULL
+59,"CD/DVD writing",,,NULL,1,NULL,NULL
+58,VGA,,,NULL,1,NULL,NULL
+57,"Laptop Wireless card problem",,,NULL,1,NULL,NULL
+56,"NIC/LAN Card",shakil.khan,"Connection Problem",2015-08-13,1,NULL,NULL
+55,"Graphics Card",,,NULL,1,NULL,NULL
+54,"Power supply",,,NULL,1,NULL,NULL
+53,"IP Printer installation",,,NULL,1,NULL,NULL
+52,"IP Conflict",,,NULL,1,NULL,NULL
+51,Projector,,,NULL,1,NULL,NULL
+50,"Door Access related",,,NULL,1,NULL,NULL
+49,GIS,,,NULL,1,NULL,NULL
+48,"BIOS Fault",,,NULL,1,NULL,NULL
+47,"CMOS Battery",,,NULL,1,NULL,NULL
+46,"PC sound",,,NULL,1,NULL,NULL
+45,Facebook,,,NULL,1,NULL,NULL
+44,Messenger(skype/yahoo/google),,,NULL,1,NULL,NULL
+43,"OS File Damage",,,NULL,1,NULL,NULL
+42,"BAD Sector",,,NULL,1,NULL,NULL
+41,"IP CAMERA",,,NULL,1,NULL,NULL
+40,"DATA Backup",,,NULL,1,NULL,NULL
+39,"DATA Transfer",,,NULL,1,NULL,NULL
+38,"DATA recovery",,,NULL,1,NULL,NULL
+37,"MS Office",,,NULL,1,NULL,NULL
+36,"google earth",,,NULL,1,NULL,NULL
+35,"IP conflict",,,NULL,1,NULL,NULL
+34,"Printer Cartridge problem",,,NULL,1,NULL,NULL
+32,"Driver loss/installation",,,NULL,1,NULL,NULL
+30,"wireless device configure",,,NULL,1,NULL,NULL
+29,WIFI,shihab,"Wireless connection",2018-10-11,1,NULL,NULL
+28,"USB Connection",,,NULL,1,NULL,NULL
+27,"UPS battery/backup",,,NULL,1,NULL,NULL
+26,software,,,NULL,1,NULL,NULL
+25,scanner,,,NULL,1,NULL,NULL
+24,ROM,,,NULL,1,NULL,NULL
+23,RAM,,,NULL,1,NULL,NULL
+22,"Printer spooler",,,NULL,1,NULL,NULL
+21,"Power connection",,,NULL,1,NULL,NULL
+20,Photocopier,,,NULL,1,NULL,NULL
+19,"OS REPAIR",,,NULL,1,NULL,NULL
+18,"OS INSTALLATION",saulad.alvi,,2015-12-10,1,NULL,NULL
+17,"New PC/laptop configuration",,,NULL,1,NULL,NULL
+16,"Touch pad ",shihab,,2018-10-03,1,nur.hosen,"2025-01-22 09:34:11"
+15,Motherboard,,,NULL,1,NULL,NULL
+14,Monitor,shihab,"Any Issue regarding Monitor Laptop or desktop",2018-10-03,1,NULL,NULL
+13,Mail/outlook/webmail,,,NULL,1,NULL,NULL
+12,"LED/LCD monitor",,,NULL,1,NULL,NULL
+11,"LAPTOP BATTERY",,,NULL,1,NULL,NULL
+10,"Laptop Adaptor",,,NULL,1,NULL,NULL
+9,"LAN Connection",,,NULL,1,NULL,NULL
+8,"Keyboard ",shihab,"any keyboard related issue ",2018-10-03,1,NULL,NULL
+7,"IP Phone Incoming Outgoing Issue",shihab,,2019-01-31,1,NULL,NULL
+6,"IP Related Issue",shihab,,2018-10-11,1,NULL,NULL
+5,Internet/Intranet,,,NULL,1,NULL,NULL
+4,HDD,,,NULL,1,NULL,NULL
+3,"License Activation ",shihab,"OS OFFICE LICENSE ",2019-08-20,1,NULL,NULL
+2,"BLUE screen error",shakil.khan,"BLUE screen error",2015-08-12,1,NULL,NULL
+1,"Virus Related Issue",shihab,"All Antivirus test",2018-10-03,1,NULL,NULL

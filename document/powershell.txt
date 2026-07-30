@@ -1,0 +1,144 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> cd "C:\Users\HP\Desktop\itm_tt_reduced_import"
+PS C:\Users\HP\Desktop\itm_tt_reduced_import> Get-ChildItem -Recurse
+
+
+    Directory: C:\Users\HP\Desktop\itm_tt_reduced_import
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----         7/26/2026  12:03 PM                backend
+d-----         7/26/2026  12:09 PM                scripts
+-a----         7/26/2026  12:03 PM           1441 README.md
+
+
+    Directory: C:\Users\HP\Desktop\itm_tt_reduced_import\backend
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----         7/26/2026  12:09 PM                migrations
+
+
+    Directory: C:\Users\HP\Desktop\itm_tt_reduced_import\backend\migrations
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----         7/26/2026  12:03 PM           5938 0000xx_create_trouble_ticket_reduced.sql
+
+
+    Directory: C:\Users\HP\Desktop\itm_tt_reduced_import\scripts
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----         7/26/2026  12:03 PM          25863 import_tt_reduced.py
+-a----         7/26/2026  12:03 PM           4401 validate_tt_csv.py
+
+
+PS C:\Users\HP\Desktop\itm_tt_reduced_import> py -m venv .venv
+PS C:\Users\HP\Desktop\itm_tt_reduced_import> Get-ChildItem
+
+
+    Directory: C:\Users\HP\Desktop\itm_tt_reduced_import
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----         7/26/2026  12:23 PM                .venv
+d-----         7/26/2026  12:03 PM                backend
+d-----         7/26/2026  12:09 PM                scripts
+-a----         7/26/2026  12:03 PM           1441 README.md
+
+
+PS C:\Users\HP\Desktop\itm_tt_reduced_import> .\.venv\Scripts\Activate.ps1
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> python -m pip install --upgrade pip
+Requirement already satisfied: pip in .\.venv\Lib\site-packages (26.1.1)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting pip
+  Downloading pip-26.1.2-py3-none-any.whl.metadata (4.6 kB)
+Downloading pip-26.1.2-py3-none-any.whl (1.8 MB)
+   ---------------------------------------- 1.8/1.8 MB 7.6 MB/s  0:00:00
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 26.1.1
+    Uninstalling pip-26.1.1:
+      Successfully uninstalled pip-26.1.1
+Successfully installed pip-26.1.2
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> pip install "psycopg[binary]"
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting psycopg[binary]
+  Downloading psycopg-3.3.4-py3-none-any.whl.metadata (4.3 kB)
+Collecting tzdata (from psycopg[binary])
+  Downloading tzdata-2026.3-py2.py3-none-any.whl.metadata (1.4 kB)
+Collecting psycopg-binary==3.3.4 (from psycopg[binary])
+  Downloading psycopg_binary-3.3.4-cp314-cp314-win_amd64.whl.metadata (2.7 kB)
+Downloading psycopg-3.3.4-py3-none-any.whl (213 kB)
+Downloading psycopg_binary-3.3.4-cp314-cp314-win_amd64.whl (3.7 MB)
+   ---------------------------------------- 3.7/3.7 MB 11.9 MB/s  0:00:00
+Downloading tzdata-2026.3-py2.py3-none-any.whl (348 kB)
+Installing collected packages: tzdata, psycopg-binary, psycopg
+Successfully installed psycopg-3.3.4 psycopg-binary-3.3.4 tzdata-2026.3
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> python -c "import psycopg; print('psycopg version:', psycopg.__version__)"
+psycopg version: 3.3.4
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> Get-ChildItem "C:\Users\HP\Desktop\Trouble Ticket Overview (2)\Trouble Ticket Overview"
+
+
+    Directory: C:\Users\HP\Desktop\Trouble Ticket Overview (2)\Trouble Ticket Overview
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+------         7/23/2026   6:25 PM           7013 tbl_fault_type1.csv
+------         7/23/2026   6:25 PM         289363 tbl_fault_type_other.csv
+------         7/23/2026   4:24 PM        2453400 tbl_it_equipment_requisition_form.csv
+------         7/23/2026   4:25 PM         167759 tbl_it_equipment_requisition_stack_info.csv
+------         7/23/2026   4:23 PM        1851261 tbl_track_tt.csv
+------         7/23/2026   4:20 PM        3555328 tbl_trouble_input.csv
+------         7/23/2026   4:23 PM         108027 tbl_tt_reason.csv
+------         7/23/2026   4:22 PM        4689626 tbl_tt_update.csv
+------         7/21/2026   6:55 PM         372135 touble_ticket.docx
+------         7/22/2026   6:53 PM           3377 TT_Count.txt
+
+
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> Get-ChildItem "C:\Users\HP\Desktop\Trouble Ticket Overview (2)\Trouble Ticket Overview" -File |
+>> Where-Object {
+>>     $_.Name -in @(
+>>         "tbl_trouble_input.csv",
+>>         "tbl_tt_update.csv",
+>>         "tbl_tt_reason.csv",
+>>         "tbl_track_tt.csv",
+>>         "tbl_fault_type1.csv",
+>>         "tbl_fault_type_other.csv"
+>>     )
+>> }
+
+
+    Directory: C:\Users\HP\Desktop\Trouble Ticket Overview (2)\Trouble Ticket Overview
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+------         7/23/2026   6:25 PM           7013 tbl_fault_type1.csv
+------         7/23/2026   6:25 PM         289363 tbl_fault_type_other.csv
+------         7/23/2026   4:23 PM        1851261 tbl_track_tt.csv
+------         7/23/2026   4:20 PM        3555328 tbl_trouble_input.csv
+------         7/23/2026   4:23 PM         108027 tbl_tt_reason.csv
+------         7/23/2026   4:22 PM        4689626 tbl_tt_update.csv
+
+
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $env:DATABASE_URL="host=127.0.0.1 port=5432 dbname=itm_prod user=postgres password=YOUR_POSTGRES_PASSWORD"
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $env:DATABASE_URL="host=127.0.0.1 port=5432 dbname=itm_prod user=postgres password=1234"
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $securePassword = Read-Host "Enter PostgreSQL password" -AsSecureString
+Enter PostgreSQL password: ****
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $plainPassword = [System.Net.NetworkCredential]::new("", $securePassword).Password
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $encodedPassword = [System.Uri]::EscapeDataString($plainPassword)
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $env:DATABASE_URL="postgresql://postgres:$encodedPassword@127.0.0.1:5432/itm_prod"
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> Remove-Variable securePassword, plainPassword, encodedPassword
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> python -c "import os, psycopg; c=psycopg.connect(os.environ['DATABASE_URL']); print(c.execute('SELECT current_database(), current_user, inet_server_addr(), inet_server_port()').fetchone()); c.close()"
+('itm_prod', 'postgres', IPv4Address('127.0.0.1'), 5432)
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import>

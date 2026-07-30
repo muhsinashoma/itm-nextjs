@@ -1,0 +1,116 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> New-Item `
+>>   -ItemType Directory `
+>>   -Path "C:\Users\HP\Desktop\touble_ticket_final" `
+>>   -Force
+
+
+    Directory: C:\Users\HP\Desktop
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----         7/27/2026  12:25 PM                touble_ticket_final
+
+
+PS C:\WINDOWS\system32> python .\scripts\export_tt_from_mysql.py `
+>>   --host 127.0.0.1 `
+>>   --port 3306 `
+>>   --user root `
+>>   --database itm `                                                                                                   >>   --out "C:\Users\HP\Desktop\touble_ticket_final"                                                                    C:\Python314\python.exe: can't open file 'C:\\WINDOWS\\system32\\scripts\\export_tt_from_mysql.py': [Errno 2] No such file or directory                                                                                                         PS C:\WINDOWS\system32> cd "C:\Users\HP\Desktop\itm_tt_reduced_import"                                                  PS C:\Users\HP\Desktop\itm_tt_reduced_import> .\.venv\Scripts\Activate.ps1                                              (.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> Test-Path ".\scripts\export_tt_from_mysql.py"                     True                                                                                                                    (.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> Get-ChildItem ".\scripts"                                                                                                                                                                                                                                                                                             Directory: C:\Users\HP\Desktop\itm_tt_reduced_import\scripts                                                                                                                                                                                                                                                                                                        Mode                 LastWriteTime         Length Name                                                                  ----                 -------------         ------ ----                                                                  d-----         7/27/2026  12:08 PM                __pycache__                                                           -a----         7/27/2026  12:16 PM           4188 export_tt_from_mysql.py
+-a----         7/27/2026  11:54 AM          25860 import_tt_reduced.py
+-a----         7/26/2026  12:03 PM           4401 validate_tt_csv.py
+
+
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> pip install pymysql
+Requirement already satisfied: pymysql in .\.venv\Lib\site-packages (1.2.0)
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> python -c "import pymysql; print('PyMySQL installed')"
+PyMySQL installed
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> Test-NetConnection 192.168.44.38 -Port 3306
+
+
+ComputerName     : 192.168.44.38
+RemoteAddress    : 192.168.44.38
+RemotePort       : 3306
+InterfaceAlias   : Local Area Connection
+SourceAddress    : 192.168.248.21
+TcpTestSucceeded : True
+
+
+
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> python .\scripts\export_tt_from_mysql.py `
+>>   --host 192.168.44.38 `
+>>   --port 3306 `
+>>   --user root1 `
+>>   --database itm `
+>>   --out "C:\Users\HP\Desktop\touble_ticket_final"
+Enter MySQL password:
+Connected: {'DATABASE()': 'itm', 'CURRENT_USER()': 'root1@%', 'VERSION()': '5.5.62-0ubuntu0.14.04.1-log'}
+tbl_trouble_input: exported 29,585 rows to C:\Users\HP\Desktop\touble_ticket_final\tbl_trouble_input.csv
+tbl_tt_update: exported 18,010 rows to C:\Users\HP\Desktop\touble_ticket_final\tbl_tt_update.csv
+tbl_tt_reason: exported 430 rows to C:\Users\HP\Desktop\touble_ticket_final\tbl_tt_reason.csv
+tbl_track_tt: exported 29,750 rows to C:\Users\HP\Desktop\touble_ticket_final\tbl_track_tt.csv
+tbl_fault_type1: exported 120 rows to C:\Users\HP\Desktop\touble_ticket_final\tbl_fault_type1.csv
+tbl_fault_type_other: exported 3,224 rows to C:\Users\HP\Desktop\touble_ticket_final\tbl_fault_type_other.csv
+
+Export completed successfully.
+Output folder: C:\Users\HP\Desktop\touble_ticket_final
+
+Row counts:
+- tbl_trouble_input: 29,585
+- tbl_tt_update: 18,010
+- tbl_tt_reason: 430
+- tbl_track_tt: 29,750
+- tbl_fault_type1: 120
+- tbl_fault_type_other: 3,224
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import>
+
+------------------------------------------------------------------------------------------
+
+PS C:\WINDOWS\system32> cd "C:\Users\HP\Desktop\itm_tt_reduced_import"
+
+
+
+PS C:\WINDOWS\system32> "C:\Users\HP\Desktop\touble_ticket_final"
+C:\Users\HP\Desktop\touble_ticket_final
+PS C:\WINDOWS\system32> python .\scripts\validate_tt_csv.py --dir "C:\Users\HP\Desktop\touble_ticket_final"
+C:\Python314\python.exe: can't open file 'C:\\WINDOWS\\system32\\scripts\\validate_tt_csv.py': [Errno 2] No such file or directory
+PS C:\WINDOWS\system32> python .\scripts\validate_tt_csv.py --dir "C:\Users\HP\Desktop\touble_ticket_final"
+C:\Python314\python.exe: can't open file 'C:\\WINDOWS\\system32\\scripts\\validate_tt_csv.py': [Errno 2] No such file or directory
+PS C:\WINDOWS\system32> cd "C:\Users\HP\Desktop\itm_tt_reduced_import"
+PS C:\Users\HP\Desktop\itm_tt_reduced_import> .\.venv\Scripts\Activate.ps1
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> python .\scripts\validate_tt_csv.py --dir "C:\Users\HP\Desktop\touble_ticket_final"
+tbl_trouble_input.csv: valid=29585 malformed=0 min=2009-09-30 23:42:15 max=2026-07-27 11:07:05 column_lengths={51: 29585}
+tbl_tt_update.csv: valid=18010 malformed=0 min=2009-10-09 07:10:27 max=2026-07-26 16:54:01 column_lengths={25: 18010}
+tbl_tt_reason.csv: valid=430 malformed=0 min=2024-11-28 12:52:05 max=2026-07-23 15:37:54 column_lengths={20: 430}
+tbl_track_tt.csv: valid=29750 malformed=0 min=2009-10-09 07:09:18 max=2026-07-27 11:07:05 column_lengths={6: 29750}
+tbl_fault_type1.csv: valid=120 malformed=0 min=2009-10-10 00:00:00 max=2026-04-20 00:00:00 column_lengths={8: 120}
+tbl_fault_type_other.csv: valid=3224 malformed=0 min=2009-10-10 00:01:44 max=2026-07-23 14:44:36 column_lengths={8: 3224}
+
+VALIDATION PASSED
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $master = Import-Csv "C:\Users\HP\Desktop\touble_ticket_final\tbl_trouble_input.csv"
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $master |
+>> Where-Object { $_.id -eq "29583" } |
+>> Format-List id,tt_no,fault_date_time,employee_id,phone,client_name
+
+
+id              : 29583
+tt_no           : 2026072629748.0
+fault_date_time : 2026-07-26 13:15:29
+employee_id     : 02-2810
+phone           : 01614929255
+client_name     : Md. Rashidul Hasan Rony
+
+
+
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> ($master |
+>> Where-Object {
+>>     $ttNo = ([string]$_.tt_no).Trim()
+>>
+>>     [string]::IsNullOrWhiteSpace($ttNo) -or
+>>     $ttNo -notmatch '^\d+$'
+>> }).Count
+29585
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import>

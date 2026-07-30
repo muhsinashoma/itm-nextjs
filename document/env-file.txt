@@ -1,0 +1,79 @@
+
+----------------------------------------------------------------------------------------------
+
+
+#backend/.env
+PORT=8080
+ENV=development
+DATABASE_URL=postgres://itm_user:itm_secret_2026@localhost:5432/itm_prod?sslmode=disable
+#DATABASE_URL=postgres://itm_user:itm_secret_2026@localhost:5432/itm_restore_test?sslmode=disable
+JWT_SECRET=54e2e6e45223e6f4ec05bc2eb370405d316d2534e6836607794a26a56a892810
+#ALLOW_ORIGIN=http://localhost:3000
+
+ALLOW_ORIGIN=http://localhost:5173
+
+
+-------------------------------------------------------------------
+
+
+Step 2 — Set the PostgreSQL connection
+
+PostgreSQL server: Local PostgreSQL
+IP: 127.0.0.1
+Port: 5432
+Database: itm_prod
+User: postgres
+
+
+$env:DATABASE_URL="host=127.0.0.1 port=5432 dbname=itm_prod user=postgres password=YOUR_POSTGRES_PASSWORD"
+
+
+$env:DATABASE_URL="host=127.0.0.1 port=5432 dbname=itm_prod user=postgres password=1234"
+
+
+
+ Directory: C:\Users\HP\Desktop\Trouble Ticket Overview (2)\Trouble Ticket Overview
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+------         7/23/2026   6:25 PM           7013 tbl_fault_type1.csv
+------         7/23/2026   6:25 PM         289363 tbl_fault_type_other.csv
+------         7/23/2026   4:23 PM        1851261 tbl_track_tt.csv
+------         7/23/2026   4:20 PM        3555328 tbl_trouble_input.csv
+------         7/23/2026   4:23 PM         108027 tbl_tt_reason.csv
+------         7/23/2026   4:22 PM        4689626 tbl_tt_update.csv
+
+
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $env:DATABASE_URL="host=127.0.0.1 port=5432 dbname=itm_prod user=postgres password=YOUR_POSTGRES_PASSWORD"
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $env:DATABASE_URL="host=127.0.0.1 port=5432 dbname=itm_prod user=postgres password=1234"
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $securePassword = Read-Host "Enter PostgreSQL password" -AsSecureString
+Enter PostgreSQL password: ****
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $plainPassword = [System.Net.NetworkCredential]::new("", $securePassword).Password
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $encodedPassword = [System.Uri]::EscapeDataString($plainPassword)
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> $env:DATABASE_URL="postgresql://postgres:$encodedPassword@127.0.0.1:5432/itm_prod"
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> Remove-Variable securePassword, plainPassword, encodedPassword
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> python -c "import os, psycopg; c=psycopg.connect(os.environ['DATABASE_URL']); print(c.execute('SELECT current_database(), current_user, inet_server_addr(), inet_server_port()').fetchone()); c.close()"
+('itm_prod', 'postgres', IPv4Address('127.0.0.1'), 5432)
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import>
+
+
+-------------------------------------------------------------------------------------------------------------------
+
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import> python .\scripts\validate_tt_csv.py --dir "C:\Users\HP\Desktop\Trouble Ticket Overview (2)\Trouble Ticket Overview"
+tbl_trouble_input.csv: valid=7663 malformed=7 min=2015-12-08 11:03:24 max=2020-01-08 10:56:03 column_lengths={51: 7663, 12: 1, 42: 1, 11: 1, 1: 2, 41: 1, 33: 1}
+tbl_tt_update.csv: valid=17954 malformed=189 min=2009-10-09 07:10:27 max=2026-07-23 16:19:53 column_lengths={25: 17954, 27: 2, 10: 14, 1: 63, 0: 50, 4: 10, 11: 1, 3: 5, 26: 17, 16: 7, 13: 8, 2: 10, 12: 1, 18: 1}
+tbl_tt_reason.csv: valid=429 malformed=1 min=2024-11-28 12:52:05 max=2026-07-23 15:37:54 column_lengths={20: 429, 21: 1}
+tbl_track_tt.csv: valid=29737 malformed=0 min=2009-10-09 07:09:18 max=2026-07-23 15:40:26 column_lengths={6: 29737}
+tbl_fault_type1.csv: valid=120 malformed=0 min=2009-10-10 00:00:00 max=2026-04-20 00:00:00 column_lengths={8: 120}
+tbl_fault_type_other.csv: valid=3224 malformed=0 min=2009-10-10 00:01:44 max=2026-07-23 14:44:36 column_lengths={8: 3224}
+
+VALIDATION FAILED
+- tbl_trouble_input.csv has 7 malformed records
+- tbl_tt_update.csv has 189 malformed records
+- tbl_tt_reason.csv has 1 malformed records
+- tbl_trouble_input.csv is incomplete: master max date is 2020-01-08 10:56:03, but tracking max date is 2026-07-23 15:40:26
+
+Re-export the legacy MySQL tables with correct CSV quoting before production import.
+(.venv) PS C:\Users\HP\Desktop\itm_tt_reduced_import>
+

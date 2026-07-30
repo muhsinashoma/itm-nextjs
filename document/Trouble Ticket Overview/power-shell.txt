@@ -1,0 +1,227 @@
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> $master = Import-Csv "C:\Users\HP\Desktop\touble_ticket_clean\tbl_trouble_input.csv"
+PS C:\WINDOWS\system32> $master |
+>> Where-Object { $_.id -eq "29583" } |
+>> Format-List id,tt_no,fault_date_time,employee_id,phone,client_name
+
+
+id              : 29583
+tt_no           : 2026072629748
+fault_date_time : 2026-07-26 13:15:29
+employee_id     : 02-2810
+phone           : 01614929255
+client_name     : Md. Rashidul Hasan Rony
+
+
+
+PS C:\WINDOWS\system32> $master |
+>> Where-Object { $_.id -eq "29582" } |
+>> Format-List id,tt_no,fault_date_time,employee_id,phone
+
+
+id              : 29582
+tt_no           : 2026072629747
+fault_date_time : 2026-07-26 13:02:44
+employee_id     : 02-2428
+phone           : 01571336574
+
+
+
+PS C:\WINDOWS\system32> ($master |
+>> Where-Object {
+>>     $_.tt_no -notmatch '^\d+$'
+>> }).Count
+107
+PS C:\WINDOWS\system32> ($master |
+>> Where-Object {
+>>     $_.tt_no -notmatch '^\d+$'
+>> }).Count
+107
+PS C:\WINDOWS\system32> $invalid = $master | Where-Object {
+>>     $ttNo = [string]$_.tt_no
+>>
+>>     [string]::IsNullOrWhiteSpace($ttNo) -or
+>>     $ttNo -notmatch '^\d+$'
+>> }
+PS C:\WINDOWS\system32> $invalid.Count
+107
+PS C:\WINDOWS\system32> $invalid |
+>> Group-Object {
+>>     $ttNo = ([string]$_.tt_no).Trim()
+>>
+>>     if ([string]::IsNullOrWhiteSpace($ttNo)) {
+>>         "Blank"
+>>     }
+>>     elseif ($ttNo -eq "NULL") {
+>>         "NULL"
+>>     }
+>>     elseif ($ttNo -match '[Ee][+-]?\d+$') {
+>>         "Scientific notation"
+>>     }
+>>     else {
+>>         "Other invalid value"
+>>     }
+>> } |
+>> Select-Object Name, Count |
+>> Format-Table -AutoSize
+
+Name                Count
+----                -----
+Other invalid value    51
+Blank                  56
+
+
+PS C:\WINDOWS\system32> $invalid |
+>> Where-Object {
+>>     $ttNo = ([string]$_.tt_no).Trim()
+>>
+>>     -not [string]::IsNullOrWhiteSpace($ttNo)
+>> } |
+>> Select-Object `
+>>     id,
+>>     tt_no,
+>>     fault_date_time,
+>>     client_name,
+>>     employee_id |
+>> Format-Table -AutoSize
+
+id
+--
+I`m able to provide team viewer support at now
+01723526905"
+,2022-11-27,0,IT,02-0908,,,NULL,1,NULL,NULL,NULL,NULL,rabiul,asraful.islam,2022-11-27 11:35:17"
+,2022-12-08,0,IT,02-2116,,,NULL,1,NULL,NULL,NULL,NULL,zubair.hasan,fahim.tahmid,2022-12-12 12:06:15"
+,2022-12-18,0,IT,02-2014,,,NULL,1,NULL,NULL,NULL,NULL,atiqul.islam,nur.hosen,2022-12-18 15:36:23"
+,2023-02-14,0,IT,02-2255,,,NULL,1,NULL,NULL,NULL,NULL,nahid,rafsun,2023-02-15 17:42:25"
+,2023-04-04,0,IT,02-2181,,,NULL,1,NULL,NULL,NULL,NULL,hasibur,ruhul,2023-04-13 09:01:54"
+,2023-04-11,0,IT,02-2248,,,NULL,1,NULL,NULL,NULL,NULL,saifulislam,smariful,2023-05-29 14:19:00"
+,2023-04-30,0,IT,02-2248,,,NULL,1,NULL,NULL,NULL,NULL,raziur,smariful,2023-05-02 16:07:46"
+,2023-05-30,0,IT,02-2248,,,NULL,1,NULL,NULL,NULL,NULL,bashir.ahmed,smariful,2023-06-05 13:19:31"
+,2023-08-20,0,IT,02-2297,,,NULL,1,NULL,NULL,NULL,NULL,ariful.anwar,sakib.apu,2023-09-20 11:46:11"
+Brand : NPS
+,2023-07-23,0,IT,02-2181,,,NULL,1,NULL,NULL,NULL,NULL,limon.miah,ruhul,2023-07-26 14:58:58"
+,2023-07-30,0,IT,02-2297,,,NULL,1,NULL,NULL,NULL,NULL,hasibur,sakib.apu,2023-07-30 10:26:49"
+,2023-07-30,0,IT,02-2248,,,NULL,1,NULL,NULL,NULL,NULL,hasibur,smariful,2023-08-06 11:42:34"
+,2023-08-17,0,IT,02-2297,,,NULL,1,NULL,NULL,NULL,NULL,faruque.hossen,sakib.apu,2023-09-17 11:21:31"
+2.Â UPS
+3.Â Desktop-DC1
+,2023-08-17,0,IT,02-2181,,,NULL,1,NULL,NULL,NULL,NULL,forhadur.rahman,ruhul,2023-08-30 10:35:29"
+,2023-09-19,0,IT,02-2248,,,NULL,1,NULL,NULL,NULL,NULL,naeem.akbar,smariful,2023-09-20 10:11:22"
+,2023-09-26,0,IT,02-2014,,,NULL,1,NULL,NULL,NULL,NULL,zubaer,ruhul,2023-10-08 16:01:34"
+,2023-10-22,0,IT,02-2248,,,NULL,1,NULL,NULL,NULL,NULL,faruque.hossen,smariful,2023-10-30 10:17:03"
+,2023-10-25,0,IT,02-2181,,,NULL,1,NULL,NULL,NULL,NULL,mamun.roshid,ruhul,2023-11-09 10:41:19"
+,2023-11-12,0,IT,02-2248,,,NULL,1,NULL,NULL,NULL,NULL,shahed.ali,smariful,2023-11-14 10:33:29"
+,2023-12-14,0,IT,,,,NULL,1,NULL,NULL,NULL,NULL,ishik.kinzal,rustam,2023-12-14 16:05:30"
+,2024-01-04,0,IT,02-2297,,,NULL,1,NULL,NULL,NULL,NULL,rahman.mizanur,sakib.apu,2024-01-15 16:17:46"
+,2024-01-29,0,IT,02-2297,,,NULL,1,NULL,NULL,NULL,NULL,laltu.kumar,sakib.apu,2024-01-29 14:58:50"
+,2024-01-31,0,IT,02-2181,,,NULL,1,NULL,NULL,NULL,NULL,md.harun,ruhul,2024-02-05 11:27:38"
+,2024-02-25,0,IT,02-2253,,,NULL,1,NULL,NULL,NULL,NULL,md.harun,rustam,2024-03-06 11:32:16"
+,2024-02-29,0,IT,02-2014,,,NULL,1,NULL,NULL,NULL,NULL,minhaz.uddin,nur.hosen,2024-03-07 15:54:20"
+,2024-04-21,0,IT,02-2181,,,NULL,1,NULL,NULL,NULL,NULL,sadique,ruhul,2024-05-02 16:25:17"
+,2024-07-04,0,IT,02-2181,,,NULL,1,NULL,NULL,NULL,NULL,sarwar.kabir,ruhul,2024-07-07 10:32:18"
+,2024-11-26,0,IT,02-2014,,,NULL,1,NULL,NULL,NULL,NULL,md.harun,nur.hosen,2024-12-02 10:41:17"
+,2024-12-04,0,IT,02-2014,,,NULL,1,NULL,NULL,NULL,NULL,saminur.rahman,nur.hosen,2024-12-12 10:13:41"
+As per my diagnositics it showing that as per manufacturer the designed capacity of this battery was - 41
+Thank you fo"
+,2025-04-08,0,IT,02-2248,,,NULL,1,NULL,NULL,NULL,NULL,mirza.ferdous,smariful,2025-04-10 16:18:30"
+DGM
+[https://www.waveform.com/tools/bufferbloat?test-id=3e7e6441-4edf-42b0-ba9c-52cf20d53cd5](https://www.waveform.com/tools/bufferbloat?test-id=3...
+Subsequently
+I now urgently require a mouse for official use. I kindly request your necessary action in this regard."
+**Any issue
+Thank you for your consideration."
+Md. Shah"
+Failed to verify""      $invalid |
+>> Where-Object {tance
+>>     -not [string]::IsNullOrWhiteSpace(
+>>         ([string]$_.tt_no).Trim()
+>>     )nvestigate whether there is any issue with my mailbox permissions
+>> } | assist in resolving this issue."
+>> Group-Object tt_no |and update my attendance record?"
+>> Select-Object Name, Count |
+>> Sort-Object Count -Descending |
+>> Format-Table -AutoSize
+
+Name                                                                                                  Count
+----                                                                                                  -----
+...                                                                                                      30
+2026-01-29                                                                                                1
+please send mail to postmaster.                                                                           1
+2025-12-24                                                                                                1
+2025-12-11                                                                                                1
+please call Madhab Da for support.**"                                                                     1
+2026-07-08                                                                                                1
+2026-07-20                                                                                                1
+Outlook profile                                                                                           1
+please include this problem report. You can delete your own text from the attached returned message."     1
+2026-04-20                                                                                                1
+2025-06-24                                                                                                1
+Â MAX GREEN                                                                                               1
+Â Dell                                                                                                    1
+Device Serial No. : 220321008                                                                             1
+if possible then please look after this issue."                                                           1
+2017-05-16                                                                                                1
+2025-06-17                                                                                                1
+I purchased a new mouse personally for official use. At present                                           1
+Pico Public Cloud"                                                                                        1
+998 mWh but currently the Full Charge Capacity is - 21                                                    1
+2025-04-28                                                                                                1
+
+
+PS C:\WINDOWS\system32> $invalid |
+>> Where-Object {
+>>     -not [string]::IsNullOrWhiteSpace(
+>>         ([string]$_.tt_no).Trim()
+>>     )
+>> } |
+>> Group-Object tt_no |
+>> Select-Object Name, Count |
+>> Sort-Object Count -Descending |
+>> Format-Table -AutoSize
+
+Name                                                                                                  Count
+----                                                                                                  -----
+...                                                                                                      30
+2026-01-29                                                                                                1
+please send mail to postmaster.                                                                           1
+2025-12-24                                                                                                1
+2025-12-11                                                                                                1
+please call Madhab Da for support.**"                                                                     1
+2026-07-08                                                                                                1
+2026-07-20                                                                                                1
+Outlook profile                                                                                           1
+please include this problem report. You can delete your own text from the attached returned message."     1
+2026-04-20                                                                                                1
+2025-06-24                                                                                                1
+Â MAX GREEN                                                                                               1
+Â Dell                                                                                                    1
+Device Serial No. : 220321008                                                                             1
+if possible then please look after this issue."                                                           1
+2017-05-16                                                                                                1
+2025-06-17                                                                                                1
+I purchased a new mouse personally for official use. At present                                           1
+Pico Public Cloud"                                                                                        1
+998 mWh but currently the Full Charge Capacity is - 21                                                    1
+2025-04-28                                                                                                1
+
+
+PS C:\WINDOWS\system32> $invalid |
+>> Select-Object `
+>>     id,
+>>     tt_no,
+>>     fault_date_time,
+>>     client_name,
+>>     employee_id,
+>>     phone |
+>> Export-Csv `
+>>     "C:\Users\HP\Desktop\touble_ticket_clean\invalid_tt_no_107.csv" `
+>>     -NoTypeInformation `
+>>     -Encoding UTF8
+PS C:\WINDOWS\system32> $invalidIds |
+>> Set-Content `
+>> "C:\Users\HP\Desktop\touble_ticket_clean\invalid_ids.txt"
+PS C:\WINDOWS\system32>
+
+

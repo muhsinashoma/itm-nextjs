@@ -1,0 +1,92 @@
+
+
+
+
+Good, BOSS. Now we know:
+
+Blank tt_no          = 56
+Other invalid tt_no  = 51
+Total invalid        = 107
+
+Do not import yet. First inspect the 51 invalid values and collect all 107 record IDs from the original MySQL table.
+
+Step 1 — Show the 51 invalid values
+
+Server: Local Windows PC
+IP: 127.0.0.1
+
+Run:
+
+$invalid |
+Where-Object {
+    $ttNo = ([string]$_.tt_no).Trim()
+
+    -not [string]::IsNullOrWhiteSpace($ttNo)
+} |
+Select-Object `
+    id,
+    tt_no,
+    fault_date_time,
+    client_name,
+    employee_id |
+Format-Table -AutoSize
+
+Then group the exact invalid values:
+
+$invalid |
+Where-Object {
+    -not [string]::IsNullOrWhiteSpace(
+        ([string]$_.tt_no).Trim()
+    )
+} |
+Group-Object tt_no |
+Select-Object Name, Count |
+Sort-Object Count -Descending |
+Format-Table -AutoSize
+
+This will reveal whether the values contain:
+
+decimal points
+apostrophes
+spaces inside the number
+hyphens
+text values
+damaged numbers
+Step 2 — Export all 107 invalid records
+
+Run:
+
+$invalid |
+Select-Object `
+    id,
+    tt_no,
+    fault_date_time,
+    client_name,
+    employee_id,
+    phone |
+Export-Csv `
+    "C:\Users\HP\Desktop\touble_ticket_clean\invalid_tt_no_107.csv" `
+    -NoTypeInformation `
+    -Encoding UTF8
+
+Verify:
+
+Get-Item "C:\Users\HP\Desktop\touble_ticket_clean\invalid_tt_no_107.csv"
+Step 3 — Generate the MySQL ID list
+
+Run:
+
+$invalidIds = (
+    $invalid |
+    Where-Object {
+        ([string]$_.id).Trim() -match '^\d+$'
+    } |
+    ForEach-Object {
+        ([string]$_.id).Trim()
+    }
+) -join ","
+
+
+-------------------------------------------------------------------
+
+Step 4 — Retrieve the correct values from MySQL

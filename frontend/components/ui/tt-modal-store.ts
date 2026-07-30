@@ -3,7 +3,10 @@
 "use client"
 
 import { create } from "zustand"
-import { Section } from "@/types/tt"
+//import { Section } from "@/types/tt"
+import type {
+    Section,
+} from "@/types/tt";
 
 type TTModalStore = {
     open: boolean
