@@ -88,37 +88,7 @@ function CardHead({
 }
 
 
-// function LegendRow({
-//     label,
-//     value,
-//     color,
-//     onClick,
-// }: {
-//     label: string;
-//     value: number | string;
-//     color: string;
-//     onClick?: () => void;
-// }) {
-//     return (
-//         <div
-//             onClick={onClick}
-//             className={`flex justify-between items-center px-2 py-1.5 rounded-lg transition-colors ${onClick ? "cursor-pointer hover:bg-muted/60" : ""
-//                 }`}
-//         >
-//             <span className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-//                 <span
-//                     className="w-2 h-2 rounded-full shrink-0"
-//                     style={{ backgroundColor: color }}
-//                 />
-//                 {label}
-//             </span>
 
-//             <span className="text-[10px] font-bold text-foreground tabular-nums">
-//                 {typeof value === "number" ? value.toLocaleString() : value}
-//             </span>
-//         </div>
-//     );
-// }
 
 
 function LegendRow({
@@ -398,6 +368,8 @@ export default function DashboardPage() {
         troubleTicketError,
         setTroubleTicketError,
     ] = useState("");
+
+   
 
     useEffect(() => {
         let mounted = true;
@@ -694,12 +666,16 @@ export default function DashboardPage() {
         },
     ];
 
+
+
     const serviceMaxValue = Math.max(
         serviceBarData[0].servicerequest,
         serviceBarData[0].transferred,
         serviceBarData[0].closed,
         1
     );
+
+
 
     const totalAssets = summary.active_assets.total;
     const totalWarranty = summary.warranty.total;
@@ -734,10 +710,20 @@ export default function DashboardPage() {
         },
     ];
 
+  
+
+  
+
     const totalResig = resignationAreaData.reduce(
-        (sum, item) => sum + item.pending + item.completed + item.inprocess,
+        (sum, item) =>
+            sum +
+            item.pending +
+            item.completed +
+            item.inprocess,
         0
     );
+
+
 
     const totalRenewal = renewalBarData.reduce(
         (sum, item) => sum + item.upcoming + item.completed + item.delayed,
