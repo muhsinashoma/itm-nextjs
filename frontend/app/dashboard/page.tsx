@@ -369,7 +369,7 @@ export default function DashboardPage() {
         setTroubleTicketError,
     ] = useState("");
 
-   
+
 
     useEffect(() => {
         let mounted = true;
@@ -710,9 +710,6 @@ export default function DashboardPage() {
         },
     ];
 
-  
-
-  
 
     const totalResig = resignationAreaData.reduce(
         (sum, item) =>
@@ -1601,12 +1598,12 @@ export default function DashboardPage() {
                 </CardShell>
             </div>
 
-            {/* Overview Chart */}
+            {/* Trouble Ticket Overview */}
             <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
                 <OverviewChart />
             </div>
 
-            {/* TT Table */}
+            {/* Trouble Ticket Table */}
             <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
                 <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide">
                     Trouble Ticket Table

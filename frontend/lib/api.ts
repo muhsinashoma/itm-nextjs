@@ -107,9 +107,10 @@ export type TroubleTicketStatus =
 
 export interface TroubleTicketOverviewPoint {
     label: string;
-    open: number;
-    in_progress: number;
+    opened: number;
     closed: number;
+    running: number;
+    procurement: number;
 }
 
 export interface TroubleTicketDashboardSummary {
@@ -153,15 +154,6 @@ export interface TroubleTicketItem {
 
 //Adding new
 
-// export const dashboardApi = {
-//     summary: () => api.get<ApiOk<DashboardSummary>>("/dashboard/summary"),
-
-//     getStats: () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
-//     stats: () => api.get<ApiOk<DashboardStats>>("/dashboard/stats"),
-
-//     getTicketTrend: () => api.get<ApiOk<TicketTrend[]>>("/dashboard/ticket-trend"),
-//     ticketTrend: () => api.get<ApiOk<TicketTrend[]>>("/dashboard/ticket-trend"),
-// };
 
 //Dashboard API with Trouble Ticket Overview and Trouble Tickets List
 
