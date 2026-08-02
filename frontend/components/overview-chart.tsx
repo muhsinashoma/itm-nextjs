@@ -1276,18 +1276,16 @@ export default function OverviewChart() {
                                 )
                             }
                             aria-label="Select Trouble Ticket chart type"
-                            className="
-                                h-8 rounded-lg
-                                border border-border
-                                bg-background px-3
-                                text-xs font-medium
-                                text-foreground
-                                outline-none
-                                transition-colors
-                                hover:bg-muted
-                                focus:ring-2
-                                focus:ring-ring
-                            "
+                            className={`
+                                        h-8 rounded-lg border px-3
+                                        text-xs font-medium outline-none
+                                        transition-colors
+                                        focus:ring-2 focus:ring-blue-200
+                                        ${chartType === "bar"
+                                    ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
+                                    : "border-border bg-background text-foreground"
+                                }
+                                    `}
                         >
                             <option value="bar">
                                 Vertical Bar Chart
@@ -1318,19 +1316,16 @@ export default function OverviewChart() {
                                             )
                                         }
                                         className={`
-                                            rounded-md
-                                            px-3 py-1
-                                            text-xs
-                                            font-medium
-                                            transition-all
-                                            disabled:cursor-not-allowed
-                                            disabled:opacity-60
-                                            ${range ===
-                                                option.key
-                                                ? "bg-background text-foreground shadow-sm"
-                                                : "text-muted-foreground hover:text-foreground"
+                                                    rounded-md px-3 py-1
+                                                    text-xs font-medium
+                                                    transition-colors
+                                                    disabled:cursor-not-allowed
+                                                    disabled:opacity-60
+                                                    ${range === option.key
+                                                ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+                                                : "text-muted-foreground hover:bg-background hover:text-foreground"
                                             }
-                                        `}
+                                                   `}
                                     >
                                         {option.label}
                                     </button>
