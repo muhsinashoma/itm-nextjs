@@ -113,6 +113,13 @@ export interface TroubleTicketOverviewPoint {
     procurement: number;
 }
 
+export type TroubleTicketScope =
+    | "all"
+    | "opened_today"
+    | "closed_today"
+    | "running"
+    | "procurement";
+
 export interface TroubleTicketDashboardSummary {
     opened_today: number;
     closed_today: number;
@@ -204,6 +211,7 @@ export const dashboardApi = {
     troubleTickets: (params?: {
         page?: number;
         limit?: number;
+        scope?: TroubleTicketScope;
         status?:
         | TroubleTicketStatus
         | "all";
