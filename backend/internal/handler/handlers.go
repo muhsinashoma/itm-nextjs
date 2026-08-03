@@ -143,24 +143,6 @@ type DashboardHandler struct{ db *pgxpool.Pool }
 func NewDashboardHandler(db *pgxpool.Pool) *DashboardHandler { return &DashboardHandler{db: db} }
 
 
-// func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
-// 	g := rg.Group("/dashboard")
-
-// 	g.GET("/stats", h.Stats)
-// 	g.GET("/summary", h.Summary)
-// 	g.GET("/ticket-trend", h.TicketTrend)
-
-// 	// Trouble Ticket dashboard APIs
-// 	g.GET(
-// 		"/trouble-ticket-overview",
-// 		h.TroubleTicketOverview,
-// 	)
-
-// 	g.GET(
-// 		"/trouble-tickets",
-// 		h.TroubleTicketList,
-// 	)
-// }
 
 
 func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
@@ -780,33 +762,26 @@ func (
 }
 
 // Touble Ticket List API
-func (
-	h *DashboardHandler,
-) TroubleTicketList(
-	c *gin.Context,
-) {
+// TroubleTicketList returns a paginated Trouble Ticket list.
+//
+// Supported scopes:
+//   - all
+//   - opened_today
+//   - closed_today
+//   - running
+//   - procurement
+func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	page, _ := strconv.Atoi(
-		c.DefaultQuery(
-			"page",
-			"1",
-		),
-	)
-
-	limit, _ := strconv.Atoi(
-		c.DefaultQuery(
-			"limit",
-			"100",
-		),
-	)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
 	if page < 1 {
 		page = 1
 	}
 
 	if limit < 1 {
-		limit = 100
+		limit = 10
 	}
 
 	if limit > 200 {
@@ -815,55 +790,203 @@ func (
 
 	offset := (page - 1) * limit
 
+	scope := strings.ToLower(strings.TrimSpace(
+		c.DefaultQuery("scope", "all"),
+	))
+
 	status := strings.TrimSpace(
-		c.DefaultQuery(
-			"status",
-			"all",
-		),
+		c.DefaultQuery("status", "all"),
 	)
 
 	search := strings.TrimSpace(
 		c.Query("search"),
 	)
 
-	where := "WHERE 1 = 1"
+	/*
+		The dashboard view provides display fields.
 
-	args := []any{}
+		The trouble_tickets table provides the original imported
+		fields needed to match the previous PHP filtering logic.
+	*/
+	where := `
+		WHERE 1 = 1
+	`
+
+	args := make([]any, 0)
 	argNumber := 1
 
-	if status != "" &&
-		!strings.EqualFold(
-			status,
-			"all",
-		) {
+	/*
+		These expressions must remain consistent with the summary API.
+
+		Legacy status:
+		0 = closed
+		1 = active
+
+		Legacy device requisition:
+		0 = no procurement value
+		non-zero = procurement-related value
+	*/
+	legacyStatusExpression := `
+		COALESCE(
+			ticket.source_status,
+			CASE
+				WHEN LOWER(
+					COALESCE(
+						dashboard.status,
+						''
+					)
+				) = 'closed'
+				THEN 0
+				ELSE 1
+			END
+		)
+	`
+
+	requisitionValueExpression := `
+		COALESCE(
+			ticket.source_device_requisition,
+			CASE
+				WHEN NULLIF(
+					BTRIM(
+						COALESCE(
+							dashboard.requisition_type,
+							''
+						)
+					),
+					''
+				) IS NULL
+				THEN 0
+				ELSE 1
+			END
+		)
+	`
+
+	switch scope {
+	case "", "all":
+		scope = "all"
+
+	case "opened_today":
+		where += `
+			AND (
+				ticket.created_at
+				AT TIME ZONE 'Asia/Dhaka'
+			)::date = (
+				CURRENT_TIMESTAMP
+				AT TIME ZONE 'Asia/Dhaka'
+			)::date
+		`
+
+	case "closed_today":
 		where += fmt.Sprintf(
 			`
-			AND LOWER(status) =
-				LOWER($%d)
+			AND (
+				ticket.closed_at
+					AT TIME ZONE 'Asia/Dhaka'
+			)::date = (
+				CURRENT_TIMESTAMP
+					AT TIME ZONE 'Asia/Dhaka'
+			)::date
+
+			AND (%s) = 0
+			`,
+			legacyStatusExpression,
+		)
+
+	case "running":
+		where += fmt.Sprintf(
+			`
+			AND (%s) NOT IN (1, 3)
+			AND (%s) = 1
+			`,
+			requisitionValueExpression,
+			legacyStatusExpression,
+		)
+
+	case "procurement":
+		where += fmt.Sprintf(
+			`
+			AND (%s) <> 0
+			AND (%s) = 1
+			`,
+			requisitionValueExpression,
+			legacyStatusExpression,
+		)
+
+	default:
+		response.BadRequest(
+			c,
+			"scope must be all, opened_today, closed_today, running, or procurement",
+		)
+		return
+	}
+
+	if status != "" && !strings.EqualFold(status, "all") {
+		where += fmt.Sprintf(
+			`
+			AND LOWER(
+				COALESCE(
+					dashboard.status,
+					''
+				)
+			) = LOWER($%d)
 			`,
 			argNumber,
 		)
 
-		args = append(
-			args,
-			status,
-		)
-
+		args = append(args, status)
 		argNumber++
 	}
 
 	if search != "" {
-		searchValue :=
-			"%" + search + "%"
+		searchValue := "%" + search + "%"
 
 		where += fmt.Sprintf(
 			`
 			AND (
-				tt_no ILIKE $%d
-				OR employee_id ILIKE $%d
-				OR employee_name ILIKE $%d
-				OR query_type ILIKE $%d
-				OR dept_name ILIKE $%d
+				COALESCE(
+					dashboard.tt_no,
+					''
+				) ILIKE $%d
+
+				OR COALESCE(
+					dashboard.employee_id,
+					''
+				) ILIKE $%d
+
+				OR COALESCE(
+					dashboard.employee_name,
+					''
+				) ILIKE $%d
+
+				OR COALESCE(
+					dashboard.assigned_id,
+					''
+				) ILIKE $%d
+
+				OR COALESCE(
+					dashboard.assigned_name,
+					''
+				) ILIKE $%d
+
+				OR COALESCE(
+					dashboard.query_type,
+					''
+				) ILIKE $%d
+
+				OR COALESCE(
+					dashboard.dept_name,
+					''
+				) ILIKE $%d
+
+				OR COALESCE(
+					dashboard.func_name,
+					''
+				) ILIKE $%d
+
+				OR COALESCE(
+					dashboard.mobile_no,
+					''
+				) ILIKE $%d
 			)
 			`,
 			argNumber,
@@ -871,13 +994,13 @@ func (
 			argNumber,
 			argNumber,
 			argNumber,
+			argNumber,
+			argNumber,
+			argNumber,
+			argNumber,
 		)
 
-		args = append(
-			args,
-			searchValue,
-		)
-
+		args = append(args, searchValue)
 		argNumber++
 	}
 
@@ -886,7 +1009,9 @@ func (
 	countQuery := fmt.Sprintf(
 		`
 		SELECT COUNT(*)
-		FROM public.v_trouble_ticket_dashboard
+		FROM public.v_trouble_ticket_dashboard AS dashboard
+		INNER JOIN public.trouble_tickets AS ticket
+			ON ticket.id = dashboard.id
 		%s
 		`,
 		where,
@@ -936,26 +1061,89 @@ func (
 	listQuery := fmt.Sprintf(
 		`
 		SELECT
-			id,
-			COALESCE(tt_no, ''),
-			COALESCE(employee_id, ''),
-			COALESCE(employee_name, ''),
-			COALESCE(assigned_id, ''),
-			COALESCE(assigned_name, ''),
-			COALESCE(query_type, ''),
-			COALESCE(requisition_type, ''),
-			COALESCE(status, ''),
-			COALESCE(dept_name, ''),
-			COALESCE(func_name, ''),
-			COALESCE(delivered_status, ''),
-			COALESCE(created_at::text, ''),
-			COALESCE(age_seconds, 0)::bigint,
-			COALESCE(mobile_no, '')
-		FROM public.v_trouble_ticket_dashboard
+			dashboard.id,
+
+			COALESCE(
+				dashboard.tt_no,
+				''
+			),
+
+			COALESCE(
+				dashboard.employee_id,
+				''
+			),
+
+			COALESCE(
+				dashboard.employee_name,
+				''
+			),
+
+			COALESCE(
+				dashboard.assigned_id,
+				''
+			),
+
+			COALESCE(
+				dashboard.assigned_name,
+				''
+			),
+
+			COALESCE(
+				dashboard.query_type,
+				''
+			),
+
+			COALESCE(
+				dashboard.requisition_type,
+				''
+			),
+
+			COALESCE(
+				dashboard.status,
+				''
+			),
+
+			COALESCE(
+				dashboard.dept_name,
+				''
+			),
+
+			COALESCE(
+				dashboard.func_name,
+				''
+			),
+
+			COALESCE(
+				dashboard.delivered_status,
+				''
+			),
+
+			COALESCE(
+				dashboard.created_at::text,
+				''
+			),
+
+			COALESCE(
+				dashboard.age_seconds,
+				0
+			)::bigint,
+
+			COALESCE(
+				dashboard.mobile_no,
+				''
+			)
+
+		FROM public.v_trouble_ticket_dashboard AS dashboard
+
+		INNER JOIN public.trouble_tickets AS ticket
+			ON ticket.id = dashboard.id
+
 		%s
+
 		ORDER BY
-			created_at DESC,
-			id DESC
+			dashboard.created_at DESC NULLS LAST,
+			dashboard.id DESC
+
 		LIMIT $%d
 		OFFSET $%d
 		`,
@@ -991,6 +1179,7 @@ func (
 	items := make(
 		[]TroubleTicketRow,
 		0,
+		limit,
 	)
 
 	for rows.Next() {
@@ -1017,10 +1206,7 @@ func (
 			return
 		}
 
-		items = append(
-			items,
-			item,
-		)
+		items = append(items, item)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -1036,7 +1222,6 @@ func (
 		limit,
 	)
 }
-
 // ─── Claim ───────────────────────────────────────────────────────────────────
 
 type ClaimHandler struct{ db *pgxpool.Pool }
