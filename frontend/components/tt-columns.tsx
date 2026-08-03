@@ -57,17 +57,6 @@ export type {
    TYPE
 ====================================================== */
 
-// export type Section =
-//     TroubleTicketItem & {
-//         /*
-//          * Keep this alias temporarily because
-//          * older modal/table code may still use
-//          * the previous misspelled property.
-//          */
-//         requistionType: string;
-
-//         tt_age: string;
-//     };
 
 /* ======================================================
    DATA CONVERSION
