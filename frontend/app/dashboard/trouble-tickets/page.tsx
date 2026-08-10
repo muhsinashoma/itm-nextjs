@@ -386,14 +386,13 @@ function TroubleTicketListContent() {
                         </p>
                     </div>
                 ) : (
-                    <DataTable
-                        key={scope}
-                        columns={
-                            columns
-                        }
-                        data={rows}
-                        dateColumn="created_at"
-                    />
+                                <DataTable
+                                    key={scope}
+                                    columns={columns}
+                                    data={rows}
+                                    dateColumn="created_at"
+                                    compact
+                                />
                 )}
             </div>
         </div>
