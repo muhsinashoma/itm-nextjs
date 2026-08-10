@@ -403,44 +403,49 @@ func (h *DashboardHandler) TicketTrend(c *gin.Context) {
 
 // TroubleTicketSummary returns the four dashboard KPI counts.
 //
-// Legacy mappings:
-// fault_date_time   -> created_at
-// ticket_close_date -> closed_at
-// status            -> source_status
-// device_requis_val -> source_device_requisition
-func (
-	h *DashboardHandler,
-) TroubleTicketSummary(
-	c *gin.Context,
-) {
+// Current mappings:
+// fault_date_time   -> trouble_tickets.created_at
+// ticket_close_date -> trouble_tickets.closed_at
+// status            -> trouble_tickets.source_status
+// procurement       -> latest tt_reasons.approved_val
+func (h *DashboardHandler) TroubleTicketSummary(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	type Summary struct {
-		OpenedToday     int64 `json:"opened_today"`
-		ClosedToday     int64 `json:"closed_today"`
-		TotalRunning    int64 `json:"total_running_tt"`
+		OpenedToday      int64 `json:"opened_today"`
+		ClosedToday      int64 `json:"closed_today"`
+		TotalRunning     int64 `json:"total_running_tt"`
 		TotalProcurement int64 `json:"total_procurement_tt"`
 	}
 
 	const query = `
 		WITH normalized_tickets AS (
 			SELECT
-				created_at,
-				closed_at,
+				ticket.created_at,
+				ticket.closed_at,
 
 				COALESCE(
-					source_status,
+					ticket.source_status,
 					CASE
-						WHEN status = 'Closed' THEN 0
+						WHEN LOWER(
+							COALESCE(ticket.status, '')
+						) = 'closed'
+						THEN 0
 						ELSE 1
 					END
 				)::int AS legacy_status,
 
 				COALESCE(
-					source_device_requisition,
+					reason.approved_val,
+					ticket.source_device_requisition,
 					CASE
 						WHEN NULLIF(
-							BTRIM(requisition_type),
+							BTRIM(
+								COALESCE(
+									ticket.requisition_type,
+									''
+								)
+							),
 							''
 						) IS NULL
 						THEN 0
@@ -448,7 +453,35 @@ func (
 					END
 				)::int AS requisition_value
 
-			FROM public.trouble_tickets
+			FROM public.trouble_tickets AS ticket
+
+			LEFT JOIN LATERAL (
+				SELECT
+					tt_reason.approved_val
+
+				FROM public.tt_reasons AS tt_reason
+
+				WHERE
+					tt_reason.trouble_ticket_id = ticket.id
+
+					OR (
+						tt_reason.trouble_ticket_id IS NULL
+						AND BTRIM(tt_reason.tt_no) =
+							BTRIM(ticket.tt_no::text)
+					)
+
+				ORDER BY
+					CASE
+						WHEN tt_reason.trouble_ticket_id = ticket.id
+							THEN 1
+						ELSE 0
+					END DESC,
+
+					tt_reason.created_at DESC NULLS LAST,
+					tt_reason.id DESC
+
+				LIMIT 1
+			) AS reason ON TRUE
 		),
 
 		dhaka_clock AS (
@@ -472,6 +505,7 @@ func (
 					ticket.closed_at
 					AT TIME ZONE 'Asia/Dhaka'
 				)::date = clock.today
+
 				AND ticket.legacy_status = 0
 			)::bigint AS closed_today,
 
@@ -491,10 +525,7 @@ func (
 
 	var result Summary
 
-	if err := h.db.QueryRow(
-		ctx,
-		query,
-	).Scan(
+	if err := h.db.QueryRow(ctx, query).Scan(
 		&result.OpenedToday,
 		&result.ClosedToday,
 		&result.TotalRunning,
@@ -761,7 +792,6 @@ func (
 	)
 }
 
-// Touble Ticket List API
 // TroubleTicketList returns a paginated Trouble Ticket list.
 //
 // Supported scopes:
@@ -770,17 +800,19 @@ func (
 //   - closed_today
 //   - running
 //   - procurement
+//
+// Requisition and Delivered Status are loaded dynamically from
+// the latest matching public.tt_reasons record.
 func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-
-	if page < 1 {
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
 		page = 1
 	}
 
-	if limit < 1 {
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit < 1 {
 		limit = 10
 	}
 
@@ -790,9 +822,11 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	scope := strings.ToLower(strings.TrimSpace(
-		c.DefaultQuery("scope", "all"),
-	))
+	scope := strings.ToLower(
+		strings.TrimSpace(
+			c.DefaultQuery("scope", "all"),
+		),
+	)
 
 	status := strings.TrimSpace(
 		c.DefaultQuery("status", "all"),
@@ -802,12 +836,6 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		c.Query("search"),
 	)
 
-	/*
-		The dashboard view provides display fields.
-
-		The trouble_tickets table provides the original imported
-		fields needed to match the previous PHP filtering logic.
-	*/
 	where := `
 		WHERE 1 = 1
 	`
@@ -816,15 +844,15 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	argNumber := 1
 
 	/*
-		These expressions must remain consistent with the summary API.
-
 		Legacy status:
-		0 = closed
-		1 = active
 
-		Legacy device requisition:
-		0 = no procurement value
-		non-zero = procurement-related value
+		0 = Closed
+		1 = Open
+
+		This expression converts all current statuses into only:
+
+		Open
+		Closed
 	*/
 	legacyStatusExpression := `
 		COALESCE(
@@ -842,8 +870,18 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		)
 	`
 
+	/*
+		Latest tt_reasons.approved_val takes priority.
+
+		approved_val:
+		0 = no approved procurement
+		1 = Petty Cash approved
+		2 = rejected
+		3 = PR approved
+	*/
 	requisitionValueExpression := `
 		COALESCE(
+			reason.approved_val,
 			ticket.source_device_requisition,
 			CASE
 				WHEN NULLIF(
@@ -859,6 +897,42 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				ELSE 1
 			END
 		)
+	`
+
+	reasonJoin := `
+		FROM public.v_trouble_ticket_dashboard AS dashboard
+
+		INNER JOIN public.trouble_tickets AS ticket
+			ON ticket.id = dashboard.id
+
+		LEFT JOIN LATERAL (
+			SELECT
+				tt_reason.approved_val,
+				tt_reason.delivered_val
+
+			FROM public.tt_reasons AS tt_reason
+
+			WHERE
+				tt_reason.trouble_ticket_id = ticket.id
+
+				OR (
+					tt_reason.trouble_ticket_id IS NULL
+					AND BTRIM(tt_reason.tt_no) =
+						BTRIM(ticket.tt_no::text)
+				)
+
+			ORDER BY
+				CASE
+					WHEN tt_reason.trouble_ticket_id = ticket.id
+						THEN 1
+					ELSE 0
+				END DESC,
+
+				tt_reason.created_at DESC NULLS LAST,
+				tt_reason.id DESC
+
+			LIMIT 1
+		) AS reason ON TRUE
 	`
 
 	switch scope {
@@ -920,20 +994,43 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		return
 	}
 
+	/*
+		The API returns only Open or Closed.
+
+		For backward compatibility:
+		Not Started and In Progress are treated as Open.
+	*/
 	if status != "" && !strings.EqualFold(status, "all") {
+		var normalizedStatus int
+
+		switch strings.ToLower(status) {
+		case "open", "not started", "in progress":
+			normalizedStatus = 1
+
+		case "closed":
+			normalizedStatus = 0
+
+		default:
+			response.BadRequest(
+				c,
+				"status must be all, Open, or Closed",
+			)
+			return
+		}
+
 		where += fmt.Sprintf(
 			`
-			AND LOWER(
-				COALESCE(
-					dashboard.status,
-					''
-				)
-			) = LOWER($%d)
+			AND (%s) = $%d
 			`,
+			legacyStatusExpression,
 			argNumber,
 		)
 
-		args = append(args, status)
+		args = append(
+			args,
+			normalizedStatus,
+		)
+
 		argNumber++
 	}
 
@@ -987,6 +1084,23 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 					dashboard.mobile_no,
 					''
 				) ILIKE $%d
+
+				OR (
+					CASE reason.approved_val
+						WHEN 1 THEN 'Petty Cash (Approved)'
+						WHEN 3 THEN 'PR (Approved)'
+						ELSE ''
+					END
+				) ILIKE $%d
+
+				OR (
+					CASE reason.delivered_val
+						WHEN 0 THEN 'Pending'
+						WHEN 1 THEN 'Delivered'
+						WHEN 2 THEN 'Rejected'
+						ELSE ''
+					END
+				) ILIKE $%d
 			)
 			`,
 			argNumber,
@@ -998,9 +1112,15 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 			argNumber,
 			argNumber,
 			argNumber,
+			argNumber,
+			argNumber,
 		)
 
-		args = append(args, searchValue)
+		args = append(
+			args,
+			searchValue,
+		)
+
 		argNumber++
 	}
 
@@ -1009,11 +1129,10 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	countQuery := fmt.Sprintf(
 		`
 		SELECT COUNT(*)
-		FROM public.v_trouble_ticket_dashboard AS dashboard
-		INNER JOIN public.trouble_tickets AS ticket
-			ON ticket.id = dashboard.id
+		%s
 		%s
 		`,
+		reasonJoin,
 		where,
 	)
 
@@ -1027,35 +1146,21 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	}
 
 	type TroubleTicketRow struct {
-		ID int64 `json:"id"`
-
-		TTNo string `json:"tt_no"`
-
-		EmployeeID string `json:"employee_id"`
-
-		EmployeeName string `json:"employee_name"`
-
-		AssignedID string `json:"assigned_id"`
-
-		AssignedName string `json:"assigned_name"`
-
-		QueryType string `json:"query_type"`
-
-		RequisitionType string `json:"requisition_type"`
-
-		Status string `json:"status"`
-
-		Department string `json:"dept_name"`
-
-		FunctionName string `json:"func_name"`
-
-		DeliveredStatus string `json:"delivered_status"`
-
-		CreatedAt string `json:"created_at"`
-
-		AgeSeconds int64 `json:"age_seconds"`
-
-		MobileNo string `json:"mobile_no"`
+		ID                int64  `json:"id"`
+		TTNo              string `json:"tt_no"`
+		EmployeeID        string `json:"employee_id"`
+		EmployeeName      string `json:"employee_name"`
+		AssignedID        string `json:"assigned_id"`
+		AssignedName      string `json:"assigned_name"`
+		QueryType         string `json:"query_type"`
+		RequisitionType   string `json:"requisition_type"`
+		Status            string `json:"status"`
+		Department        string `json:"dept_name"`
+		FunctionName      string `json:"func_name"`
+		DeliveredStatus   string `json:"delivered_status"`
+		CreatedAt         string `json:"created_at"`
+		AgeSeconds        int64  `json:"age_seconds"`
+		MobileNo          string `json:"mobile_no"`
 	}
 
 	listQuery := fmt.Sprintf(
@@ -1093,15 +1198,30 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				''
 			),
 
-			COALESCE(
-				dashboard.requisition_type,
-				''
-			),
+			CASE
+				WHEN reason.approved_val IS NOT NULL
+				THEN
+					CASE reason.approved_val
+						WHEN 1
+							THEN 'Petty Cash (Approved)'
 
-			COALESCE(
-				dashboard.status,
-				''
-			),
+						WHEN 3
+							THEN 'PR (Approved)'
+
+						ELSE ''
+					END
+
+				ELSE COALESCE(
+					dashboard.requisition_type,
+					''
+				)
+			END AS requisition_type,
+
+			CASE
+				WHEN (%s) = 0
+					THEN 'Closed'
+				ELSE 'Open'
+			END AS status,
 
 			COALESCE(
 				dashboard.dept_name,
@@ -1113,10 +1233,27 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				''
 			),
 
-			COALESCE(
-				dashboard.delivered_status,
-				''
-			),
+			CASE
+				WHEN reason.delivered_val IS NOT NULL
+				THEN
+					CASE reason.delivered_val
+						WHEN 0
+							THEN 'Pending'
+
+						WHEN 1
+							THEN 'Delivered'
+
+						WHEN 2
+							THEN 'Rejected'
+
+						ELSE ''
+					END
+
+				ELSE COALESCE(
+					dashboard.delivered_status,
+					''
+				)
+			END AS delivered_status,
 
 			COALESCE(
 				dashboard.created_at::text,
@@ -1133,10 +1270,7 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				''
 			)
 
-		FROM public.v_trouble_ticket_dashboard AS dashboard
-
-		INNER JOIN public.trouble_tickets AS ticket
-			ON ticket.id = dashboard.id
+		%s
 
 		%s
 
@@ -1147,6 +1281,8 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		LIMIT $%d
 		OFFSET $%d
 		`,
+		legacyStatusExpression,
+		reasonJoin,
 		where,
 		argNumber,
 		argNumber+1,
@@ -1206,7 +1342,10 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 			return
 		}
 
-		items = append(items, item)
+		items = append(
+			items,
+			item,
+		)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -1222,6 +1361,7 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		limit,
 	)
 }
+
 // ─── Claim ───────────────────────────────────────────────────────────────────
 
 type ClaimHandler struct{ db *pgxpool.Pool }

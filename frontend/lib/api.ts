@@ -1,5 +1,5 @@
 
-//frontend/lib/api.ts
+//itm/frontend/lib/api.ts
 
 // lib/api.ts — Central API client for ITM Go backend
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
@@ -136,18 +136,15 @@ export interface TroubleTicketOverview {
 export interface TroubleTicketItem {
     id: number;
     tt_no: string;
-
     employee_id: string;
     employee_name: string;
-
     assigned_id: string;
     assigned_name: string;
-
     query_type: string;
+
     requisition_type: string;
 
     status: TroubleTicketStatus;
-
     dept_name: string;
     func_name: string;
 
@@ -155,7 +152,6 @@ export interface TroubleTicketItem {
 
     created_at: string;
     age_seconds: number;
-
     mobile_no: string;
 }
 

@@ -7,6 +7,7 @@
 "use client";
 
 import * as React from "react";
+
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -29,9 +30,17 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import {
+    Input,
+} from "@/components/ui/input";
+
+import {
+    Button,
+} from "@/components/ui/button";
+
+import {
+    Badge,
+} from "@/components/ui/badge";
 
 import {
     DropdownMenu,
@@ -52,29 +61,43 @@ import {
     X,
 } from "lucide-react";
 
-interface DataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[];
+/* ======================================================
+   TYPES
+====================================================== */
+
+interface DataTableProps<
+    TData,
+    TValue
+> {
+    columns: ColumnDef<
+        TData,
+        TValue
+    >[];
+
     data: TData[];
+
     dateColumn?: string;
+
+    /*
+     * compact = true
+     *
+     * Used for Trouble Ticket table so more
+     * information fits on one screen.
+     *
+     * Other tables remain unchanged.
+     */
+    compact?: boolean;
 }
 
-const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
-    /*
-     * Asset report default visible columns:
-     *
-     * SL
-     * Reference No
-     * Employee ID
-     * Employee
-     * Designation
-     * deviceSl
-     * Category
-     * Model
-     * Status
-     * Actions
-     */
+/* ======================================================
+   DEFAULT COLUMN VISIBILITY
+====================================================== */
 
-    // Asset report optional columns
+const DEFAULT_HIDDEN_COLUMNS:
+    VisibilityState = {
+    /*
+     * Asset report optional columns
+     */
     mrnNumber: false,
     prNumber: false,
     department: false,
@@ -92,354 +115,969 @@ const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
     userUsageDuration: false,
     remarks: false,
 
-    // Shared employee / other table optional columns
+    /*
+     * Shared employee / TT optional columns
+     */
     dept_name: false,
     employee_name: false,
     func_name: false,
     mobile_no: false,
+
     postingArea: false,
     postingDistrict: false,
     personalMobile: false,
     officeMobile: false,
 };
 
-function normalizeValue(value: unknown) {
-    if (value === null || value === undefined) {
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function normalizeValue(
+    value: unknown
+): string {
+    if (
+        value === null ||
+        value === undefined
+    ) {
         return "";
     }
 
-    return String(value).toLowerCase();
+    return String(
+        value
+    ).toLowerCase();
 }
 
-export function DataTable<TData, TValue>({
+function getColumnDisplayName(
+    columnId: string
+): string {
+    const names:
+        Record<string, string> = {
+        employeeId:
+            "Employee ID",
+
+        employee_id:
+            "Employee ID",
+
+        status:
+            "Status",
+
+        requisition_type:
+            "Requisition",
+
+        delivered_status:
+            "Delivery",
+
+        tt_no:
+            "TT No",
+
+        created_at:
+            "Created At",
+    };
+
+    return (
+        names[columnId] ??
+        columnId
+    );
+}
+
+/* ======================================================
+   DATA TABLE
+====================================================== */
+
+export function DataTable<
+    TData,
+    TValue
+>({
     columns,
     data,
     dateColumn = "date",
-}: DataTableProps<TData, TValue>) {
-    const [sorting, setSorting] = React.useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] =
-        React.useState<ColumnFiltersState>([]);
+    compact = false,
+}: DataTableProps<
+    TData,
+    TValue
+>) {
+    /* ==================================================
+       STATE
+    ================================================== */
 
-    const [columnVisibility, setColumnVisibility] =
-        React.useState<VisibilityState>(DEFAULT_HIDDEN_COLUMNS);
+    const [
+        sorting,
+        setSorting,
+    ] =
+        React.useState<
+            SortingState
+        >([]);
 
-    const [globalFilter, setGlobalFilter] = React.useState("");
-    const [filterOpen, setFilterOpen] = React.useState(false);
-
-    const [fromDate, setFromDate] = React.useState("");
-    const [toDate, setToDate] = React.useState("");
-
-    const filteredData = React.useMemo(() => {
-        const searchText = globalFilter.trim().toLowerCase();
-
-        return data.filter((row: TData) => {
-            const record = row as Record<string, unknown>;
-
-            const matchesGlobalSearch =
-                !searchText ||
-                Object.values(record).some((value) =>
-                    normalizeValue(value).includes(searchText)
-                );
-
-            const statusFilter = columnFilters.find(
-                (filter) => filter.id === "status"
-            );
-
-            const employeeIdFilter = columnFilters.find(
-                (filter) => filter.id === "employeeId"
-            );
-
-            const matchesStatus =
-                !statusFilter ||
-                normalizeValue(record.status).includes(
-                    normalizeValue(statusFilter.value)
-                );
-
-            const matchesEmployeeId =
-                !employeeIdFilter ||
-                normalizeValue(record.employeeId).includes(
-                    normalizeValue(employeeIdFilter.value)
-                );
-
-            let matchesDate = true;
-
-            if (fromDate || toDate) {
-                const rawDate = record[dateColumn];
-
-                if (!rawDate) {
-                    matchesDate = false;
-                } else {
-                    const rowDate = new Date(String(rawDate));
-
-                    if (Number.isNaN(rowDate.getTime())) {
-                        matchesDate = false;
-                    } else {
-                        const startDate = fromDate
-                            ? new Date(`${fromDate}T00:00:00`)
-                            : null;
-
-                        const endDate = toDate
-                            ? new Date(`${toDate}T23:59:59`)
-                            : null;
-
-                        if (startDate && rowDate < startDate) {
-                            matchesDate = false;
-                        }
-
-                        if (endDate && rowDate > endDate) {
-                            matchesDate = false;
-                        }
-                    }
-                }
-            }
-
-            return (
-                matchesGlobalSearch &&
-                matchesStatus &&
-                matchesEmployeeId &&
-                matchesDate
-            );
-        });
-    }, [
-        data,
-        globalFilter,
+    const [
         columnFilters,
-        fromDate,
-        toDate,
-        dateColumn,
-    ]);
+        setColumnFilters,
+    ] =
+        React.useState<
+            ColumnFiltersState
+        >([]);
 
-    const table = useReactTable({
-        data: filteredData,
-        columns,
-        state: {
-            sorting,
-            columnFilters,
-            columnVisibility,
-        },
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onColumnVisibilityChange: setColumnVisibility,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-    });
+    const [
+        columnVisibility,
+        setColumnVisibility,
+    ] =
+        React.useState<
+            VisibilityState
+        >(
+            DEFAULT_HIDDEN_COLUMNS
+        );
+
+    const [
+        globalFilter,
+        setGlobalFilter,
+    ] =
+        React.useState("");
+
+    const [
+        filterOpen,
+        setFilterOpen,
+    ] =
+        React.useState(false);
+
+    const [
+        fromDate,
+        setFromDate,
+    ] =
+        React.useState("");
+
+    const [
+        toDate,
+        setToDate,
+    ] =
+        React.useState("");
+
+    /* ==================================================
+       FILTERED DATA
+    ================================================== */
+
+    const filteredData =
+        React.useMemo(
+            () => {
+                const searchText =
+                    globalFilter
+                        .trim()
+                        .toLowerCase();
+
+                return data.filter(
+                    (
+                        row: TData
+                    ) => {
+                        const record =
+                            row as Record<
+                                string,
+                                unknown
+                            >;
+
+                        /*
+                         * Global search
+                         */
+                        const matchesGlobalSearch =
+                            !searchText ||
+                            Object.values(
+                                record
+                            ).some(
+                                (
+                                    value
+                                ) =>
+                                    normalizeValue(
+                                        value
+                                    ).includes(
+                                        searchText
+                                    )
+                            );
+
+                        /*
+                         * Status filter
+                         */
+                        const statusFilter =
+                            columnFilters.find(
+                                (
+                                    filter
+                                ) =>
+                                    filter.id ===
+                                    "status"
+                            );
+
+                        const matchesStatus =
+                            !statusFilter ||
+                            normalizeValue(
+                                record.status
+                            ).includes(
+                                normalizeValue(
+                                    statusFilter.value
+                                )
+                            );
+
+                        /*
+                         * Employee ID filter.
+                         *
+                         * Supports:
+                         * employeeId
+                         * employee_id
+                         */
+                        const employeeIdFilter =
+                            columnFilters.find(
+                                (
+                                    filter
+                                ) =>
+                                    filter.id ===
+                                    "employeeId" ||
+                                    filter.id ===
+                                    "employee_id"
+                            );
+
+                        const employeeValue =
+                            record.employee_id ??
+                            record.employeeId ??
+                            "";
+
+                        const matchesEmployeeId =
+                            !employeeIdFilter ||
+                            normalizeValue(
+                                employeeValue
+                            ).includes(
+                                normalizeValue(
+                                    employeeIdFilter.value
+                                )
+                            );
+
+                        /*
+                         * Date filter
+                         */
+                        let matchesDate =
+                            true;
+
+                        if (
+                            fromDate ||
+                            toDate
+                        ) {
+                            const rawDate =
+                                record[
+                                dateColumn
+                                ];
+
+                            if (!rawDate) {
+                                matchesDate =
+                                    false;
+                            } else {
+                                const rowDate =
+                                    new Date(
+                                        String(
+                                            rawDate
+                                        )
+                                    );
+
+                                if (
+                                    Number.isNaN(
+                                        rowDate.getTime()
+                                    )
+                                ) {
+                                    matchesDate =
+                                        false;
+                                } else {
+                                    const startDate =
+                                        fromDate
+                                            ? new Date(
+                                                `${fromDate}T00:00:00`
+                                            )
+                                            : null;
+
+                                    const endDate =
+                                        toDate
+                                            ? new Date(
+                                                `${toDate}T23:59:59`
+                                            )
+                                            : null;
+
+                                    if (
+                                        startDate &&
+                                        rowDate <
+                                        startDate
+                                    ) {
+                                        matchesDate =
+                                            false;
+                                    }
+
+                                    if (
+                                        endDate &&
+                                        rowDate >
+                                        endDate
+                                    ) {
+                                        matchesDate =
+                                            false;
+                                    }
+                                }
+                            }
+                        }
+
+                        return (
+                            matchesGlobalSearch &&
+                            matchesStatus &&
+                            matchesEmployeeId &&
+                            matchesDate
+                        );
+                    }
+                );
+            },
+            [
+                data,
+                globalFilter,
+                columnFilters,
+                fromDate,
+                toDate,
+                dateColumn,
+            ]
+        );
+
+    /* ==================================================
+       TANSTACK TABLE
+    ================================================== */
+
+    const table =
+        useReactTable({
+            data:
+                filteredData,
+
+            columns,
+
+            state: {
+                sorting,
+                columnFilters,
+                columnVisibility,
+            },
+
+            onSortingChange:
+                setSorting,
+
+            onColumnFiltersChange:
+                setColumnFilters,
+
+            onColumnVisibilityChange:
+                setColumnVisibility,
+
+            getCoreRowModel:
+                getCoreRowModel(),
+
+            getFilteredRowModel:
+                getFilteredRowModel(),
+
+            getPaginationRowModel:
+                getPaginationRowModel(),
+
+            getSortedRowModel:
+                getSortedRowModel(),
+        });
+
+    /* ==================================================
+       FILTER INFORMATION
+    ================================================== */
 
     const activeFiltersCount =
-        (globalFilter ? 1 : 0) +
+        (globalFilter
+            ? 1
+            : 0) +
         columnFilters.length +
-        (fromDate || toDate ? 1 : 0);
+        (fromDate || toDate
+            ? 1
+            : 0);
 
-    const resetFilters = () => {
-        setGlobalFilter("");
-        setColumnFilters([]);
-        setFromDate("");
-        setToDate("");
-        setFilterOpen(false);
-    };
+    function resetFilters() {
+        setGlobalFilter(
+            ""
+        );
 
-    const exportToCSV = () => {
-        const rows = table.getFilteredRowModel().rows;
+        setColumnFilters(
+            []
+        );
 
-        if (!rows.length) {
+        setFromDate(
+            ""
+        );
+
+        setToDate(
+            ""
+        );
+
+        setFilterOpen(
+            false
+        );
+    }
+
+    /* ==================================================
+       FIND FILTER COLUMNS
+    ================================================== */
+
+    const employeeIdColumn =
+        table
+            .getAllColumns()
+            .find(
+                (
+                    column
+                ) =>
+                    column.id ===
+                    "employee_id" ||
+                    column.id ===
+                    "employeeId"
+            );
+
+    const statusColumn =
+        table
+            .getAllColumns()
+            .find(
+                (
+                    column
+                ) =>
+                    column.id ===
+                    "status"
+            );
+
+    /* ==================================================
+       EXPORT
+    ================================================== */
+
+    function exportToCSV() {
+        const rows =
+            table
+                .getFilteredRowModel()
+                .rows;
+
+        if (
+            !rows.length
+        ) {
             return;
         }
 
-        const visibleColumns = table
-            .getAllLeafColumns()
-            .filter((column) => column.getIsVisible());
+        const visibleColumns =
+            table
+                .getAllLeafColumns()
+                .filter(
+                    (
+                        column
+                    ) =>
+                        column.getIsVisible()
+                );
 
-        const headers = visibleColumns.map((column) => {
-            const header = column.columnDef.header;
+        const headers =
+            visibleColumns.map(
+                (
+                    column
+                ) => {
+                    const header =
+                        column
+                            .columnDef
+                            .header;
 
-            if (typeof header === "string") {
-                return header;
-            }
+                    if (
+                        typeof header ===
+                        "string"
+                    ) {
+                        return header;
+                    }
 
-            return column.id;
-        });
+                    return getColumnDisplayName(
+                        column.id
+                    );
+                }
+            );
 
-        const csvRows = rows.map((row) =>
-            visibleColumns
-                .map((column) => {
-                    const value = row.getValue(column.id) ?? "";
+        const csvRows =
+            rows.map(
+                (
+                    row
+                ) =>
+                    visibleColumns
+                        .map(
+                            (
+                                column
+                            ) => {
+                                const value =
+                                    row.getValue(
+                                        column.id
+                                    ) ??
+                                    "";
 
-                    return `"${String(value).replace(/"/g, '""')}"`;
-                })
-                .join(",")
-        );
+                                return `"${String(
+                                    value
+                                ).replace(
+                                    /"/g,
+                                    '""'
+                                )}"`;
+                            }
+                        )
+                        .join(
+                            ","
+                        )
+            );
 
-        const blob = new Blob(
-            [[headers.join(","), ...csvRows].join("\n")],
-            {
-                type: "text/csv;charset=utf-8;",
-            }
-        );
+        const blob =
+            new Blob(
+                [
+                    [
+                        headers.join(
+                            ","
+                        ),
 
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
+                        ...csvRows,
+                    ].join(
+                        "\n"
+                    ),
+                ],
+                {
+                    type:
+                        "text/csv;charset=utf-8;",
+                }
+            );
 
-        link.href = url;
-        link.download = `asset-report-${new Date()
-            .toISOString()
-            .slice(0, 10)}.csv`;
+        const url =
+            window.URL
+                .createObjectURL(
+                    blob
+                );
 
-        document.body.appendChild(link);
+        const link =
+            document.createElement(
+                "a"
+            );
+
+        link.href =
+            url;
+
+        link.download =
+            `itm-report-${new Date()
+                .toISOString()
+                .slice(
+                    0,
+                    10
+                )}.csv`;
+
+        document.body
+            .appendChild(
+                link
+            );
+
         link.click();
-        document.body.removeChild(link);
 
-        window.URL.revokeObjectURL(url);
-    };
+        document.body
+            .removeChild(
+                link
+            );
 
-    const visibleColumnCount = table.getVisibleLeafColumns().length;
+        window.URL
+            .revokeObjectURL(
+                url
+            );
+    }
+
+    const visibleColumnCount =
+        table
+            .getVisibleLeafColumns()
+            .length;
+
+    /* ==================================================
+       STYLE VALUES
+    ================================================== */
+
+    const toolbarButtonClass =
+        compact
+            ? "h-8 gap-1.5 px-2.5 text-[10px]"
+            : "h-9 gap-2 text-xs";
+
+    const toolbarIconClass =
+        compact
+            ? "h-3.5 w-3.5"
+            : "h-4 w-4";
+
+    const filterLabelClass =
+        compact
+            ? "text-[10px] font-medium text-muted-foreground"
+            : "text-xs font-medium text-muted-foreground";
+
+    const filterInputClass =
+        compact
+            ? "h-7 text-[10px]"
+            : "h-8 text-xs";
+
+    /* ==================================================
+       UI
+    ================================================== */
 
     return (
-        <div className="space-y-3 text-sm text-foreground">
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <div className="relative w-full max-w-lg">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
+        <div
+            className={
+                compact
+                    ? "space-y-2 text-foreground"
+                    : "space-y-3 text-sm text-foreground"
+            }
+        >
+            {/* ==========================================
+                TOOLBAR
+            ========================================== */}
+
+            <div
+                className={`
+                    flex flex-wrap
+                    items-center
+                    justify-between
+                    ${compact
+                        ? "gap-2"
+                        : "gap-3"
+                    }
+                `}
+            >
+                {/* Left toolbar */}
+
+                <div
+                    className={`
+                        flex min-w-0
+                        flex-1 flex-wrap
+                        items-center
+                        ${compact
+                            ? "gap-1.5"
+                            : "gap-2"
+                        }
+                    `}
+                >
+                    {/* Search */}
+
+                    <div
+                        className={`
+                            relative w-full
+                            ${compact
+                                ? "max-w-[420px]"
+                                : "max-w-lg"
+                            }
+                        `}
+                    >
+                        <Search
+                            className={`
+                                absolute
+                                top-1/2
+                                -translate-y-1/2
+                                text-primary/70
+                                ${compact
+                                    ? "left-2.5 h-3.5 w-3.5"
+                                    : "left-3 h-4 w-4"
+                                }
+                            `}
+                        />
 
                         <Input
-                            placeholder="Search reference, employee, category, model..."
-                            value={globalFilter}
-                            onChange={(event) =>
-                                setGlobalFilter(event.target.value)
+                            placeholder="Search TT, employee, query, status..."
+                            value={
+                                globalFilter
                             }
-                            className="h-9 border-primary/30 pl-9 pr-9 text-sm focus-visible:ring-primary/30"
+                            onChange={(
+                                event
+                            ) =>
+                                setGlobalFilter(
+                                    event
+                                        .target
+                                        .value
+                                )
+                            }
+                            className={
+                                compact
+                                    ? "h-8 border-primary/30 pl-8 pr-8 text-[11px] focus-visible:ring-primary/30"
+                                    : "h-9 border-primary/30 pl-9 pr-9 text-sm focus-visible:ring-primary/30"
+                            }
                         />
 
                         {globalFilter && (
                             <button
                                 type="button"
-                                onClick={() => setGlobalFilter("")}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                                onClick={() =>
+                                    setGlobalFilter(
+                                        ""
+                                    )
+                                }
+                                className={`
+                                    absolute
+                                    top-1/2
+                                    -translate-y-1/2
+                                    text-muted-foreground
+                                    transition-colors
+                                    hover:text-foreground
+                                    ${compact
+                                        ? "right-2.5"
+                                        : "right-3"
+                                    }
+                                `}
                                 aria-label="Clear search"
                             >
-                                <X className="h-4 w-4" />
+                                <X
+                                    className={
+                                        compact
+                                            ? "h-3.5 w-3.5"
+                                            : "h-4 w-4"
+                                    }
+                                />
                             </button>
                         )}
                     </div>
 
+                    {/* Filter */}
+
                     <DropdownMenu
-                        open={filterOpen}
-                        onOpenChange={setFilterOpen}
+                        open={
+                            filterOpen
+                        }
+                        onOpenChange={
+                            setFilterOpen
+                        }
                     >
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger
+                            asChild
+                        >
                             <Button
                                 size="sm"
-                                className="h-9 gap-2 border border-emerald-300 bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
+                                className={`
+                                    ${toolbarButtonClass}
+                                    border
+                                    border-emerald-300
+                                    bg-emerald-100
+                                    text-emerald-900
+                                    hover:bg-emerald-200
+                                    hover:text-emerald-900
+                                `}
                             >
-                                <Filter className="h-4 w-4" />
+                                <Filter
+                                    className={
+                                        toolbarIconClass
+                                    }
+                                />
+
                                 Filter
 
-                                {activeFiltersCount > 0 && (
-                                    <Badge className="h-5 min-w-5 rounded-full bg-emerald-600 px-1 text-[10px] text-white">
-                                        {activeFiltersCount}
-                                    </Badge>
-                                )}
+                                {activeFiltersCount >
+                                    0 && (
+                                        <Badge
+                                            className={`
+                                            rounded-full
+                                            bg-emerald-600
+                                            p-0
+                                            text-white
+                                            ${compact
+                                                    ? "h-4 min-w-4 px-1 text-[8px]"
+                                                    : "h-5 min-w-5 px-1 text-[10px]"
+                                                }
+                                        `}
+                                        >
+                                            {
+                                                activeFiltersCount
+                                            }
+                                        </Badge>
+                                    )}
                             </Button>
                         </DropdownMenuTrigger>
 
                         <DropdownMenuContent
                             align="start"
-                            className="w-80 p-3"
+                            className={
+                                compact
+                                    ? "w-72 p-2.5"
+                                    : "w-80 p-3"
+                            }
                         >
-                            <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-3">
+                            <div
+                                className={
+                                    compact
+                                        ? "space-y-2.5"
+                                        : "space-y-3"
+                                }
+                            >
+                                {/* Date filters */}
+
+                                <div
+                                    className={
+                                        compact
+                                            ? "grid grid-cols-2 gap-2"
+                                            : "grid grid-cols-2 gap-3"
+                                    }
+                                >
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-muted-foreground">
-                                            From Date
+                                        <label
+                                            className={
+                                                filterLabelClass
+                                            }
+                                        >
+                                            From
+                                            Date
                                         </label>
 
                                         <Input
                                             type="date"
-                                            value={fromDate}
-                                            onChange={(event) =>
+                                            value={
+                                                fromDate
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
                                                 setFromDate(
-                                                    event.target.value
+                                                    event
+                                                        .target
+                                                        .value
                                                 )
                                             }
-                                            className="h-8 text-xs"
+                                            className={
+                                                filterInputClass
+                                            }
                                         />
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-muted-foreground">
-                                            To Date
+                                        <label
+                                            className={
+                                                filterLabelClass
+                                            }
+                                        >
+                                            To
+                                            Date
                                         </label>
 
                                         <Input
                                             type="date"
-                                            value={toDate}
-                                            onChange={(event) =>
+                                            value={
+                                                toDate
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
                                                 setToDate(
-                                                    event.target.value
+                                                    event
+                                                        .target
+                                                        .value
                                                 )
                                             }
-                                            className="h-8 text-xs"
+                                            className={
+                                                filterInputClass
+                                            }
                                         />
                                     </div>
                                 </div>
 
-                                {["employeeId", "status"].map((columnId) => {
-                                    const column = table
-                                        .getAllColumns()
-                                        .find(
-                                            (item) => item.id === columnId
-                                        );
+                                {/* Employee ID */}
 
-                                    if (!column) {
-                                        return null;
-                                    }
-
-                                    const label =
-                                        columnId === "employeeId"
-                                            ? "Employee ID"
-                                            : "Status";
-
-                                    return (
-                                        <div
-                                            key={columnId}
-                                            className="space-y-1"
+                                {employeeIdColumn && (
+                                    <div className="space-y-1">
+                                        <label
+                                            className={
+                                                filterLabelClass
+                                            }
                                         >
-                                            <label className="text-xs font-medium text-muted-foreground">
-                                                {label}
-                                            </label>
+                                            Employee
+                                            ID
+                                        </label>
 
-                                            <Input
-                                                placeholder={`Filter by ${label}`}
-                                                value={
-                                                    (column.getFilterValue() as string) ??
-                                                    ""
-                                                }
-                                                onChange={(event) =>
-                                                    column.setFilterValue(
-                                                        event.target.value
+                                        <Input
+                                            placeholder="Employee ID"
+                                            value={
+                                                (
+                                                    employeeIdColumn
+                                                        .getFilterValue() as string
+                                                ) ??
+                                                ""
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                employeeIdColumn
+                                                    .setFilterValue(
+                                                        event
+                                                            .target
+                                                            .value
                                                     )
-                                                }
-                                                className="h-8 text-xs"
-                                            />
-                                        </div>
-                                    );
-                                })}
+                                            }
+                                            className={
+                                                filterInputClass
+                                            }
+                                        />
+                                    </div>
+                                )}
 
-                                <div className="flex justify-end gap-2 border-t border-border pt-3">
+                                {/* Status */}
+
+                                {statusColumn && (
+                                    <div className="space-y-1">
+                                        <label
+                                            className={
+                                                filterLabelClass
+                                            }
+                                        >
+                                            Status
+                                        </label>
+
+                                        <Input
+                                            placeholder="Open or Closed"
+                                            value={
+                                                (
+                                                    statusColumn
+                                                        .getFilterValue() as string
+                                                ) ??
+                                                ""
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                statusColumn
+                                                    .setFilterValue(
+                                                        event
+                                                            .target
+                                                            .value
+                                                    )
+                                            }
+                                            className={
+                                                filterInputClass
+                                            }
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Actions */}
+
+                                <div
+                                    className={`
+                                        flex
+                                        justify-end
+                                        border-t
+                                        border-border
+                                        ${compact
+                                            ? "gap-1.5 pt-2"
+                                            : "gap-2 pt-3"
+                                        }
+                                    `}
+                                >
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-8 text-xs"
-                                        onClick={resetFilters}
+                                        className={
+                                            compact
+                                                ? "h-7 px-2.5 text-[10px]"
+                                                : "h-8 text-xs"
+                                        }
+                                        onClick={
+                                            resetFilters
+                                        }
                                     >
                                         Reset
                                     </Button>
 
                                     <Button
                                         size="sm"
-                                        className="h-8 text-xs"
-                                        onClick={() => setFilterOpen(false)}
+                                        className={
+                                            compact
+                                                ? "h-7 px-2.5 text-[10px]"
+                                                : "h-8 text-xs"
+                                        }
+                                        onClick={() =>
+                                            setFilterOpen(
+                                                false
+                                            )
+                                        }
                                     >
                                         Apply
                                     </Button>
@@ -449,15 +1087,36 @@ export function DataTable<TData, TValue>({
                     </DropdownMenu>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* Right toolbar */}
+
+                <div
+                    className={`
+                        flex items-center
+                        ${compact
+                            ? "gap-1.5"
+                            : "gap-2"
+                        }
+                    `}
+                >
+                    {/* Columns */}
+
                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger
+                            asChild
+                        >
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-9 gap-2 text-xs"
+                                className={
+                                    toolbarButtonClass
+                                }
                             >
-                                <SlidersHorizontal className="h-4 w-4" />
+                                <SlidersHorizontal
+                                    className={
+                                        toolbarIconClass
+                                    }
+                                />
+
                                 Columns
                             </Button>
                         </DropdownMenuTrigger>
@@ -466,8 +1125,16 @@ export function DataTable<TData, TValue>({
                             align="end"
                             className="max-h-[420px] w-64 overflow-y-auto"
                         >
-                            <DropdownMenuLabel className="text-xs">
-                                Show / Hide Columns
+                            <DropdownMenuLabel
+                                className={
+                                    compact
+                                        ? "text-[10px]"
+                                        : "text-xs"
+                                }
+                            >
+                                Show /
+                                Hide
+                                Columns
                             </DropdownMenuLabel>
 
                             <DropdownMenuSeparator />
@@ -475,218 +1142,471 @@ export function DataTable<TData, TValue>({
                             <div className="py-1">
                                 {table
                                     .getAllColumns()
-                                    .filter((column) =>
-                                        column.getCanHide()
+                                    .filter(
+                                        (
+                                            column
+                                        ) =>
+                                            column.getCanHide()
                                     )
-                                    .map((column) => {
-                                        const header =
-                                            column.columnDef.header;
+                                    .map(
+                                        (
+                                            column
+                                        ) => {
+                                            const header =
+                                                column
+                                                    .columnDef
+                                                    .header;
 
-                                        const label =
-                                            typeof header === "string"
-                                                ? header
-                                                : column.id;
+                                            const label =
+                                                typeof header ===
+                                                    "string"
+                                                    ? header
+                                                    : getColumnDisplayName(
+                                                        column.id
+                                                    );
 
-                                        return (
-                                            <DropdownMenuCheckboxItem
-                                                key={column.id}
-                                                checked={column.getIsVisible()}
-                                                onCheckedChange={(value) =>
-                                                    column.toggleVisibility(
-                                                        Boolean(value)
-                                                    )
-                                                }
-                                                className="text-xs"
-                                            >
-                                                {column.getIsVisible() ? (
-                                                    <Eye className="mr-2 h-3.5 w-3.5" />
-                                                ) : (
-                                                    <EyeOff className="mr-2 h-3.5 w-3.5" />
-                                                )}
+                                            return (
+                                                <DropdownMenuCheckboxItem
+                                                    key={
+                                                        column.id
+                                                    }
+                                                    checked={
+                                                        column.getIsVisible()
+                                                    }
+                                                    onCheckedChange={(
+                                                        value
+                                                    ) =>
+                                                        column.toggleVisibility(
+                                                            Boolean(
+                                                                value
+                                                            )
+                                                        )
+                                                    }
+                                                    className={
+                                                        compact
+                                                            ? "text-[10px]"
+                                                            : "text-xs"
+                                                    }
+                                                >
+                                                    {column.getIsVisible() ? (
+                                                        <Eye
+                                                            className={
+                                                                compact
+                                                                    ? "mr-2 h-3 w-3"
+                                                                    : "mr-2 h-3.5 w-3.5"
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <EyeOff
+                                                            className={
+                                                                compact
+                                                                    ? "mr-2 h-3 w-3"
+                                                                    : "mr-2 h-3.5 w-3.5"
+                                                            }
+                                                        />
+                                                    )}
 
-                                                {label}
-                                            </DropdownMenuCheckboxItem>
-                                        );
-                                    })}
+                                                    {
+                                                        label
+                                                    }
+                                                </DropdownMenuCheckboxItem>
+                                            );
+                                        }
+                                    )}
                             </div>
                         </DropdownMenuContent>
                     </DropdownMenu>
 
+                    {/* Export */}
+
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={exportToCSV}
-                        className="h-9 gap-2 text-xs"
+                        onClick={
+                            exportToCSV
+                        }
+                        className={
+                            toolbarButtonClass
+                        }
                     >
-                        <Download className="h-4 w-4" />
+                        <Download
+                            className={
+                                toolbarIconClass
+                            }
+                        />
+
                         Export
                     </Button>
                 </div>
             </div>
 
-            {/* Active filter chips */}
-            {activeFiltersCount > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                    {globalFilter && (
-                        <Badge
-                            variant="secondary"
-                            className="gap-1 text-xs"
-                        >
-                            Search: {globalFilter}
+            {/* ==========================================
+                ACTIVE FILTER CHIPS
+            ========================================== */}
 
-                            <button
-                                type="button"
-                                onClick={() => setGlobalFilter("")}
-                                aria-label="Clear search filter"
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
-                        </Badge>
-                    )}
-
-                    {columnFilters.map((filter) => (
-                        <Badge
-                            key={filter.id}
-                            variant="secondary"
-                            className="gap-1 text-xs"
-                        >
-                            {filter.id}: {String(filter.value)}
-
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setColumnFilters((current) =>
-                                        current.filter(
-                                            (item) =>
-                                                item.id !== filter.id
-                                        )
-                                    )
-                                }
-                                aria-label={`Clear ${filter.id} filter`}
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
-                        </Badge>
-                    ))}
-
-                    {(fromDate || toDate) && (
-                        <Badge
-                            variant="secondary"
-                            className="gap-1 text-xs"
-                        >
-                            Date: {fromDate || "Start"} — {toDate || "Now"}
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setFromDate("");
-                                    setToDate("");
-                                }}
-                                aria-label="Clear date filter"
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
-                        </Badge>
-                    )}
-
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={resetFilters}
-                        className="h-7 text-xs"
+            {activeFiltersCount >
+                0 && (
+                    <div
+                        className={`
+                        flex flex-wrap
+                        items-center
+                        ${compact
+                                ? "gap-1.5"
+                                : "gap-2"
+                            }
+                    `}
                     >
-                        Clear all
-                    </Button>
-                </div>
-            )}
-
-            {/* Table */}
-            <div className="overflow-x-auto rounded-xl border border-border bg-card">
-                {/* <Table className="min-w-[1180px] table-fixed border-collapse text-xs"> */}
-                <Table className="w-full min-w-[940px] table-fixed border-collapse text-[10px]">
-                    <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow
-                                key={headerGroup.id}
-                                className="hover:bg-transparent"
+                        {globalFilter && (
+                            <Badge
+                                variant="secondary"
+                                className={
+                                    compact
+                                        ? "h-5 gap-1 px-2 text-[9px]"
+                                        : "gap-1 text-xs"
+                                }
                             >
-                                {headerGroup.headers.map((header) => (
-                                    <TableHead
-                                        key={header.id}
+                                Search:{" "}
+                                {
+                                    globalFilter
+                                }
 
-                                        // className="whitespace-nowrap border-b bg-muted/60 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setGlobalFilter(
+                                            ""
+                                        )
+                                    }
+                                    aria-label="Clear search filter"
+                                >
+                                    <X
+                                        className={
+                                            compact
+                                                ? "h-3 w-3"
+                                                : "h-3.5 w-3.5"
+                                        }
+                                    />
+                                </button>
+                            </Badge>
+                        )}
 
-                                        className="
-    whitespace-nowrap
-    border-b
-    bg-muted/60
-    px-2
-    py-2
-    text-center
-    text-[9px]
-    font-semibold
-    uppercase
-    tracking-wide
-    text-muted-foreground
-"
+                        {columnFilters.map(
+                            (
+                                filter
+                            ) => (
+                                <Badge
+                                    key={
+                                        filter.id
+                                    }
+                                    variant="secondary"
+                                    className={
+                                        compact
+                                            ? "h-5 gap-1 px-2 text-[9px]"
+                                            : "gap-1 text-xs"
+                                    }
+                                >
+                                    {getColumnDisplayName(
+                                        filter.id
+                                    )}
+                                    :{" "}
+                                    {String(
+                                        filter.value
+                                    )}
 
-                                        style={{
-                                            width:
-                                                header.getSize() !== 150
-                                                    ? header.getSize()
-                                                    : undefined,
-                                        }}
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setColumnFilters(
+                                                (
+                                                    current
+                                                ) =>
+                                                    current.filter(
+                                                        (
+                                                            item
+                                                        ) =>
+                                                            item.id !==
+                                                            filter.id
+                                                    )
+                                            )
+                                        }
+                                        aria-label={`Clear ${filter.id} filter`}
                                     >
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                header.column.columnDef
-                                                    .header,
-                                                header.getContext()
-                                            )}
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        ))}
+                                        <X
+                                            className={
+                                                compact
+                                                    ? "h-3 w-3"
+                                                    : "h-3.5 w-3.5"
+                                            }
+                                        />
+                                    </button>
+                                </Badge>
+                            )
+                        )}
+
+                        {(fromDate ||
+                            toDate) && (
+                                <Badge
+                                    variant="secondary"
+                                    className={
+                                        compact
+                                            ? "h-5 gap-1 px-2 text-[9px]"
+                                            : "gap-1 text-xs"
+                                    }
+                                >
+                                    Date:{" "}
+                                    {fromDate ||
+                                        "Start"}{" "}
+                                    —{" "}
+                                    {toDate ||
+                                        "Now"}
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFromDate(
+                                                ""
+                                            );
+
+                                            setToDate(
+                                                ""
+                                            );
+                                        }}
+                                        aria-label="Clear date filter"
+                                    >
+                                        <X
+                                            className={
+                                                compact
+                                                    ? "h-3 w-3"
+                                                    : "h-3.5 w-3.5"
+                                            }
+                                        />
+                                    </button>
+                                </Badge>
+                            )}
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={
+                                resetFilters
+                            }
+                            className={
+                                compact
+                                    ? "h-6 px-2 text-[9px]"
+                                    : "h-7 text-xs"
+                            }
+                        >
+                            Clear all
+                        </Button>
+                    </div>
+                )}
+
+            {/* ==========================================
+                TABLE
+            ========================================== */}
+
+            <div
+                className={`
+                    overflow-x-auto
+                    border border-border
+                    bg-card
+                    ${compact
+                        ? "rounded-lg"
+                        : "rounded-xl"
+                    }
+                `}
+            >
+                <Table
+                    className={`
+                        w-full
+                        table-fixed
+                        border-collapse
+                        ${compact
+                            ? "min-w-[860px] text-[9px]"
+                            : "min-w-[940px] text-[10px]"
+                        }
+                    `}
+                >
+                    {/* Header */}
+
+                    <TableHeader>
+                        {table
+                            .getHeaderGroups()
+                            .map(
+                                (
+                                    headerGroup
+                                ) => (
+                                    <TableRow
+                                        key={
+                                            headerGroup.id
+                                        }
+                                        className="hover:bg-transparent"
+                                    >
+                                        {headerGroup.headers.map(
+                                            (
+                                                header
+                                            ) => (
+                                                <TableHead
+                                                    key={
+                                                        header.id
+                                                    }
+                                                    className={`
+                                                        whitespace-nowrap
+                                                        border-b
+                                                        bg-muted/60
+                                                        text-center
+                                                        font-semibold
+                                                        uppercase
+                                                        tracking-wide
+                                                        text-muted-foreground
+                                                        ${compact
+                                                            ? "h-8 px-1.5 py-1 text-[8px]"
+                                                            : "px-2 py-2 text-[9px]"
+                                                        }
+                                                    `}
+                                                    style={{
+                                                        width:
+                                                            header.getSize() !==
+                                                                150
+                                                                ? header.getSize()
+                                                                : undefined,
+                                                    }}
+                                                >
+                                                    {header.isPlaceholder
+                                                        ? null
+                                                        : flexRender(
+                                                            header
+                                                                .column
+                                                                .columnDef
+                                                                .header,
+                                                            header.getContext()
+                                                        )}
+                                                </TableHead>
+                                            )
+                                        )}
+                                    </TableRow>
+                                )
+                            )}
                     </TableHeader>
 
+                    {/* Body */}
+
                     <TableBody>
-                        {table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    className="border-b border-border/70 transition-colors hover:bg-primary/[0.03]"
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell
-                                            key={cell.id}
-                                            // className="overflow-hidden px-3 py-3 text-center align-middle text-xs whitespace-nowrap"
-                                            className="
-    overflow-hidden
-    whitespace-nowrap
-    px-2
-    py-2
-    text-center
-    align-middle
-    text-[10px]
-    text-ellipsis
-"
+                        {table
+                            .getRowModel()
+                            .rows
+                            .length ? (
+                            table
+                                .getRowModel()
+                                .rows
+                                .map(
+                                    (
+                                        row
+                                    ) => (
+                                        <TableRow
+                                            key={
+                                                row.id
+                                            }
+                                            className={`
+                                                border-b
+                                                border-border/70
+                                                transition-colors
+                                                hover:bg-primary/[0.035]
+                                                ${compact
+                                                    ? "h-8"
+                                                    : ""
+                                                }
+                                            `}
                                         >
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext()
-                                            )}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
+                                            {row
+                                                .getVisibleCells()
+                                                .map(
+                                                    (
+                                                        cell
+                                                    ) => (
+                                                        // <TableCell
+                                                        //     key={cell.id}
+                                                        //     className={`
+                                                        //         overflow-hidden
+                                                        //         whitespace-nowrap
+                                                        //         text-center
+                                                        //         align-middle
+                                                        //         ${compact
+                                                        //             ? "h-8 px-1 py-[3px] text-[9px]"
+                                                        //             : "px-2 py-2 text-[10px]"
+                                                        //         }
+                                                        //     `}
+                                                        //     style={{
+                                                        //         width:
+                                                        //             cell.column.getSize(),
+
+                                                        //         minWidth:
+                                                        //             cell.column.getSize(),
+
+                                                        //         maxWidth:
+                                                        //             cell.column.getSize(),
+                                                        //     }}
+                                                        // >
+                                                        //     {flexRender(
+                                                        //         cell.column.columnDef.cell,
+                                                        //         cell.getContext()
+                                                        //     )}
+                                                        // </TableCell>
+
+                                                        <TableCell
+                                                            key={cell.id}
+                                                            className={`
+        overflow-hidden
+        whitespace-nowrap
+        text-center
+        align-middle
+
+        ${compact
+                                                                    ? "h-8 px-1 py-[3px] text-[9px]"
+                                                                    : "px-2 py-2 text-[10px]"
+                                                                }
+
+        ${cell.column.id === "tt_no"
+                                                                    ? "font-semibold text-primary [&>button]:border-primary/25 [&>button]:bg-primary/[0.06] [&>button]:text-primary [&>button]:shadow-none hover:[&>button]:border-primary/45 hover:[&>button]:bg-primary/10 hover:[&>button]:text-primary focus-within:[&>button]:border-primary/50 focus-within:[&>button]:ring-2 focus-within:[&>button]:ring-primary/20"
+                                                                    : ""
+                                                                }
+    `}
+                                                            style={{
+                                                                width:
+                                                                    cell.column.getSize(),
+
+                                                                minWidth:
+                                                                    cell.column.getSize(),
+
+                                                                maxWidth:
+                                                                    cell.column.getSize(),
+                                                            }}
+                                                        >
+                                                            {flexRender(
+                                                                cell.column.columnDef.cell,
+                                                                cell.getContext()
+                                                            )}
+                                                        </TableCell>
+                                                    )
+                                                )}
+                                        </TableRow>
+                                    )
+                                )
                         ) : (
                             <TableRow>
                                 <TableCell
-                                    colSpan={visibleColumnCount}
-                                    className="h-28 text-center text-sm text-muted-foreground"
+                                    colSpan={
+                                        visibleColumnCount
+                                    }
+                                    className={
+                                        compact
+                                            ? "h-20 text-center text-[10px] text-muted-foreground"
+                                            : "h-28 text-center text-sm text-muted-foreground"
+                                    }
                                 >
-                                    No results found.
+                                    No
+                                    results
+                                    found.
                                 </TableCell>
                             </TableRow>
                         )}
@@ -694,12 +1614,34 @@ export function DataTable<TData, TValue>({
                 </Table>
             </div>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-1">
-                <p className="text-xs text-muted-foreground">
+            {/* ==========================================
+                PAGINATION
+            ========================================== */}
+
+            <div
+                className={`
+                    flex items-center
+                    justify-between
+                    ${compact
+                        ? "px-0.5"
+                        : "px-1"
+                    }
+                `}
+            >
+                <p
+                    className={
+                        compact
+                            ? "text-[10px] text-muted-foreground"
+                            : "text-xs text-muted-foreground"
+                    }
+                >
                     Page{" "}
                     <span className="font-medium text-foreground">
-                        {table.getState().pagination.pageIndex + 1}
+                        {table
+                            .getState()
+                            .pagination
+                            .pageIndex +
+                            1}
                     </span>{" "}
                     of{" "}
                     <span className="font-medium text-foreground">
@@ -707,13 +1649,27 @@ export function DataTable<TData, TValue>({
                     </span>
                 </p>
 
-                <div className="flex items-center gap-2">
+                <div
+                    className={
+                        compact
+                            ? "flex items-center gap-1.5"
+                            : "flex items-center gap-2"
+                    }
+                >
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                        className="h-8 text-xs"
+                        onClick={() =>
+                            table.previousPage()
+                        }
+                        disabled={
+                            !table.getCanPreviousPage()
+                        }
+                        className={
+                            compact
+                                ? "h-7 px-2.5 text-[10px]"
+                                : "h-8 text-xs"
+                        }
                     >
                         Previous
                     </Button>
@@ -721,9 +1677,17 @@ export function DataTable<TData, TValue>({
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                        className="h-8 text-xs"
+                        onClick={() =>
+                            table.nextPage()
+                        }
+                        disabled={
+                            !table.getCanNextPage()
+                        }
+                        className={
+                            compact
+                                ? "h-7 px-2.5 text-[10px]"
+                                : "h-8 text-xs"
+                        }
                     >
                         Next
                     </Button>
