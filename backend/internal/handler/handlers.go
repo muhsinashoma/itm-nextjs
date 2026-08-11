@@ -1,3 +1,4 @@
+
 // backend/internal/handler/handlers.go
 package handler
 
@@ -141,9 +142,6 @@ func (h *EmployeeHandler) Search(c *gin.Context) {
 type DashboardHandler struct{ db *pgxpool.Pool }
 
 func NewDashboardHandler(db *pgxpool.Pool) *DashboardHandler { return &DashboardHandler{db: db} }
-
-
-
 
 func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/dashboard")
@@ -399,8 +397,6 @@ func (h *DashboardHandler) TicketTrend(c *gin.Context) {
 	response.OK(c, res)
 }
 
-
-
 // TroubleTicketSummary returns the four dashboard KPI counts.
 //
 // Current mappings:
@@ -435,23 +431,29 @@ func (h *DashboardHandler) TroubleTicketSummary(c *gin.Context) {
 					END
 				)::int AS legacy_status,
 
-				COALESCE(
-					reason.approved_val,
-					ticket.source_device_requisition,
-					CASE
-						WHEN NULLIF(
-							BTRIM(
-								COALESCE(
-									ticket.requisition_type,
-									''
-								)
-							),
-							''
-						) IS NULL
-						THEN 0
-						ELSE 1
-					END
-				)::int AS requisition_value
+				CASE
+					WHEN COALESCE(
+						ticket.source_device_requisition,
+						0
+					) = 3
+						THEN 1
+
+					WHEN reason.approved_val IS NOT NULL
+						THEN 1
+
+					WHEN NULLIF(
+						BTRIM(
+							COALESCE(
+								ticket.requisition_type,
+								''
+							)
+						),
+						''
+					) IS NOT NULL
+						THEN 1
+
+					ELSE 0
+				END::int AS has_requisition
 
 			FROM public.trouble_tickets AS ticket
 
@@ -505,17 +507,16 @@ func (h *DashboardHandler) TroubleTicketSummary(c *gin.Context) {
 					ticket.closed_at
 					AT TIME ZONE 'Asia/Dhaka'
 				)::date = clock.today
-
 				AND ticket.legacy_status = 0
 			)::bigint AS closed_today,
 
 			COUNT(*) FILTER (
-				WHERE ticket.requisition_value NOT IN (1, 3)
+				WHERE ticket.has_requisition = 0
 				AND ticket.legacy_status = 1
 			)::bigint AS total_running_tt,
 
 			COUNT(*) FILTER (
-				WHERE ticket.requisition_value <> 0
+				WHERE ticket.has_requisition = 1
 				AND ticket.legacy_status = 1
 			)::bigint AS total_procurement_tt
 
@@ -801,8 +802,17 @@ func (
 //   - running
 //   - procurement
 //
-// Requisition and Delivered Status are loaded dynamically from
-// the latest matching public.tt_reasons record.
+// Requisition rules:
+//   - approved_val = 1 -> Petty Cash (Approved)
+//   - approved_val = 3 -> PR (Approved)
+//   - approved_val = 2 -> Rejected
+//   - source_device_requisition = 3 and approval pending/null -> Raised
+//
+// Delivery rules:
+//   - delivered_val = 0 -> Pending
+//   - delivered_val = 1 -> Delivered
+//   - delivered_val = 2 -> Rejected
+//   - raised requisition with no delivery row -> Pending
 func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -849,10 +859,8 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		0 = Closed
 		1 = Open
 
-		This expression converts all current statuses into only:
-
-		Open
-		Closed
+		The API intentionally normalizes all current statuses to
+		only Open or Closed for the Trouble Ticket dashboard.
 	*/
 	legacyStatusExpression := `
 		COALESCE(
@@ -871,32 +879,134 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	`
 
 	/*
-		Latest tt_reasons.approved_val takes priority.
+		A ticket is considered to have a requisition when:
 
-		approved_val:
-		0 = no approved procurement
-		1 = Petty Cash approved
-		2 = rejected
-		3 = PR approved
+		- legacy source_device_requisition says the requisition was raised,
+		- an approval row exists, including approved_val = 0 (Pending), or
+		- migrated dashboard requisition text already exists.
 	*/
-	requisitionValueExpression := `
-		COALESCE(
-			reason.approved_val,
-			ticket.source_device_requisition,
-			CASE
-				WHEN NULLIF(
-					BTRIM(
-						COALESCE(
-							dashboard.requisition_type,
-							''
-						)
-					),
-					''
-				) IS NULL
-				THEN 0
-				ELSE 1
-			END
-		)
+	hasRequisitionExpression := `
+		CASE
+			WHEN COALESCE(
+				ticket.source_device_requisition,
+				0
+			) = 3
+				THEN 1
+
+			WHEN reason.approved_val IS NOT NULL
+				THEN 1
+
+			WHEN NULLIF(
+				BTRIM(
+					COALESCE(
+						dashboard.requisition_type,
+						''
+					)
+				),
+				''
+			) IS NOT NULL
+				THEN 1
+
+			ELSE 0
+		END
+	`
+
+	/*
+		Requisition display priority:
+
+		approved_val = 1 -> Petty Cash (Approved)
+		approved_val = 3 -> PR (Approved)
+		approved_val = 2 -> Rejected
+
+		approved_val = 0 or NULL does not replace the raised state.
+		If source_device_requisition = 3, display Raised.
+	*/
+	requisitionDisplayExpression := `
+		CASE
+			WHEN reason.approved_val = 1
+				THEN 'Petty Cash (Approved)'
+
+			WHEN reason.approved_val = 3
+				THEN 'PR (Approved)'
+
+			WHEN reason.approved_val = 2
+				THEN 'Rejected'
+
+			WHEN COALESCE(
+				ticket.source_device_requisition,
+				0
+			) = 3
+				THEN 'Raised'
+
+			WHEN NULLIF(
+				BTRIM(
+					COALESCE(
+						dashboard.requisition_type,
+						''
+					)
+				),
+				''
+			) IS NOT NULL
+				THEN dashboard.requisition_type
+
+			ELSE ''
+		END
+	`
+
+	/*
+		Delivery display priority:
+
+		delivered_val = 0 -> Pending
+		delivered_val = 1 -> Delivered
+		delivered_val = 2 -> Rejected
+
+		If no explicit delivery status exists but a requisition exists,
+		the delivery status defaults to Pending.
+	*/
+	deliveryDisplayExpression := `
+		CASE
+			WHEN reason.delivered_val = 1
+				THEN 'Delivered'
+
+			WHEN reason.delivered_val = 2
+				THEN 'Rejected'
+
+			WHEN reason.delivered_val = 0
+				THEN 'Pending'
+
+			WHEN NULLIF(
+				BTRIM(
+					COALESCE(
+						dashboard.delivered_status,
+						''
+					)
+				),
+				''
+			) IS NOT NULL
+				THEN dashboard.delivered_status
+
+			WHEN COALESCE(
+				ticket.source_device_requisition,
+				0
+			) = 3
+				THEN 'Pending'
+
+			WHEN reason.approved_val IS NOT NULL
+				THEN 'Pending'
+
+			WHEN NULLIF(
+				BTRIM(
+					COALESCE(
+						dashboard.requisition_type,
+						''
+					)
+				),
+				''
+			) IS NOT NULL
+				THEN 'Pending'
+
+			ELSE ''
+		END
 	`
 
 	reasonJoin := `
@@ -969,20 +1079,20 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	case "running":
 		where += fmt.Sprintf(
 			`
-			AND (%s) NOT IN (1, 3)
+			AND (%s) = 0
 			AND (%s) = 1
 			`,
-			requisitionValueExpression,
+			hasRequisitionExpression,
 			legacyStatusExpression,
 		)
 
 	case "procurement":
 		where += fmt.Sprintf(
 			`
-			AND (%s) <> 0
+			AND (%s) = 1
 			AND (%s) = 1
 			`,
-			requisitionValueExpression,
+			hasRequisitionExpression,
 			legacyStatusExpression,
 		)
 
@@ -1036,6 +1146,7 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 
 	if search != "" {
 		searchValue := "%" + search + "%"
+		searchPlaceholder := fmt.Sprintf("$%d", argNumber)
 
 		where += fmt.Sprintf(
 			`
@@ -1043,77 +1154,66 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				COALESCE(
 					dashboard.tt_no,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
 				OR COALESCE(
 					dashboard.employee_id,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
 				OR COALESCE(
 					dashboard.employee_name,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
 				OR COALESCE(
 					dashboard.assigned_id,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
 				OR COALESCE(
 					dashboard.assigned_name,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
 				OR COALESCE(
 					dashboard.query_type,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
 				OR COALESCE(
 					dashboard.dept_name,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
 				OR COALESCE(
 					dashboard.func_name,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
 				OR COALESCE(
 					dashboard.mobile_no,
 					''
-				) ILIKE $%d
+				) ILIKE %s
 
-				OR (
-					CASE reason.approved_val
-						WHEN 1 THEN 'Petty Cash (Approved)'
-						WHEN 3 THEN 'PR (Approved)'
-						ELSE ''
-					END
-				) ILIKE $%d
+				OR (%s) ILIKE %s
 
-				OR (
-					CASE reason.delivered_val
-						WHEN 0 THEN 'Pending'
-						WHEN 1 THEN 'Delivered'
-						WHEN 2 THEN 'Rejected'
-						ELSE ''
-					END
-				) ILIKE $%d
+				OR (%s) ILIKE %s
 			)
 			`,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			requisitionDisplayExpression,
+			searchPlaceholder,
+			deliveryDisplayExpression,
+			searchPlaceholder,
 		)
 
 		args = append(
@@ -1146,21 +1246,21 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	}
 
 	type TroubleTicketRow struct {
-		ID                int64  `json:"id"`
-		TTNo              string `json:"tt_no"`
-		EmployeeID        string `json:"employee_id"`
-		EmployeeName      string `json:"employee_name"`
-		AssignedID        string `json:"assigned_id"`
-		AssignedName      string `json:"assigned_name"`
-		QueryType         string `json:"query_type"`
-		RequisitionType   string `json:"requisition_type"`
-		Status            string `json:"status"`
-		Department        string `json:"dept_name"`
-		FunctionName      string `json:"func_name"`
-		DeliveredStatus   string `json:"delivered_status"`
-		CreatedAt         string `json:"created_at"`
-		AgeSeconds        int64  `json:"age_seconds"`
-		MobileNo          string `json:"mobile_no"`
+		ID              int64  `json:"id"`
+		TTNo            string `json:"tt_no"`
+		EmployeeID      string `json:"employee_id"`
+		EmployeeName    string `json:"employee_name"`
+		AssignedID      string `json:"assigned_id"`
+		AssignedName    string `json:"assigned_name"`
+		QueryType       string `json:"query_type"`
+		RequisitionType string `json:"requisition_type"`
+		Status          string `json:"status"`
+		Department      string `json:"dept_name"`
+		FunctionName    string `json:"func_name"`
+		DeliveredStatus string `json:"delivered_status"`
+		CreatedAt       string `json:"created_at"`
+		AgeSeconds      int64  `json:"age_seconds"`
+		MobileNo        string `json:"mobile_no"`
 	}
 
 	listQuery := fmt.Sprintf(
@@ -1198,24 +1298,7 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				''
 			),
 
-			CASE
-				WHEN reason.approved_val IS NOT NULL
-				THEN
-					CASE reason.approved_val
-						WHEN 1
-							THEN 'Petty Cash (Approved)'
-
-						WHEN 3
-							THEN 'PR (Approved)'
-
-						ELSE ''
-					END
-
-				ELSE COALESCE(
-					dashboard.requisition_type,
-					''
-				)
-			END AS requisition_type,
+			%s AS requisition_type,
 
 			CASE
 				WHEN (%s) = 0
@@ -1233,27 +1316,7 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				''
 			),
 
-			CASE
-				WHEN reason.delivered_val IS NOT NULL
-				THEN
-					CASE reason.delivered_val
-						WHEN 0
-							THEN 'Pending'
-
-						WHEN 1
-							THEN 'Delivered'
-
-						WHEN 2
-							THEN 'Rejected'
-
-						ELSE ''
-					END
-
-				ELSE COALESCE(
-					dashboard.delivered_status,
-					''
-				)
-			END AS delivered_status,
+			%s AS delivered_status,
 
 			COALESCE(
 				dashboard.created_at::text,
@@ -1281,7 +1344,9 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		LIMIT $%d
 		OFFSET $%d
 		`,
+		requisitionDisplayExpression,
 		legacyStatusExpression,
+		deliveryDisplayExpression,
 		reasonJoin,
 		where,
 		argNumber,
@@ -2291,3 +2356,5 @@ func (h *ReportHandler) NonOperational(c *gin.Context) {
 	}
 	response.OK(c, res)
 }
+
+
