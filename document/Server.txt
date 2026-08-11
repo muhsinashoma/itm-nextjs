@@ -1,0 +1,4 @@
+Server: ITM backend/API server
+PostgreSQL: localhost:5432
+Database: itm_prod
+Legacy MySQL: use the host/IP configured in your MySQL Workbench connection
