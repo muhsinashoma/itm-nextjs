@@ -826,9 +826,9 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		limit = 10
 	}
 
-	if limit > 200 {
-		limit = 200
-	}
+	if limit > 1000 {
+	limit = 1000
+   }
 
 	offset := (page - 1) * limit
 
@@ -845,6 +845,19 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	search := strings.TrimSpace(
 		c.Query("search"),
 	)
+
+	//date search
+	fromDate := strings.TrimSpace(
+	c.Query("from_date"),
+)
+
+toDate := strings.TrimSpace(
+	c.Query("to_date"),
+)
+
+itPersonal := strings.TrimSpace(
+	c.Query("it_personal"),
+)
 
 	where := `
 		WHERE 1 = 1
@@ -1044,6 +1057,9 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 			LIMIT 1
 		) AS reason ON TRUE
 	`
+/*
+	Scopr
+*/
 
 	switch scope {
 	case "", "all":
@@ -1104,12 +1120,105 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 		return
 	}
 
+
+	/*
+	Date range filter.
+
+	Legacy:
+	tbl_trouble_input.fault_date_time
+
+	PostgreSQL:
+	trouble_tickets.created_at
+
+	Date comparison is based on Asia/Dhaka.
+*/
+if fromDate != "" {
+	where += fmt.Sprintf(
+		`
+		AND (
+			ticket.created_at
+			AT TIME ZONE 'Asia/Dhaka'
+		)::date >= $%d::date
+		`,
+		argNumber,
+	)
+
+	args = append(
+		args,
+		fromDate,
+	)
+
+	argNumber++
+}
+
+if toDate != "" {
+	where += fmt.Sprintf(
+		`
+		AND (
+			ticket.created_at
+			AT TIME ZONE 'Asia/Dhaka'
+		)::date <= $%d::date
+		`,
+		argNumber,
+	)
+
+	args = append(
+		args,
+		toDate,
+	)
+
+	argNumber++
+}
+
+
+/*
+	IT Personal / Responsible Person filter.
+
+	The frontend sends employee ID or assigned value
+	using:
+
+	?it_personal=...
+*/
+if itPersonal != "" {
+	where += fmt.Sprintf(
+		`
+		AND (
+			BTRIM(
+				COALESCE(
+					dashboard.assigned_id,
+					''
+				)
+			) = $%d
+
+			OR BTRIM(
+				COALESCE(
+					dashboard.assigned_name,
+					''
+				)
+			) = $%d
+		)
+		`,
+		argNumber,
+		argNumber,
+	)
+
+	args = append(
+		args,
+		itPersonal,
+	)
+
+	argNumber++
+}
 	/*
 		The API returns only Open or Closed.
 
 		For backward compatibility:
 		Not Started and In Progress are treated as Open.
 	*/
+
+	/*
+	Status filter
+    */
 	if status != "" && !strings.EqualFold(status, "all") {
 		var normalizedStatus int
 

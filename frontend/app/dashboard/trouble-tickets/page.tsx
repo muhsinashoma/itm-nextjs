@@ -194,6 +194,15 @@ function TroubleTicketListContent() {
         setError,
     ] = useState("");
 
+    const [
+        serverFilters,
+        setServerFilters,
+    ] = useState({
+        fromDate: "",
+        toDate: "",
+        itPersonal: "",
+    });
+
     useEffect(() => {
         let mounted = true;
 
@@ -212,13 +221,34 @@ function TroubleTicketListContent() {
                  * DataTable to handle client-side pagination,
                  * search, filters and column visibility.
                  */
+                // const response =
+                //     await dashboardApi
+                //         .troubleTickets({
+                //             scope,
+                //             page: 1,
+                //             limit: 200,
+                //             status: "all",
+                //         });
+
                 const response =
                     await dashboardApi
                         .troubleTickets({
                             scope,
                             page: 1,
-                            limit: 200,
+                            limit: 1000,
                             status: "all",
+
+                            from_date:
+                                serverFilters.fromDate ||
+                                undefined,
+
+                            to_date:
+                                serverFilters.toDate ||
+                                undefined,
+
+                            it_personal:
+                                serverFilters.itPersonal ||
+                                undefined,
                         });
 
                 if (!mounted) {
@@ -267,7 +297,10 @@ function TroubleTicketListContent() {
         return () => {
             mounted = false;
         };
-    }, [scope]);
+    }, [
+        scope,
+        serverFilters,
+    ]);
 
     return (
         <div className="space-y-4 p-4">
