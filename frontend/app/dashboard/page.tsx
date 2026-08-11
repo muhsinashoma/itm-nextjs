@@ -369,7 +369,14 @@ export default function DashboardPage() {
         setTroubleTicketError,
     ] = useState("");
 
-
+    const [
+        troubleTicketServerFilters,
+        setTroubleTicketServerFilters,
+    ] = useState({
+        fromDate: "",
+        toDate: "",
+        itPersonal: "",
+    });
 
     useEffect(() => {
         let mounted = true;
@@ -537,6 +544,85 @@ export default function DashboardPage() {
     }, []);
 
 
+
+
+    // useEffect(() => {
+    //     let mounted = true;
+
+    //     async function loadTroubleTickets() {
+    //         try {
+    //             setTroubleTicketLoading(true);
+    //             setTroubleTicketError("");
+
+    //             // const response =
+    //             //     await dashboardApi
+    //             //         .troubleTickets({
+    //             //             page: 1,
+    //             //             limit: 200,
+    //             //             status: "all",
+    //             //         });
+
+    //             const response =
+    //                 await dashboardApi
+    //                     .troubleTickets({
+    //                         scope: "all",
+    //                         page: 1,
+    //                         limit: 1000,
+    //                         status: "all",
+
+    //                         from_date:
+    //                             troubleTicketServerFilters.fromDate ||
+    //                             undefined,
+
+    //                         to_date:
+    //                             troubleTicketServerFilters.toDate ||
+    //                             undefined,
+
+    //                         it_personal:
+    //                             troubleTicketServerFilters.itPersonal ||
+    //                             undefined,
+    //                     });
+    //             if (!mounted) {
+    //                 return;
+    //             }
+
+    //             const tickets =
+    //                 response.data ?? [];
+
+    //             setTroubleTicketRows(
+    //                 tickets.map(
+    //                     toSection
+    //                 )
+    //             );
+    //         } catch (
+    //         reason: unknown
+    //         ) {
+    //             if (!mounted) {
+    //                 return;
+    //             }
+
+    //             setTroubleTicketRows([]);
+
+    //             setTroubleTicketError(
+    //                 reason instanceof Error
+    //                     ? reason.message
+    //                     : "Unable to load Trouble Ticket data"
+    //             );
+    //         } finally {
+    //             if (mounted) {
+    //                 setTroubleTicketLoading(false);
+    //             }
+    //         }
+    //     }
+
+    //     void loadTroubleTickets();
+
+    //     return () => {
+    //         mounted = false;
+    //     };
+    // }, []);
+
+
     useEffect(() => {
         let mounted = true;
 
@@ -545,20 +631,48 @@ export default function DashboardPage() {
                 setTroubleTicketLoading(true);
                 setTroubleTicketError("");
 
-                const response = await dashboardApi.troubleTickets({
-                    page: 1,
-                    limit: 100,
-                    status: "all",
-                });
+                const response =
+                    await dashboardApi
+                        .troubleTickets({
+                            scope: "all",
+                            page: 1,
+                            limit: 1000,
+                            status: "all",
 
-                if (!mounted) return;
+                            from_date:
+                                troubleTicketServerFilters.fromDate ||
+                                undefined,
 
-                const tickets = response.data ?? [];
-                setTroubleTicketRows(tickets.map(toSection));
-            } catch (reason: unknown) {
-                if (!mounted) return;
+                            to_date:
+                                troubleTicketServerFilters.toDate ||
+                                undefined,
+
+                            it_personal:
+                                troubleTicketServerFilters.itPersonal ||
+                                undefined,
+                        });
+
+                if (!mounted) {
+                    return;
+                }
+
+                const tickets =
+                    response.data ?? [];
+
+                setTroubleTicketRows(
+                    tickets.map(
+                        toSection
+                    )
+                );
+            } catch (
+            reason: unknown
+            ) {
+                if (!mounted) {
+                    return;
+                }
 
                 setTroubleTicketRows([]);
+
                 setTroubleTicketError(
                     reason instanceof Error
                         ? reason.message
@@ -576,7 +690,10 @@ export default function DashboardPage() {
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [
+        troubleTicketServerFilters,
+    ]);
+
 
     if (loading) {
         return (
@@ -1623,10 +1740,26 @@ export default function DashboardPage() {
                             No Trouble Ticket records found.
                         </div>
                     ) : (
-                        <DataTable
-                            columns={columns}
-                            data={troubleTicketRows}
-                        />
+                        // <DataTable
+                        //     columns={columns}
+                        //     data={troubleTicketRows}
+                        // />
+
+                                    <DataTable
+                                        columns={columns}
+                                        data={troubleTicketRows}
+                                        dateColumn="created_at"
+                                        compact
+                                        serverSideDateFilter
+                                        onApplyServerFilters={(
+                                            filters
+                                        ) => {
+                                            setTroubleTicketServerFilters(
+                                                filters
+                                            );
+                                        }}
+                                    />
+
                     )}
                 </div>
             </div>

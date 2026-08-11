@@ -208,10 +208,17 @@ export const dashboardApi = {
         page?: number;
         limit?: number;
         scope?: TroubleTicketScope;
+
         status?:
         | TroubleTicketStatus
         | "all";
+
         search?: string;
+
+        from_date?: string;
+        to_date?: string;
+
+        it_personal?: string;
     }) =>
         api.get<
             ApiPage<TroubleTicketItem>
