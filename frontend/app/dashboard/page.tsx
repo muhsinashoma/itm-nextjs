@@ -1786,121 +1786,72 @@ export default function DashboardPage() {
 
             {/* Trouble Ticket Table */}
             <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
-                <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide">
-                    Trouble Ticket Table
-                </h2>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <h2 className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                        Trouble Ticket Table
+                    </h2>
+
+                    {troubleTicketLoading && (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                            Updating...
+                        </span>
+                    )}
+                </div>
+
+                {troubleTicketError && (
+                    <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[10px] text-red-600">
+                        {troubleTicketError}
+                    </div>
+                )}
 
                 <div className="overflow-x-auto">
-                    {troubleTicketLoading ? (
-                        <div className="py-8 text-center text-xs text-muted-foreground">
-                            Loading Trouble Ticket data...
-                        </div>
-                    ) : troubleTicketError ? (
-                        <div className="py-8 text-center text-xs text-red-600">
-                            {troubleTicketError}
-                        </div>
-                    ) : troubleTicketRows.length === 0 ? (
-                        <div className="py-8 text-center text-xs text-muted-foreground">
-                            No Trouble Ticket records found.
-                        </div>
-                    ) : (
+                    <DataTable
+                        columns={
+                            columns
+                        }
 
+                        data={
+                            troubleTicketRows
+                        }
 
-                        // <DataTable
-                        //     columns={
-                        //         columns
-                        //     }
+                        dateColumn="created_at"
 
-                        //     data={
-                        //         troubleTicketRows
-                        //     }
+                        compact
 
-                        //     dateColumn="created_at"
+                        serverSideDateFilter
 
-                        //     compact
+                        appliedServerFilters={
+                            troubleTicketServerFilters
+                        }
 
-                        //     serverSideDateFilter
+                        emptyMessage={
+                            troubleTicketLoading
+                                ? "Loading Trouble Ticket data..."
+                                : "No Trouble Ticket records found."
+                        }
 
-                        //     itPersonalOptions={
-                        //         troubleTicketITPersonnel.map(
-                        //             (
-                        //                 person
-                        //             ) => ({
-                        //                 value:
-                        //                     person.employee_id,
+                        itPersonalOptions={
+                            troubleTicketITPersonnel.map(
+                                (
+                                    person
+                                ) => ({
+                                    value:
+                                        person.employee_id,
 
-                        //                 label:
-                        //                     `${person.employee_name} (${person.employee_id})`,
-                        //             })
-                        //         )
-                        //     }
+                                    label:
+                                        `${person.employee_name} (${person.employee_id})`,
+                                })
+                            )
+                        }
 
-                        //     onApplyServerFilters={(
-                        //         filters
-                        //     ) => {
-                        //         setTroubleTicketServerFilters({
-                        //             fromDate:
-                        //                 filters.fromDate,
-
-                        //             toDate:
-                        //                 filters.toDate,
-
-                        //             employeeId:
-                        //                 filters.employeeId,
-
-                        //             status:
-                        //                 filters.status,
-
-                        //             itPersonal:
-                        //                 filters.itPersonal,
-                        //         });
-                        //     }}
-                        // />
-
-
-                        <DataTable
-                            columns={
-                                columns
-                            }
-
-                            data={
-                                troubleTicketRows
-                            }
-
-                            dateColumn="created_at"
-
-                            compact
-
-                            serverSideDateFilter
-
-                            appliedServerFilters={
-                                troubleTicketServerFilters
-                            }
-
-                            itPersonalOptions={
-                                troubleTicketITPersonnel.map(
-                                    (
-                                        person
-                                    ) => ({
-                                        value:
-                                            person.employee_id,
-
-                                        label:
-                                            `${person.employee_name} (${person.employee_id})`,
-                                    })
-                                )
-                            }
-
-                            onApplyServerFilters={(
+                        onApplyServerFilters={(
+                            filters
+                        ) => {
+                            setTroubleTicketServerFilters(
                                 filters
-                            ) => {
-                                setTroubleTicketServerFilters(
-                                    filters
-                                );
-                            }}
-                        />
-
-                    )}
+                            );
+                        }}
+                    />
                 </div>
             </div>
         </div>
