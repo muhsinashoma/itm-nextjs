@@ -1176,11 +1176,12 @@ export function DataTable<
         }
         `;
 
+
+
     const badgeClass =
         compact
-            ? "h-5 gap-1 px-2 text-[9px]"
-            : "gap-1 text-xs";
-
+            ? "h-7 gap-1.5 rounded-md border border-primary/20 bg-primary/[0.06] px-2.5 text-[10px] font-medium text-foreground shadow-sm hover:bg-primary/[0.09]"
+            : "h-8 gap-2 rounded-md border border-primary/20 bg-primary/[0.06] px-3 text-xs font-medium text-foreground shadow-sm hover:bg-primary/[0.09]";
     /* ==================================================
        UI
     ================================================== */
@@ -1813,30 +1814,116 @@ export function DataTable<
                 ACTIVE FILTERS
             ================================================== */}
 
-            {activeFiltersCount >
-                0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
+
+            {activeFiltersCount > 0 && (
+                <div
+                    className="
+            rounded-lg
+            border
+            border-primary/15
+            bg-primary/[0.025]
+            px-3
+            py-2.5
+        "
+                >
+                    <div
+                        className="
+                flex
+                flex-wrap
+                items-center
+                gap-2
+            "
+                    >
+                        {/* Applied Filter Heading */}
+
+                        <div
+                            className="
+                    mr-1
+                    flex
+                    shrink-0
+                    items-center
+                    gap-1.5
+                "
+                        >
+                            <Filter
+                                className="
+                        h-3.5
+                        w-3.5
+                        text-primary
+                    "
+                            />
+
+                            <span
+                                className="
+                        text-[10px]
+                        font-semibold
+                        uppercase
+                        tracking-wide
+                        text-primary
+                    "
+                            >
+                                Applied filters
+                            </span>
+
+                            <span
+                                className="
+                        inline-flex
+                        h-5
+                        min-w-5
+                        items-center
+                        justify-center
+                        rounded-full
+                        bg-primary
+                        px-1.5
+                        text-[9px]
+                        font-bold
+                        text-primary-foreground
+                    "
+                            >
+                                {activeFiltersCount}
+                            </span>
+                        </div>
+
                         {/* SEARCH */}
 
                         {searchInput.trim() && (
                             <Badge
-                                variant="secondary"
-                                className={
-                                    badgeClass
-                                }
+                                variant="outline"
+                                className={badgeClass}
                             >
-                                Search:{" "}
-                                {
-                                    searchInput
-                                }
+                                <span className="font-semibold text-primary">
+                                    Search:
+                                </span>
+
+                                <span
+                                    className="
+                            max-w-[220px]
+                            truncate
+                            font-medium
+                        "
+                                    title={searchInput}
+                                >
+                                    {searchInput}
+                                </span>
 
                                 <button
                                     type="button"
                                     onClick={() =>
-                                        setSearchInput(
-                                            ""
-                                        )
+                                        setSearchInput("")
                                     }
+                                    className="
+                            ml-0.5
+                            inline-flex
+                            h-4
+                            w-4
+                            items-center
+                            justify-center
+                            rounded-full
+                            text-muted-foreground
+                            transition-colors
+                            hover:bg-destructive/10
+                            hover:text-destructive
+                        "
                                     aria-label="Clear search"
                                 >
                                     <X className="h-3 w-3" />
@@ -1850,15 +1937,16 @@ export function DataTable<
 
                                 {appliedFilters.fromDate && (
                                     <Badge
-                                        variant="secondary"
-                                        className={
-                                            badgeClass
-                                        }
+                                        variant="outline"
+                                        className={badgeClass}
                                     >
-                                        From Date:{" "}
-                                        {
-                                            appliedFilters.fromDate
-                                        }
+                                        <span className="font-semibold text-primary">
+                                            From:
+                                        </span>
+
+                                        <span className="font-medium">
+                                            {appliedFilters.fromDate}
+                                        </span>
 
                                         <button
                                             type="button"
@@ -1867,6 +1955,19 @@ export function DataTable<
                                                     "fromDate"
                                                 )
                                             }
+                                            className="
+                                    ml-0.5
+                                    inline-flex
+                                    h-4
+                                    w-4
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    text-muted-foreground
+                                    transition-colors
+                                    hover:bg-destructive/10
+                                    hover:text-destructive
+                                "
                                             aria-label="Clear from date"
                                         >
                                             <X className="h-3 w-3" />
@@ -1878,15 +1979,16 @@ export function DataTable<
 
                                 {appliedFilters.toDate && (
                                     <Badge
-                                        variant="secondary"
-                                        className={
-                                            badgeClass
-                                        }
+                                        variant="outline"
+                                        className={badgeClass}
                                     >
-                                        To Date:{" "}
-                                        {
-                                            appliedFilters.toDate
-                                        }
+                                        <span className="font-semibold text-primary">
+                                            To:
+                                        </span>
+
+                                        <span className="font-medium">
+                                            {appliedFilters.toDate}
+                                        </span>
 
                                         <button
                                             type="button"
@@ -1895,6 +1997,19 @@ export function DataTable<
                                                     "toDate"
                                                 )
                                             }
+                                            className="
+                                    ml-0.5
+                                    inline-flex
+                                    h-4
+                                    w-4
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    text-muted-foreground
+                                    transition-colors
+                                    hover:bg-destructive/10
+                                    hover:text-destructive
+                                "
                                             aria-label="Clear to date"
                                         >
                                             <X className="h-3 w-3" />
@@ -1902,19 +2017,20 @@ export function DataTable<
                                     </Badge>
                                 )}
 
-                                {/* EMPLOYEE */}
+                                {/* EMPLOYEE ID */}
 
                                 {appliedFilters.employeeId && (
                                     <Badge
-                                        variant="secondary"
-                                        className={
-                                            badgeClass
-                                        }
+                                        variant="outline"
+                                        className={badgeClass}
                                     >
-                                        Employee ID:{" "}
-                                        {
-                                            appliedFilters.employeeId
-                                        }
+                                        <span className="font-semibold text-primary">
+                                            Employee:
+                                        </span>
+
+                                        <span className="font-medium">
+                                            {appliedFilters.employeeId}
+                                        </span>
 
                                         <button
                                             type="button"
@@ -1923,6 +2039,19 @@ export function DataTable<
                                                     "employeeId"
                                                 )
                                             }
+                                            className="
+                                    ml-0.5
+                                    inline-flex
+                                    h-4
+                                    w-4
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    text-muted-foreground
+                                    transition-colors
+                                    hover:bg-destructive/10
+                                    hover:text-destructive
+                                "
                                             aria-label="Clear Employee ID"
                                         >
                                             <X className="h-3 w-3" />
@@ -1934,23 +2063,37 @@ export function DataTable<
 
                                 {appliedFilters.itPersonal && (
                                     <Badge
-                                        variant="secondary"
-                                        className={
-                                            badgeClass
-                                        }
+                                        variant="outline"
+                                        className={badgeClass}
                                     >
-                                        IT Personnel:{" "}
+                                        <span className="font-semibold text-primary">
+                                            IT Personnel:
+                                        </span>
 
-                                        {
-                                            itPersonalOptions.find(
-                                                (
-                                                    person
-                                                ) =>
-                                                    person.value ===
-                                                    appliedFilters.itPersonal
-                                            )?.label ??
-                                            appliedFilters.itPersonal
-                                        }
+                                        <span
+                                            className="
+                                    max-w-[240px]
+                                    truncate
+                                    font-medium
+                                "
+                                            title={
+                                                itPersonalOptions.find(
+                                                    (person) =>
+                                                        person.value ===
+                                                        appliedFilters.itPersonal
+                                                )?.label ??
+                                                appliedFilters.itPersonal
+                                            }
+                                        >
+                                            {
+                                                itPersonalOptions.find(
+                                                    (person) =>
+                                                        person.value ===
+                                                        appliedFilters.itPersonal
+                                                )?.label ??
+                                                appliedFilters.itPersonal
+                                            }
+                                        </span>
 
                                         <button
                                             type="button"
@@ -1959,6 +2102,19 @@ export function DataTable<
                                                     "itPersonal"
                                                 )
                                             }
+                                            className="
+                                    ml-0.5
+                                    inline-flex
+                                    h-4
+                                    w-4
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    text-muted-foreground
+                                    transition-colors
+                                    hover:bg-destructive/10
+                                    hover:text-destructive
+                                "
                                             aria-label="Clear IT Personnel"
                                         >
                                             <X className="h-3 w-3" />
@@ -1970,15 +2126,16 @@ export function DataTable<
 
                                 {appliedFilters.status && (
                                     <Badge
-                                        variant="secondary"
-                                        className={
-                                            badgeClass
-                                        }
+                                        variant="outline"
+                                        className={badgeClass}
                                     >
-                                        Status:{" "}
-                                        {
-                                            appliedFilters.status
-                                        }
+                                        <span className="font-semibold text-primary">
+                                            Status:
+                                        </span>
+
+                                        <span className="font-semibold">
+                                            {appliedFilters.status}
+                                        </span>
 
                                         <button
                                             type="button"
@@ -1987,6 +2144,19 @@ export function DataTable<
                                                     "status"
                                                 )
                                             }
+                                            className="
+                                    ml-0.5
+                                    inline-flex
+                                    h-4
+                                    w-4
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    text-muted-foreground
+                                    transition-colors
+                                    hover:bg-destructive/10
+                                    hover:text-destructive
+                                "
                                             aria-label="Clear status"
                                         >
                                             <X className="h-3 w-3" />
@@ -1997,42 +2167,49 @@ export function DataTable<
                         ) : (
                             <>
                                 {columnFilters.map(
-                                    (
-                                        filter
-                                    ) => (
+                                    (filter) => (
                                         <Badge
-                                            key={
-                                                filter.id
-                                            }
-                                            variant="secondary"
-                                            className={
-                                                badgeClass
-                                            }
+                                            key={filter.id}
+                                            variant="outline"
+                                            className={badgeClass}
                                         >
-                                            {getColumnDisplayName(
-                                                filter.id
-                                            )}
-                                            :{" "}
-                                            {String(
-                                                filter.value
-                                            )}
+                                            <span className="font-semibold text-primary">
+                                                {getColumnDisplayName(
+                                                    filter.id
+                                                )}
+                                                :
+                                            </span>
+
+                                            <span className="font-medium">
+                                                {String(
+                                                    filter.value
+                                                )}
+                                            </span>
 
                                             <button
                                                 type="button"
                                                 onClick={() =>
                                                     setColumnFilters(
-                                                        (
-                                                            current
-                                                        ) =>
+                                                        (current) =>
                                                             current.filter(
-                                                                (
-                                                                    item
-                                                                ) =>
+                                                                (item) =>
                                                                     item.id !==
                                                                     filter.id
                                                             )
                                                     )
                                                 }
+                                                className="
+                                        ml-0.5
+                                        inline-flex
+                                        h-4
+                                        w-4
+                                        items-center
+                                        justify-center
+                                        rounded-full
+                                        text-muted-foreground
+                                        hover:bg-destructive/10
+                                        hover:text-destructive
+                                    "
                                             >
                                                 <X className="h-3 w-3" />
                                             </button>
@@ -2040,41 +2217,52 @@ export function DataTable<
                                     )
                                 )}
 
-                                {(fromDate ||
-                                    toDate) && (
-                                        <Badge
-                                            variant="secondary"
-                                            className={
-                                                badgeClass
-                                            }
-                                        >
-                                            Date:{" "}
-                                            {fromDate ||
-                                                "Start"}{" "}
-                                            —{" "}
-                                            {toDate ||
-                                                "Now"}
-                                        </Badge>
-                                    )}
+                                {(fromDate || toDate) && (
+                                    <Badge
+                                        variant="outline"
+                                        className={badgeClass}
+                                    >
+                                        <span className="font-semibold text-primary">
+                                            Date:
+                                        </span>
+
+                                        <span>
+                                            {fromDate || "Start"}
+                                            {" — "}
+                                            {toDate || "Now"}
+                                        </span>
+                                    </Badge>
+                                )}
                             </>
                         )}
 
+                        {/* CLEAR ALL */}
+
                         <Button
+                            type="button"
                             variant="ghost"
                             size="sm"
                             onClick={
                                 resetFilters
                             }
-                            className={
-                                compact
-                                    ? "h-6 px-2 text-[9px]"
-                                    : "h-7 text-xs"
-                            }
+                            className="
+                    h-7
+                    shrink-0
+                    px-2.5
+                    text-[10px]
+                    font-semibold
+                    text-destructive
+                    hover:bg-destructive/10
+                    hover:text-destructive
+                "
                         >
+                            <X className="mr-1 h-3.5 w-3.5" />
+
                             Clear all
                         </Button>
                     </div>
-                )}
+                </div>
+            )}
 
             {/* ==================================================
                 TABLE
