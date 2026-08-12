@@ -1197,6 +1197,10 @@ export function DataTable<
                                     </div>
                                 )}
 
+
+
+
+
                                 {/* Status */}
 
                                 {statusColumn && (
