@@ -17,11 +17,14 @@ import type {
     Section,
 } from "@/types/tt";
 
+
 import {
     dashboardApi,
     reportApi,
     type DashboardSummary,
     type NonOperationalSummary,
+    type TroubleTicketITPersonnel,
+    type TroubleTicketStatus,
 } from "@/lib/api";
 
 import {
@@ -375,8 +378,18 @@ export default function DashboardPage() {
     ] = useState({
         fromDate: "",
         toDate: "",
+        employeeId: "",
+        status: "",
         itPersonal: "",
     });
+
+    const [
+        troubleTicketITPersonnel,
+        setTroubleTicketITPersonnel,
+    ] = useState<
+        TroubleTicketITPersonnel[]
+    >([]);
+
 
     useEffect(() => {
         let mounted = true;
@@ -626,6 +639,44 @@ export default function DashboardPage() {
     useEffect(() => {
         let mounted = true;
 
+        async function loadITPersonnel() {
+            try {
+                const response =
+                    await dashboardApi
+                        .troubleTicketITPersonnel();
+
+                if (!mounted) {
+                    return;
+                }
+
+                setTroubleTicketITPersonnel(
+                    response.data ?? []
+                );
+            } catch (reason) {
+                console.error(
+                    "Unable to load IT Personnel:",
+                    reason
+                );
+
+                if (mounted) {
+                    setTroubleTicketITPersonnel(
+                        []
+                    );
+                }
+            }
+        }
+
+        void loadITPersonnel();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+
+    useEffect(() => {
+        let mounted = true;
+
         async function loadTroubleTickets() {
             try {
                 setTroubleTicketLoading(true);
@@ -635,9 +686,18 @@ export default function DashboardPage() {
                     await dashboardApi
                         .troubleTickets({
                             scope: "all",
+
                             page: 1,
+
                             limit: 1000,
-                            status: "all",
+
+                            status:
+                                troubleTicketServerFilters.status
+                                    ? (
+                                        troubleTicketServerFilters.status as
+                                        TroubleTicketStatus
+                                    )
+                                    : "all",
 
                             from_date:
                                 troubleTicketServerFilters.fromDate ||
@@ -645,6 +705,10 @@ export default function DashboardPage() {
 
                             to_date:
                                 troubleTicketServerFilters.toDate ||
+                                undefined,
+
+                            employee_id:
+                                troubleTicketServerFilters.employeeId ||
                                 undefined,
 
                             it_personal:
@@ -1740,23 +1804,71 @@ export default function DashboardPage() {
                             No Trouble Ticket records found.
                         </div>
                     ) : (
+
+
                         // <DataTable
                         //     columns={columns}
                         //     data={troubleTicketRows}
+                        //     dateColumn="created_at"
+                        //     compact
+                        //     serverSideDateFilter
+                        //     onApplyServerFilters={(
+                        //         filters
+                        //     ) => {
+                        //         setTroubleTicketServerFilters(
+                        //             filters
+                        //         );
+                        //     }}
                         // />
 
                         <DataTable
-                            columns={columns}
-                            data={troubleTicketRows}
+                            columns={
+                                columns
+                            }
+
+                            data={
+                                troubleTicketRows
+                            }
+
                             dateColumn="created_at"
+
                             compact
+
                             serverSideDateFilter
+
+                            itPersonalOptions={
+                                troubleTicketITPersonnel.map(
+                                    (
+                                        person
+                                    ) => ({
+                                        value:
+                                            person.employee_id,
+
+                                        label:
+                                            `${person.employee_name} (${person.employee_id})`,
+                                    })
+                                )
+                            }
+
                             onApplyServerFilters={(
                                 filters
                             ) => {
-                                setTroubleTicketServerFilters(
-                                    filters
-                                );
+                                setTroubleTicketServerFilters({
+                                    fromDate:
+                                        filters.fromDate,
+
+                                    toDate:
+                                        filters.toDate,
+
+                                    employeeId:
+                                        filters.employeeId,
+
+                                    status:
+                                        filters.status,
+
+                                    itPersonal:
+                                        filters.itPersonal,
+                                });
                             }}
                         />
 
