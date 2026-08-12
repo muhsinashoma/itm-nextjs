@@ -1807,19 +1807,56 @@ export default function DashboardPage() {
 
 
                         // <DataTable
-                        //     columns={columns}
-                        //     data={troubleTicketRows}
+                        //     columns={
+                        //         columns
+                        //     }
+
+                        //     data={
+                        //         troubleTicketRows
+                        //     }
+
                         //     dateColumn="created_at"
+
                         //     compact
+
                         //     serverSideDateFilter
+
+                        //     itPersonalOptions={
+                        //         troubleTicketITPersonnel.map(
+                        //             (
+                        //                 person
+                        //             ) => ({
+                        //                 value:
+                        //                     person.employee_id,
+
+                        //                 label:
+                        //                     `${person.employee_name} (${person.employee_id})`,
+                        //             })
+                        //         )
+                        //     }
+
                         //     onApplyServerFilters={(
                         //         filters
                         //     ) => {
-                        //         setTroubleTicketServerFilters(
-                        //             filters
-                        //         );
+                        //         setTroubleTicketServerFilters({
+                        //             fromDate:
+                        //                 filters.fromDate,
+
+                        //             toDate:
+                        //                 filters.toDate,
+
+                        //             employeeId:
+                        //                 filters.employeeId,
+
+                        //             status:
+                        //                 filters.status,
+
+                        //             itPersonal:
+                        //                 filters.itPersonal,
+                        //         });
                         //     }}
                         // />
+
 
                         <DataTable
                             columns={
@@ -1835,6 +1872,10 @@ export default function DashboardPage() {
                             compact
 
                             serverSideDateFilter
+
+                            appliedServerFilters={
+                                troubleTicketServerFilters
+                            }
 
                             itPersonalOptions={
                                 troubleTicketITPersonnel.map(
@@ -1853,22 +1894,9 @@ export default function DashboardPage() {
                             onApplyServerFilters={(
                                 filters
                             ) => {
-                                setTroubleTicketServerFilters({
-                                    fromDate:
-                                        filters.fromDate,
-
-                                    toDate:
-                                        filters.toDate,
-
-                                    employeeId:
-                                        filters.employeeId,
-
-                                    status:
-                                        filters.status,
-
-                                    itPersonal:
-                                        filters.itPersonal,
-                                });
+                                setTroubleTicketServerFilters(
+                                    filters
+                                );
                             }}
                         />
 

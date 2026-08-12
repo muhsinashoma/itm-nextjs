@@ -1,8 +1,4 @@
-
-//This decides what is hidden initially.
-
-//itm/frontend/components/data-table.tsx
-
+// frontend/components/data-table.tsx
 
 "use client";
 
@@ -65,14 +61,12 @@ import {
 /* ======================================================
    TYPES
 ====================================================== */
+
 export type DataTableServerFilters = {
     fromDate: string;
     toDate: string;
-
     employeeId: string;
-
     status: string;
-
     itPersonal: string;
 };
 
@@ -100,11 +94,32 @@ interface DataTableProps<
 
     itPersonalOptions?: DataTableOption[];
 
+    /*
+     * Applied filters supplied by parent.
+     *
+     * This is important because DataTable may
+     * temporarily unmount while API data reloads.
+     */
+    appliedServerFilters?: DataTableServerFilters;
+
     onApplyServerFilters?: (
         filters:
             DataTableServerFilters
     ) => void;
 }
+
+/* ======================================================
+   DEFAULT FILTERS
+====================================================== */
+
+const EMPTY_SERVER_FILTERS:
+    DataTableServerFilters = {
+    fromDate: "",
+    toDate: "",
+    employeeId: "",
+    status: "",
+    itPersonal: "",
+};
 
 /* ======================================================
    DEFAULT COLUMN VISIBILITY
@@ -217,11 +232,7 @@ function normalizeDateOnly(
         );
 
     if (match) {
-        return (
-            `${match[1]}-` +
-            `${match[2]}-` +
-            `${match[3]}`
-        );
+        return `${match[1]}-${match[2]}-${match[3]}`;
     }
 
     const parsed =
@@ -263,7 +274,10 @@ function getColumnDisplayName(
     columnId: string
 ): string {
     const names:
-        Record<string, string> = {
+        Record<
+            string,
+            string
+        > = {
         employeeId:
             "Employee ID",
 
@@ -302,7 +316,9 @@ function getColumnDisplayName(
     };
 
     return (
-        names[columnId] ??
+        names[
+        columnId
+        ] ??
         columnId
     );
 }
@@ -321,13 +337,14 @@ export function DataTable<
     compact = false,
     serverSideDateFilter = false,
     itPersonalOptions = [],
+    appliedServerFilters,
     onApplyServerFilters,
 }: DataTableProps<
     TData,
     TValue
 >) {
     /* ==================================================
-       STATE
+       TABLE STATE
     ================================================== */
 
     const [
@@ -366,28 +383,134 @@ export function DataTable<
         filterOpen,
         setFilterOpen,
     ] =
-        React.useState(false);
+        React.useState(
+            false
+        );
+
+    /* ==================================================
+       DRAFT FILTER STATE
+    ================================================== */
 
     const [
         fromDate,
         setFromDate,
     ] =
-        React.useState("");
+        React.useState(
+            appliedServerFilters
+                ?.fromDate ??
+            ""
+        );
 
     const [
         toDate,
         setToDate,
     ] =
-        React.useState("");
+        React.useState(
+            appliedServerFilters
+                ?.toDate ??
+            ""
+        );
+
+    const [
+        employeeId,
+        setEmployeeId,
+    ] =
+        React.useState(
+            appliedServerFilters
+                ?.employeeId ??
+            ""
+        );
+
+    const [
+        status,
+        setStatus,
+    ] =
+        React.useState(
+            appliedServerFilters
+                ?.status ??
+            ""
+        );
 
     const [
         itPersonal,
         setItPersonal,
     ] =
-        React.useState("");
+        React.useState(
+            appliedServerFilters
+                ?.itPersonal ??
+            ""
+        );
+
+    /* ==================================================
+       APPLIED FILTERS
+
+       Parent value is authoritative when provided.
+    ================================================== */
+
+    const [
+        localAppliedFilters,
+        setLocalAppliedFilters,
+    ] =
+        React.useState<
+            DataTableServerFilters
+        >(
+            appliedServerFilters ??
+            EMPTY_SERVER_FILTERS
+        );
+
+    const appliedFilters =
+        appliedServerFilters ??
+        localAppliedFilters;
+
+    /*
+     * Keep popup values synchronized with parent state.
+     * This restores the selected values after an API reload.
+     */
+    React.useEffect(
+        () => {
+            if (
+                !appliedServerFilters
+            ) {
+                return;
+            }
+
+            setFromDate(
+                appliedServerFilters.fromDate
+            );
+
+            setToDate(
+                appliedServerFilters.toDate
+            );
+
+            setEmployeeId(
+                appliedServerFilters.employeeId
+            );
+
+            setStatus(
+                appliedServerFilters.status
+            );
+
+            setItPersonal(
+                appliedServerFilters.itPersonal
+            );
+
+            setLocalAppliedFilters(
+                appliedServerFilters
+            );
+        },
+        [
+            appliedServerFilters,
+        ]
+    );
 
     /* ==================================================
        FILTERED DATA
+
+       In Trouble Ticket server mode:
+       Date / Employee / Status / IT Personnel are already
+       filtered by PostgreSQL.
+
+       We therefore only keep instant global search locally.
     ================================================== */
 
     const filteredData =
@@ -400,17 +523,14 @@ export function DataTable<
 
                 return data.filter(
                     (
-                        row: TData
+                        row:
+                            TData
                     ) => {
                         const record =
                             row as Record<
                                 string,
                                 unknown
                             >;
-
-                        /* ==================================
-                           GLOBAL SEARCH
-                        ================================== */
 
                         const matchesGlobalSearch =
                             !searchText ||
@@ -427,9 +547,15 @@ export function DataTable<
                                     )
                             );
 
-                        /* ==================================
-                           STATUS FILTER
-                        ================================== */
+                        /*
+                         * Server-side Trouble Ticket table:
+                         * skip local Employee/Status/Date filtering.
+                         */
+                        if (
+                            serverSideDateFilter
+                        ) {
+                            return matchesGlobalSearch;
+                        }
 
                         const statusFilter =
                             columnFilters.find(
@@ -449,10 +575,6 @@ export function DataTable<
                                     statusFilter.value
                                 )
                             );
-
-                        /* ==================================
-                           EMPLOYEE ID FILTER
-                        ================================== */
 
                         const employeeIdFilter =
                             columnFilters.find(
@@ -480,28 +602,12 @@ export function DataTable<
                                 )
                             );
 
-                        /* ==================================
-                           DATE FILTER
-                        ================================== */
-
                         let matchesDate =
                             true;
 
-                        /*
-                         * For Trouble Ticket:
-                         *
-                         * serverSideDateFilter = true
-                         *
-                         * Therefore PostgreSQL already
-                         * filtered the records and we must
-                         * NOT filter them again here.
-                         */
                         if (
-                            !serverSideDateFilter &&
-                            (
-                                fromDate ||
-                                toDate
-                            )
+                            fromDate ||
+                            toDate
                         ) {
                             const rawDate =
                                 record[
@@ -513,7 +619,9 @@ export function DataTable<
                                     rawDate
                                 );
 
-                            if (!rowDate) {
+                            if (
+                                !rowDate
+                            ) {
                                 matchesDate =
                                     false;
                             } else {
@@ -558,7 +666,7 @@ export function DataTable<
         );
 
     /* ==================================================
-       TANSTACK TABLE
+       TABLE
     ================================================== */
 
     const table =
@@ -604,85 +712,12 @@ export function DataTable<
         },
         [
             globalFilter,
-            columnFilters,
-            fromDate,
-            toDate,
+            data,
         ]
     );
 
     /* ==================================================
-       FILTER INFORMATION
-    ================================================== */
-
-    const activeFiltersCount =
-        (globalFilter
-            ? 1
-            : 0) +
-        columnFilters.length +
-        (fromDate || toDate
-            ? 1
-            : 0) +
-        (itPersonal
-            ? 1
-            : 0);
-
-    function resetFilters() {
-        setGlobalFilter(
-            ""
-        );
-
-        setColumnFilters(
-            []
-        );
-
-        setFromDate(
-            ""
-        );
-
-        setToDate(
-            ""
-        );
-
-        setItPersonal(
-            ""
-        );
-
-        table.setPageIndex(
-            0
-        );
-
-        /*
-         * Reset backend Trouble Ticket filters.
-         */
-        const employeeId =
-            String(
-                employeeIdColumn
-                    ?.getFilterValue() ??
-                ""
-            ).trim();
-
-        const status =
-            String(
-                statusColumn
-                    ?.getFilterValue() ??
-                ""
-            ).trim();
-
-        onApplyServerFilters?.({
-            fromDate,
-            toDate,
-            employeeId,
-            status,
-            itPersonal,
-        });
-
-        setFilterOpen(
-            false
-        );
-    }
-
-    /* ==================================================
-       FIND FILTER COLUMNS
+       FILTER COLUMNS
     ================================================== */
 
     const employeeIdColumn =
@@ -708,6 +743,174 @@ export function DataTable<
                     column.id ===
                     "status"
             );
+
+    /* ==================================================
+       ACTIVE FILTER INFORMATION
+    ================================================== */
+
+    const activeFiltersCount =
+        (globalFilter
+            ? 1
+            : 0) +
+        (appliedFilters.fromDate
+            ? 1
+            : 0) +
+        (appliedFilters.toDate
+            ? 1
+            : 0) +
+        (appliedFilters.employeeId
+            ? 1
+            : 0) +
+        (appliedFilters.itPersonal
+            ? 1
+            : 0) +
+        (appliedFilters.status
+            ? 1
+            : 0);
+
+    /* ==================================================
+       APPLY FILTERS
+    ================================================== */
+
+    function updateAppliedFilters(
+        next:
+            DataTableServerFilters
+    ) {
+        setLocalAppliedFilters(
+            next
+        );
+
+        onApplyServerFilters?.(
+            next
+        );
+
+        table.setPageIndex(
+            0
+        );
+    }
+
+    function applyFilters() {
+        const next:
+            DataTableServerFilters = {
+            fromDate:
+                fromDate.trim(),
+
+            toDate:
+                toDate.trim(),
+
+            employeeId:
+                employeeId.trim(),
+
+            status:
+                status.trim(),
+
+            itPersonal:
+                itPersonal.trim(),
+        };
+
+        updateAppliedFilters(
+            next
+        );
+
+        setFilterOpen(
+            false
+        );
+    }
+
+    /* ==================================================
+       RESET FILTERS
+    ================================================== */
+
+    function resetFilters() {
+        setGlobalFilter(
+            ""
+        );
+
+        setColumnFilters(
+            []
+        );
+
+        setFromDate(
+            ""
+        );
+
+        setToDate(
+            ""
+        );
+
+        setEmployeeId(
+            ""
+        );
+
+        setStatus(
+            ""
+        );
+
+        setItPersonal(
+            ""
+        );
+
+        updateAppliedFilters({
+            ...EMPTY_SERVER_FILTERS,
+        });
+
+        setFilterOpen(
+            false
+        );
+    }
+
+    /* ==================================================
+       REMOVE ONE APPLIED FILTER
+    ================================================== */
+
+    function clearAppliedFilter(
+        key:
+            keyof DataTableServerFilters
+    ) {
+        const next = {
+            ...appliedFilters,
+            [key]:
+                "",
+        };
+
+        switch (
+        key
+        ) {
+            case "fromDate":
+                setFromDate(
+                    ""
+                );
+                break;
+
+            case "toDate":
+                setToDate(
+                    ""
+                );
+                break;
+
+            case "employeeId":
+                setEmployeeId(
+                    ""
+                );
+                break;
+
+            case "status":
+                setStatus(
+                    ""
+                );
+                break;
+
+            case "itPersonal":
+                setItPersonal(
+                    ""
+                );
+                break;
+        }
+
+        updateAppliedFilters(
+            next
+        );
+    }
 
     /* ==================================================
        EXCEL EXPORT
@@ -781,15 +984,12 @@ export function DataTable<
                                 return;
                             }
 
-                            const value =
-                                row.getValue(
-                                    column.id
-                                );
-
                             excelRow[
                                 columnName
                             ] =
-                                value ??
+                                row.getValue(
+                                    column.id
+                                ) ??
                                 "";
                         }
                     );
@@ -804,7 +1004,9 @@ export function DataTable<
                     excelData
                 );
 
-        worksheet["!cols"] =
+        worksheet[
+            "!cols"
+        ] =
             visibleColumns.map(
                 (
                     column
@@ -814,43 +1016,51 @@ export function DataTable<
                     ) {
                         case "tt_no":
                             return {
-                                wch: 18,
+                                wch:
+                                    18,
                             };
 
                         case "employee_id":
                         case "employeeId":
                             return {
-                                wch: 16,
+                                wch:
+                                    16,
                             };
 
                         case "employee_name":
                             return {
-                                wch: 24,
+                                wch:
+                                    24,
                             };
 
                         case "query_type":
                             return {
-                                wch: 40,
+                                wch:
+                                    40,
                             };
 
                         case "requisition_type":
                             return {
-                                wch: 25,
+                                wch:
+                                    25,
                             };
 
                         case "delivered_status":
                             return {
-                                wch: 18,
+                                wch:
+                                    18,
                             };
 
                         case "created_at":
                             return {
-                                wch: 22,
+                                wch:
+                                    22,
                             };
 
                         default:
                             return {
-                                wch: 16,
+                                wch:
+                                    16,
                             };
                     }
                 }
@@ -879,12 +1089,12 @@ export function DataTable<
             `itm-report-${datePart}`;
 
         if (
-            fromDate ||
-            toDate
+            appliedFilters.fromDate ||
+            appliedFilters.toDate
         ) {
             fileName +=
-                `-${fromDate || "start"}` +
-                `-to-${toDate || "now"}`;
+                `-${appliedFilters.fromDate || "start"}` +
+                `-to-${appliedFilters.toDate || "now"}`;
         }
 
         XLSX.writeFile(
@@ -926,6 +1136,29 @@ export function DataTable<
             ? "h-7 text-[10px]"
             : "h-8 text-xs";
 
+    const selectClass =
+        `
+        w-full
+        rounded-md
+        border
+        border-input
+        bg-background
+        px-2
+        text-foreground
+        outline-none
+        focus:ring-2
+        focus:ring-primary/20
+        ${compact
+            ? "h-7 text-[10px]"
+            : "h-8 text-xs"
+        }
+        `;
+
+    const badgeClass =
+        compact
+            ? "h-5 gap-1 px-2 text-[9px]"
+            : "gap-1 text-xs";
+
     /* ==================================================
        UI
     ================================================== */
@@ -938,13 +1171,17 @@ export function DataTable<
                     : "space-y-3 text-sm text-foreground"
             }
         >
-            {/* TOOLBAR */}
+            {/* ==================================================
+                TOOLBAR
+            ================================================== */}
 
             <div
                 className={`
-                    flex flex-wrap
+                    flex
+                    flex-wrap
                     items-center
                     justify-between
+
                     ${compact
                         ? "gap-2"
                         : "gap-3"
@@ -953,20 +1190,25 @@ export function DataTable<
             >
                 <div
                     className={`
-                        flex min-w-0
-                        flex-1 flex-wrap
+                        flex
+                        min-w-0
+                        flex-1
+                        flex-wrap
                         items-center
+
                         ${compact
                             ? "gap-1.5"
                             : "gap-2"
                         }
                     `}
                 >
-                    {/* Search */}
+                    {/* SEARCH */}
 
                     <div
                         className={`
-                            relative w-full
+                            relative
+                            w-full
+
                             ${compact
                                 ? "max-w-[420px]"
                                 : "max-w-lg"
@@ -979,6 +1221,7 @@ export function DataTable<
                                 top-1/2
                                 -translate-y-1/2
                                 text-primary/70
+
                                 ${compact
                                     ? "left-2.5 h-3.5 w-3.5"
                                     : "left-3 h-4 w-4"
@@ -1022,6 +1265,7 @@ export function DataTable<
                                     text-muted-foreground
                                     transition-colors
                                     hover:text-foreground
+
                                     ${compact
                                         ? "right-2.5"
                                         : "right-3"
@@ -1040,7 +1284,7 @@ export function DataTable<
                         )}
                     </div>
 
-                    {/* Filter */}
+                    {/* FILTER */}
 
                     <DropdownMenu
                         open={
@@ -1081,6 +1325,7 @@ export function DataTable<
                                                 bg-emerald-600
                                                 p-0
                                                 text-white
+
                                                 ${compact
                                                     ? "h-4 min-w-4 px-1 text-[8px]"
                                                     : "h-5 min-w-5 px-1 text-[10px]"
@@ -1110,7 +1355,7 @@ export function DataTable<
                                         : "space-y-3"
                                 }
                             >
-                                {/* Date filters */}
+                                {/* DATE */}
 
                                 <div
                                     className={
@@ -1178,47 +1423,57 @@ export function DataTable<
                                     </div>
                                 </div>
 
-                                {/* Employee ID */}
+                                {/* EMPLOYEE ID */}
 
-                                {employeeIdColumn && (
-                                    <div className="space-y-1">
-                                        <label
-                                            className={
-                                                filterLabelClass
-                                            }
-                                        >
-                                            Employee ID
-                                        </label>
+                                <div className="space-y-1">
+                                    <label
+                                        className={
+                                            filterLabelClass
+                                        }
+                                    >
+                                        Employee ID
+                                    </label>
 
-                                        <Input
-                                            placeholder="Employee ID"
-                                            value={
-                                                (
+                                    <Input
+                                        placeholder="Employee ID"
+                                        value={
+                                            serverSideDateFilter
+                                                ? employeeId
+                                                : (
                                                     employeeIdColumn
-                                                        .getFilterValue() as string
+                                                        ?.getFilterValue() as string
                                                 ) ??
                                                 ""
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                employeeIdColumn
-                                                    .setFilterValue(
-                                                        event
-                                                            .target
-                                                            .value
-                                                    )
-                                            }
-                                            className={
-                                                filterInputClass
-                                            }
-                                        />
-                                    </div>
-                                )}
+                                        }
+                                        onChange={(
+                                            event
+                                        ) => {
+                                            if (
+                                                serverSideDateFilter
+                                            ) {
+                                                setEmployeeId(
+                                                    event
+                                                        .target
+                                                        .value
+                                                );
 
+                                                return;
+                                            }
 
+                                            employeeIdColumn
+                                                ?.setFilterValue(
+                                                    event
+                                                        .target
+                                                        .value
+                                                );
+                                        }}
+                                        className={
+                                            filterInputClass
+                                        }
+                                    />
+                                </div>
 
-                                {/* IT Personnel */}
+                                {/* IT PERSONNEL */}
 
                                 {serverSideDateFilter && (
                                     <div className="space-y-1">
@@ -1238,26 +1493,14 @@ export function DataTable<
                                                 event
                                             ) =>
                                                 setItPersonal(
-                                                    event.target.value
+                                                    event
+                                                        .target
+                                                        .value
                                                 )
                                             }
-                                            className={`
-                w-full
-                rounded-md
-                border
-                border-input
-                bg-background
-                px-2
-                text-foreground
-                outline-none
-                focus:ring-2
-                focus:ring-primary/20
-
-                ${compact
-                                                    ? "h-7 text-[10px]"
-                                                    : "h-8 text-xs"
-                                                }
-            `}
+                                            className={
+                                                selectClass
+                                            }
                                         >
                                             <option value="">
                                                 All IT Personnel
@@ -1285,52 +1528,34 @@ export function DataTable<
                                     </div>
                                 )}
 
+                                {/* STATUS */}
 
+                                <div className="space-y-1">
+                                    <label
+                                        className={
+                                            filterLabelClass
+                                        }
+                                    >
+                                        Status
+                                    </label>
 
-                                {/* Status */}
-
-                                {statusColumn && (
-                                    <div className="space-y-1">
-                                        <label
-                                            className={
-                                                filterLabelClass
-                                            }
-                                        >
-                                            Status
-                                        </label>
-
+                                    {serverSideDateFilter ? (
                                         <select
                                             value={
-                                                (
-                                                    statusColumn
-                                                        .getFilterValue() as string
-                                                ) ?? ""
+                                                status
                                             }
                                             onChange={(
                                                 event
                                             ) =>
-                                                statusColumn
-                                                    .setFilterValue(
-                                                        event.target.value
-                                                    )
+                                                setStatus(
+                                                    event
+                                                        .target
+                                                        .value
+                                                )
                                             }
-                                            className={`
-                                                w-full
-                                                rounded-md
-                                                border
-                                                border-input
-                                                bg-background
-                                                px-2
-                                                text-foreground
-                                                outline-none
-                                                focus:ring-2
-                                                focus:ring-primary/20
-
-                                                ${compact
-                                                    ? "h-7 text-[10px]"
-                                                    : "h-8 text-xs"
-                                                }
-                                            `}
+                                            className={
+                                                selectClass
+                                            }
                                         >
                                             <option value="">
                                                 All Status
@@ -1344,10 +1569,34 @@ export function DataTable<
                                                 Closed
                                             </option>
                                         </select>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <Input
+                                            placeholder="Open or Closed"
+                                            value={
+                                                (
+                                                    statusColumn
+                                                        ?.getFilterValue() as string
+                                                ) ??
+                                                ""
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                statusColumn
+                                                    ?.setFilterValue(
+                                                        event
+                                                            .target
+                                                            .value
+                                                    )
+                                            }
+                                            className={
+                                                filterInputClass
+                                            }
+                                        />
+                                    )}
+                                </div>
 
-                                {/* Actions */}
+                                {/* ACTIONS */}
 
                                 <div
                                     className={`
@@ -1355,6 +1604,7 @@ export function DataTable<
                                         justify-end
                                         border-t
                                         border-border
+
                                         ${compact
                                             ? "gap-1.5 pt-2"
                                             : "gap-2 pt-3"
@@ -1383,37 +1633,9 @@ export function DataTable<
                                                 ? "h-7 px-2.5 text-[10px]"
                                                 : "h-8 text-xs"
                                         }
-                                        onClick={() => {
-                                            table.setPageIndex(
-                                                0
-                                            );
-
-                                            const employeeId =
-                                                String(
-                                                    employeeIdColumn
-                                                        ?.getFilterValue() ??
-                                                    ""
-                                                ).trim();
-
-                                            const status =
-                                                String(
-                                                    statusColumn
-                                                        ?.getFilterValue() ??
-                                                    ""
-                                                ).trim();
-
-                                            onApplyServerFilters?.({
-                                                fromDate,
-                                                toDate,
-                                                employeeId,
-                                                status,
-                                                itPersonal,
-                                            });
-
-                                            setFilterOpen(
-                                                false
-                                            );
-                                        }}
+                                        onClick={
+                                            applyFilters
+                                        }
                                     >
                                         Apply
                                     </Button>
@@ -1423,11 +1645,13 @@ export function DataTable<
                     </DropdownMenu>
                 </div>
 
-                {/* Right toolbar */}
+                {/* RIGHT TOOLBAR */}
 
                 <div
                     className={`
-                        flex items-center
+                        flex
+                        items-center
+
                         ${compact
                             ? "gap-1.5"
                             : "gap-2"
@@ -1558,27 +1782,20 @@ export function DataTable<
                 </div>
             </div>
 
-            {/* ACTIVE FILTERS */}
+            {/* ==================================================
+                APPLIED FILTER BADGES
+            ================================================== */}
 
             {activeFiltersCount >
                 0 && (
-                    <div
-                        className={`
-                            flex flex-wrap
-                            items-center
-                            ${compact
-                                ? "gap-1.5"
-                                : "gap-2"
-                            }
-                        `}
-                    >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {/* Search */}
+
                         {globalFilter && (
                             <Badge
                                 variant="secondary"
                                 className={
-                                    compact
-                                        ? "h-5 gap-1 px-2 text-[9px]"
-                                        : "gap-1 text-xs"
+                                    badgeClass
                                 }
                             >
                                 Search:{" "}
@@ -1593,99 +1810,160 @@ export function DataTable<
                                             ""
                                         )
                                     }
+                                    aria-label="Clear search"
                                 >
                                     <X className="h-3 w-3" />
                                 </button>
                             </Badge>
                         )}
 
-                        {columnFilters.map(
-                            (
-                                filter
-                            ) => (
-                                <Badge
-                                    key={
-                                        filter.id
-                                    }
-                                    variant="secondary"
-                                    className={
-                                        compact
-                                            ? "h-5 gap-1 px-2 text-[9px]"
-                                            : "gap-1 text-xs"
-                                    }
-                                >
-                                    {getColumnDisplayName(
-                                        filter.id
-                                    )}
-                                    :{" "}
-                                    {String(
-                                        filter.value
-                                    )}
+                        {/* From Date */}
 
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setColumnFilters(
-                                                (
-                                                    current
-                                                ) =>
-                                                    current.filter(
-                                                        (
-                                                            item
-                                                        ) =>
-                                                            item.id !==
-                                                            filter.id
-                                                    )
-                                            )
-                                        }
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </Badge>
-                            )
+                        {appliedFilters.fromDate && (
+                            <Badge
+                                variant="secondary"
+                                className={
+                                    badgeClass
+                                }
+                            >
+                                From Date:{" "}
+                                {
+                                    appliedFilters.fromDate
+                                }
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        clearAppliedFilter(
+                                            "fromDate"
+                                        )
+                                    }
+                                    aria-label="Clear from date"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
                         )}
 
-                        {(fromDate ||
-                            toDate) && (
-                                <Badge
-                                    variant="secondary"
-                                    className={
-                                        compact
-                                            ? "h-5 gap-1 px-2 text-[9px]"
-                                            : "gap-1 text-xs"
+                        {/* To Date */}
+
+                        {appliedFilters.toDate && (
+                            <Badge
+                                variant="secondary"
+                                className={
+                                    badgeClass
+                                }
+                            >
+                                To Date:{" "}
+                                {
+                                    appliedFilters.toDate
+                                }
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        clearAppliedFilter(
+                                            "toDate"
+                                        )
                                     }
+                                    aria-label="Clear to date"
                                 >
-                                    Date:{" "}
-                                    {fromDate ||
-                                        "Start"}{" "}
-                                    —{" "}
-                                    {toDate ||
-                                        "Now"}
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
+                        )}
 
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setFromDate(
-                                                ""
-                                            );
+                        {/* Employee */}
 
-                                            setToDate(
-                                                ""
-                                            );
+                        {appliedFilters.employeeId && (
+                            <Badge
+                                variant="secondary"
+                                className={
+                                    badgeClass
+                                }
+                            >
+                                Employee ID:{" "}
+                                {
+                                    appliedFilters.employeeId
+                                }
 
-                                            onApplyServerFilters?.({
-                                                fromDate: "",
-                                                toDate: "",
-                                                employeeId: "",
-                                                status: "",
-                                                itPersonal: "",
-                                            });
-                                        }}
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </Badge>
-                            )}
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        clearAppliedFilter(
+                                            "employeeId"
+                                        )
+                                    }
+                                    aria-label="Clear Employee ID"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
+                        )}
+
+                        {/* IT Personnel */}
+
+                        {appliedFilters.itPersonal && (
+                            <Badge
+                                variant="secondary"
+                                className={
+                                    badgeClass
+                                }
+                            >
+                                IT Personnel:{" "}
+
+                                {
+                                    itPersonalOptions.find(
+                                        (
+                                            person
+                                        ) =>
+                                            person.value ===
+                                            appliedFilters.itPersonal
+                                    )?.label ??
+                                    appliedFilters.itPersonal
+                                }
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        clearAppliedFilter(
+                                            "itPersonal"
+                                        )
+                                    }
+                                    aria-label="Clear IT Personnel"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
+                        )}
+
+                        {/* Status */}
+
+                        {appliedFilters.status && (
+                            <Badge
+                                variant="secondary"
+                                className={
+                                    badgeClass
+                                }
+                            >
+                                Status:{" "}
+                                {
+                                    appliedFilters.status
+                                }
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        clearAppliedFilter(
+                                            "status"
+                                        )
+                                    }
+                                    aria-label="Clear status"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
+                        )}
 
                         <Button
                             variant="ghost"
@@ -1704,13 +1982,17 @@ export function DataTable<
                     </div>
                 )}
 
-            {/* TABLE */}
+            {/* ==================================================
+                TABLE
+            ================================================== */}
 
             <div
                 className={`
                     overflow-x-auto
-                    border border-border
+                    border
+                    border-border
                     bg-card
+
                     ${compact
                         ? "rounded-lg"
                         : "rounded-xl"
@@ -1722,6 +2004,7 @@ export function DataTable<
                         w-full
                         table-fixed
                         border-collapse
+
                         ${compact
                             ? "min-w-[860px] text-[9px]"
                             : "min-w-[940px] text-[10px]"
@@ -1758,6 +2041,7 @@ export function DataTable<
                                                         uppercase
                                                         tracking-wide
                                                         text-muted-foreground
+
                                                         ${compact
                                                             ? "h-8 px-1.5 py-1 text-[8px]"
                                                             : "px-2 py-2 text-[9px]"
@@ -1778,6 +2062,7 @@ export function DataTable<
                                                                 .column
                                                                 .columnDef
                                                                 .header,
+
                                                             header.getContext()
                                                         )}
                                                 </TableHead>
@@ -1855,7 +2140,11 @@ export function DataTable<
                                                             }}
                                                         >
                                                             {flexRender(
-                                                                cell.column.columnDef.cell,
+                                                                cell
+                                                                    .column
+                                                                    .columnDef
+                                                                    .cell,
+
                                                                 cell.getContext()
                                                             )}
                                                         </TableCell>
@@ -1884,12 +2173,16 @@ export function DataTable<
                 </Table>
             </div>
 
-            {/* PAGINATION */}
+            {/* ==================================================
+                PAGINATION
+            ================================================== */}
 
             <div
                 className={`
-                    flex items-center
+                    flex
+                    items-center
                     justify-between
+
                     ${compact
                         ? "px-0.5"
                         : "px-1"
