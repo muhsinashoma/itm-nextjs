@@ -1745,20 +1745,20 @@ export default function DashboardPage() {
                         //     data={troubleTicketRows}
                         // />
 
-                                    <DataTable
-                                        columns={columns}
-                                        data={troubleTicketRows}
-                                        dateColumn="created_at"
-                                        compact
-                                        serverSideDateFilter
-                                        onApplyServerFilters={(
-                                            filters
-                                        ) => {
-                                            setTroubleTicketServerFilters(
-                                                filters
-                                            );
-                                        }}
-                                    />
+                        <DataTable
+                            columns={columns}
+                            data={troubleTicketRows}
+                            dateColumn="created_at"
+                            compact
+                            serverSideDateFilter
+                            onApplyServerFilters={(
+                                filters
+                            ) => {
+                                setTroubleTicketServerFilters(
+                                    filters
+                                );
+                            }}
+                        />
 
                     )}
                 </div>

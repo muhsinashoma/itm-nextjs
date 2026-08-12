@@ -1,0 +1,113 @@
+-------------------------------------------------------------------------
+
+#backend/.env
+PORT=8080
+ENV=development
+DATABASE_URL=postgres://itm_user:itm_secret_2026@localhost:5432/itm_prod?sslmode=disable
+#DATABASE_URL=postgres://itm_user:itm_secret_2026@localhost:5432/itm_restore_test?sslmode=disable
+JWT_SECRET=54e2e6e45223e6f4ec05bc2eb370405d316d2534e6836607794a26a56a892810
+#ALLOW_ORIGIN=http://localhost:3000
+
+ALLOW_ORIGIN=http://localhost:5173
+---------------------------------------------------------------------------
+
+Frontend(node frontend)
+----------------------------------------------------------------------------
+
+PS D:\ITM-Data\itm> cd frontend
+PS D:\ITM-Data\itm\frontend> npx next dev -p 5173
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   ▲ Next.js 16.0.10 (Turbopack)
+   - Local:         http://localhost:5173
+   - Network:       http://192.168.32.223:5173
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1528ms
+ ○ Compiling / ...
+ GET / 307 in 4.5s (compile: 4.3s, render: 146ms)
+ GET /auth 200 in 831ms (compile: 738ms, render: 93ms)
+
+
+-------------------------------------------------------------------------------
+
+Backend(Go backend)
+
+
+PS D:\ITM-Data\itm> cd backend 
+PS D:\ITM-Data\itm\backend> go run ./cmd/server
+2026/08/12 11:01:04 ✅ PostgreSQL connected
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:   export GIN_MODE=release
+ - using code:  gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /health                   --> main.main.func1 (6 handlers)
+[GIN-debug] POST   /api/v1/auth/login        --> itm-api/internal/handler.(*AuthHandler).Login-fm (7 handlers)
+[GIN-debug] POST   /api/v1/auth/refresh      --> itm-api/internal/handler.(*AuthHandler).Refresh-fm (6 handlers)
+[GIN-debug] GET    /api/v1/tickets           --> itm-api/internal/handler.(*TicketHandler).List-fm (7 handlers)
+[GIN-debug] GET    /api/v1/tickets/:id       --> itm-api/internal/handler.(*TicketHandler).Get-fm (7 handlers)
+[GIN-debug] POST   /api/v1/tickets           --> itm-api/internal/handler.(*TicketHandler).Create-fm (7 handlers)
+[GIN-debug] PUT    /api/v1/tickets/:id       --> itm-api/internal/handler.(*TicketHandler).Update-fm (7 handlers)
+[GIN-debug] DELETE /api/v1/tickets/:id       --> itm-api/internal/handler.(*TicketHandler).Delete-fm (7 handlers)
+[GIN-debug] PATCH  /api/v1/tickets/:id/close --> itm-api/internal/handler.(*TicketHandler).Close-fm (7 handlers)
+[GIN-debug] PATCH  /api/v1/tickets/:id/status --> itm-api/internal/handler.(*TicketHandler).UpdateStatus-fm (7 handlers)
+[GIN-debug] GET    /api/v1/tickets/:id/updates --> itm-api/internal/handler.(*TicketHandler).GetUpdates-fm (7 handlers)
+[GIN-debug] POST   /api/v1/tickets/:id/updates --> itm-api/internal/handler.(*TicketHandler).AddUpdate-fm (7 handlers)
+[GIN-debug] GET    /api/v1/devices           --> itm-api/internal/handler.(*DeviceHandler).List-fm (7 handlers)
+[GIN-debug] GET    /api/v1/devices/:id       --> itm-api/internal/handler.(*DeviceHandler).Get-fm (7 handlers)
+[GIN-debug] POST   /api/v1/devices           --> itm-api/internal/handler.(*DeviceHandler).Create-fm (7 handlers)
+[GIN-debug] PUT    /api/v1/devices/:id       --> itm-api/internal/handler.(*DeviceHandler).Update-fm (7 handlers)
+[GIN-debug] DELETE /api/v1/devices/:id       --> itm-api/internal/handler.(*DeviceHandler).Delete-fm (7 handlers)
+[GIN-debug] POST   /api/v1/devices/:id/transfer --> itm-api/internal/handler.(*DeviceHandler).Transfer-fm (7 handlers)
+[GIN-debug] POST   /api/v1/devices/:id/return --> itm-api/internal/handler.(*DeviceHandler).Return-fm (7 handlers)
+[GIN-debug] GET    /api/v1/devices/:id/history --> itm-api/internal/handler.(*DeviceHandler).History-fm (7 handlers)
+[GIN-debug] GET    /api/v1/devices/employee/:emp_id --> itm-api/internal/handler.(*DeviceHandler).ByEmployee-fm (7 handlers)        
+[GIN-debug] GET    /api/v1/devices/serial/:serial --> itm-api/internal/handler.(*DeviceHandler).BySerial-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/devices    --> itm-api/internal/handler.(*AssetDeviceHandler).List-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/non-operational/summary --> itm-api/internal/handler.(*AssetDeviceHandler).NonOperationalSummary-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/non-operational --> itm-api/internal/handler.(*AssetDeviceHandler).NonOperationalList-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/ownership/summary --> itm-api/internal/handler.(*AssetDeviceHandler).OwnershipSummary-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/ownership  --> itm-api/internal/handler.(*AssetDeviceHandler).OwnershipList-fm (7 handlers)       
+[GIN-debug] GET    /api/v1/assets/warranty/summary --> itm-api/internal/handler.(*AssetDeviceHandler).WarrantyOverviewSummary-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/warranty/claims --> itm-api/internal/handler.(*AssetDeviceHandler).WarrantyClaimsList-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/service-requests/summary --> itm-api/internal/handler.(*AssetDeviceHandler).ServiceRequestsSummary-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/service-requests/claims --> itm-api/internal/handler.(*AssetDeviceHandler).ServiceRequestsList-fm (7 handlers)
+[GIN-debug] GET    /api/v1/assets/devices/:id/history --> itm-api/internal/handler.(*AssetDeviceHandler).History-fm (7 handlers)    
+[GIN-debug] GET    /api/v1/assets/devices/:id --> itm-api/internal/handler.(*AssetDeviceHandler).GetByID-fm (7 handlers)
+[GIN-debug] GET    /api/v1/employees         --> itm-api/internal/handler.(*EmployeeHandler).List-fm (7 handlers)
+[GIN-debug] GET    /api/v1/employees/:emp_id --> itm-api/internal/handler.(*EmployeeHandler).Get-fm (7 handlers)
+[GIN-debug] GET    /api/v1/employees/search  --> itm-api/internal/handler.(*EmployeeHandler).Search-fm (7 handlers)
+[GIN-debug] GET    /api/v1/claims            --> itm-api/internal/handler.(*ClaimHandler).List-fm (7 handlers)
+[GIN-debug] GET    /api/v1/claims/:id        --> itm-api/internal/handler.(*ClaimHandler).Get-fm (7 handlers)
+[GIN-debug] POST   /api/v1/claims            --> itm-api/internal/handler.(*ClaimHandler).Create-fm (7 handlers)
+[GIN-debug] PUT    /api/v1/claims/:id/status --> itm-api/internal/handler.(*ClaimHandler).UpdateStatus-fm (7 handlers)
+[GIN-debug] GET    /api/v1/stock             --> itm-api/internal/handler.(*StockHandler).List-fm (7 handlers)
+[GIN-debug] GET    /api/v1/stock/:id         --> itm-api/internal/handler.(*StockHandler).Get-fm (7 handlers)
+[GIN-debug] POST   /api/v1/stock             --> itm-api/internal/handler.(*StockHandler).Create-fm (7 handlers)
+[GIN-debug] PUT    /api/v1/stock/:id         --> itm-api/internal/handler.(*StockHandler).Update-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/assigned  --> itm-api/internal/handler.(*ReportHandler).Assigned-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/assets    --> itm-api/internal/handler.(*ReportHandler).Assigned-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/warranty  --> itm-api/internal/handler.(*ReportHandler).Warranty-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/service   --> itm-api/internal/handler.(*ReportHandler).Service-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/users     --> itm-api/internal/handler.(*ReportHandler).Users-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/disposal  --> itm-api/internal/handler.(*ReportHandler).Disposal-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/stock-status --> itm-api/internal/handler.(*ReportHandler).StockStatus-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/resignation --> itm-api/internal/handler.(*ReportHandler).Resignation-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/renewal   --> itm-api/internal/handler.(*ReportHandler).Renewal-fm (7 handlers)
+[GIN-debug] GET    /api/v1/reports/non-operational --> itm-api/internal/handler.(*ReportHandler).NonOperational-fm (7 handlers)     
+[GIN-debug] GET    /api/v1/vendors           --> itm-api/internal/handler.(*VendorHandler).List-fm (7 handlers)
+[GIN-debug] POST   /api/v1/vendors           --> itm-api/internal/handler.(*VendorHandler).Create-fm (7 handlers)
+[GIN-debug] PUT    /api/v1/vendors/:id       --> itm-api/internal/handler.(*VendorHandler).Update-fm (7 handlers)
+[GIN-debug] DELETE /api/v1/vendors/:id       --> itm-api/internal/handler.(*VendorHandler).Delete-fm (7 handlers)
+[GIN-debug] GET    /api/v1/categories        --> itm-api/internal/handler.(*CategoryHandler).List-fm (7 handlers)
+[GIN-debug] POST   /api/v1/categories        --> itm-api/internal/handler.(*CategoryHandler).Create-fm (7 handlers)
+[GIN-debug] GET    /api/v1/dashboard/stats   --> itm-api/internal/handler.(*DashboardHandler).Stats-fm (7 handlers)
+[GIN-debug] GET    /api/v1/dashboard/summary --> itm-api/internal/handler.(*DashboardHandler).Summary-fm (7 handlers)
+[GIN-debug] GET    /api/v1/dashboard/ticket-trend --> itm-api/internal/handler.(*DashboardHandler).TicketTrend-fm (7 handlers)      
+[GIN-debug] GET    /api/v1/dashboard/trouble-ticket-summary --> itm-api/internal/handler.(*DashboardHandler).TroubleTicketSummary-fm (7 handlers)
+[GIN-debug] GET    /api/v1/dashboard/trouble-ticket-overview --> itm-api/internal/handler.(*DashboardHandler).TroubleTicketOverview-fm (7 handlers)
+[GIN-debug] GET    /api/v1/dashboard/trouble-tickets --> itm-api/internal/handler.(*DashboardHandler).TroubleTicketList-fm (7 handlers)
+2026/08/12 11:01:04 🚀 ITM API on :8080 [development]
+
+--------------------------------------------------------------------------------------
+
