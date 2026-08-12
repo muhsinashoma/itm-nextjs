@@ -1,3 +1,4 @@
+
 // frontend/components/data-table.tsx
 
 "use client";
@@ -27,17 +28,9 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-import {
-    Input,
-} from "@/components/ui/input";
-
-import {
-    Button,
-} from "@/components/ui/button";
-
-import {
-    Badge,
-} from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 import {
     DropdownMenu,
@@ -94,13 +87,13 @@ interface DataTableProps<
 
     itPersonalOptions?: DataTableOption[];
 
-    /*
-     * Applied filters supplied by parent.
-     *
-     * This is important because DataTable may
-     * temporarily unmount while API data reloads.
-     */
     appliedServerFilters?: DataTableServerFilters;
+
+    /*
+     * Message displayed INSIDE table body when
+     * the table contains no records.
+     */
+    emptyMessage?: string;
 
     onApplyServerFilters?: (
         filters:
@@ -109,7 +102,7 @@ interface DataTableProps<
 }
 
 /* ======================================================
-   DEFAULT FILTERS
+   DEFAULTS
 ====================================================== */
 
 const EMPTY_SERVER_FILTERS:
@@ -120,10 +113,6 @@ const EMPTY_SERVER_FILTERS:
     status: "",
     itPersonal: "",
 };
-
-/* ======================================================
-   DEFAULT COLUMN VISIBILITY
-====================================================== */
 
 const DEFAULT_HIDDEN_COLUMNS:
     VisibilityState = {
@@ -232,7 +221,11 @@ function normalizeDateOnly(
         );
 
     if (match) {
-        return `${match[1]}-${match[2]}-${match[3]}`;
+        return (
+            `${match[1]}-` +
+            `${match[2]}-` +
+            `${match[3]}`
+        );
     }
 
     const parsed =
@@ -338,6 +331,8 @@ export function DataTable<
     serverSideDateFilter = false,
     itPersonalOptions = [],
     appliedServerFilters,
+    emptyMessage =
+    "No results found.",
     onApplyServerFilters,
 }: DataTableProps<
     TData,
@@ -373,11 +368,21 @@ export function DataTable<
             DEFAULT_HIDDEN_COLUMNS
         );
 
+    /*
+     * Search input updates immediately.
+     * The deferred value prevents expensive table
+     * filtering from blocking typing.
+     */
     const [
-        globalFilter,
-        setGlobalFilter,
+        searchInput,
+        setSearchInput,
     ] =
         React.useState("");
+
+    const deferredSearch =
+        React.useDeferredValue(
+            searchInput
+        );
 
     const [
         filterOpen,
@@ -388,7 +393,7 @@ export function DataTable<
         );
 
     /* ==================================================
-       DRAFT FILTER STATE
+       DRAFT SERVER FILTERS
     ================================================== */
 
     const [
@@ -442,9 +447,7 @@ export function DataTable<
         );
 
     /* ==================================================
-       APPLIED FILTERS
-
-       Parent value is authoritative when provided.
+       APPLIED SERVER FILTERS
     ================================================== */
 
     const [
@@ -458,13 +461,16 @@ export function DataTable<
             EMPTY_SERVER_FILTERS
         );
 
+    /*
+     * Parent state is authoritative when supplied.
+     */
     const appliedFilters =
         appliedServerFilters ??
         localAppliedFilters;
 
     /*
-     * Keep popup values synchronized with parent state.
-     * This restores the selected values after an API reload.
+     * If API data refreshes, restore all selected filter
+     * values in the popup from parent state.
      */
     React.useEffect(
         () => {
@@ -475,23 +481,28 @@ export function DataTable<
             }
 
             setFromDate(
-                appliedServerFilters.fromDate
+                appliedServerFilters
+                    .fromDate
             );
 
             setToDate(
-                appliedServerFilters.toDate
+                appliedServerFilters
+                    .toDate
             );
 
             setEmployeeId(
-                appliedServerFilters.employeeId
+                appliedServerFilters
+                    .employeeId
             );
 
             setStatus(
-                appliedServerFilters.status
+                appliedServerFilters
+                    .status
             );
 
             setItPersonal(
-                appliedServerFilters.itPersonal
+                appliedServerFilters
+                    .itPersonal
             );
 
             setLocalAppliedFilters(
@@ -504,20 +515,14 @@ export function DataTable<
     );
 
     /* ==================================================
-       FILTERED DATA
-
-       In Trouble Ticket server mode:
-       Date / Employee / Status / IT Personnel are already
-       filtered by PostgreSQL.
-
-       We therefore only keep instant global search locally.
+       SMOOTH LOCAL SEARCH
     ================================================== */
 
     const filteredData =
         React.useMemo(
             () => {
                 const searchText =
-                    globalFilter
+                    deferredSearch
                         .trim()
                         .toLowerCase();
 
@@ -532,7 +537,7 @@ export function DataTable<
                                 unknown
                             >;
 
-                        const matchesGlobalSearch =
+                        const matchesSearch =
                             !searchText ||
                             Object.values(
                                 record
@@ -548,60 +553,26 @@ export function DataTable<
                             );
 
                         /*
-                         * Server-side Trouble Ticket table:
-                         * skip local Employee/Status/Date filtering.
+                         * Trouble Ticket server mode:
+                         *
+                         * Date
+                         * Employee ID
+                         * IT Personnel
+                         * Status
+                         *
+                         * are already filtered by PostgreSQL.
+                         *
+                         * Do not filter them twice here.
                          */
                         if (
                             serverSideDateFilter
                         ) {
-                            return matchesGlobalSearch;
+                            return matchesSearch;
                         }
 
-                        const statusFilter =
-                            columnFilters.find(
-                                (
-                                    filter
-                                ) =>
-                                    filter.id ===
-                                    "status"
-                            );
-
-                        const matchesStatus =
-                            !statusFilter ||
-                            normalizeValue(
-                                record.status
-                            ).includes(
-                                normalizeValue(
-                                    statusFilter.value
-                                )
-                            );
-
-                        const employeeIdFilter =
-                            columnFilters.find(
-                                (
-                                    filter
-                                ) =>
-                                    filter.id ===
-                                    "employeeId" ||
-                                    filter.id ===
-                                    "employee_id"
-                            );
-
-                        const employeeValue =
-                            record.employee_id ??
-                            record.employeeId ??
-                            "";
-
-                        const matchesEmployeeId =
-                            !employeeIdFilter ||
-                            normalizeValue(
-                                employeeValue
-                            ).includes(
-                                normalizeValue(
-                                    employeeIdFilter.value
-                                )
-                            );
-
+                        /*
+                         * Generic DataTable local date filtering.
+                         */
                         let matchesDate =
                             true;
 
@@ -609,14 +580,11 @@ export function DataTable<
                             fromDate ||
                             toDate
                         ) {
-                            const rawDate =
-                                record[
-                                dateColumn
-                                ];
-
                             const rowDate =
                                 normalizeDateOnly(
-                                    rawDate
+                                    record[
+                                    dateColumn
+                                    ]
                                 );
 
                             if (
@@ -646,9 +614,7 @@ export function DataTable<
                         }
 
                         return (
-                            matchesGlobalSearch &&
-                            matchesStatus &&
-                            matchesEmployeeId &&
+                            matchesSearch &&
                             matchesDate
                         );
                     }
@@ -656,8 +622,7 @@ export function DataTable<
             },
             [
                 data,
-                globalFilter,
-                columnFilters,
+                deferredSearch,
                 fromDate,
                 toDate,
                 dateColumn,
@@ -666,7 +631,7 @@ export function DataTable<
         );
 
     /* ==================================================
-       TABLE
+       TANSTACK TABLE
     ================================================== */
 
     const table =
@@ -704,6 +669,9 @@ export function DataTable<
                 getSortedRowModel(),
         });
 
+    /*
+     * Reset pagination when quick search or API data changes.
+     */
     React.useEffect(
         () => {
             table.setPageIndex(
@@ -711,13 +679,14 @@ export function DataTable<
             );
         },
         [
-            globalFilter,
+            deferredSearch,
             data,
+            table,
         ]
     );
 
     /* ==================================================
-       FILTER COLUMNS
+       GENERIC TABLE COLUMNS
     ================================================== */
 
     const employeeIdColumn =
@@ -745,31 +714,62 @@ export function DataTable<
             );
 
     /* ==================================================
-       ACTIVE FILTER INFORMATION
+       FILTER COUNT
     ================================================== */
 
+    const serverActiveFiltersCount =
+        (
+            searchInput.trim()
+                ? 1
+                : 0
+        ) +
+        (
+            appliedFilters.fromDate
+                ? 1
+                : 0
+        ) +
+        (
+            appliedFilters.toDate
+                ? 1
+                : 0
+        ) +
+        (
+            appliedFilters.employeeId
+                ? 1
+                : 0
+        ) +
+        (
+            appliedFilters.itPersonal
+                ? 1
+                : 0
+        ) +
+        (
+            appliedFilters.status
+                ? 1
+                : 0
+        );
+
+    const localActiveFiltersCount =
+        (
+            searchInput.trim()
+                ? 1
+                : 0
+        ) +
+        columnFilters.length +
+        (
+            fromDate ||
+                toDate
+                ? 1
+                : 0
+        );
+
     const activeFiltersCount =
-        (globalFilter
-            ? 1
-            : 0) +
-        (appliedFilters.fromDate
-            ? 1
-            : 0) +
-        (appliedFilters.toDate
-            ? 1
-            : 0) +
-        (appliedFilters.employeeId
-            ? 1
-            : 0) +
-        (appliedFilters.itPersonal
-            ? 1
-            : 0) +
-        (appliedFilters.status
-            ? 1
-            : 0);
+        serverSideDateFilter
+            ? serverActiveFiltersCount
+            : localActiveFiltersCount;
 
     /* ==================================================
-       APPLY FILTERS
+       SERVER FILTER ACTIONS
     ================================================== */
 
     function updateAppliedFilters(
@@ -790,6 +790,19 @@ export function DataTable<
     }
 
     function applyFilters() {
+        /*
+         * Generic tables already filter locally.
+         */
+        if (
+            !serverSideDateFilter
+        ) {
+            setFilterOpen(
+                false
+            );
+
+            return;
+        }
+
         const next:
             DataTableServerFilters = {
             fromDate:
@@ -817,12 +830,8 @@ export function DataTable<
         );
     }
 
-    /* ==================================================
-       RESET FILTERS
-    ================================================== */
-
     function resetFilters() {
-        setGlobalFilter(
+        setSearchInput(
             ""
         );
 
@@ -850,25 +859,31 @@ export function DataTable<
             ""
         );
 
-        updateAppliedFilters({
-            ...EMPTY_SERVER_FILTERS,
-        });
+        if (
+            serverSideDateFilter
+        ) {
+            updateAppliedFilters({
+                ...EMPTY_SERVER_FILTERS,
+            });
+        }
+
+        table.setPageIndex(
+            0
+        );
 
         setFilterOpen(
             false
         );
     }
 
-    /* ==================================================
-       REMOVE ONE APPLIED FILTER
-    ================================================== */
-
     function clearAppliedFilter(
         key:
             keyof DataTableServerFilters
     ) {
-        const next = {
+        const next:
+            DataTableServerFilters = {
             ...appliedFilters,
+
             [key]:
                 "",
         };
@@ -1112,6 +1127,12 @@ export function DataTable<
             .getVisibleLeafColumns()
             .length;
 
+    const hasExportRows =
+        table
+            .getFilteredRowModel()
+            .rows.length >
+        0;
+
     /* ==================================================
        STYLE
     ================================================== */
@@ -1148,6 +1169,7 @@ export function DataTable<
         outline-none
         focus:ring-2
         focus:ring-primary/20
+
         ${compact
             ? "h-7 text-[10px]"
             : "h-8 text-xs"
@@ -1232,12 +1254,12 @@ export function DataTable<
                         <Input
                             placeholder="Search TT, employee, query, status..."
                             value={
-                                globalFilter
+                                searchInput
                             }
                             onChange={(
                                 event
                             ) =>
-                                setGlobalFilter(
+                                setSearchInput(
                                     event
                                         .target
                                         .value
@@ -1250,11 +1272,11 @@ export function DataTable<
                             }
                         />
 
-                        {globalFilter && (
+                        {searchInput && (
                             <button
                                 type="button"
                                 onClick={() =>
-                                    setGlobalFilter(
+                                    setSearchInput(
                                         ""
                                     )
                                 }
@@ -1645,7 +1667,9 @@ export function DataTable<
                     </DropdownMenu>
                 </div>
 
-                {/* RIGHT TOOLBAR */}
+                {/* ==================================================
+                    RIGHT TOOLBAR
+                ================================================== */}
 
                 <div
                     className={`
@@ -1767,6 +1791,9 @@ export function DataTable<
                         onClick={
                             exportToExcel
                         }
+                        disabled={
+                            !hasExportRows
+                        }
                         className={
                             toolbarButtonClass
                         }
@@ -1783,15 +1810,15 @@ export function DataTable<
             </div>
 
             {/* ==================================================
-                APPLIED FILTER BADGES
+                ACTIVE FILTERS
             ================================================== */}
 
             {activeFiltersCount >
                 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
-                        {/* Search */}
+                        {/* SEARCH */}
 
-                        {globalFilter && (
+                        {searchInput.trim() && (
                             <Badge
                                 variant="secondary"
                                 className={
@@ -1800,13 +1827,13 @@ export function DataTable<
                             >
                                 Search:{" "}
                                 {
-                                    globalFilter
+                                    searchInput
                                 }
 
                                 <button
                                     type="button"
                                     onClick={() =>
-                                        setGlobalFilter(
+                                        setSearchInput(
                                             ""
                                         )
                                     }
@@ -1817,152 +1844,219 @@ export function DataTable<
                             </Badge>
                         )}
 
-                        {/* From Date */}
+                        {serverSideDateFilter ? (
+                            <>
+                                {/* FROM DATE */}
 
-                        {appliedFilters.fromDate && (
-                            <Badge
-                                variant="secondary"
-                                className={
-                                    badgeClass
-                                }
-                            >
-                                From Date:{" "}
-                                {
-                                    appliedFilters.fromDate
-                                }
+                                {appliedFilters.fromDate && (
+                                    <Badge
+                                        variant="secondary"
+                                        className={
+                                            badgeClass
+                                        }
+                                    >
+                                        From Date:{" "}
+                                        {
+                                            appliedFilters.fromDate
+                                        }
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        clearAppliedFilter(
-                                            "fromDate"
-                                        )
-                                    }
-                                    aria-label="Clear from date"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </Badge>
-                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                clearAppliedFilter(
+                                                    "fromDate"
+                                                )
+                                            }
+                                            aria-label="Clear from date"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                )}
 
-                        {/* To Date */}
+                                {/* TO DATE */}
 
-                        {appliedFilters.toDate && (
-                            <Badge
-                                variant="secondary"
-                                className={
-                                    badgeClass
-                                }
-                            >
-                                To Date:{" "}
-                                {
-                                    appliedFilters.toDate
-                                }
+                                {appliedFilters.toDate && (
+                                    <Badge
+                                        variant="secondary"
+                                        className={
+                                            badgeClass
+                                        }
+                                    >
+                                        To Date:{" "}
+                                        {
+                                            appliedFilters.toDate
+                                        }
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        clearAppliedFilter(
-                                            "toDate"
-                                        )
-                                    }
-                                    aria-label="Clear to date"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </Badge>
-                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                clearAppliedFilter(
+                                                    "toDate"
+                                                )
+                                            }
+                                            aria-label="Clear to date"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                )}
 
-                        {/* Employee */}
+                                {/* EMPLOYEE */}
 
-                        {appliedFilters.employeeId && (
-                            <Badge
-                                variant="secondary"
-                                className={
-                                    badgeClass
-                                }
-                            >
-                                Employee ID:{" "}
-                                {
-                                    appliedFilters.employeeId
-                                }
+                                {appliedFilters.employeeId && (
+                                    <Badge
+                                        variant="secondary"
+                                        className={
+                                            badgeClass
+                                        }
+                                    >
+                                        Employee ID:{" "}
+                                        {
+                                            appliedFilters.employeeId
+                                        }
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        clearAppliedFilter(
-                                            "employeeId"
-                                        )
-                                    }
-                                    aria-label="Clear Employee ID"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </Badge>
-                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                clearAppliedFilter(
+                                                    "employeeId"
+                                                )
+                                            }
+                                            aria-label="Clear Employee ID"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                )}
 
-                        {/* IT Personnel */}
+                                {/* IT PERSONNEL */}
 
-                        {appliedFilters.itPersonal && (
-                            <Badge
-                                variant="secondary"
-                                className={
-                                    badgeClass
-                                }
-                            >
-                                IT Personnel:{" "}
+                                {appliedFilters.itPersonal && (
+                                    <Badge
+                                        variant="secondary"
+                                        className={
+                                            badgeClass
+                                        }
+                                    >
+                                        IT Personnel:{" "}
 
-                                {
-                                    itPersonalOptions.find(
-                                        (
-                                            person
-                                        ) =>
-                                            person.value ===
+                                        {
+                                            itPersonalOptions.find(
+                                                (
+                                                    person
+                                                ) =>
+                                                    person.value ===
+                                                    appliedFilters.itPersonal
+                                            )?.label ??
                                             appliedFilters.itPersonal
-                                    )?.label ??
-                                    appliedFilters.itPersonal
-                                }
+                                        }
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        clearAppliedFilter(
-                                            "itPersonal"
-                                        )
-                                    }
-                                    aria-label="Clear IT Personnel"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </Badge>
-                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                clearAppliedFilter(
+                                                    "itPersonal"
+                                                )
+                                            }
+                                            aria-label="Clear IT Personnel"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                )}
 
-                        {/* Status */}
+                                {/* STATUS */}
 
-                        {appliedFilters.status && (
-                            <Badge
-                                variant="secondary"
-                                className={
-                                    badgeClass
-                                }
-                            >
-                                Status:{" "}
-                                {
-                                    appliedFilters.status
-                                }
+                                {appliedFilters.status && (
+                                    <Badge
+                                        variant="secondary"
+                                        className={
+                                            badgeClass
+                                        }
+                                    >
+                                        Status:{" "}
+                                        {
+                                            appliedFilters.status
+                                        }
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        clearAppliedFilter(
-                                            "status"
-                                        )
-                                    }
-                                    aria-label="Clear status"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </Badge>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                clearAppliedFilter(
+                                                    "status"
+                                                )
+                                            }
+                                            aria-label="Clear status"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                {columnFilters.map(
+                                    (
+                                        filter
+                                    ) => (
+                                        <Badge
+                                            key={
+                                                filter.id
+                                            }
+                                            variant="secondary"
+                                            className={
+                                                badgeClass
+                                            }
+                                        >
+                                            {getColumnDisplayName(
+                                                filter.id
+                                            )}
+                                            :{" "}
+                                            {String(
+                                                filter.value
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setColumnFilters(
+                                                        (
+                                                            current
+                                                        ) =>
+                                                            current.filter(
+                                                                (
+                                                                    item
+                                                                ) =>
+                                                                    item.id !==
+                                                                    filter.id
+                                                            )
+                                                    )
+                                                }
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    )
+                                )}
+
+                                {(fromDate ||
+                                    toDate) && (
+                                        <Badge
+                                            variant="secondary"
+                                            className={
+                                                badgeClass
+                                            }
+                                        >
+                                            Date:{" "}
+                                            {fromDate ||
+                                                "Start"}{" "}
+                                            —{" "}
+                                            {toDate ||
+                                                "Now"}
+                                        </Badge>
+                                    )}
+                            </>
                         )}
 
                         <Button
@@ -2157,15 +2251,20 @@ export function DataTable<
                             <TableRow>
                                 <TableCell
                                     colSpan={
-                                        visibleColumnCount
+                                        Math.max(
+                                            visibleColumnCount,
+                                            1
+                                        )
                                     }
                                     className={
                                         compact
-                                            ? "h-20 text-center text-[10px] text-muted-foreground"
-                                            : "h-28 text-center text-sm text-muted-foreground"
+                                            ? "h-24 text-center text-[10px] font-medium text-muted-foreground"
+                                            : "h-32 text-center text-sm font-medium text-muted-foreground"
                                     }
                                 >
-                                    No results found.
+                                    {
+                                        emptyMessage
+                                    }
                                 </TableCell>
                             </TableRow>
                         )}
