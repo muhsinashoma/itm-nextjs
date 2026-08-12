@@ -137,7 +137,7 @@ func (h *EmployeeHandler) Search(c *gin.Context) {
 	response.OK(c, res)
 }
 
-// ─── Dashboard ───────────────────────────────────────────────────────────────
+// ─── Dashboard Route ───────────────────────────────────────────────────────────────
 
 type DashboardHandler struct{ db *pgxpool.Pool }
 
