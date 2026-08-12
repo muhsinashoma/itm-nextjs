@@ -164,6 +164,11 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 		"/trouble-tickets",
 		h.TroubleTicketList,
 	)
+
+	g.GET(
+	"/trouble-ticket-it-personnel",
+	h.TroubleTicketITPersonnel,
+)
 }
 
 func (h *DashboardHandler) Stats(c *gin.Context) {
@@ -802,82 +807,130 @@ func (
 //   - running
 //   - procurement
 //
-// Requisition rules:
-//   - approved_val = 1 -> Petty Cash (Approved)
-//   - approved_val = 3 -> PR (Approved)
-//   - approved_val = 2 -> Rejected
-//   - source_device_requisition = 3 and approval pending/null -> Raised
+// Supported filters:
+//   - from_date
+//   - to_date
+//   - employee_id
+//   - it_personal
+//   - status
+//   - search
 //
-// Delivery rules:
-//   - delivered_val = 0 -> Pending
-//   - delivered_val = 1 -> Delivered
-//   - delivered_val = 2 -> Rejected
-//   - raised requisition with no delivery row -> Pending
+// All supplied filters are combined using AND.
 func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	/* =====================================================
+	   PAGINATION
+	===================================================== */
+
+	page, err := strconv.Atoi(
+		c.DefaultQuery(
+			"page",
+			"1",
+		),
+	)
+
 	if err != nil || page < 1 {
 		page = 1
 	}
 
-	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	limit, err := strconv.Atoi(
+		c.DefaultQuery(
+			"limit",
+			"10",
+		),
+	)
+
 	if err != nil || limit < 1 {
 		limit = 10
 	}
 
 	if limit > 1000 {
-	limit = 1000
-   }
+		limit = 1000
+	}
 
 	offset := (page - 1) * limit
 
+	/* =====================================================
+	   REQUEST FILTERS
+	===================================================== */
+
 	scope := strings.ToLower(
 		strings.TrimSpace(
-			c.DefaultQuery("scope", "all"),
+			c.DefaultQuery(
+				"scope",
+				"all",
+			),
 		),
 	)
 
 	status := strings.TrimSpace(
-		c.DefaultQuery("status", "all"),
+		c.DefaultQuery(
+			"status",
+			"all",
+		),
 	)
 
 	search := strings.TrimSpace(
-		c.Query("search"),
+		c.Query(
+			"search",
+		),
 	)
 
-	//date search
 	fromDate := strings.TrimSpace(
-	c.Query("from_date"),
-)
+		c.Query(
+			"from_date",
+		),
+	)
 
-toDate := strings.TrimSpace(
-	c.Query("to_date"),
-)
+	toDate := strings.TrimSpace(
+		c.Query(
+			"to_date",
+		),
+	)
 
-itPersonal := strings.TrimSpace(
-	c.Query("it_personal"),
-)
+	employeeID := strings.TrimSpace(
+		c.Query(
+			"employee_id",
+		),
+	)
+
+	itPersonal := strings.TrimSpace(
+		c.Query(
+			"it_personal",
+		),
+	)
+
+	/* =====================================================
+	   SQL FILTER BUILDER
+
+	   IMPORTANT:
+	   These must be declared BEFORE we append any filters.
+	===================================================== */
 
 	where := `
 		WHERE 1 = 1
 	`
 
-	args := make([]any, 0)
+	args := make(
+		[]any,
+		0,
+	)
+
 	argNumber := 1
 
-	/*
-		Legacy status:
+	/* =====================================================
+	   STATUS NORMALIZATION
 
-		0 = Closed
-		1 = Open
+	   Legacy:
+	   0 = Closed
+	   1 = Open
+	===================================================== */
 
-		The API intentionally normalizes all current statuses to
-		only Open or Closed for the Trouble Ticket dashboard.
-	*/
 	legacyStatusExpression := `
 		COALESCE(
 			ticket.source_status,
+
 			CASE
 				WHEN LOWER(
 					COALESCE(
@@ -885,19 +938,17 @@ itPersonal := strings.TrimSpace(
 						''
 					)
 				) = 'closed'
-				THEN 0
+					THEN 0
+
 				ELSE 1
 			END
 		)
 	`
 
-	/*
-		A ticket is considered to have a requisition when:
+	/* =====================================================
+	   REQUISITION EXISTS
+	===================================================== */
 
-		- legacy source_device_requisition says the requisition was raised,
-		- an approval row exists, including approved_val = 0 (Pending), or
-		- migrated dashboard requisition text already exists.
-	*/
 	hasRequisitionExpression := `
 		CASE
 			WHEN COALESCE(
@@ -924,16 +975,10 @@ itPersonal := strings.TrimSpace(
 		END
 	`
 
-	/*
-		Requisition display priority:
+	/* =====================================================
+	   REQUISITION DISPLAY
+	===================================================== */
 
-		approved_val = 1 -> Petty Cash (Approved)
-		approved_val = 3 -> PR (Approved)
-		approved_val = 2 -> Rejected
-
-		approved_val = 0 or NULL does not replace the raised state.
-		If source_device_requisition = 3, display Raised.
-	*/
 	requisitionDisplayExpression := `
 		CASE
 			WHEN reason.approved_val = 1
@@ -966,16 +1011,10 @@ itPersonal := strings.TrimSpace(
 		END
 	`
 
-	/*
-		Delivery display priority:
+	/* =====================================================
+	   DELIVERY DISPLAY
+	===================================================== */
 
-		delivered_val = 0 -> Pending
-		delivered_val = 1 -> Delivered
-		delivered_val = 2 -> Rejected
-
-		If no explicit delivery status exists but a requisition exists,
-		the delivery status defaults to Pending.
-	*/
 	deliveryDisplayExpression := `
 		CASE
 			WHEN reason.delivered_val = 1
@@ -1022,6 +1061,10 @@ itPersonal := strings.TrimSpace(
 		END
 	`
 
+	/* =====================================================
+	   COMMON JOIN
+	===================================================== */
+
 	reasonJoin := `
 		FROM public.v_trouble_ticket_dashboard AS dashboard
 
@@ -1040,32 +1083,43 @@ itPersonal := strings.TrimSpace(
 
 				OR (
 					tt_reason.trouble_ticket_id IS NULL
-					AND BTRIM(tt_reason.tt_no) =
-						BTRIM(ticket.tt_no::text)
+
+					AND BTRIM(
+						tt_reason.tt_no
+					) = BTRIM(
+						ticket.tt_no::text
+					)
 				)
 
 			ORDER BY
 				CASE
 					WHEN tt_reason.trouble_ticket_id = ticket.id
 						THEN 1
+
 					ELSE 0
 				END DESC,
 
 				tt_reason.created_at DESC NULLS LAST,
+
 				tt_reason.id DESC
 
 			LIMIT 1
-		) AS reason ON TRUE
+		) AS reason
+			ON TRUE
 	`
-/*
-	Scopr
-*/
+
+	/* =====================================================
+	   SCOPE FILTER
+	===================================================== */
 
 	switch scope {
-	case "", "all":
+	case "",
+		"all":
+
 		scope = "all"
 
 	case "opened_today":
+
 		where += `
 			AND (
 				ticket.created_at
@@ -1077,14 +1131,15 @@ itPersonal := strings.TrimSpace(
 		`
 
 	case "closed_today":
+
 		where += fmt.Sprintf(
 			`
 			AND (
 				ticket.closed_at
-					AT TIME ZONE 'Asia/Dhaka'
+				AT TIME ZONE 'Asia/Dhaka'
 			)::date = (
 				CURRENT_TIMESTAMP
-					AT TIME ZONE 'Asia/Dhaka'
+				AT TIME ZONE 'Asia/Dhaka'
 			)::date
 
 			AND (%s) = 0
@@ -1093,6 +1148,7 @@ itPersonal := strings.TrimSpace(
 		)
 
 	case "running":
+
 		where += fmt.Sprintf(
 			`
 			AND (%s) = 0
@@ -1103,6 +1159,7 @@ itPersonal := strings.TrimSpace(
 		)
 
 	case "procurement":
+
 		where += fmt.Sprintf(
 			`
 			AND (%s) = 1
@@ -1113,127 +1170,155 @@ itPersonal := strings.TrimSpace(
 		)
 
 	default:
+
 		response.BadRequest(
 			c,
 			"scope must be all, opened_today, closed_today, running, or procurement",
 		)
+
 		return
 	}
 
+	/* =====================================================
+	   FROM DATE
+	===================================================== */
 
-	/*
-	Date range filter.
+	if fromDate != "" {
+		where += fmt.Sprintf(
+			`
+			AND (
+				ticket.created_at
+				AT TIME ZONE 'Asia/Dhaka'
+			)::date >= $%d::date
+			`,
+			argNumber,
+		)
 
-	Legacy:
-	tbl_trouble_input.fault_date_time
+		args = append(
+			args,
+			fromDate,
+		)
 
-	PostgreSQL:
-	trouble_tickets.created_at
+		argNumber++
+	}
 
-	Date comparison is based on Asia/Dhaka.
-*/
-if fromDate != "" {
-	where += fmt.Sprintf(
-		`
-		AND (
-			ticket.created_at
-			AT TIME ZONE 'Asia/Dhaka'
-		)::date >= $%d::date
-		`,
-		argNumber,
-	)
+	/* =====================================================
+	   TO DATE
+	===================================================== */
 
-	args = append(
-		args,
-		fromDate,
-	)
+	if toDate != "" {
+		where += fmt.Sprintf(
+			`
+			AND (
+				ticket.created_at
+				AT TIME ZONE 'Asia/Dhaka'
+			)::date <= $%d::date
+			`,
+			argNumber,
+		)
 
-	argNumber++
-}
+		args = append(
+			args,
+			toDate,
+		)
 
-if toDate != "" {
-	where += fmt.Sprintf(
-		`
-		AND (
-			ticket.created_at
-			AT TIME ZONE 'Asia/Dhaka'
-		)::date <= $%d::date
-		`,
-		argNumber,
-	)
+		argNumber++
+	}
 
-	args = append(
-		args,
-		toDate,
-	)
+	/* =====================================================
+	   EMPLOYEE ID
 
-	argNumber++
-}
+	   This is the employee/requester of the TT.
+	===================================================== */
 
-
-/*
-	IT Personal / Responsible Person filter.
-
-	The frontend sends employee ID or assigned value
-	using:
-
-	?it_personal=...
-*/
-if itPersonal != "" {
-	where += fmt.Sprintf(
-		`
-		AND (
-			BTRIM(
+	if employeeID != "" {
+		where += fmt.Sprintf(
+			`
+			AND BTRIM(
 				COALESCE(
-					dashboard.assigned_id,
+					dashboard.employee_id,
 					''
 				)
 			) = $%d
+			`,
+			argNumber,
+		)
 
-			OR BTRIM(
+		args = append(
+			args,
+			employeeID,
+		)
+
+		argNumber++
+	}
+
+	/* =====================================================
+	   IT PERSONNEL
+
+	   Previous PHP:
+
+	   tbl_trouble_input.forward_logical_person
+
+	   Migrated field:
+
+	   dashboard.assigned_name
+
+	   Dropdown sends employee_id, e.g. 02-2181.
+	===================================================== */
+
+	if itPersonal != "" {
+		where += fmt.Sprintf(
+			`
+			AND BTRIM(
 				COALESCE(
 					dashboard.assigned_name,
 					''
 				)
 			) = $%d
+			`,
+			argNumber,
 		)
-		`,
-		argNumber,
-		argNumber,
-	)
 
-	args = append(
-		args,
-		itPersonal,
-	)
+		args = append(
+			args,
+			itPersonal,
+		)
 
-	argNumber++
-}
-	/*
-		The API returns only Open or Closed.
+		argNumber++
+	}
 
-		For backward compatibility:
-		Not Started and In Progress are treated as Open.
-	*/
+	/* =====================================================
+	   STATUS
+	===================================================== */
 
-	/*
-	Status filter
-    */
-	if status != "" && !strings.EqualFold(status, "all") {
+	if status != "" &&
+		!strings.EqualFold(
+			status,
+			"all",
+		) {
+
 		var normalizedStatus int
 
-		switch strings.ToLower(status) {
-		case "open", "not started", "in progress":
+		switch strings.ToLower(
+			status,
+		) {
+		case "open",
+			"not started",
+			"in progress":
+
 			normalizedStatus = 1
 
 		case "closed":
+
 			normalizedStatus = 0
 
 		default:
+
 			response.BadRequest(
 				c,
 				"status must be all, Open, or Closed",
 			)
+
 			return
 		}
 
@@ -1253,9 +1338,21 @@ if itPersonal != "" {
 		argNumber++
 	}
 
+	/* =====================================================
+	   GENERAL SEARCH
+	===================================================== */
+
 	if search != "" {
-		searchValue := "%" + search + "%"
-		searchPlaceholder := fmt.Sprintf("$%d", argNumber)
+		searchValue :=
+			"%" +
+				search +
+				"%"
+
+		searchPlaceholder :=
+			fmt.Sprintf(
+				"$%d",
+				argNumber,
+			)
 
 		where += fmt.Sprintf(
 			`
@@ -1319,8 +1416,10 @@ if itPersonal != "" {
 			searchPlaceholder,
 			searchPlaceholder,
 			searchPlaceholder,
+
 			requisitionDisplayExpression,
 			searchPlaceholder,
+
 			deliveryDisplayExpression,
 			searchPlaceholder,
 		)
@@ -1333,12 +1432,19 @@ if itPersonal != "" {
 		argNumber++
 	}
 
+	/* =====================================================
+	   TOTAL COUNT
+	===================================================== */
+
 	var total int
 
 	countQuery := fmt.Sprintf(
 		`
-		SELECT COUNT(*)
+		SELECT
+			COUNT(*)
+
 		%s
+
 		%s
 		`,
 		reasonJoin,
@@ -1349,28 +1455,57 @@ if itPersonal != "" {
 		ctx,
 		countQuery,
 		args...,
-	).Scan(&total); err != nil {
-		response.ServerError(c, err)
+	).Scan(
+		&total,
+	); err != nil {
+
+		response.ServerError(
+			c,
+			err,
+		)
+
 		return
 	}
 
+	/* =====================================================
+	   RESPONSE TYPE
+	===================================================== */
+
 	type TroubleTicketRow struct {
-		ID              int64  `json:"id"`
-		TTNo            string `json:"tt_no"`
-		EmployeeID      string `json:"employee_id"`
-		EmployeeName    string `json:"employee_name"`
-		AssignedID      string `json:"assigned_id"`
-		AssignedName    string `json:"assigned_name"`
-		QueryType       string `json:"query_type"`
+		ID int64 `json:"id"`
+
+		TTNo string `json:"tt_no"`
+
+		EmployeeID string `json:"employee_id"`
+
+		EmployeeName string `json:"employee_name"`
+
+		AssignedID string `json:"assigned_id"`
+
+		AssignedName string `json:"assigned_name"`
+
+		QueryType string `json:"query_type"`
+
 		RequisitionType string `json:"requisition_type"`
-		Status          string `json:"status"`
-		Department      string `json:"dept_name"`
-		FunctionName    string `json:"func_name"`
+
+		Status string `json:"status"`
+
+		Department string `json:"dept_name"`
+
+		FunctionName string `json:"func_name"`
+
 		DeliveredStatus string `json:"delivered_status"`
-		CreatedAt       string `json:"created_at"`
-		AgeSeconds      int64  `json:"age_seconds"`
-		MobileNo        string `json:"mobile_no"`
+
+		CreatedAt string `json:"created_at"`
+
+		AgeSeconds int64 `json:"age_seconds"`
+
+		MobileNo string `json:"mobile_no"`
 	}
+
+	/* =====================================================
+	   LIST QUERY
+	===================================================== */
 
 	listQuery := fmt.Sprintf(
 		`
@@ -1412,6 +1547,7 @@ if itPersonal != "" {
 			CASE
 				WHEN (%s) = 0
 					THEN 'Closed'
+
 				ELSE 'Open'
 			END AS status,
 
@@ -1480,11 +1616,19 @@ if itPersonal != "" {
 	)
 
 	if err != nil {
-		response.ServerError(c, err)
+		response.ServerError(
+			c,
+			err,
+		)
+
 		return
 	}
 
 	defer rows.Close()
+
+	/* =====================================================
+	   SCAN
+	===================================================== */
 
 	items := make(
 		[]TroubleTicketRow,
@@ -1512,7 +1656,12 @@ if itPersonal != "" {
 			&item.AgeSeconds,
 			&item.MobileNo,
 		); err != nil {
-			response.ServerError(c, err)
+
+			response.ServerError(
+				c,
+				err,
+			)
+
 			return
 		}
 
@@ -1523,9 +1672,17 @@ if itPersonal != "" {
 	}
 
 	if err := rows.Err(); err != nil {
-		response.ServerError(c, err)
+		response.ServerError(
+			c,
+			err,
+		)
+
 		return
 	}
+
+	/* =====================================================
+	   RESPONSE
+	===================================================== */
 
 	response.Paginated(
 		c,
@@ -2467,3 +2624,100 @@ func (h *ReportHandler) NonOperational(c *gin.Context) {
 }
 
 
+// Today from here
+
+// TroubleTicketITPersonnel returns active IT personnel
+// for the Trouble Ticket filter dropdown.
+//
+// Source:
+// employee_office_info
+// work_field = 'IT'
+// active = 'Yes'
+func (h *DashboardHandler) TroubleTicketITPersonnel(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	type Personnel struct {
+		EmployeeID   string `json:"employee_id"`
+		EmployeeName string `json:"employee_name"`
+	}
+
+	rows, err := h.db.Query(
+		ctx,
+		`
+		SELECT
+			BTRIM(
+				COALESCE(
+					employee_id,
+					''
+				)
+			) AS employee_id,
+
+			BTRIM(
+				COALESCE(
+					employee_name,
+					''
+				)
+			) AS employee_name
+
+		FROM public.employee_office_info
+
+		WHERE
+			BTRIM(
+				COALESCE(
+					work_field,
+					''
+				)
+			) = 'IT'
+
+			AND BTRIM(
+				COALESCE(
+					active,
+					''
+				)
+			) = 'Yes'
+
+		ORDER BY
+			employee_name,
+			employee_id
+		`,
+	)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	defer rows.Close()
+
+	items := make(
+		[]Personnel,
+		0,
+	)
+
+	for rows.Next() {
+		var item Personnel
+
+		if err := rows.Scan(
+			&item.EmployeeID,
+			&item.EmployeeName,
+		); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		items = append(
+			items,
+			item,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.OK(
+		c,
+		items,
+	)
+}

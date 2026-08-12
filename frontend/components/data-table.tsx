@@ -65,11 +65,20 @@ import {
 /* ======================================================
    TYPES
 ====================================================== */
-
 export type DataTableServerFilters = {
     fromDate: string;
     toDate: string;
+
+    employeeId: string;
+
+    status: string;
+
     itPersonal: string;
+};
+
+export type DataTableOption = {
+    value: string;
+    label: string;
 };
 
 interface DataTableProps<
@@ -87,20 +96,13 @@ interface DataTableProps<
 
     compact?: boolean;
 
-    /*
-     * When true, date filtering is handled by
-     * the backend/API instead of filtering the
-     * already loaded rows again in the browser.
-     */
     serverSideDateFilter?: boolean;
 
-    /*
-     * Used by Trouble Ticket table to send
-     * From Date / To Date / IT Personal back
-     * to the parent page.
-     */
+    itPersonalOptions?: DataTableOption[];
+
     onApplyServerFilters?: (
-        filters: DataTableServerFilters
+        filters:
+            DataTableServerFilters
     ) => void;
 }
 
@@ -318,6 +320,7 @@ export function DataTable<
     dateColumn = "date",
     compact = false,
     serverSideDateFilter = false,
+    itPersonalOptions = [],
     onApplyServerFilters,
 }: DataTableProps<
     TData,
@@ -651,10 +654,26 @@ export function DataTable<
         /*
          * Reset backend Trouble Ticket filters.
          */
+        const employeeId =
+            String(
+                employeeIdColumn
+                    ?.getFilterValue() ??
+                ""
+            ).trim();
+
+        const status =
+            String(
+                statusColumn
+                    ?.getFilterValue() ??
+                ""
+            ).trim();
+
         onApplyServerFilters?.({
-            fromDate: "",
-            toDate: "",
-            itPersonal: "",
+            fromDate,
+            toDate,
+            employeeId,
+            status,
+            itPersonal,
         });
 
         setFilterOpen(
@@ -1199,6 +1218,73 @@ export function DataTable<
 
 
 
+                                {/* IT Personnel */}
+
+                                {serverSideDateFilter && (
+                                    <div className="space-y-1">
+                                        <label
+                                            className={
+                                                filterLabelClass
+                                            }
+                                        >
+                                            IT Personnel
+                                        </label>
+
+                                        <select
+                                            value={
+                                                itPersonal
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                setItPersonal(
+                                                    event.target.value
+                                                )
+                                            }
+                                            className={`
+                w-full
+                rounded-md
+                border
+                border-input
+                bg-background
+                px-2
+                text-foreground
+                outline-none
+                focus:ring-2
+                focus:ring-primary/20
+
+                ${compact
+                                                    ? "h-7 text-[10px]"
+                                                    : "h-8 text-xs"
+                                                }
+            `}
+                                        >
+                                            <option value="">
+                                                All IT Personnel
+                                            </option>
+
+                                            {itPersonalOptions.map(
+                                                (
+                                                    person
+                                                ) => (
+                                                    <option
+                                                        key={
+                                                            person.value
+                                                        }
+                                                        value={
+                                                            person.value
+                                                        }
+                                                    >
+                                                        {
+                                                            person.label
+                                                        }
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+                                    </div>
+                                )}
+
 
 
                                 {/* Status */}
@@ -1213,29 +1299,51 @@ export function DataTable<
                                             Status
                                         </label>
 
-                                        <Input
-                                            placeholder="Open or Closed"
+                                        <select
                                             value={
                                                 (
                                                     statusColumn
                                                         .getFilterValue() as string
-                                                ) ??
-                                                ""
+                                                ) ?? ""
                                             }
                                             onChange={(
                                                 event
                                             ) =>
                                                 statusColumn
                                                     .setFilterValue(
-                                                        event
-                                                            .target
-                                                            .value
+                                                        event.target.value
                                                     )
                                             }
-                                            className={
-                                                filterInputClass
-                                            }
-                                        />
+                                            className={`
+                                                w-full
+                                                rounded-md
+                                                border
+                                                border-input
+                                                bg-background
+                                                px-2
+                                                text-foreground
+                                                outline-none
+                                                focus:ring-2
+                                                focus:ring-primary/20
+
+                                                ${compact
+                                                    ? "h-7 text-[10px]"
+                                                    : "h-8 text-xs"
+                                                }
+                                            `}
+                                        >
+                                            <option value="">
+                                                All Status
+                                            </option>
+
+                                            <option value="Open">
+                                                Open
+                                            </option>
+
+                                            <option value="Closed">
+                                                Closed
+                                            </option>
+                                        </select>
                                     </div>
                                 )}
 
@@ -1280,9 +1388,25 @@ export function DataTable<
                                                 0
                                             );
 
+                                            const employeeId =
+                                                String(
+                                                    employeeIdColumn
+                                                        ?.getFilterValue() ??
+                                                    ""
+                                                ).trim();
+
+                                            const status =
+                                                String(
+                                                    statusColumn
+                                                        ?.getFilterValue() ??
+                                                    ""
+                                                ).trim();
+
                                             onApplyServerFilters?.({
                                                 fromDate,
                                                 toDate,
+                                                employeeId,
+                                                status,
                                                 itPersonal,
                                             });
 
@@ -1550,11 +1674,11 @@ export function DataTable<
                                             );
 
                                             onApplyServerFilters?.({
-                                                fromDate:
-                                                    "",
-                                                toDate:
-                                                    "",
-                                                itPersonal,
+                                                fromDate: "",
+                                                toDate: "",
+                                                employeeId: "",
+                                                status: "",
+                                                itPersonal: "",
                                             });
                                         }}
                                     >

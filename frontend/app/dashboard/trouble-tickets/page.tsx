@@ -1,4 +1,4 @@
-//itm/frotend/app/dashboard/trouble-tickets/page.tsx
+// frontend/app/dashboard/trouble-tickets/page.tsx
 
 "use client";
 
@@ -38,8 +38,14 @@ import type {
 
 import {
     dashboardApi,
+    type TroubleTicketITPersonnel,
     type TroubleTicketScope,
+    type TroubleTicketStatus,
 } from "@/lib/api";
+
+/* ======================================================
+   VALID SCOPES
+====================================================== */
 
 const VALID_SCOPES:
     TroubleTicketScope[] = [
@@ -49,6 +55,10 @@ const VALID_SCOPES:
         "running",
         "procurement",
     ];
+
+/* ======================================================
+   SCOPE CONFIGURATION
+====================================================== */
 
 const SCOPE_CONFIG: Record<
     TroubleTicketScope,
@@ -130,10 +140,18 @@ const SCOPE_CONFIG: Record<
     },
 };
 
+/* ======================================================
+   SCOPE BUTTONS
+====================================================== */
+
 const SCOPE_OPTIONS: {
     scope: TroubleTicketScope;
     label: string;
 }[] = [
+        {
+            scope: "all",
+            label: "All",
+        },
         {
             scope: "opened_today",
             label: "Opened Today",
@@ -152,6 +170,25 @@ const SCOPE_OPTIONS: {
         },
     ];
 
+/* ======================================================
+   SERVER FILTER TYPE
+====================================================== */
+
+type TroubleTicketFilters = {
+    fromDate: string;
+    toDate: string;
+
+    employeeId: string;
+
+    status: string;
+
+    itPersonal: string;
+};
+
+/* ======================================================
+   PAGE CONTENT
+====================================================== */
+
 function TroubleTicketListContent() {
     const router =
         useRouter();
@@ -159,152 +196,416 @@ function TroubleTicketListContent() {
     const searchParams =
         useSearchParams();
 
+    /* ==================================================
+       RESOLVE CURRENT SCOPE
+    ================================================== */
+
     const rawScope =
-        searchParams.get("scope") ??
-        "all";
+        searchParams.get(
+            "scope"
+        ) ?? "all";
 
     const scope:
         TroubleTicketScope =
         VALID_SCOPES.includes(
             rawScope as TroubleTicketScope
         )
-            ? rawScope as TroubleTicketScope
+            ? (
+                rawScope as
+                TroubleTicketScope
+            )
             : "all";
 
     const config =
-        SCOPE_CONFIG[scope];
+        SCOPE_CONFIG[
+        scope
+        ];
+
+    /* ==================================================
+       TROUBLE TICKET STATE
+    ================================================== */
 
     const [
         rows,
         setRows,
-    ] = useState<Section[]>([]);
+    ] =
+        useState<
+            Section[]
+        >([]);
 
     const [
         total,
         setTotal,
-    ] = useState(0);
+    ] =
+        useState(
+            0
+        );
 
     const [
         loading,
         setLoading,
-    ] = useState(true);
+    ] =
+        useState(
+            true
+        );
 
     const [
         error,
         setError,
-    ] = useState("");
+    ] =
+        useState("");
+
+    /* ==================================================
+       COMBINED SERVER FILTERS
+    ================================================== */
 
     const [
         serverFilters,
         setServerFilters,
-    ] = useState({
-        fromDate: "",
-        toDate: "",
-        itPersonal: "",
-    });
+    ] =
+        useState<
+            TroubleTicketFilters
+        >({
+            fromDate: "",
+            toDate: "",
 
-    useEffect(() => {
-        let mounted = true;
+            employeeId: "",
 
-        async function loadTroubleTickets() {
-            try {
-                setLoading(true);
-                setError("");
+            status: "",
 
-                /*
-                 * The current totals are below 200:
-                 *
-                 * Running: 88
-                 * Procurement: 29
-                 *
-                 * Loading up to 200 allows the existing
-                 * DataTable to handle client-side pagination,
-                 * search, filters and column visibility.
-                 */
-                // const response =
-                //     await dashboardApi
-                //         .troubleTickets({
-                //             scope,
-                //             page: 1,
-                //             limit: 200,
-                //             status: "all",
-                //         });
+            itPersonal: "",
+        });
 
-                const response =
-                    await dashboardApi
-                        .troubleTickets({
-                            scope,
-                            page: 1,
-                            limit: 1000,
-                            status: "all",
+    /* ==================================================
+       IT PERSONNEL STATE
+    ================================================== */
 
-                            from_date:
-                                serverFilters.fromDate ||
-                                undefined,
+    const [
+        itPersonnel,
+        setItPersonnel,
+    ] =
+        useState<
+            TroubleTicketITPersonnel[]
+        >([]);
 
-                            to_date:
-                                serverFilters.toDate ||
-                                undefined,
+    const [
+        itPersonnelLoading,
+        setItPersonnelLoading,
+    ] =
+        useState(
+            true
+        );
 
-                            it_personal:
-                                serverFilters.itPersonal ||
-                                undefined,
-                        });
+    /* ==================================================
+       LOAD ACTIVE IT PERSONNEL
+    ================================================== */
 
-                if (!mounted) {
-                    return;
-                }
+    useEffect(
+        () => {
+            let mounted =
+                true;
 
-                const items =
-                    response.data ?? [];
+            async function loadITPersonnel() {
+                try {
+                    setItPersonnelLoading(
+                        true
+                    );
 
-                setRows(
-                    items.map(
-                        toSection
-                    )
-                );
+                    const response =
+                        await dashboardApi
+                            .troubleTicketITPersonnel();
 
-                setTotal(
-                    Number(
-                        response.total ??
-                        items.length
-                    )
-                );
-            } catch (
-            reason: unknown
-            ) {
-                if (!mounted) {
-                    return;
-                }
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
 
-                setRows([]);
-                setTotal(0);
+                    const people =
+                        response.data ??
+                        [];
 
-                setError(
-                    reason instanceof Error
-                        ? reason.message
-                        : "Unable to load Trouble Ticket records"
-                );
-            } finally {
-                if (mounted) {
-                    setLoading(false);
+                    /*
+                     * Remove invalid or duplicate
+                     * employee IDs before passing
+                     * them to the dropdown.
+                     */
+                    const uniquePeople =
+                        Array.from(
+                            new Map(
+                                people
+                                    .filter(
+                                        (
+                                            person
+                                        ) =>
+                                            Boolean(
+                                                person.employee_id
+                                                    ?.trim()
+                                            )
+                                    )
+                                    .map(
+                                        (
+                                            person
+                                        ) => [
+                                                person.employee_id
+                                                    .trim(),
+
+                                                {
+                                                    employee_id:
+                                                        person.employee_id
+                                                            .trim(),
+
+                                                    employee_name:
+                                                        person.employee_name
+                                                            ?.trim() ||
+                                                        person.employee_id
+                                                            .trim(),
+                                                },
+                                            ]
+                                    )
+                            ).values()
+                        );
+
+                    setItPersonnel(
+                        uniquePeople
+                    );
+                } catch (
+                reason:
+                    unknown
+                ) {
+                    console.error(
+                        "Unable to load IT Personnel:",
+                        reason
+                    );
+
+                    if (
+                        mounted
+                    ) {
+                        setItPersonnel(
+                            []
+                        );
+                    }
+                } finally {
+                    if (
+                        mounted
+                    ) {
+                        setItPersonnelLoading(
+                            false
+                        );
+                    }
                 }
             }
-        }
 
-        void loadTroubleTickets();
+            void loadITPersonnel();
 
-        return () => {
-            mounted = false;
-        };
-    }, [
-        scope,
-        serverFilters,
-    ]);
+            return () => {
+                mounted =
+                    false;
+            };
+        },
+        []
+    );
+
+    /* ==================================================
+       LOAD TROUBLE TICKETS
+    ================================================== */
+
+    useEffect(
+        () => {
+            let mounted =
+                true;
+
+            async function loadTroubleTickets() {
+                try {
+                    setLoading(
+                        true
+                    );
+
+                    setError(
+                        ""
+                    );
+
+                    /*
+                     * Status dropdown only sends:
+                     *
+                     * Open
+                     * Closed
+                     * empty = all
+                     */
+                    let status:
+                        TroubleTicketStatus |
+                        "all" =
+                        "all";
+
+                    if (
+                        serverFilters.status ===
+                        "Open"
+                    ) {
+                        status =
+                            "Open";
+                    }
+
+                    if (
+                        serverFilters.status ===
+                        "Closed"
+                    ) {
+                        status =
+                            "Closed";
+                    }
+
+                    /*
+                     * All filters are submitted together.
+                     *
+                     * PostgreSQL therefore evaluates:
+                     *
+                     * scope
+                     * AND date
+                     * AND employee
+                     * AND IT personnel
+                     * AND status
+                     */
+                    const response =
+                        await dashboardApi
+                            .troubleTickets({
+                                scope,
+
+                                page:
+                                    1,
+
+                                limit:
+                                    1000,
+
+                                status,
+
+                                from_date:
+                                    serverFilters.fromDate ||
+                                    undefined,
+
+                                to_date:
+                                    serverFilters.toDate ||
+                                    undefined,
+
+                                employee_id:
+                                    serverFilters.employeeId ||
+                                    undefined,
+
+                                it_personal:
+                                    serverFilters.itPersonal ||
+                                    undefined,
+                            });
+
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    const items =
+                        response.data ??
+                        [];
+
+                    setRows(
+                        items.map(
+                            toSection
+                        )
+                    );
+
+                    setTotal(
+                        Number(
+                            response.total ??
+                            items.length
+                        )
+                    );
+                } catch (
+                reason:
+                    unknown
+                ) {
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    setRows(
+                        []
+                    );
+
+                    setTotal(
+                        0
+                    );
+
+                    setError(
+                        reason instanceof
+                            Error
+                            ? reason.message
+                            : "Unable to load Trouble Ticket records"
+                    );
+                } finally {
+                    if (
+                        mounted
+                    ) {
+                        setLoading(
+                            false
+                        );
+                    }
+                }
+            }
+
+            void loadTroubleTickets();
+
+            return () => {
+                mounted =
+                    false;
+            };
+        },
+        [
+            scope,
+
+            serverFilters.fromDate,
+            serverFilters.toDate,
+
+            serverFilters.employeeId,
+
+            serverFilters.status,
+
+            serverFilters.itPersonal,
+        ]
+    );
+
+    /* ==================================================
+       IT PERSONNEL DROPDOWN OPTIONS
+    ================================================== */
+
+    const itPersonalOptions =
+        itPersonnel.map(
+            (
+                person
+            ) => ({
+                /*
+                 * Very important:
+                 *
+                 * Backend filters migrated
+                 * forward_logical_person using
+                 * employee ID.
+                 */
+                value:
+                    person.employee_id,
+
+                label:
+                    `${person.employee_name} (${person.employee_id})`,
+            })
+        );
+
+    /* ==================================================
+       RENDER
+    ================================================== */
 
     return (
         <div className="space-y-4 p-4">
-            {/* Page header */}
+            {/* ==========================================
+                PAGE HEADER
+            ========================================== */}
+
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                     <Button
@@ -325,29 +626,50 @@ function TroubleTicketListContent() {
 
                     <div>
                         <h1 className="text-base font-semibold text-foreground">
-                            {config.title}
+                            {
+                                config.title
+                            }
                         </h1>
 
                         <p className="mt-1 text-xs text-muted-foreground">
-                            {config.description}
+                            {
+                                config.description
+                            }
                         </p>
                     </div>
                 </div>
 
-                <div className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5">
-                    <span className="text-xs font-semibold text-primary">
-                        {total.toLocaleString()}{" "}
-                        {total === 1
-                            ? "Record"
-                            : "Records"}
-                    </span>
+                <div className="flex items-center gap-2">
+                    {itPersonnelLoading && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <LoaderCircle className="h-3 w-3 animate-spin" />
+
+                            Loading IT Personnel...
+                        </div>
+                    )}
+
+                    <div className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5">
+                        <span className="text-xs font-semibold text-primary">
+                            {total.toLocaleString()}{" "}
+
+                            {total ===
+                                1
+                                ? "Record"
+                                : "Records"}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            {/* Scope navigation */}
+            {/* ==========================================
+                SCOPE NAVIGATION
+            ========================================== */}
+
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
                 {SCOPE_OPTIONS.map(
-                    (option) => (
+                    (
+                        option
+                    ) => (
                         <button
                             key={
                                 option.scope
@@ -359,10 +681,14 @@ function TroubleTicketListContent() {
                                 )
                             }
                             className={`
-                                rounded-lg border
-                                px-3 py-2
-                                text-xs font-medium
+                                rounded-lg
+                                border
+                                px-3
+                                py-2
+                                text-xs
+                                font-medium
                                 transition-all
+
                                 ${scope ===
                                     option.scope
                                     ? "border-primary bg-primary text-primary-foreground shadow-sm"
@@ -378,7 +704,10 @@ function TroubleTicketListContent() {
                 )}
             </div>
 
-            {/* Table container */}
+            {/* ==========================================
+                TABLE CONTAINER
+            ========================================== */}
+
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 {loading ? (
                     <div className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-muted-foreground">
@@ -386,7 +715,9 @@ function TroubleTicketListContent() {
 
                         <p className="text-xs">
                             Loading{" "}
-                            {config.title}
+                            {
+                                config.title
+                            }
                             ...
                         </p>
                     </div>
@@ -400,37 +731,76 @@ function TroubleTicketListContent() {
                             </p>
 
                             <p className="mt-1 text-xs text-red-600">
-                                {error}
+                                {
+                                    error
+                                }
                             </p>
                         </div>
                     </div>
-                ) : rows.length === 0 ? (
-                    <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
-                        <p className="text-sm font-semibold text-foreground">
-                            {
-                                config.emptyTitle
-                            }
-                        </p>
-
-                        <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                            {
-                                config.emptyDescription
-                            }
-                        </p>
-                    </div>
                 ) : (
+                    /*
+                     * Important:
+                     *
+                     * DataTable remains visible even
+                     * when rows.length === 0.
+                     *
+                     * This lets the user Reset/Clear
+                     * filters after a combination returns
+                     * zero records.
+                     */
                     <DataTable
-                        key={scope}
-                        columns={columns}
-                        data={rows}
+                        key={
+                            scope
+                        }
+
+                        columns={
+                            columns
+                        }
+
+                        data={
+                            rows
+                        }
+
                         dateColumn="created_at"
+
                         compact
+
+                        serverSideDateFilter
+
+                        itPersonalOptions={
+                            itPersonalOptions
+                        }
+
+                        onApplyServerFilters={(
+                            filters
+                        ) => {
+                            setServerFilters({
+                                fromDate:
+                                    filters.fromDate,
+
+                                toDate:
+                                    filters.toDate,
+
+                                employeeId:
+                                    filters.employeeId,
+
+                                status:
+                                    filters.status,
+
+                                itPersonal:
+                                    filters.itPersonal,
+                            });
+                        }}
                     />
                 )}
             </div>
         </div>
     );
 }
+
+/* ======================================================
+   PAGE
+====================================================== */
 
 export default function TroubleTicketListPage() {
     return (
