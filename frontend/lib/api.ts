@@ -682,6 +682,53 @@ export const dashboardApi = {
             >(
                 "/dashboard/trouble-ticket-it-personnel"
             ),
+
+
+    requisitionDashboardSummary: () =>
+        api.get<
+            ApiOk<
+                RequisitionDashboardSummary
+            >
+        >(
+            "/dashboard/requisition-dashboard-summary"
+        ),
+
+    requisitionSummary: () =>
+        api.get<
+            ApiOk<
+                RequisitionCategorySummary[]
+            >
+        >(
+            "/dashboard/requisition-summary"
+        ),
+
+    requisitions: (params?: {
+        view?:
+        | "all"
+        | "pending"
+        | "rejected"
+        | "approved";
+
+        category?: string;
+
+        search?: string;
+
+        from_date?: string;
+        to_date?: string;
+
+        page?: number;
+        limit?: number;
+    }) =>
+        api.get<
+            ApiPage<
+                RequisitionItem
+            >
+        >(
+            `/dashboard/requisitions${toQuery(
+                params
+            )}`
+        ),
+
 };
 
 /* ======================================================
@@ -2490,3 +2537,56 @@ export const reportApi = {
 
 export const reportsApi =
     reportApi;
+
+
+
+export interface RequisitionDashboardSummary {
+    pending_categories: number;
+    approval_pending: number;
+    rejected: number;
+    approved: number;
+    total_active: number;
+}
+
+export interface RequisitionCategorySummary {
+    category: string;
+    pending_count: number;
+}
+
+export interface RequisitionItem {
+    id: number;
+
+    tt_no: string;
+
+    category: string;
+
+    employee_id: string;
+    employee_name: string;
+
+    reason_details: string;
+
+    created_by: string;
+    created_by_name: string;
+
+    created_at: string;
+
+    device_sl_no: string;
+
+    approved_val: number;
+    approval_status: string;
+
+    approved_by: string;
+    approved_by_name: string;
+    approved_date: string;
+
+    delivered_val: number;
+    delivery_status: string;
+
+    delivered_by: string;
+    delivered_by_name: string;
+    delivered_date: string;
+
+    device_assigned_val: number;
+    device_assigned_by: string;
+    device_assigned_date: string;
+}
