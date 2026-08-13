@@ -31,6 +31,7 @@ import {
 
 import {
     dashboardApi,
+    type RequisitionDashboardSummary,
     type TroubleTicketDashboardSummary,
     type TroubleTicketOverviewPoint,
     type TroubleTicketRange,
@@ -100,6 +101,17 @@ const TROUBLE_TICKET_ROUTES = {
         "/dashboard/trouble-tickets?scope=procurement",
 };
 
+const REQUISITION_ROUTES = {
+    summary:
+        "/dashboard/requisitions?view=summary",
+
+    pending:
+        "/dashboard/requisitions?view=pending",
+
+    rejected:
+        "/dashboard/requisitions?view=rejected",
+};
+
 const EMPTY_SUMMARY:
     TroubleTicketDashboardSummary = {
     opened_today: 0,
@@ -108,6 +120,14 @@ const EMPTY_SUMMARY:
     total_procurement_tt: 0,
 };
 
+const EMPTY_REQUISITION_SUMMARY:
+    RequisitionDashboardSummary = {
+    pending_categories: 0,
+    approval_pending: 0,
+    rejected: 0,
+    approved: 0,
+    total_active: 0,
+};
 const RANGE_OPTIONS: {
     key: TroubleTicketRange;
     label: string;
@@ -240,6 +260,24 @@ export default function OverviewChart() {
         useState<TroubleTicketDashboardSummary>(
             EMPTY_SUMMARY
         );
+
+    const [
+        requisitionSummary,
+        setRequisitionSummary,
+    ] =
+        useState<RequisitionDashboardSummary>(
+            EMPTY_REQUISITION_SUMMARY
+        );
+
+    const [
+        requisitionLoading,
+        setRequisitionLoading,
+    ] = useState(true);
+
+    const [
+        requisitionError,
+        setRequisitionError,
+    ] = useState("");
 
     const [
         trendSource,
@@ -422,6 +460,105 @@ export default function OverviewChart() {
             mounted = false;
         };
     }, [range]);
+
+
+    /* ---------------------------------------------------------------------- */
+    /* Load Requisition workflow summary                                      */
+    /* ---------------------------------------------------------------------- */
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadRequisitionSummary() {
+            try {
+                setRequisitionLoading(
+                    true
+                );
+
+                setRequisitionError("");
+
+                const response =
+                    await dashboardApi
+                        .requisitionDashboardSummary();
+
+                if (!mounted) {
+                    return;
+                }
+
+                setRequisitionSummary({
+                    pending_categories:
+                        Number(
+                            response
+                                .data
+                                ?.pending_categories ??
+                            0
+                        ),
+
+                    approval_pending:
+                        Number(
+                            response
+                                .data
+                                ?.approval_pending ??
+                            0
+                        ),
+
+                    rejected:
+                        Number(
+                            response
+                                .data
+                                ?.rejected ??
+                            0
+                        ),
+
+                    approved:
+                        Number(
+                            response
+                                .data
+                                ?.approved ??
+                            0
+                        ),
+
+                    total_active:
+                        Number(
+                            response
+                                .data
+                                ?.total_active ??
+                            0
+                        ),
+                });
+            } catch (
+            reason: unknown
+            ) {
+                if (!mounted) {
+                    return;
+                }
+
+                setRequisitionSummary(
+                    EMPTY_REQUISITION_SUMMARY
+                );
+
+                setRequisitionError(
+                    reason instanceof
+                        Error
+                        ? reason.message
+                        : "Unable to load Requisition summary"
+                );
+            } finally {
+                if (mounted) {
+                    setRequisitionLoading(
+                        false
+                    );
+                }
+            }
+        }
+
+        void loadRequisitionSummary();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
 
     /* ---------------------------------------------------------------------- */
     /* KPI and vertical bar data                                              */
@@ -1606,6 +1743,227 @@ export default function OverviewChart() {
                     )}
                 </div>
             )}
+
+
+
+            {/* ========================REQUISITION WORKFLOW============================ */}
+
+            <div className="mb-5">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h3 className="text-xs font-semibold text-foreground">
+                            Requisition Workflow
+                        </h3>
+
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                            IT accessories requisition approval status
+                        </p>
+                    </div>
+
+                    {!requisitionLoading &&
+                        !requisitionError && (
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">
+                                Live
+                            </span>
+                        )}
+                </div>
+
+                {requisitionError ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-xs text-red-700">
+                        <span className="font-semibold">
+                            Requisition summary unavailable:
+                        </span>{" "}
+                        {requisitionError}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        {/* Requisition Summary */}
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                router.push(
+                                    REQUISITION_ROUTES.summary
+                                )
+                            }
+                            className="
+                    group
+                    relative
+                    w-full
+                    rounded-xl
+                    border
+                    border-border
+                    border-t-2
+                    border-t-sky-500
+                    bg-sky-50/50
+                    px-3
+                    py-3
+                    text-left
+                    transition-all
+                    duration-200
+                    hover:-translate-y-0.5
+                    hover:shadow-md
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-sky-500/20
+                    dark:bg-sky-950/10
+                "
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Requisition Summary
+                                    </p>
+
+                                    <p className="mt-1 text-[9px] leading-3 text-muted-foreground/80">
+                                        Pending requisition categories
+                                    </p>
+                                </div>
+
+                                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500" />
+                            </div>
+
+                            <p className="mt-3 text-2xl font-bold tabular-nums text-sky-600 dark:text-sky-400">
+                                {requisitionLoading
+                                    ? "—"
+                                    : requisitionSummary
+                                        .pending_categories
+                                        .toLocaleString()}
+                            </p>
+
+                            <div className="mt-1 flex items-center justify-between gap-2">
+                                <p className="text-[9px] text-muted-foreground">
+                                    {requisitionLoading
+                                        ? "Loading..."
+                                        : `${requisitionSummary.approval_pending.toLocaleString()} pending requests`}
+                                </p>
+
+                                <span className="text-[9px] font-semibold text-sky-600 opacity-0 transition-opacity group-hover:opacity-100">
+                                    View →
+                                </span>
+                            </div>
+                        </button>
+
+                        {/* Approval Pending */}
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                router.push(
+                                    REQUISITION_ROUTES.pending
+                                )
+                            }
+                            className="
+                    group
+                    relative
+                    w-full
+                    rounded-xl
+                    border
+                    border-border
+                    border-t-2
+                    border-t-amber-500
+                    bg-amber-50/50
+                    px-3
+                    py-3
+                    text-left
+                    transition-all
+                    duration-200
+                    hover:-translate-y-0.5
+                    hover:shadow-md
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-amber-500/20
+                    dark:bg-amber-950/10
+                "
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Approval Pending
+                                    </p>
+
+                                    <p className="mt-1 text-[9px] leading-3 text-muted-foreground/80">
+                                        Requests waiting for approval
+                                    </p>
+                                </div>
+
+                                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" />
+                            </div>
+
+                            <p className="mt-3 text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
+                                {requisitionLoading
+                                    ? "—"
+                                    : requisitionSummary
+                                        .approval_pending
+                                        .toLocaleString()}
+                            </p>
+
+                            <p className="mt-1 text-[9px] font-semibold text-amber-600 opacity-0 transition-opacity group-hover:opacity-100">
+                                View pending requests →
+                            </p>
+                        </button>
+
+                        {/* Rejected */}
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                router.push(
+                                    REQUISITION_ROUTES.rejected
+                                )
+                            }
+                            className="
+                    group
+                    relative
+                    w-full
+                    rounded-xl
+                    border
+                    border-border
+                    border-t-2
+                    border-t-red-500
+                    bg-red-50/50
+                    px-3
+                    py-3
+                    text-left
+                    transition-all
+                    duration-200
+                    hover:-translate-y-0.5
+                    hover:shadow-md
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-red-500/20
+                    dark:bg-red-950/10
+                "
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Rejected
+                                    </p>
+
+                                    <p className="mt-1 text-[9px] leading-3 text-muted-foreground/80">
+                                        Rejected requisition requests
+                                    </p>
+                                </div>
+
+                                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
+                            </div>
+
+                            <p className="mt-3 text-2xl font-bold tabular-nums text-red-600 dark:text-red-400">
+                                {requisitionLoading
+                                    ? "—"
+                                    : requisitionSummary
+                                        .rejected
+                                        .toLocaleString()}
+                            </p>
+
+                            <p className="mt-1 text-[9px] font-semibold text-red-600 opacity-0 transition-opacity group-hover:opacity-100">
+                                View rejected requests →
+                            </p>
+                        </button>
+                    </div>
+                )}
+            </div>
 
             {/* Chart section */}
             <div className="rounded-xl border border-border bg-muted/10 p-3">

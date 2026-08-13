@@ -527,7 +527,7 @@ export const columns:
                 "employee_name",
 
             header:
-                "Employee",
+                "Emp Name",
 
             size: 125,
 

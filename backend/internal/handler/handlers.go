@@ -1,4 +1,3 @@
-
 // backend/internal/handler/handlers.go
 package handler
 
@@ -166,9 +165,26 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	)
 
 	g.GET(
-	"/trouble-ticket-it-personnel",
-	h.TroubleTicketITPersonnel,
-)
+		"/trouble-ticket-it-personnel",
+		h.TroubleTicketITPersonnel,
+	)
+
+	//Add three routes for requisition
+
+	g.GET(
+		"/requisition-dashboard-summary",
+		h.RequisitionDashboardSummary,
+	)
+
+	g.GET(
+		"/requisition-summary",
+		h.RequisitionSummary,
+	)
+
+	g.GET(
+		"/requisitions",
+		h.RequisitionList,
+	)
 }
 
 func (h *DashboardHandler) Stats(c *gin.Context) {
@@ -2623,7 +2639,6 @@ func (h *ReportHandler) NonOperational(c *gin.Context) {
 	response.OK(c, res)
 }
 
-
 // Today from here
 
 // TroubleTicketITPersonnel returns active IT personnel
@@ -2719,5 +2734,1080 @@ func (h *DashboardHandler) TroubleTicketITPersonnel(c *gin.Context) {
 	response.OK(
 		c,
 		items,
+	)
+}
+
+// RequisitionDashboardSummary returns KPI values for the
+// Requisition Workflow section on the dashboard.
+//
+// Approval mapping:
+//
+//	approved_val NULL / 0 = Approval Pending
+//	approved_val 1        = Petty Cash Approved
+//	approved_val 2        = Rejected
+//	approved_val 3        = PR Approved
+//
+// status = 1 means the requisition row is active.
+func (
+	h *DashboardHandler,
+) RequisitionDashboardSummary(
+	c *gin.Context,
+) {
+	ctx := c.Request.Context()
+
+	type Summary struct {
+		PendingCategories int64 `json:"pending_categories"`
+
+		ApprovalPending int64 `json:"approval_pending"`
+
+		Rejected int64 `json:"rejected"`
+
+		Approved int64 `json:"approved"`
+
+		TotalActive int64 `json:"total_active"`
+	}
+
+	const query = `
+		SELECT
+			/*
+				Number of different categories that currently
+				have at least one approval-pending requisition.
+			*/
+			COUNT(
+				DISTINCT
+				COALESCE(
+					NULLIF(
+						BTRIM(category),
+						''
+					),
+					'Uncategorized'
+				)
+			) FILTER (
+				WHERE
+					COALESCE(
+						approved_val,
+						0
+					) = 0
+			)::bigint
+				AS pending_categories,
+
+			/*
+				Individual requisitions waiting for approval.
+			*/
+			COUNT(*) FILTER (
+				WHERE
+					COALESCE(
+						approved_val,
+						0
+					) = 0
+			)::bigint
+				AS approval_pending,
+
+			/*
+				Rejected requisitions.
+			*/
+			COUNT(*) FILTER (
+				WHERE
+					approved_val = 2
+			)::bigint
+				AS rejected,
+
+			/*
+				Petty Cash + PR approved.
+			*/
+			COUNT(*) FILTER (
+				WHERE
+					approved_val IN (
+						1,
+						3
+					)
+			)::bigint
+				AS approved,
+
+			/*
+				All active requisition records.
+			*/
+			COUNT(*)::bigint
+				AS total_active
+
+		FROM public.tt_reasons
+
+		WHERE
+			COALESCE(
+				status,
+				1
+			) = 1
+	`
+
+	var result Summary
+
+	if err := h.db.QueryRow(
+		ctx,
+		query,
+	).Scan(
+		&result.PendingCategories,
+		&result.ApprovalPending,
+		&result.Rejected,
+		&result.Approved,
+		&result.TotalActive,
+	); err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+		return
+	}
+
+	response.OK(
+		c,
+		result,
+	)
+}
+
+// RequisitionSummary returns category-wise pending
+// requisition totals.
+//
+// Example:
+//
+//	Mouse          8
+//	RAM-Laptop     3
+//	Laptop Battery 1
+//
+// Only active requisitions waiting for approval are included.
+func (
+	h *DashboardHandler,
+) RequisitionSummary(
+	c *gin.Context,
+) {
+	ctx := c.Request.Context()
+
+	type Item struct {
+		Category string `json:"category"`
+
+		PendingCount int64 `json:"pending_count"`
+	}
+
+	const query = `
+		SELECT
+			COALESCE(
+				NULLIF(
+					BTRIM(category),
+					''
+				),
+				'Uncategorized'
+			) AS category,
+
+			COUNT(*)::bigint
+				AS pending_count
+
+		FROM public.tt_reasons
+
+		WHERE
+			/*
+				Only active requisition rows.
+			*/
+			COALESCE(
+				status,
+				1
+			) = 1
+
+			AND
+
+			/*
+				NULL and 0 both mean Approval Pending.
+			*/
+			COALESCE(
+				approved_val,
+				0
+			) = 0
+
+		GROUP BY
+			COALESCE(
+				NULLIF(
+					BTRIM(category),
+					''
+				),
+				'Uncategorized'
+			)
+
+		ORDER BY
+			pending_count DESC,
+
+			category ASC
+	`
+
+	rows, err := h.db.Query(
+		ctx,
+		query,
+	)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+		return
+	}
+
+	defer rows.Close()
+
+	items := make(
+		[]Item,
+		0,
+	)
+
+	for rows.Next() {
+		var item Item
+
+		if err := rows.Scan(
+			&item.Category,
+			&item.PendingCount,
+		); err != nil {
+			response.ServerError(
+				c,
+				err,
+			)
+			return
+		}
+
+		items = append(
+			items,
+			item,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+		return
+	}
+
+	response.OK(
+		c,
+		items,
+	)
+}
+
+// RequisitionList returns detailed IT accessory requisition records.
+//
+// Supported views:
+//
+//	all
+//	pending
+//	rejected
+//	approved
+//
+// Supported filters:
+//
+//	search
+//	category
+//	from_date
+//	to_date
+//
+// Pagination:
+//
+//	page
+//	limit
+func (
+	h *DashboardHandler,
+) RequisitionList(
+	c *gin.Context,
+) {
+	ctx := c.Request.Context()
+
+	/* =====================================================
+	   PAGINATION
+	===================================================== */
+
+	page, err := strconv.Atoi(
+		c.DefaultQuery(
+			"page",
+			"1",
+		),
+	)
+
+	if err != nil ||
+		page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(
+		c.DefaultQuery(
+			"limit",
+			"10",
+		),
+	)
+
+	if err != nil ||
+		limit < 1 {
+		limit = 10
+	}
+
+	/*
+		Prevent accidental huge responses.
+	*/
+	if limit > 200 {
+		limit = 200
+	}
+
+	offset :=
+		(page - 1) *
+			limit
+
+	/* =====================================================
+	   REQUEST PARAMETERS
+	===================================================== */
+
+	view := strings.ToLower(
+		strings.TrimSpace(
+			c.DefaultQuery(
+				"view",
+				"pending",
+			),
+		),
+	)
+
+	search := strings.TrimSpace(
+		c.Query(
+			"search",
+		),
+	)
+
+	category := strings.TrimSpace(
+		c.Query(
+			"category",
+		),
+	)
+
+	fromDate := strings.TrimSpace(
+		c.Query(
+			"from_date",
+		),
+	)
+
+	toDate := strings.TrimSpace(
+		c.Query(
+			"to_date",
+		),
+	)
+
+	/* =====================================================
+	   BASE WHERE
+	===================================================== */
+
+	where := `
+		WHERE
+			COALESCE(
+				reason.status,
+				1
+			) = 1
+	`
+
+	args := make(
+		[]any,
+		0,
+	)
+
+	argNumber := 1
+
+	/* =====================================================
+	   VIEW FILTER
+
+	   approved_val:
+	   NULL / 0 = Pending
+	   1        = Petty Cash
+	   2        = Rejected
+	   3        = PR
+	===================================================== */
+
+	switch view {
+	case "",
+		"all":
+
+		view = "all"
+
+	case "pending":
+
+		where += `
+			AND COALESCE(
+				reason.approved_val,
+				0
+			) = 0
+		`
+
+	case "rejected":
+
+		where += `
+			AND reason.approved_val = 2
+		`
+
+	case "approved":
+
+		where += `
+			AND reason.approved_val IN (
+				1,
+				3
+			)
+		`
+
+	default:
+
+		response.BadRequest(
+			c,
+			"view must be all, pending, rejected, or approved",
+		)
+
+		return
+	}
+
+	/* =====================================================
+	   CATEGORY FILTER
+	===================================================== */
+
+	if category != "" {
+		where += fmt.Sprintf(
+			`
+			AND BTRIM(
+				COALESCE(
+					reason.category,
+					''
+				)
+			) = $%d
+			`,
+			argNumber,
+		)
+
+		args = append(
+			args,
+			category,
+		)
+
+		argNumber++
+	}
+
+	/* =====================================================
+	   FROM DATE
+
+	   tt_reasons.created_at is timestamp without time zone
+	   imported from the legacy system.
+
+	   For this dataset direct ::date comparison preserves
+	   the legacy calendar date.
+	===================================================== */
+
+	if fromDate != "" {
+		where += fmt.Sprintf(
+			`
+			AND reason.created_at::date
+				>= $%d::date
+			`,
+			argNumber,
+		)
+
+		args = append(
+			args,
+			fromDate,
+		)
+
+		argNumber++
+	}
+
+	/* =====================================================
+	   TO DATE
+	===================================================== */
+
+	if toDate != "" {
+		where += fmt.Sprintf(
+			`
+			AND reason.created_at::date
+				<= $%d::date
+			`,
+			argNumber,
+		)
+
+		args = append(
+			args,
+			toDate,
+		)
+
+		argNumber++
+	}
+
+	/* =====================================================
+	   SEARCH
+
+	   Searches:
+	   - TT No
+	   - requester employee ID/name
+	   - raised-by ID/name
+	   - category
+	   - reason
+	   - device serial
+	   - approved-by
+	   - delivered-by
+	===================================================== */
+
+	if search != "" {
+		searchPlaceholder :=
+			fmt.Sprintf(
+				"$%d",
+				argNumber,
+			)
+
+		where += fmt.Sprintf(
+			`
+			AND (
+				COALESCE(
+					reason.tt_no,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					reason.employee_id,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					requester.employee_name,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					reason.created_by,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					raised_by_employee.employee_name,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					reason.category,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					reason.reason_details,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					reason.device_sl_no,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					reason.approved_by,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					approved_by_employee.employee_name,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					reason.delivered_by,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
+					delivered_by_employee.employee_name,
+					''
+				) ILIKE %s
+			)
+			`,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+			searchPlaceholder,
+		)
+
+		args = append(
+			args,
+			"%"+search+"%",
+		)
+
+		argNumber++
+	}
+
+	/* =====================================================
+	   COMMON FROM / JOIN
+	===================================================== */
+
+	fromJoin := `
+		FROM public.tt_reasons
+			AS reason
+
+		/*
+			User for whom the accessory is requested.
+		*/
+		LEFT JOIN public.employee_office_info
+			AS requester
+			ON BTRIM(
+				requester.employee_id
+			) =
+			BTRIM(
+				COALESCE(
+					reason.employee_id,
+					''
+				)
+			)
+
+		/*
+			Person who raised the requisition.
+		*/
+		LEFT JOIN public.employee_office_info
+			AS raised_by_employee
+			ON BTRIM(
+				raised_by_employee.employee_id
+			) =
+			BTRIM(
+				COALESCE(
+					reason.created_by,
+					''
+				)
+			)
+
+		/*
+			Person who approved/rejected the request.
+		*/
+		LEFT JOIN public.employee_office_info
+			AS approved_by_employee
+			ON BTRIM(
+				approved_by_employee.employee_id
+			) =
+			BTRIM(
+				COALESCE(
+					reason.approved_by,
+					''
+				)
+			)
+
+		/*
+			Person who delivered the accessory.
+		*/
+		LEFT JOIN public.employee_office_info
+			AS delivered_by_employee
+			ON BTRIM(
+				delivered_by_employee.employee_id
+			) =
+			BTRIM(
+				COALESCE(
+					reason.delivered_by,
+					''
+				)
+			)
+	`
+	/* =====================================================
+	   TOTAL RECORD COUNT
+
+	   Counts unique requisition records after applying:
+	   - view filter
+	   - category filter
+	   - date filters
+	   - search filter
+
+	   COUNT(DISTINCT reason.id) is intentionally kept here.
+	   It prevents duplicate requisition totals if any of the
+	   employee lookup joins produce more than one matching row.
+	===================================================== */
+
+	var total int
+
+	countQuery := fmt.Sprintf(
+		`
+	SELECT
+		COUNT(
+			DISTINCT reason.id
+		)::int AS total
+
+	%s
+
+	%s
+	`,
+		fromJoin,
+		where,
+	)
+
+	if err := h.db.QueryRow(
+		ctx,
+		countQuery,
+		args...,
+	).Scan(
+		&total,
+	); err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+	/* =====================================================
+	   RESPONSE STRUCTURE
+	===================================================== */
+
+	type RequisitionItem struct {
+		ID int64 `json:"id"`
+
+		TTNo string `json:"tt_no"`
+
+		Category string `json:"category"`
+
+		EmployeeID string `json:"employee_id"`
+
+		EmployeeName string `json:"employee_name"`
+
+		ReasonDetails string `json:"reason_details"`
+
+		CreatedBy string `json:"created_by"`
+
+		CreatedByName string `json:"created_by_name"`
+
+		CreatedAt string `json:"created_at"`
+
+		DeviceSerial string `json:"device_sl_no"`
+
+		ApprovedVal int `json:"approved_val"`
+
+		ApprovalStatus string `json:"approval_status"`
+
+		ApprovedBy string `json:"approved_by"`
+
+		ApprovedByName string `json:"approved_by_name"`
+
+		ApprovedDate string `json:"approved_date"`
+
+		DeliveredVal int `json:"delivered_val"`
+
+		DeliveryStatus string `json:"delivery_status"`
+
+		DeliveredBy string `json:"delivered_by"`
+
+		DeliveredByName string `json:"delivered_by_name"`
+
+		DeliveredDate string `json:"delivered_date"`
+
+		DeviceAssignedVal int `json:"device_assigned_val"`
+
+		DeviceAssignedBy string `json:"device_assigned_by"`
+
+		DeviceAssignedDate string `json:"device_assigned_date"`
+	}
+
+	/* =====================================================
+	   LIST QUERY
+	===================================================== */
+
+	listQuery :=
+		fmt.Sprintf(
+			`
+			SELECT 
+				reason.id,
+
+				COALESCE(
+					reason.tt_no,
+					''
+				) AS tt_no,
+
+				COALESCE(
+					NULLIF(
+						BTRIM(
+							reason.category
+						),
+						''
+					),
+					'Uncategorized'
+				) AS category,
+
+				COALESCE(
+					reason.employee_id,
+					''
+				) AS employee_id,
+
+				COALESCE(
+					requester.employee_name,
+					''
+				) AS employee_name,
+
+				COALESCE(
+					reason.reason_details,
+					''
+				) AS reason_details,
+
+				COALESCE(
+					reason.created_by,
+					''
+				) AS created_by,
+
+				COALESCE(
+					raised_by_employee.employee_name,
+					''
+				) AS created_by_name,
+
+				COALESCE(
+					reason.created_at::text,
+					''
+				) AS created_at,
+
+				COALESCE(
+					reason.device_sl_no,
+					''
+				) AS device_sl_no,
+
+				/*
+					Null and zero are returned as zero.
+				*/
+				COALESCE(
+					reason.approved_val,
+					0
+				)::int AS approved_val,
+
+				CASE
+					WHEN COALESCE(
+						reason.approved_val,
+						0
+					) = 0
+						THEN 'Approval Pending'
+
+					WHEN reason.approved_val = 1
+						THEN 'Petty Cash (Approved)'
+
+					WHEN reason.approved_val = 2
+						THEN 'Rejected'
+
+					WHEN reason.approved_val = 3
+						THEN 'PR (Approved)'
+
+					ELSE 'Unknown'
+				END AS approval_status,
+
+				COALESCE(
+					reason.approved_by,
+					''
+				) AS approved_by,
+
+				COALESCE(
+					approved_by_employee.employee_name,
+					''
+				) AS approved_by_name,
+
+				COALESCE(
+					reason.approved_date::text,
+					''
+				) AS approved_date,
+
+				COALESCE(
+					reason.delivered_val,
+					0
+				)::int AS delivered_val,
+
+				CASE
+					WHEN reason.delivered_val = 1
+						THEN 'Delivered'
+
+					WHEN reason.delivered_val = 2
+						THEN 'Rejected'
+
+					WHEN reason.delivered_val = 0
+						THEN 'Pending'
+
+					/*
+						If not yet delivered but the requisition
+						is active, present it as Pending.
+					*/
+					WHEN reason.delivered_val IS NULL
+						THEN 'Pending'
+
+					ELSE ''
+				END AS delivery_status,
+
+				COALESCE(
+					reason.delivered_by,
+					''
+				) AS delivered_by,
+
+				COALESCE(
+					delivered_by_employee.employee_name,
+					''
+				) AS delivered_by_name,
+
+				COALESCE(
+					reason.delivered_date::text,
+					''
+				) AS delivered_date,
+
+				COALESCE(
+					reason.dev_assigned_val,
+					0
+				)::int AS device_assigned_val,
+
+				COALESCE(
+					reason.dev_assinged_by,
+					''
+				) AS device_assigned_by,
+
+				COALESCE(
+					reason.dev_assigned_date::text,
+					''
+				) AS device_assigned_date
+
+			%s
+
+			%s
+
+			ORDER BY
+				reason.created_at DESC NULLS LAST,
+
+				reason.id DESC
+
+			LIMIT $%d
+
+			OFFSET $%d
+			`,
+			fromJoin,
+			where,
+			argNumber,
+			argNumber+1,
+		)
+
+	listArgs := make(
+		[]any,
+		0,
+		len(args)+2,
+	)
+
+	listArgs = append(
+		listArgs,
+		args...,
+	)
+
+	listArgs = append(
+		listArgs,
+		limit,
+		offset,
+	)
+
+	rows, err := h.db.Query(
+		ctx,
+		listQuery,
+		listArgs...,
+	)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+		return
+	}
+
+	defer rows.Close()
+
+	/* =====================================================
+	   SCAN RESULTS
+	===================================================== */
+
+	items := make(
+		[]RequisitionItem,
+		0,
+		limit,
+	)
+
+	for rows.Next() {
+		var item RequisitionItem
+
+		if err := rows.Scan(
+			&item.ID,
+
+			&item.TTNo,
+
+			&item.Category,
+
+			&item.EmployeeID,
+
+			&item.EmployeeName,
+
+			&item.ReasonDetails,
+
+			&item.CreatedBy,
+
+			&item.CreatedByName,
+
+			&item.CreatedAt,
+
+			&item.DeviceSerial,
+
+			&item.ApprovedVal,
+
+			&item.ApprovalStatus,
+
+			&item.ApprovedBy,
+
+			&item.ApprovedByName,
+
+			&item.ApprovedDate,
+
+			&item.DeliveredVal,
+
+			&item.DeliveryStatus,
+
+			&item.DeliveredBy,
+
+			&item.DeliveredByName,
+
+			&item.DeliveredDate,
+
+			&item.DeviceAssignedVal,
+
+			&item.DeviceAssignedBy,
+
+			&item.DeviceAssignedDate,
+		); err != nil {
+
+			response.ServerError(
+				c,
+				err,
+			)
+
+			return
+		}
+
+		items = append(
+			items,
+			item,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+		return
+	}
+
+	/* =====================================================
+	   RESPONSE
+	===================================================== */
+
+	response.Paginated(
+		c,
+		items,
+		total,
+		page,
+		limit,
 	)
 }
