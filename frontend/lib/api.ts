@@ -684,6 +684,56 @@ export const dashboardApi = {
             ),
 
 
+    // requisitionDashboardSummary: () =>
+    //     api.get<
+    //         ApiOk<
+    //             RequisitionDashboardSummary
+    //         >
+    //     >(
+    //         "/dashboard/requisition-dashboard-summary"
+    //     ),
+
+    // requisitionSummary: () =>
+    //     api.get<
+    //         ApiOk<
+    //             RequisitionCategorySummary[]
+    //         >
+    //     >(
+    //         "/dashboard/requisition-summary"
+    //     ),
+
+    // requisitions: (params?: {
+    //     view?:
+    //     | "all"
+    //     | "pending"
+    //     | "rejected"
+    //     | "approved";
+
+    //     category?: string;
+
+    //     search?: string;
+
+    //     from_date?: string;
+    //     to_date?: string;
+
+    //     page?: number;
+    //     limit?: number;
+    // }) =>
+    //     api.get<
+    //         ApiPage<
+    //             RequisitionItem
+    //         >
+    //     >(
+    //         `/dashboard/requisitions${toQuery(
+    //             params
+    //         )}`
+    //     ),
+
+
+    /* ======================================================
+   REQUISITION
+====================================================== */
+
     requisitionDashboardSummary: () =>
         api.get<
             ApiOk<
@@ -702,23 +752,27 @@ export const dashboardApi = {
             "/dashboard/requisition-summary"
         ),
 
-    requisitions: (params?: {
-        view?:
-        | "all"
-        | "pending"
-        | "rejected"
-        | "approved";
+    requisitions: (
+        params?: {
+            view?:
+            | "all"
+            | "pending"
+            | "rejected"
+            | "approved";
 
-        category?: string;
+            category?: string;
 
-        search?: string;
+            search?: string;
 
-        from_date?: string;
-        to_date?: string;
+            from_date?: string;
 
-        page?: number;
-        limit?: number;
-    }) =>
+            to_date?: string;
+
+            page?: number;
+
+            limit?: number;
+        }
+    ) =>
         api.get<
             ApiPage<
                 RequisitionItem
@@ -727,6 +781,54 @@ export const dashboardApi = {
             `/dashboard/requisitions${toQuery(
                 params
             )}`
+        ),
+
+    updateRequisitionApproval: (
+        id: number,
+        approvedVal: number
+    ) =>
+        api.patch<
+            ApiOk<{
+                id: number;
+
+                approved_val: number;
+
+                approval_status: string;
+
+                approved_by: string;
+
+                approved_date: string;
+            }>
+        >(
+            `/dashboard/requisitions/${id}/approval`,
+            {
+                approved_val:
+                    approvedVal,
+            }
+        ),
+
+    updateRequisitionDelivery: (
+        id: number,
+        deliveredVal: number
+    ) =>
+        api.patch<
+            ApiOk<{
+                id: number;
+
+                delivered_val: number;
+
+                delivery_status: string;
+
+                delivered_by: string;
+
+                delivered_date: string;
+            }>
+        >(
+            `/dashboard/requisitions/${id}/delivery`,
+            {
+                delivered_val:
+                    deliveredVal,
+            }
         ),
 
 };
