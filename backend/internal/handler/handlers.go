@@ -169,7 +169,9 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 		h.TroubleTicketITPersonnel,
 	)
 
-	//Add three routes for requisition
+	/* ==================================================
+	   REQUISITION
+	================================================== */
 
 	g.GET(
 		"/requisition-dashboard-summary",
@@ -184,6 +186,16 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	g.GET(
 		"/requisitions",
 		h.RequisitionList,
+	)
+
+	g.PATCH(
+		"/requisitions/:id/approval",
+		h.UpdateRequisitionApproval,
+	)
+
+	g.PATCH(
+		"/requisitions/:id/delivery",
+		h.UpdateRequisitionDelivery,
 	)
 }
 
@@ -3809,5 +3821,411 @@ func (
 		total,
 		page,
 		limit,
+	)
+}
+
+
+
+// UpdateRequisitionApproval updates the approval workflow
+// for an IT Accessories / TT Reason requisition.
+//
+// approved_val:
+//
+//	0 = Approval Pending
+//	1 = Petty Cash (Approved)
+//	2 = Rejected
+//	3 = PR (Approved)
+func (
+	h *DashboardHandler,
+) UpdateRequisitionApproval(
+	c *gin.Context,
+) {
+	ctx := c.Request.Context()
+
+	requisitionID, err := strconv.ParseInt(
+		strings.TrimSpace(
+			c.Param("id"),
+		),
+		10,
+		64,
+	)
+
+	if err != nil ||
+		requisitionID <= 0 {
+
+		response.BadRequest(
+			c,
+			"invalid requisition id",
+		)
+
+		return
+	}
+
+	type Request struct {
+		ApprovedVal int `json:"approved_val"`
+	}
+
+	var req Request
+
+	if err := c.ShouldBindJSON(
+		&req,
+	); err != nil {
+
+		response.BadRequest(
+			c,
+			err.Error(),
+		)
+
+		return
+	}
+
+	switch req.ApprovedVal {
+	case 0, 1, 2, 3:
+		// valid
+
+	default:
+		response.BadRequest(
+			c,
+			"approved_val must be 0, 1, 2, or 3",
+		)
+
+		return
+	}
+
+	employeeID := strings.TrimSpace(
+		c.GetString(
+			"employee_id",
+		),
+	)
+
+	if employeeID == "" {
+		response.BadRequest(
+			c,
+			"authenticated employee id not found",
+		)
+
+		return
+	}
+
+	type Result struct {
+		ID int64 `json:"id"`
+
+		ApprovedVal int `json:"approved_val"`
+
+		ApprovalStatus string `json:"approval_status"`
+
+		ApprovedBy string `json:"approved_by"`
+
+		ApprovedDate string `json:"approved_date"`
+	}
+
+	var result Result
+
+	err = h.db.QueryRow(
+		ctx,
+		`
+		UPDATE public.tt_reasons
+
+		SET
+			approved_val = $1,
+
+			approved_by =
+				CASE
+					WHEN $1 = 0
+						THEN NULL
+					ELSE $2
+				END,
+
+			approved_date =
+				CASE
+					WHEN $1 = 0
+						THEN NULL
+					ELSE (
+						CURRENT_TIMESTAMP
+						AT TIME ZONE 'Asia/Dhaka'
+					)
+				END,
+
+			edited_by = $2,
+
+			edited_at =
+				CURRENT_TIMESTAMP
+				AT TIME ZONE 'Asia/Dhaka'
+
+		WHERE
+			id = $3
+
+			AND COALESCE(
+				status,
+				1
+			) = 1
+
+		RETURNING
+			id,
+
+			COALESCE(
+				approved_val,
+				0
+			)::int,
+
+			COALESCE(
+				approved_by,
+				''
+			),
+
+			COALESCE(
+				approved_date::text,
+				''
+			)
+		`,
+		req.ApprovedVal,
+		employeeID,
+		requisitionID,
+	).Scan(
+		&result.ID,
+		&result.ApprovedVal,
+		&result.ApprovedBy,
+		&result.ApprovedDate,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			response.NotFound(
+				c,
+				"requisition not found",
+			)
+
+			return
+		}
+
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	switch result.ApprovedVal {
+	case 1:
+		result.ApprovalStatus =
+			"Petty Cash (Approved)"
+
+	case 2:
+		result.ApprovalStatus =
+			"Rejected"
+
+	case 3:
+		result.ApprovalStatus =
+			"PR (Approved)"
+
+	default:
+		result.ApprovalStatus =
+			"Approval Pending"
+	}
+
+	response.OK(
+		c,
+		result,
+	)
+}
+
+
+
+// UpdateRequisitionDelivery updates the delivery workflow.
+//
+// delivered_val:
+//
+//	0 = Pending
+//	1 = Delivered
+//	2 = Rejected
+func (
+	h *DashboardHandler,
+) UpdateRequisitionDelivery(
+	c *gin.Context,
+) {
+	ctx := c.Request.Context()
+
+	requisitionID, err := strconv.ParseInt(
+		strings.TrimSpace(
+			c.Param("id"),
+		),
+		10,
+		64,
+	)
+
+	if err != nil ||
+		requisitionID <= 0 {
+
+		response.BadRequest(
+			c,
+			"invalid requisition id",
+		)
+
+		return
+	}
+
+	type Request struct {
+		DeliveredVal int `json:"delivered_val"`
+	}
+
+	var req Request
+
+	if err := c.ShouldBindJSON(
+		&req,
+	); err != nil {
+
+		response.BadRequest(
+			c,
+			err.Error(),
+		)
+
+		return
+	}
+
+	switch req.DeliveredVal {
+	case 0, 1, 2:
+		// valid
+
+	default:
+		response.BadRequest(
+			c,
+			"delivered_val must be 0, 1, or 2",
+		)
+
+		return
+	}
+
+	employeeID := strings.TrimSpace(
+		c.GetString(
+			"employee_id",
+		),
+	)
+
+	if employeeID == "" {
+		response.BadRequest(
+			c,
+			"authenticated employee id not found",
+		)
+
+		return
+	}
+
+	type Result struct {
+		ID int64 `json:"id"`
+
+		DeliveredVal int `json:"delivered_val"`
+
+		DeliveryStatus string `json:"delivery_status"`
+
+		DeliveredBy string `json:"delivered_by"`
+
+		DeliveredDate string `json:"delivered_date"`
+	}
+
+	var result Result
+
+	err = h.db.QueryRow(
+		ctx,
+		`
+		UPDATE public.tt_reasons
+
+		SET
+			delivered_val = $1,
+
+			delivered_by =
+				CASE
+					WHEN $1 = 0
+						THEN NULL
+					ELSE $2
+				END,
+
+			delivered_date =
+				CASE
+					WHEN $1 = 0
+						THEN NULL
+					ELSE (
+						CURRENT_TIMESTAMP
+						AT TIME ZONE 'Asia/Dhaka'
+					)
+				END,
+
+			edited_by = $2,
+
+			edited_at =
+				CURRENT_TIMESTAMP
+				AT TIME ZONE 'Asia/Dhaka'
+
+		WHERE
+			id = $3
+
+			AND COALESCE(
+				status,
+				1
+			) = 1
+
+		RETURNING
+			id,
+
+			COALESCE(
+				delivered_val,
+				0
+			)::int,
+
+			COALESCE(
+				delivered_by,
+				''
+			),
+
+			COALESCE(
+				delivered_date::text,
+				''
+			)
+		`,
+		req.DeliveredVal,
+		employeeID,
+		requisitionID,
+	).Scan(
+		&result.ID,
+		&result.DeliveredVal,
+		&result.DeliveredBy,
+		&result.DeliveredDate,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			response.NotFound(
+				c,
+				"requisition not found",
+			)
+
+			return
+		}
+
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	switch result.DeliveredVal {
+	case 1:
+		result.DeliveryStatus =
+			"Delivered"
+
+	case 2:
+		result.DeliveryStatus =
+			"Rejected"
+
+	default:
+		result.DeliveryStatus =
+			"Pending"
+	}
+
+	response.OK(
+		c,
+		result,
 	)
 }
