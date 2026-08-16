@@ -1,4 +1,5 @@
-//itm/fronted/components/overview-chart.tsx
+//frontend/components/overview-chart.tsx
+
 
 "use client";
 
@@ -37,9 +38,9 @@ import {
     type TroubleTicketRange,
 } from "@/lib/api";
 
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
+/* ======================================================
+   TYPES
+====================================================== */
 
 type ChartType =
     | "bar"
@@ -50,11 +51,9 @@ type TroubleTicketMetric = {
     label: string;
     shortLabel: string;
     description: string;
-
     value: number;
     color: string;
     route: string;
-
     dotClass: string;
     valueClass: string;
     borderClass: string;
@@ -63,7 +62,6 @@ type TroubleTicketMetric = {
 
 type TroubleTicketTrendRow = {
     label: string;
-
     Opened: number;
     Closed: number;
     Running: number;
@@ -76,15 +74,37 @@ type TroubleTicketPieRow = {
     color: string;
 };
 
-/* -------------------------------------------------------------------------- */
-/* Constants                                                                  */
-/* -------------------------------------------------------------------------- */
+type RequisitionChartRow = {
+    name: string;
+    value: number;
+    color: string;
+};
+
+/* ======================================================
+   CONSTANTS
+====================================================== */
 
 const COLORS = {
-    opened: "#2563eb",
-    closed: "#10b981",
-    running: "#f59e0b",
-    procurement: "#8b5cf6",
+    opened:
+        "#2563eb",
+
+    closed:
+        "#10b981",
+
+    running:
+        "#f59e0b",
+
+    procurement:
+        "#8b5cf6",
+
+    requisitionPending:
+        "#f59e0b",
+
+    requisitionApproved:
+        "#10b981",
+
+    requisitionRejected:
+        "#ef4444",
 };
 
 const TROUBLE_TICKET_ROUTES = {
@@ -114,51 +134,89 @@ const REQUISITION_ROUTES = {
 
 const EMPTY_SUMMARY:
     TroubleTicketDashboardSummary = {
-    opened_today: 0,
-    closed_today: 0,
-    total_running_tt: 0,
-    total_procurement_tt: 0,
+    opened_today:
+        0,
+
+    closed_today:
+        0,
+
+    total_running_tt:
+        0,
+
+    total_procurement_tt:
+        0,
 };
 
 const EMPTY_REQUISITION_SUMMARY:
     RequisitionDashboardSummary = {
-    pending_categories: 0,
-    approval_pending: 0,
-    rejected: 0,
-    approved: 0,
-    total_active: 0,
+    pending_categories:
+        0,
+
+    approval_pending:
+        0,
+
+    rejected:
+        0,
+
+    approved:
+        0,
+
+    total_active:
+        0,
 };
+
 const RANGE_OPTIONS: {
-    key: TroubleTicketRange;
-    label: string;
+    key:
+    TroubleTicketRange;
+
+    label:
+    string;
 }[] = [
         {
-            key: "7d",
-            label: "7 Days",
+            key:
+                "7d",
+
+            label:
+                "7 Days",
         },
+
         {
-            key: "30d",
-            label: "30 Days",
+            key:
+                "30d",
+
+            label:
+                "30 Days",
         },
+
         {
-            key: "3m",
-            label: "3 Months",
+            key:
+                "3m",
+
+            label:
+                "3 Months",
         },
     ];
 
 const tooltipStyle = {
-    background: "var(--card)",
+    background:
+        "var(--card)",
+
     border:
         "1px solid var(--border)",
-    borderRadius: "10px",
-    fontSize: "11px",
+
+    borderRadius:
+        "10px",
+
+    fontSize:
+        "11px",
+
     boxShadow:
         "0 12px 30px rgba(15, 23, 42, 0.14)",
 };
 
-/* -------------------------------------------------------------------------- */
-/* Pie chart label                                                            */
-/* -------------------------------------------------------------------------- */
+/* ======================================================
+   PIE LABEL
+====================================================== */
 
 function PieValueLabel(
     props: any
@@ -173,39 +231,61 @@ function PieValueLabel(
     } = props;
 
     const numericValue =
-        Number(value ?? 0);
+        Number(
+            value ??
+            0
+        );
 
     const numericPercent =
-        Number(percent ?? 0);
+        Number(
+            percent ??
+            0
+        );
 
-    if (numericValue <= 0) {
+    if (
+        numericValue <=
+        0
+    ) {
         return null;
     }
 
     const radian =
-        Math.PI / 180;
+        Math.PI /
+        180;
 
     const radius =
         Number(
-            outerRadius ?? 0
-        ) + 18;
+            outerRadius ??
+            0
+        ) +
+        18;
 
     const x =
-        Number(cx ?? 0) +
+        Number(
+            cx ??
+            0
+        ) +
         radius *
         Math.cos(
             -Number(
-                midAngle ?? 0
-            ) * radian
+                midAngle ??
+                0
+            ) *
+            radian
         );
 
     const y =
-        Number(cy ?? 0) +
+        Number(
+            cy ??
+            0
+        ) +
         radius *
         Math.sin(
             -Number(
-                midAngle ?? 0
-            ) * radian
+                midAngle ??
+                0
+            ) *
+            radian
         );
 
     return (
@@ -218,32 +298,41 @@ function PieValueLabel(
             dominantBaseline="central"
             textAnchor={
                 x >
-                    Number(cx ?? 0)
+                    Number(
+                        cx ??
+                        0
+                    )
                     ? "start"
                     : "end"
             }
         >
             {`${numericValue.toLocaleString()} (${(
-                numericPercent * 100
+                numericPercent *
+                100
             ).toFixed(0)}%)`}
         </text>
     );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Component                                                                  */
-/* -------------------------------------------------------------------------- */
+/* ======================================================
+   COMPONENT
+====================================================== */
 
 export default function OverviewChart() {
     const router =
         useRouter();
 
+    /* ==================================================
+       CHART STATE
+    ================================================== */
+
     const [
         chartType,
         setChartType,
-    ] = useState<ChartType>(
-        "bar"
-    );
+    ] =
+        useState<ChartType>(
+            "bar"
+        );
 
     const [
         range,
@@ -253,6 +342,10 @@ export default function OverviewChart() {
             "7d"
         );
 
+    /* ==================================================
+       TROUBLE TICKET SUMMARY
+    ================================================== */
+
     const [
         ticketSummary,
         setTicketSummary,
@@ -260,6 +353,26 @@ export default function OverviewChart() {
         useState<TroubleTicketDashboardSummary>(
             EMPTY_SUMMARY
         );
+
+    const [
+        summaryLoading,
+        setSummaryLoading,
+    ] =
+        useState(
+            true
+        );
+
+    const [
+        summaryError,
+        setSummaryError,
+    ] =
+        useState(
+            ""
+        );
+
+    /* ==================================================
+       REQUISITION SUMMARY
+    ================================================== */
 
     const [
         requisitionSummary,
@@ -272,297 +385,366 @@ export default function OverviewChart() {
     const [
         requisitionLoading,
         setRequisitionLoading,
-    ] = useState(true);
+    ] =
+        useState(
+            true
+        );
 
     const [
         requisitionError,
         setRequisitionError,
-    ] = useState("");
+    ] =
+        useState(
+            ""
+        );
+
+    /* ==================================================
+       TROUBLE TICKET TREND
+    ================================================== */
 
     const [
         trendSource,
         setTrendSource,
-    ] = useState<
-        TroubleTicketOverviewPoint[]
-    >([]);
-
-    const [
-        summaryLoading,
-        setSummaryLoading,
-    ] = useState(true);
+    ] =
+        useState<
+            TroubleTicketOverviewPoint[]
+        >([]);
 
     const [
         trendLoading,
         setTrendLoading,
-    ] = useState(true);
-
-    const [
-        summaryError,
-        setSummaryError,
-    ] = useState("");
+    ] =
+        useState(
+            true
+        );
 
     const [
         trendError,
         setTrendError,
-    ] = useState("");
+    ] =
+        useState(
+            ""
+        );
+
+    /* ==================================================
+       NAVIGATION
+    ================================================== */
 
     function openTroubleTicketList(
-        route: string
+        route:
+            string
     ) {
-        router.push(route);
+        router.push(
+            route
+        );
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Load live summary                                                      */
-    /* ---------------------------------------------------------------------- */
+    function openRequisitionList(
+        route:
+            string
+    ) {
+        router.push(
+            route
+        );
+    }
 
-    useEffect(() => {
-        let mounted = true;
+    /* ==================================================
+       LOAD TROUBLE TICKET SUMMARY
+    ================================================== */
 
-        async function loadTroubleTicketSummary() {
-            try {
-                setSummaryLoading(
-                    true
-                );
+    useEffect(
+        () => {
+            let mounted =
+                true;
 
-                setSummaryError("");
-
-                const response =
-                    await dashboardApi
-                        .troubleTicketSummary();
-
-                if (!mounted) {
-                    return;
-                }
-
-                setTicketSummary({
-                    opened_today:
-                        Number(
-                            response
-                                .data
-                                ?.opened_today ??
-                            0
-                        ),
-
-                    closed_today:
-                        Number(
-                            response
-                                .data
-                                ?.closed_today ??
-                            0
-                        ),
-
-                    total_running_tt:
-                        Number(
-                            response
-                                .data
-                                ?.total_running_tt ??
-                            0
-                        ),
-
-                    total_procurement_tt:
-                        Number(
-                            response
-                                .data
-                                ?.total_procurement_tt ??
-                            0
-                        ),
-                });
-            } catch (
-            reason: unknown
-            ) {
-                if (!mounted) {
-                    return;
-                }
-
-                setTicketSummary(
-                    EMPTY_SUMMARY
-                );
-
-                setSummaryError(
-                    reason instanceof
-                        Error
-                        ? reason.message
-                        : "Unable to load Trouble Ticket summary"
-                );
-            } finally {
-                if (mounted) {
+            async function loadTroubleTicketSummary() {
+                try {
                     setSummaryLoading(
-                        false
+                        true
                     );
-                }
-            }
-        }
 
-        void loadTroubleTicketSummary();
+                    setSummaryError(
+                        ""
+                    );
 
-        return () => {
-            mounted = false;
-        };
-    }, []);
+                    const response =
+                        await dashboardApi
+                            .troubleTicketSummary();
 
-    /* ---------------------------------------------------------------------- */
-    /* Load historical data                                                   */
-    /* ---------------------------------------------------------------------- */
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
 
-    useEffect(() => {
-        let mounted = true;
+                    setTicketSummary({
+                        opened_today:
+                            Number(
+                                response
+                                    .data
+                                    ?.opened_today ??
+                                0
+                            ),
 
-        async function loadTroubleTicketTrend() {
-            try {
-                setTrendLoading(
-                    true
-                );
+                        closed_today:
+                            Number(
+                                response
+                                    .data
+                                    ?.closed_today ??
+                                0
+                            ),
 
-                setTrendError("");
+                        total_running_tt:
+                            Number(
+                                response
+                                    .data
+                                    ?.total_running_tt ??
+                                0
+                            ),
 
-                const response =
-                    await dashboardApi
-                        .troubleTicketOverview(
-                            range
+                        total_procurement_tt:
+                            Number(
+                                response
+                                    .data
+                                    ?.total_procurement_tt ??
+                                0
+                            ),
+                    });
+                } catch (
+                reason:
+                    unknown
+                ) {
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    setTicketSummary(
+                        EMPTY_SUMMARY
+                    );
+
+                    setSummaryError(
+                        reason instanceof
+                            Error
+                            ? reason.message
+                            : "Unable to load Trouble Ticket summary"
+                    );
+                } finally {
+                    if (
+                        mounted
+                    ) {
+                        setSummaryLoading(
+                            false
                         );
-
-                if (!mounted) {
-                    return;
-                }
-
-                setTrendSource(
-                    response.data
-                        ?.items ?? []
-                );
-            } catch (
-            reason: unknown
-            ) {
-                if (!mounted) {
-                    return;
-                }
-
-                setTrendSource([]);
-
-                setTrendError(
-                    reason instanceof
-                        Error
-                        ? reason.message
-                        : "Unable to load Trouble Ticket trend"
-                );
-            } finally {
-                if (mounted) {
-                    setTrendLoading(
-                        false
-                    );
+                    }
                 }
             }
-        }
 
-        void loadTroubleTicketTrend();
+            void loadTroubleTicketSummary();
 
-        return () => {
-            mounted = false;
-        };
-    }, [range]);
+            return () => {
+                mounted =
+                    false;
+            };
+        },
+        []
+    );
 
+    /* ==================================================
+       LOAD REQUISITION SUMMARY
+    ================================================== */
 
-    /* ---------------------------------------------------------------------- */
-    /* Load Requisition workflow summary                                      */
-    /* ---------------------------------------------------------------------- */
+    useEffect(
+        () => {
+            let mounted =
+                true;
 
-    useEffect(() => {
-        let mounted = true;
-
-        async function loadRequisitionSummary() {
-            try {
-                setRequisitionLoading(
-                    true
-                );
-
-                setRequisitionError("");
-
-                const response =
-                    await dashboardApi
-                        .requisitionDashboardSummary();
-
-                if (!mounted) {
-                    return;
-                }
-
-                setRequisitionSummary({
-                    pending_categories:
-                        Number(
-                            response
-                                .data
-                                ?.pending_categories ??
-                            0
-                        ),
-
-                    approval_pending:
-                        Number(
-                            response
-                                .data
-                                ?.approval_pending ??
-                            0
-                        ),
-
-                    rejected:
-                        Number(
-                            response
-                                .data
-                                ?.rejected ??
-                            0
-                        ),
-
-                    approved:
-                        Number(
-                            response
-                                .data
-                                ?.approved ??
-                            0
-                        ),
-
-                    total_active:
-                        Number(
-                            response
-                                .data
-                                ?.total_active ??
-                            0
-                        ),
-                });
-            } catch (
-            reason: unknown
-            ) {
-                if (!mounted) {
-                    return;
-                }
-
-                setRequisitionSummary(
-                    EMPTY_REQUISITION_SUMMARY
-                );
-
-                setRequisitionError(
-                    reason instanceof
-                        Error
-                        ? reason.message
-                        : "Unable to load Requisition summary"
-                );
-            } finally {
-                if (mounted) {
+            async function loadRequisitionSummary() {
+                try {
                     setRequisitionLoading(
-                        false
+                        true
                     );
+
+                    setRequisitionError(
+                        ""
+                    );
+
+                    const response =
+                        await dashboardApi
+                            .requisitionDashboardSummary();
+
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    setRequisitionSummary({
+                        pending_categories:
+                            Number(
+                                response
+                                    .data
+                                    ?.pending_categories ??
+                                0
+                            ),
+
+                        approval_pending:
+                            Number(
+                                response
+                                    .data
+                                    ?.approval_pending ??
+                                0
+                            ),
+
+                        rejected:
+                            Number(
+                                response
+                                    .data
+                                    ?.rejected ??
+                                0
+                            ),
+
+                        approved:
+                            Number(
+                                response
+                                    .data
+                                    ?.approved ??
+                                0
+                            ),
+
+                        total_active:
+                            Number(
+                                response
+                                    .data
+                                    ?.total_active ??
+                                0
+                            ),
+                    });
+                } catch (
+                reason:
+                    unknown
+                ) {
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    setRequisitionSummary(
+                        EMPTY_REQUISITION_SUMMARY
+                    );
+
+                    setRequisitionError(
+                        reason instanceof
+                            Error
+                            ? reason.message
+                            : "Unable to load Requisition summary"
+                    );
+                } finally {
+                    if (
+                        mounted
+                    ) {
+                        setRequisitionLoading(
+                            false
+                        );
+                    }
                 }
             }
-        }
 
-        void loadRequisitionSummary();
+            void loadRequisitionSummary();
 
-        return () => {
-            mounted = false;
-        };
-    }, []);
+            return () => {
+                mounted =
+                    false;
+            };
+        },
+        []
+    );
 
+    /* ==================================================
+       LOAD TT TREND
+    ================================================== */
 
-    /* ---------------------------------------------------------------------- */
-    /* KPI and vertical bar data                                              */
-    /* ---------------------------------------------------------------------- */
+    useEffect(
+        () => {
+            let mounted =
+                true;
+
+            async function loadTroubleTicketTrend() {
+                try {
+                    setTrendLoading(
+                        true
+                    );
+
+                    setTrendError(
+                        ""
+                    );
+
+                    const response =
+                        await dashboardApi
+                            .troubleTicketOverview(
+                                range
+                            );
+
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    setTrendSource(
+                        response
+                            .data
+                            ?.items ??
+                        []
+                    );
+                } catch (
+                reason:
+                    unknown
+                ) {
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    setTrendSource(
+                        []
+                    );
+
+                    setTrendError(
+                        reason instanceof
+                            Error
+                            ? reason.message
+                            : "Unable to load Trouble Ticket trend"
+                    );
+                } finally {
+                    if (
+                        mounted
+                    ) {
+                        setTrendLoading(
+                            false
+                        );
+                    }
+                }
+            }
+
+            void loadTroubleTicketTrend();
+
+            return () => {
+                mounted =
+                    false;
+            };
+        },
+        [
+            range,
+        ]
+    );
+
+    /* ==================================================
+       TT CARD DATA
+    ================================================== */
 
     const currentData =
         useMemo<
@@ -600,7 +782,7 @@ export default function OverviewChart() {
                         "border-t-blue-600",
 
                     backgroundClass:
-                        "bg-blue-50/50 dark:bg-blue-950/10",
+                        "bg-blue-50/60 dark:bg-blue-950/10",
                 },
 
                 {
@@ -634,7 +816,7 @@ export default function OverviewChart() {
                         "border-t-emerald-500",
 
                     backgroundClass:
-                        "bg-emerald-50/50 dark:bg-emerald-950/10",
+                        "bg-emerald-50/60 dark:bg-emerald-950/10",
                 },
 
                 {
@@ -668,7 +850,7 @@ export default function OverviewChart() {
                         "border-t-amber-500",
 
                     backgroundClass:
-                        "bg-amber-50/50 dark:bg-amber-950/10",
+                        "bg-amber-50/60 dark:bg-amber-950/10",
                 },
 
                 {
@@ -702,15 +884,94 @@ export default function OverviewChart() {
                         "border-t-violet-500",
 
                     backgroundClass:
-                        "bg-violet-50/50 dark:bg-violet-950/10",
+                        "bg-violet-50/60 dark:bg-violet-950/10",
                 },
             ],
-            [ticketSummary]
+            [
+                ticketSummary,
+            ]
         );
 
-    /* ---------------------------------------------------------------------- */
-    /* Historical trend data                                                  */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       REQUISITION BAR DATA
+
+       Important:
+       Do not include pending_categories here because
+       it is a category count, not a requisition count.
+    ================================================== */
+
+    const requisitionChartData =
+        useMemo<
+            RequisitionChartRow[]
+        >(
+            () => [
+                {
+                    name:
+                        "Pending",
+
+                    value:
+                        requisitionSummary
+                            .approval_pending,
+
+                    color:
+                        COLORS
+                            .requisitionPending,
+                },
+
+                {
+                    name:
+                        "Approved",
+
+                    value:
+                        requisitionSummary
+                            .approved,
+
+                    color:
+                        COLORS
+                            .requisitionApproved,
+                },
+
+                {
+                    name:
+                        "Rejected",
+
+                    value:
+                        requisitionSummary
+                            .rejected,
+
+                    color:
+                        COLORS
+                            .requisitionRejected,
+                },
+            ],
+            [
+                requisitionSummary,
+            ]
+        );
+
+    const requisitionChartMaximum =
+        Math.max(
+            ...requisitionChartData.map(
+                (
+                    item
+                ) =>
+                    item.value
+            ),
+            1
+        );
+
+    const requisitionYAxisMaximum =
+        Math.max(
+            Math.ceil(
+                requisitionChartMaximum *
+                1.15
+            ),
+            1
+        );
+
+    /* ==================================================
+       TREND DATA
+    ================================================== */
 
     const trendData =
         useMemo<
@@ -718,7 +979,9 @@ export default function OverviewChart() {
         >(
             () =>
                 trendSource.map(
-                    (item) => ({
+                    (
+                        item
+                    ) => ({
                         label:
                             item.label,
 
@@ -747,18 +1010,27 @@ export default function OverviewChart() {
                             ),
                     })
                 ),
-            [trendSource]
+            [
+                trendSource,
+            ]
         );
 
     const selectedRangeLabel =
         RANGE_OPTIONS.find(
-            (option) =>
-                option.key === range
-        )?.label ?? "7 Days";
+            (
+                option
+            ) =>
+                option.key ===
+                range
+        )?.label ??
+        "7 Days";
 
     const rangeOpenedTotal =
         trendData.reduce(
-            (total, item) =>
+            (
+                total,
+                item
+            ) =>
                 total +
                 item.Opened,
             0
@@ -766,7 +1038,10 @@ export default function OverviewChart() {
 
     const rangeClosedTotal =
         trendData.reduce(
-            (total, item) =>
+            (
+                total,
+                item
+            ) =>
                 total +
                 item.Closed,
             0
@@ -776,14 +1051,16 @@ export default function OverviewChart() {
         rangeOpenedTotal +
         rangeClosedTotal;
 
-    /* ---------------------------------------------------------------------- */
-    /* Vertical bar maximum                                                   */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       TT BAR MAXIMUM
+    ================================================== */
 
     const selectedMaximum =
         Math.max(
             ...currentData.map(
-                (item) =>
+                (
+                    item
+                ) =>
                     item.value
             ),
             1
@@ -798,9 +1075,9 @@ export default function OverviewChart() {
             1
         );
 
-    /* ---------------------------------------------------------------------- */
-    /* Pie chart data                                                         */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       PIE DATA
+    ================================================== */
 
     const pieData =
         useMemo<
@@ -835,12 +1112,13 @@ export default function OverviewChart() {
             ]
         );
 
-    /* ---------------------------------------------------------------------- */
-    /* Bar value label                                                        */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       BAR LABEL
+    ================================================== */
 
     function renderBarValueLabel(
-        props: any
+        props:
+            any
     ) {
         const {
             x,
@@ -850,23 +1128,30 @@ export default function OverviewChart() {
         } = props;
 
         const numericValue =
-            Number(value ?? 0);
+            Number(
+                value ??
+                0
+            );
 
         return (
             <text
                 x={
                     Number(
-                        x ?? 0
+                        x ??
+                        0
                     ) +
                     Number(
-                        width ?? 0
+                        width ??
+                        0
                     ) /
                     2
                 }
                 y={
                     Number(
-                        y ?? 0
-                    ) - 8
+                        y ??
+                        0
+                    ) -
+                    8
                 }
                 fill="var(--foreground)"
                 fontSize={10}
@@ -878,19 +1163,28 @@ export default function OverviewChart() {
         );
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Vertical bar chart                                                     */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       TT BAR CHART
+    ================================================== */
 
     function renderBarChart() {
         return (
             <BarChart
-                data={currentData}
+                data={
+                    currentData
+                }
                 margin={{
-                    top: 32,
-                    right: 18,
-                    left: 0,
-                    bottom: 18,
+                    top:
+                        32,
+
+                    right:
+                        18,
+
+                    left:
+                        0,
+
+                    bottom:
+                        18,
                 }}
                 barCategoryGap="34%"
             >
@@ -909,8 +1203,12 @@ export default function OverviewChart() {
                     tickLine={false}
                     tickMargin={10}
                     tick={{
-                        fontSize: 10,
-                        fontWeight: 500,
+                        fontSize:
+                            10,
+
+                        fontWeight:
+                            500,
+
                         fill:
                             "var(--muted-foreground)",
                     }}
@@ -927,7 +1225,9 @@ export default function OverviewChart() {
                     axisLine={false}
                     tickLine={false}
                     tick={{
-                        fontSize: 9,
+                        fontSize:
+                            9,
+
                         fill:
                             "var(--muted-foreground)",
                     }}
@@ -937,7 +1237,9 @@ export default function OverviewChart() {
                     cursor={{
                         fill:
                             "var(--muted)",
-                        opacity: 0.2,
+
+                        opacity:
+                            0.2,
                     }}
                     contentStyle={
                         tooltipStyle
@@ -948,12 +1250,16 @@ export default function OverviewChart() {
                         item
                     ) => [
                             Number(
-                                value ?? 0
+                                value ??
+                                0
                             ).toLocaleString(),
 
-                            item?.payload
+                            item
+                                ?.payload
                                 ?.shortLabel ??
-                            String(name),
+                            String(
+                                name
+                            ),
                         ]}
                     labelFormatter={() =>
                         "Current operational values"
@@ -975,15 +1281,19 @@ export default function OverviewChart() {
                         false
                     }
                     onClick={(
-                        data: any
+                        data:
+                            any
                     ) => {
                         const route =
                             data
                                 ?.payload
                                 ?.route ??
-                            data?.route;
+                            data
+                                ?.route;
 
-                        if (route) {
+                        if (
+                            route
+                        ) {
                             openTroubleTicketList(
                                 String(
                                     route
@@ -993,7 +1303,9 @@ export default function OverviewChart() {
                     }}
                 >
                     {currentData.map(
-                        (item) => (
+                        (
+                            item
+                        ) => (
                             <Cell
                                 key={
                                     item.label
@@ -1020,22 +1332,166 @@ export default function OverviewChart() {
         );
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Area chart                                                             */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       REQUISITION BAR CHART
+    ================================================== */
+
+    function renderRequisitionBarChart() {
+        return (
+            <BarChart
+                data={
+                    requisitionChartData
+                }
+                margin={{
+                    top:
+                        28,
+
+                    right:
+                        8,
+
+                    left:
+                        -18,
+
+                    bottom:
+                        4,
+                }}
+                barCategoryGap="30%"
+            >
+                <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--border)"
+                    vertical={
+                        false
+                    }
+                />
+
+                <XAxis
+                    dataKey="name"
+                    interval={0}
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={8}
+                    tick={{
+                        fontSize:
+                            9,
+
+                        fontWeight:
+                            600,
+
+                        fill:
+                            "var(--muted-foreground)",
+                    }}
+                />
+
+                <YAxis
+                    allowDecimals={
+                        false
+                    }
+                    domain={[
+                        0,
+                        requisitionYAxisMaximum,
+                    ]}
+                    axisLine={false}
+                    tickLine={false}
+                    width={38}
+                    tick={{
+                        fontSize:
+                            8,
+
+                        fill:
+                            "var(--muted-foreground)",
+                    }}
+                />
+
+                <Tooltip
+                    cursor={{
+                        fill:
+                            "var(--muted)",
+
+                        opacity:
+                            0.18,
+                    }}
+                    contentStyle={
+                        tooltipStyle
+                    }
+                    formatter={(
+                        value
+                    ) => [
+                            Number(
+                                value ??
+                                0
+                            ).toLocaleString(),
+
+                            "Requisitions",
+                        ]}
+                />
+
+                <Bar
+                    dataKey="value"
+                    radius={[
+                        6,
+                        6,
+                        0,
+                        0,
+                    ]}
+                    maxBarSize={54}
+                    minPointSize={3}
+                    isAnimationActive={
+                        false
+                    }
+                >
+                    {requisitionChartData.map(
+                        (
+                            item
+                        ) => (
+                            <Cell
+                                key={
+                                    item.name
+                                }
+                                fill={
+                                    item.color
+                                }
+                            />
+                        )
+                    )}
+
+                    <LabelList
+                        dataKey="value"
+                        content={
+                            renderBarValueLabel
+                        }
+                    />
+                </Bar>
+            </BarChart>
+        );
+    }
+
+    /* ==================================================
+       AREA CHART
+    ================================================== */
 
     function renderAreaChart() {
         const showDots =
-            range !== "30d";
+            range !==
+            "30d";
 
         return (
             <AreaChart
-                data={trendData}
+                data={
+                    trendData
+                }
                 margin={{
-                    top: 22,
-                    right: 12,
-                    left: 2,
-                    bottom: 8,
+                    top:
+                        22,
+
+                    right:
+                        12,
+
+                    left:
+                        2,
+
+                    bottom:
+                        8,
                 }}
             >
                 <defs>
@@ -1173,7 +1629,9 @@ export default function OverviewChart() {
                     tickLine={false}
                     tickMargin={8}
                     tick={{
-                        fontSize: 9,
+                        fontSize:
+                            9,
+
                         fill:
                             "var(--muted-foreground)",
                     }}
@@ -1188,7 +1646,9 @@ export default function OverviewChart() {
                     axisLine={false}
                     tickLine={false}
                     tick={{
-                        fontSize: 9,
+                        fontSize:
+                            9,
+
                         fill:
                             "var(--muted-foreground)",
                     }}
@@ -1203,7 +1663,9 @@ export default function OverviewChart() {
                     axisLine={false}
                     tickLine={false}
                     tick={{
-                        fontSize: 9,
+                        fontSize:
+                            9,
+
                         fill:
                             "var(--muted-foreground)",
                     }}
@@ -1218,9 +1680,13 @@ export default function OverviewChart() {
                         name
                     ) => [
                             Number(
-                                value ?? 0
+                                value ??
+                                0
                             ).toLocaleString(),
-                            String(name),
+
+                            String(
+                                name
+                            ),
                         ]}
                 />
 
@@ -1228,6 +1694,7 @@ export default function OverviewChart() {
                     wrapperStyle={{
                         fontSize:
                             "10px",
+
                         paddingTop:
                             "12px",
                     }}
@@ -1246,12 +1713,14 @@ export default function OverviewChart() {
                     dot={
                         showDots
                             ? {
-                                r: 2.5,
+                                r:
+                                    2.5,
                             }
                             : false
                     }
                     activeDot={{
-                        r: 5,
+                        r:
+                            5,
                     }}
                     isAnimationActive={
                         false
@@ -1271,12 +1740,14 @@ export default function OverviewChart() {
                     dot={
                         showDots
                             ? {
-                                r: 2.5,
+                                r:
+                                    2.5,
                             }
                             : false
                     }
                     activeDot={{
-                        r: 5,
+                        r:
+                            5,
                     }}
                     isAnimationActive={
                         false
@@ -1296,12 +1767,14 @@ export default function OverviewChart() {
                     dot={
                         showDots
                             ? {
-                                r: 2.5,
+                                r:
+                                    2.5,
                             }
                             : false
                     }
                     activeDot={{
-                        r: 5,
+                        r:
+                            5,
                     }}
                     isAnimationActive={
                         false
@@ -1321,12 +1794,14 @@ export default function OverviewChart() {
                     dot={
                         showDots
                             ? {
-                                r: 2.5,
+                                r:
+                                    2.5,
                             }
                             : false
                     }
                     activeDot={{
-                        r: 5,
+                        r:
+                            5,
                     }}
                     isAnimationActive={
                         false
@@ -1336,15 +1811,17 @@ export default function OverviewChart() {
         );
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Pie chart                                                              */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       PIE CHART
+    ================================================== */
 
     function renderPieChart() {
         return (
             <PieChart>
                 <Pie
-                    data={pieData}
+                    data={
+                        pieData
+                    }
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
@@ -1352,9 +1829,7 @@ export default function OverviewChart() {
                     innerRadius={72}
                     outerRadius={112}
                     paddingAngle={5}
-                    labelLine={
-                        false
-                    }
+                    labelLine={false}
                     label={
                         PieValueLabel
                     }
@@ -1363,7 +1838,9 @@ export default function OverviewChart() {
                     }
                 >
                     {pieData.map(
-                        (item) => (
+                        (
+                            item
+                        ) => (
                             <Cell
                                 key={
                                     item.name
@@ -1385,9 +1862,13 @@ export default function OverviewChart() {
                         name
                     ) => [
                             Number(
-                                value ?? 0
+                                value ??
+                                0
                             ).toLocaleString(),
-                            String(name),
+
+                            String(
+                                name
+                            ),
                         ]}
                 />
 
@@ -1427,19 +1908,21 @@ export default function OverviewChart() {
         );
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Chart heading                                                          */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       TT CHART TITLE
+    ================================================== */
 
     function getChartTitle() {
         if (
-            chartType === "area"
+            chartType ===
+            "area"
         ) {
             return "Trouble Ticket Trend";
         }
 
         if (
-            chartType === "pie"
+            chartType ===
+            "pie"
         ) {
             return "Opened vs Closed Distribution";
         }
@@ -1449,13 +1932,15 @@ export default function OverviewChart() {
 
     function getChartDescription() {
         if (
-            chartType === "area"
+            chartType ===
+            "area"
         ) {
             return `Historical ticket activity and workload for ${selectedRangeLabel.toLowerCase()}`;
         }
 
         if (
-            chartType === "pie"
+            chartType ===
+            "pie"
         ) {
             return `Opened versus closed ticket activity for ${selectedRangeLabel.toLowerCase()}`;
         }
@@ -1469,37 +1954,38 @@ export default function OverviewChart() {
         0;
 
     const noPieData =
-        chartType === "pie" &&
+        chartType ===
+        "pie" &&
         selectedRangeActivityTotal ===
         0;
 
-    /* ---------------------------------------------------------------------- */
-    /* Chart content                                                          */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       TT CHART CONTENT
+    ================================================== */
 
     function renderChartContent() {
-        /*
-         * The vertical bar chart uses the live summary endpoint.
-         * It must not depend on the historical overview endpoint.
-         */
         if (
-            chartType === "bar"
+            chartType ===
+            "bar"
         ) {
             if (
                 summaryLoading
             ) {
                 return (
                     <div className="flex h-[320px] items-center justify-center text-xs text-muted-foreground sm:h-[360px]">
-                        Loading Trouble
-                        Ticket chart...
+                        Loading Trouble Ticket chart...
                     </div>
                 );
             }
 
-            if (summaryError) {
+            if (
+                summaryError
+            ) {
                 return (
                     <div className="flex h-[320px] items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 text-center text-xs text-red-700 sm:h-[360px]">
-                        {summaryError}
+                        {
+                            summaryError
+                        }
                     </div>
                 );
             }
@@ -1516,46 +2002,47 @@ export default function OverviewChart() {
             );
         }
 
-        /*
-         * Area and pie charts depend on historical data.
-         */
-        if (trendLoading) {
+        if (
+            trendLoading
+        ) {
             return (
                 <div className="flex h-[320px] items-center justify-center text-xs text-muted-foreground sm:h-[360px]">
-                    Loading Trouble
-                    Ticket chart...
+                    Loading Trouble Ticket chart...
                 </div>
             );
         }
 
-        if (trendError) {
+        if (
+            trendError
+        ) {
             return (
                 <div className="flex h-[320px] items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 text-center text-xs text-red-700 sm:h-[360px]">
-                    {trendError}
+                    {
+                        trendError
+                    }
                 </div>
             );
         }
 
-        if (noTrendData) {
+        if (
+            noTrendData
+        ) {
             return (
                 <div className="flex h-[320px] flex-col items-center justify-center rounded-lg border border-dashed border-border text-center sm:h-[360px]">
                     <p className="text-xs font-semibold text-foreground">
-                        No historical
-                        data found
+                        No historical data found
                     </p>
 
                     <p className="mt-1 text-[10px] text-muted-foreground">
-                        No Trouble
-                        Ticket records
-                        are available
-                        for the selected
-                        period.
+                        No Trouble Ticket records are available for the selected period.
                     </p>
                 </div>
             );
         }
 
-        if (noPieData) {
+        if (
+            noPieData
+        ) {
             return (
                 <div className="flex h-[320px] flex-col items-center justify-center rounded-lg border border-dashed border-border text-center sm:h-[360px]">
                     <div className="flex h-20 w-20 items-center justify-center rounded-full border-[10px] border-muted">
@@ -1565,15 +2052,11 @@ export default function OverviewChart() {
                     </div>
 
                     <p className="mt-4 text-xs font-semibold text-foreground">
-                        No opened or
-                        closed activity
+                        No opened or closed activity
                     </p>
 
                     <p className="mt-1 text-[10px] text-muted-foreground">
-                        No tickets were
-                        opened or closed
-                        during the
-                        selected period.
+                        No tickets were opened or closed during the selected period.
                     </p>
                 </div>
             );
@@ -1588,500 +2071,634 @@ export default function OverviewChart() {
                     {chartType ===
                         "area"
                         ? renderAreaChart()
-                        : renderPieChart()}
+                        : renderPieChart()
+                    }
                 </ResponsiveContainer>
             </div>
         );
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* UI                                                                     */
-    /* ---------------------------------------------------------------------- */
+    /* ==================================================
+       UI
+    ================================================== */
+
+    /* ==================================================
+    UI
+ ================================================== */
 
     return (
         <div>
-            {/* Main header */}
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <h2 className="text-sm font-semibold text-foreground">
-                            Trouble
-                            Ticket
-                            Overview
-                        </h2>
+            {/* ==================================================
+            MAIN OPERATIONAL OVERVIEW
+        ================================================== */}
 
-                        <span
-                            className={`
-                                inline-flex
-                                items-center
-                                rounded-full
-                                border
-                                px-2 py-0.5
-                                text-[9px]
-                                font-semibold
-                                ${summaryLoading
-                                    ? "border-amber-200 bg-amber-50 text-amber-700"
-                                    : summaryError
-                                        ? "border-red-200 bg-red-50 text-red-700"
-                                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                }
-                            `}
-                        >
-                            {summaryLoading
-                                ? "Loading"
-                                : summaryError
-                                    ? "Unavailable"
-                                    : "Live"}
-                        </span>
+            <div className="grid grid-cols-1 overflow-hidden rounded-2xl border border-border bg-card shadow-sm xl:grid-cols-2">
+                {/* ==============================================
+                LEFT SIDE
+                TROUBLE TICKET OVERVIEW
+            ============================================== */}
+
+                <section className="p-4 xl:border-r xl:border-border">
+                    {/* Header */}
+
+                    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-sm font-semibold text-foreground">
+                                    Trouble Ticket Overview
+                                </h2>
+
+                                <span
+                                    className={`
+                                    inline-flex
+                                    items-center
+                                    rounded-full
+                                    border
+                                    px-2
+                                    py-0.5
+                                    text-[9px]
+                                    font-semibold
+
+                                    ${summaryLoading
+                                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                                            : summaryError
+                                                ? "border-red-200 bg-red-50 text-red-700"
+                                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                        }
+                                `}
+                                >
+                                    {summaryLoading
+                                        ? "Loading"
+                                        : summaryError
+                                            ? "Unavailable"
+                                            : "Live"}
+                                </span>
+                            </div>
+
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                                Current Trouble Ticket activity and workload
+                            </p>
+                        </div>
                     </div>
 
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Current
-                        activity,
-                        workload and
-                        historical
-                        performance
-                    </p>
-                </div>
-            </div>
+                    {/* ==========================================
+                    TROUBLE TICKET KPI CARDS
+                ========================================== */}
 
-            {/* Live summary cards */}
-            {summaryError ? (
-                <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-xs text-red-700">
-                    <span className="font-semibold">
-                        Trouble
-                        Ticket
-                        summary
-                        unavailable:
-                    </span>{" "}
-                    {summaryError}
-                </div>
-            ) : (
-                <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {currentData.map(
-                        (item) => (
-                            <button
-                                key={
-                                    item.label
-                                }
-                                type="button"
-                                aria-label={`View ${item.label} list`}
-                                onClick={() =>
-                                    openTroubleTicketList(
-                                        item.route
-                                    )
-                                }
-                                className={`
-                                    relative
-                                    w-full
-                                    cursor-pointer
-                                    overflow-hidden
-                                    rounded-xl
-                                    border
-                                    border-border
-                                    border-t-2
-                                    px-3 py-3
-                                    text-left
-                                    transition-all
-                                    duration-200
-                                    hover:-translate-y-0.5
-                                    hover:shadow-md
-                                    focus:outline-none
-                                    focus:ring-2
-                                    focus:ring-primary/30
-                                    ${item.borderClass}
-                                    ${item.backgroundClass}
-                                `}
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                            {
-                                                item.shortLabel
+                    {summaryError ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400">
+                            <span className="font-semibold">
+                                Trouble Ticket summary unavailable:
+                            </span>{" "}
+                            {summaryError}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-4 gap-2">
+                            {currentData.map(
+                                (
+                                    item
+                                ) => (
+                                    <button
+                                        key={
+                                            item.label
+                                        }
+                                        type="button"
+                                        aria-label={`View ${item.label} list`}
+                                        onClick={() =>
+                                            openTroubleTicketList(
+                                                item.route
+                                            )
+                                        }
+                                        className={`
+                    group
+                    relative
+                    min-h-[78px]
+                    min-w-0
+                    w-full
+                    overflow-hidden
+                    rounded-lg
+                    border
+                    border-border
+                    border-t-2
+                    px-2
+                    py-2
+                    text-left
+                    transition-all
+                    duration-200
+                    hover:-translate-y-0.5
+                    hover:shadow-sm
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-primary/20
+
+                    ${item.borderClass}
+                    ${item.backgroundClass}
+                `}
+                                    >
+                                        {/* Card title */}
+
+                                        <div className="flex items-center justify-between gap-1">
+                                            <p
+                                                className="min-w-0 truncate text-[8px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                                title={
+                                                    item.shortLabel
+                                                }
+                                            >
+                                                {
+                                                    item.shortLabel
+                                                }
+                                            </p>
+
+                                            <span
+                                                className={`
+                            h-2
+                            w-2
+                            shrink-0
+                            rounded-full
+
+                            ${item.dotClass}
+                        `}
+                                            />
+                                        </div>
+
+                                        {/* Value */}
+
+                                        <div className="mt-2 flex items-end justify-between gap-1">
+                                            <p
+                                                className={`
+                            text-xl
+                            font-bold
+                            leading-none
+                            tabular-nums
+
+                            ${item.valueClass}
+                        `}
+                                            >
+                                                {summaryLoading
+                                                    ? "—"
+                                                    : item.value.toLocaleString()}
+                                            </p>
+
+                                            <span className="text-[7px] font-semibold text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                                                View →
+                                            </span>
+                                        </div>
+
+                                        {/* Description */}
+
+                                        <p
+                                            className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75"
+                                            title={
+                                                item.description
                                             }
-                                        </p>
-
-                                        <p className="mt-1 text-[9px] leading-3 text-muted-foreground/80">
+                                        >
                                             {
                                                 item.description
                                             }
                                         </p>
-                                    </div>
-
-                                    <span
-                                        className={`
-                                            mt-0.5
-                                            h-2.5
-                                            w-2.5
-                                            shrink-0
-                                            rounded-full
-                                            ${item.dotClass}
-                                        `}
-                                    />
-                                </div>
-
-                                <p
-                                    className={`
-                                        mt-3
-                                        text-2xl
-                                        font-bold
-                                        tabular-nums
-                                        ${item.valueClass}
-                                    `}
-                                >
-                                    {summaryLoading
-                                        ? "—"
-                                        : item.value.toLocaleString()}
-                                </p>
-
-                                <p className="mt-1 text-[9px] font-medium text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-                                    View
-                                    records
-                                </p>
-                            </button>
-                        )
-                    )}
-                </div>
-            )}
-
-
-
-            {/* ========================REQUISITION WORKFLOW============================ */}
-
-            <div className="mb-5">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <h3 className="text-xs font-semibold text-foreground">
-                            Requisition Workflow
-                        </h3>
-
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                            IT accessories requisition approval status
-                        </p>
-                    </div>
-
-                    {!requisitionLoading &&
-                        !requisitionError && (
-                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">
-                                Live
-                            </span>
-                        )}
-                </div>
-
-                {requisitionError ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-xs text-red-700">
-                        <span className="font-semibold">
-                            Requisition summary unavailable:
-                        </span>{" "}
-                        {requisitionError}
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        {/* Requisition Summary */}
-
-                        <button
-                            type="button"
-                            onClick={() =>
-                                router.push(
-                                    REQUISITION_ROUTES.summary
-                                )
-                            }
-                            className="
-                    group
-                    relative
-                    w-full
-                    rounded-xl
-                    border
-                    border-border
-                    border-t-2
-                    border-t-sky-500
-                    bg-sky-50/50
-                    px-3
-                    py-3
-                    text-left
-                    transition-all
-                    duration-200
-                    hover:-translate-y-0.5
-                    hover:shadow-md
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-sky-500/20
-                    dark:bg-sky-950/10
-                "
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                        Requisition Summary
-                                    </p>
-
-                                    <p className="mt-1 text-[9px] leading-3 text-muted-foreground/80">
-                                        Pending requisition categories
-                                    </p>
-                                </div>
-
-                                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500" />
-                            </div>
-
-                            <p className="mt-3 text-2xl font-bold tabular-nums text-sky-600 dark:text-sky-400">
-                                {requisitionLoading
-                                    ? "—"
-                                    : requisitionSummary
-                                        .pending_categories
-                                        .toLocaleString()}
-                            </p>
-
-                            <div className="mt-1 flex items-center justify-between gap-2">
-                                <p className="text-[9px] text-muted-foreground">
-                                    {requisitionLoading
-                                        ? "Loading..."
-                                        : `${requisitionSummary.approval_pending.toLocaleString()} pending requests`}
-                                </p>
-
-                                <span className="text-[9px] font-semibold text-sky-600 opacity-0 transition-opacity group-hover:opacity-100">
-                                    View →
-                                </span>
-                            </div>
-                        </button>
-
-                        {/* Approval Pending */}
-
-                        <button
-                            type="button"
-                            onClick={() =>
-                                router.push(
-                                    REQUISITION_ROUTES.pending
-                                )
-                            }
-                            className="
-                    group
-                    relative
-                    w-full
-                    rounded-xl
-                    border
-                    border-border
-                    border-t-2
-                    border-t-amber-500
-                    bg-amber-50/50
-                    px-3
-                    py-3
-                    text-left
-                    transition-all
-                    duration-200
-                    hover:-translate-y-0.5
-                    hover:shadow-md
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-amber-500/20
-                    dark:bg-amber-950/10
-                "
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                        Approval Pending
-                                    </p>
-
-                                    <p className="mt-1 text-[9px] leading-3 text-muted-foreground/80">
-                                        Requests waiting for approval
-                                    </p>
-                                </div>
-
-                                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" />
-                            </div>
-
-                            <p className="mt-3 text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
-                                {requisitionLoading
-                                    ? "—"
-                                    : requisitionSummary
-                                        .approval_pending
-                                        .toLocaleString()}
-                            </p>
-
-                            <p className="mt-1 text-[9px] font-semibold text-amber-600 opacity-0 transition-opacity group-hover:opacity-100">
-                                View pending requests →
-                            </p>
-                        </button>
-
-                        {/* Rejected */}
-
-                        <button
-                            type="button"
-                            onClick={() =>
-                                router.push(
-                                    REQUISITION_ROUTES.rejected
-                                )
-                            }
-                            className="
-                    group
-                    relative
-                    w-full
-                    rounded-xl
-                    border
-                    border-border
-                    border-t-2
-                    border-t-red-500
-                    bg-red-50/50
-                    px-3
-                    py-3
-                    text-left
-                    transition-all
-                    duration-200
-                    hover:-translate-y-0.5
-                    hover:shadow-md
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-red-500/20
-                    dark:bg-red-950/10
-                "
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                        Rejected
-                                    </p>
-
-                                    <p className="mt-1 text-[9px] leading-3 text-muted-foreground/80">
-                                        Rejected requisition requests
-                                    </p>
-                                </div>
-
-                                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
-                            </div>
-
-                            <p className="mt-3 text-2xl font-bold tabular-nums text-red-600 dark:text-red-400">
-                                {requisitionLoading
-                                    ? "—"
-                                    : requisitionSummary
-                                        .rejected
-                                        .toLocaleString()}
-                            </p>
-
-                            <p className="mt-1 text-[9px] font-semibold text-red-600 opacity-0 transition-opacity group-hover:opacity-100">
-                                View rejected requests →
-                            </p>
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Chart section */}
-            <div className="rounded-xl border border-border bg-muted/10 p-3">
-                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <h3 className="text-xs font-semibold text-foreground">
-                            {
-                                getChartTitle()
-                            }
-                        </h3>
-
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                            {
-                                getChartDescription()
-                            }
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        {/* Chart selector */}
-                        <select
-                            value={
-                                chartType
-                            }
-                            onChange={(
-                                event
-                            ) =>
-                                setChartType(
-                                    event
-                                        .target
-                                        .value as ChartType
-                                )
-                            }
-                            aria-label="Select Trouble Ticket chart type"
-                            className={`
-                                h-8
-                                rounded-lg
-                                border
-                                px-3
-                                text-xs
-                                font-medium
-                                outline-none
-                                transition-colors
-                                focus:ring-2
-                                focus:ring-blue-200
-                                ${chartType ===
-                                    "bar"
-                                    ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
-                                    : "border-border bg-background text-foreground"
-                                }
-                            `}
-                        >
-                            <option value="bar">
-                                Vertical
-                                Bar
-                                Chart
-                            </option>
-
-                            <option value="area">
-                                Area
-                                Chart
-                            </option>
-
-                            <option value="pie">
-                                Pie
-                                Chart
-                            </option>
-                        </select>
-
-                        {/* Range controls */}
-                        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
-                            {RANGE_OPTIONS.map(
-                                (
-                                    option
-                                ) => (
-                                    <button
-                                        key={
-                                            option.key
-                                        }
-                                        type="button"
-                                        disabled={
-                                            chartType !==
-                                            "bar" &&
-                                            trendLoading
-                                        }
-                                        onClick={() =>
-                                            setRange(
-                                                option.key
-                                            )
-                                        }
-                                        className={`
-                                            rounded-md
-                                            px-3 py-1
-                                            text-xs
-                                            font-medium
-                                            transition-colors
-                                            disabled:cursor-not-allowed
-                                            disabled:opacity-60
-                                            ${range ===
-                                                option.key
-                                                ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
-                                                : "text-muted-foreground hover:bg-background hover:text-foreground"
-                                            }
-                                        `}
-                                    >
-                                        {
-                                            option.label
-                                        }
                                     </button>
                                 )
                             )}
                         </div>
-                    </div>
-                </div>
+                    )}
 
-                {renderChartContent()}
+                    {/* ==========================================
+                    TROUBLE TICKET CHART
+                ========================================== */}
+
+                    <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted/10">
+                        {/* Chart header */}
+
+                        <div className="border-b border-border px-3 py-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h3 className="text-[11px] font-semibold text-foreground">
+                                        {getChartTitle()}
+                                    </h3>
+
+                                    <p className="mt-0.5 text-[9px] text-muted-foreground">
+                                        {getChartDescription()}
+                                    </p>
+                                </div>
+
+                                {/* Chart controls */}
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <select
+                                        value={
+                                            chartType
+                                        }
+                                        onChange={(
+                                            event
+                                        ) =>
+                                            setChartType(
+                                                event
+                                                    .target
+                                                    .value as ChartType
+                                            )
+                                        }
+                                        aria-label="Select Trouble Ticket chart type"
+                                        className={`
+                                        h-7
+                                        rounded-md
+                                        border
+                                        px-2
+                                        text-[9px]
+                                        font-medium
+                                        outline-none
+                                        transition-colors
+
+                                        ${chartType ===
+                                                "bar"
+                                                ? "border-blue-400 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
+                                                : "border-border bg-background text-foreground"
+                                            }
+                                    `}
+                                    >
+                                        <option value="bar">
+                                            Bar
+                                        </option>
+
+                                        <option value="area">
+                                            Area
+                                        </option>
+
+                                        <option value="pie">
+                                            Pie
+                                        </option>
+                                    </select>
+
+                                    {chartType !==
+                                        "bar" && (
+                                            <div className="flex items-center gap-1 rounded-md bg-muted p-0.5">
+                                                {RANGE_OPTIONS.map(
+                                                    (
+                                                        option
+                                                    ) => (
+                                                        <button
+                                                            key={
+                                                                option.key
+                                                            }
+                                                            type="button"
+                                                            disabled={
+                                                                trendLoading
+                                                            }
+                                                            onClick={() =>
+                                                                setRange(
+                                                                    option.key
+                                                                )
+                                                            }
+                                                            className={`
+                                                        rounded
+                                                        px-1.5
+                                                        py-1
+                                                        text-[8px]
+                                                        font-medium
+                                                        transition-colors
+
+                                                        ${range ===
+                                                                    option.key
+                                                                    ? "bg-blue-600 text-white"
+                                                                    : "text-muted-foreground hover:bg-background"
+                                                                }
+                                                    `}
+                                                        >
+                                                            {
+                                                                option.label
+                                                            }
+                                                        </button>
+                                                    )
+                                                )}
+                                            </div>
+                                        )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Chart body */}
+
+                        <div className="px-2 pb-2 pt-1">
+                            {renderChartContent()}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ==============================================
+                RIGHT SIDE
+                REQUISITION WORKFLOW
+            ============================================== */}
+
+                <section className="border-t border-border p-4 xl:border-t-0">
+                    {/* Header */}
+
+                    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-sm font-semibold text-foreground">
+                                    Requisition Workflow
+                                </h2>
+
+                                {!requisitionLoading &&
+                                    !requisitionError && (
+                                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-400">
+                                            Live
+                                        </span>
+                                    )}
+                            </div>
+
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                                IT accessories requisition approval and processing
+                            </p>
+                        </div>
+
+                        {!requisitionLoading &&
+                            !requisitionError && (
+                                <div className="rounded-lg border border-border bg-muted/20 px-3 py-1.5 text-right">
+                                    <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Total Active
+                                    </p>
+
+                                    <p className="text-lg font-bold leading-none tabular-nums text-foreground">
+                                        {requisitionSummary
+                                            .total_active
+                                            .toLocaleString()}
+                                    </p>
+                                </div>
+                            )}
+                    </div>
+
+                    {requisitionError ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400">
+                            <span className="font-semibold">
+                                Requisition summary unavailable:
+                            </span>{" "}
+                            {requisitionError}
+                        </div>
+                    ) : (
+                        <>
+                            {/* ==================================
+                                    THREE CARDS IN ONE ROW
+                                    SAME STANDARD SIZE AS TT CARDS
+                                ================================== */}
+
+                            <div className="grid grid-cols-3 gap-2">
+                                {/* Requisition Summary */}
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        openRequisitionList(
+                                            REQUISITION_ROUTES.summary
+                                        )
+                                    }
+                                    className="
+            group
+            relative
+            min-h-[78px]
+            min-w-0
+            w-full
+            overflow-hidden
+            rounded-lg
+            border
+            border-sky-200
+            border-t-2
+            border-t-sky-500
+            bg-sky-50/60
+            px-2
+            py-2
+            text-left
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-sm
+            focus:outline-none
+            focus:ring-2
+            focus:ring-sky-500/20
+            dark:border-sky-900/60
+            dark:bg-sky-950/10
+        "
+                                >
+                                    <div className="flex items-center justify-between gap-1">
+                                        <p
+                                            className="min-w-0 truncate text-[8px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                            title="Requisition Summary"
+                                        >
+                                            Requisition Summary
+                                        </p>
+
+                                        <span className="h-2 w-2 shrink-0 rounded-full bg-sky-500" />
+                                    </div>
+
+                                    <div className="mt-2 flex items-end justify-between gap-1">
+                                        <p className="text-xl font-bold leading-none tabular-nums text-sky-600 dark:text-sky-400">
+                                            {requisitionLoading
+                                                ? "—"
+                                                : requisitionSummary
+                                                    .pending_categories
+                                                    .toLocaleString()}
+                                        </p>
+
+                                        <span className="text-[7px] font-semibold text-sky-600 opacity-0 transition-opacity group-hover:opacity-100">
+                                            View →
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75"
+                                        title="Pending requisition categories"
+                                    >
+                                        Pending categories
+                                    </p>
+                                </button>
+
+                                {/* Approval Pending */}
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        openRequisitionList(
+                                            REQUISITION_ROUTES.pending
+                                        )
+                                    }
+                                    className="
+            group
+            relative
+            min-h-[78px]
+            min-w-0
+            w-full
+            overflow-hidden
+            rounded-lg
+            border
+            border-amber-200
+            border-t-2
+            border-t-amber-500
+            bg-amber-50/60
+            px-2
+            py-2
+            text-left
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-sm
+            focus:outline-none
+            focus:ring-2
+            focus:ring-amber-500/20
+            dark:border-amber-900/60
+            dark:bg-amber-950/10
+        "
+                                >
+                                    <div className="flex items-center justify-between gap-1">
+                                        <p
+                                            className="min-w-0 truncate text-[8px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                            title="Approval Pending"
+                                        >
+                                            Approval Pending
+                                        </p>
+
+                                        <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                                    </div>
+
+                                    <div className="mt-2 flex items-end justify-between gap-1">
+                                        <p className="text-xl font-bold leading-none tabular-nums text-amber-600 dark:text-amber-400">
+                                            {requisitionLoading
+                                                ? "—"
+                                                : requisitionSummary
+                                                    .approval_pending
+                                                    .toLocaleString()}
+                                        </p>
+
+                                        <span className="text-[7px] font-semibold text-amber-600 opacity-0 transition-opacity group-hover:opacity-100">
+                                            View →
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75"
+                                        title="Waiting for approval"
+                                    >
+                                        Waiting for approval
+                                    </p>
+                                </button>
+
+                                {/* Rejected */}
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        openRequisitionList(
+                                            REQUISITION_ROUTES.rejected
+                                        )
+                                    }
+                                    className="
+            group
+            relative
+            min-h-[78px]
+            min-w-0
+            w-full
+            overflow-hidden
+            rounded-lg
+            border
+            border-red-200
+            border-t-2
+            border-t-red-500
+            bg-red-50/60
+            px-2
+            py-2
+            text-left
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-sm
+            focus:outline-none
+            focus:ring-2
+            focus:ring-red-500/20
+            dark:border-red-900/60
+            dark:bg-red-950/10
+        "
+                                >
+                                    <div className="flex items-center justify-between gap-1">
+                                        <p
+                                            className="min-w-0 truncate text-[8px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                            title="Rejected"
+                                        >
+                                            Rejected
+                                        </p>
+
+                                        <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                                    </div>
+
+                                    <div className="mt-2 flex items-end justify-between gap-1">
+                                        <p className="text-xl font-bold leading-none tabular-nums text-red-600 dark:text-red-400">
+                                            {requisitionLoading
+                                                ? "—"
+                                                : requisitionSummary
+                                                    .rejected
+                                                    .toLocaleString()}
+                                        </p>
+
+                                        <span className="text-[7px] font-semibold text-red-600 opacity-0 transition-opacity group-hover:opacity-100">
+                                            View →
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75"
+                                        title="Rejected requisitions"
+                                    >
+                                        Rejected requisitions
+                                    </p>
+                                </button>
+                            </div>
+
+                            {/* ==================================
+                            REQUISITION STATUS DISTRIBUTION
+                        ================================== */}
+
+                            <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted/10">
+                                {/* Header */}
+
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-3">
+                                    <div>
+                                        <h3 className="text-[11px] font-semibold text-foreground">
+                                            Requisition Status Distribution
+                                        </h3>
+
+                                        <p className="mt-0.5 text-[9px] text-muted-foreground">
+                                            Current requisition approval status
+                                        </p>
+                                    </div>
+
+                                    <span className="rounded-full border border-border bg-background px-2 py-1 text-[8px] font-semibold text-muted-foreground">
+                                        {requisitionLoading
+                                            ? "Loading..."
+                                            : `${requisitionSummary.total_active.toLocaleString()} Total`}
+                                    </span>
+                                </div>
+
+                                {/* Bar chart */}
+
+                                {requisitionLoading ? (
+                                    <div className="flex h-[320px] items-center justify-center text-[10px] text-muted-foreground sm:h-[360px]">
+                                        Loading Requisition chart...
+                                    </div>
+                                ) : (
+                                    <div className="h-[320px] px-2 pb-2 pt-2 sm:h-[360px]">
+                                        <ResponsiveContainer
+                                            width="100%"
+                                            height="100%"
+                                        >
+                                            {renderRequisitionBarChart()}
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
+
+                                {/* Status totals */}
+
+                            </div>
+                        </>
+                    )}
+                </section>
             </div>
         </div>
     );
 }
-
