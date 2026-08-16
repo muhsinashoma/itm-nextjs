@@ -130,6 +130,9 @@ const REQUISITION_ROUTES = {
 
     rejected:
         "/dashboard/requisitions?view=rejected",
+
+    ttReason:
+        "/dashboard/requisitions?view=tt_reason",
 };
 
 const EMPTY_SUMMARY:
@@ -2441,7 +2444,11 @@ export default function OverviewChart() {
                                     SAME STANDARD SIZE AS TT CARDS
                                 ================================== */}
 
-                            <div className="grid grid-cols-3 gap-2">
+                            {/* ==================================
+    REQUISITION WORKFLOW CARDS
+================================== */}
+
+                            <div className="grid grid-cols-4 gap-2">
                                 {/* Requisition Summary */}
 
                                 <button
@@ -2503,10 +2510,7 @@ export default function OverviewChart() {
                                         </span>
                                     </div>
 
-                                    <p
-                                        className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75"
-                                        title="Pending requisition categories"
-                                    >
+                                    <p className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75">
                                         Pending categories
                                     </p>
                                 </button>
@@ -2572,10 +2576,7 @@ export default function OverviewChart() {
                                         </span>
                                     </div>
 
-                                    <p
-                                        className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75"
-                                        title="Waiting for approval"
-                                    >
+                                    <p className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75">
                                         Waiting for approval
                                     </p>
                                 </button>
@@ -2641,15 +2642,77 @@ export default function OverviewChart() {
                                         </span>
                                     </div>
 
-                                    <p
-                                        className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75"
-                                        title="Rejected requisitions"
-                                    >
+                                    <p className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75">
                                         Rejected requisitions
                                     </p>
                                 </button>
-                            </div>
 
+                                {/* TT Reason */}
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        openRequisitionList(
+                                            REQUISITION_ROUTES.ttReason
+                                        )
+                                    }
+                                    className="
+            group
+            relative
+            min-h-[78px]
+            min-w-0
+            w-full
+            overflow-hidden
+            rounded-lg
+            border
+            border-violet-200
+            border-t-2
+            border-t-violet-500
+            bg-violet-50/60
+            px-2
+            py-2
+            text-left
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-sm
+            focus:outline-none
+            focus:ring-2
+            focus:ring-violet-500/20
+            dark:border-violet-900/60
+            dark:bg-violet-950/10
+        "
+                                >
+                                    <div className="flex items-center justify-between gap-1">
+                                        <p
+                                            className="min-w-0 truncate text-[8px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                            title="TT Reason"
+                                        >
+                                            TT Reason
+                                        </p>
+
+                                        <span className="h-2 w-2 shrink-0 rounded-full bg-violet-500" />
+                                    </div>
+
+                                    <div className="mt-2 flex items-end justify-between gap-1">
+                                        <p className="text-xl font-bold leading-none tabular-nums text-violet-600 dark:text-violet-400">
+                                            {requisitionLoading
+                                                ? "—"
+                                                : requisitionSummary
+                                                    .total_active
+                                                    .toLocaleString()}
+                                        </p>
+
+                                        <span className="text-[7px] font-semibold text-violet-600 opacity-0 transition-opacity group-hover:opacity-100">
+                                            View →
+                                        </span>
+                                    </div>
+
+                                    <p className="mt-1 truncate text-[7px] leading-3 text-muted-foreground/75">
+                                        All requisition reasons
+                                    </p>
+                                </button>
+                            </div>
                             {/* ==================================
                             REQUISITION STATUS DISTRIBUTION
                         ================================== */}
