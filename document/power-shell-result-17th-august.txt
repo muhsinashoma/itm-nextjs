@@ -1,0 +1,736 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> cd D:
+PS D:\> cd ITM-Data
+PS D:\ITM-Data> cd itm
+PS D:\ITM-Data\itm> cd backend
+PS D:\ITM-Data\itm\backend> $generalMe = Invoke-RestMethod `
+>>     -Uri "$base/auth/me" `
+>>     -Method GET `
+>>     -Headers @{
+>>         Authorization = "Bearer $generalToken"
+>>     }
+Invoke-RestMethod : Invalid URI: The hostname could not be parsed.
+At line:1 char:14
++ $generalMe = Invoke-RestMethod `
++              ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Invoke-RestMethod], UriFormatException
+    + FullyQualifiedErrorId : System.UriFormatException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+
+PS D:\ITM-Data\itm\backend> $port = 8080
+PS D:\ITM-Data\itm\backend> $base = "http://127.0.0.1:$port/api/v1"
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $base
+http://127.0.0.1:8080/api/v1
+PS D:\ITM-Data\itm\backend> $securePassword = Read-Host "Enter General User password" -AsSecureString
+Enter General User password: ****************
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR(
+>>     $securePassword
+>> )
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> try {
+>>     $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR(
+>>         $ptr
+>>     )
+>> }
+>> finally {
+>>     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR(
+>>         $ptr
+>>     )
+>> }
+PS D:\ITM-Data\itm\backend> $body = @{
+>>     username = "test.general"
+>>     password = $password
+>> } | ConvertTo-Json
+PS D:\ITM-Data\itm\backend> $generalLogin = Invoke-RestMethod `
+>>     -Uri "$base/auth/login" `
+>>     -Method POST `
+>>     -ContentType "application/json" `
+>>     -Body $body
+PS D:\ITM-Data\itm\backend> Write-Host "Success     :" $generalLogin.success
+Success     : True
+PS D:\ITM-Data\itm\backend> Write-Host "Employee ID :" $generalLogin.data.employee_id
+Employee ID : TEST-GEN-001
+PS D:\ITM-Data\itm\backend> Write-Host "Username    :" $generalLogin.data.username
+Username    : test.general
+PS D:\ITM-Data\itm\backend> Write-Host "User Type   :" $generalLogin.data.user_type
+User Type   : 3
+PS D:\ITM-Data\itm\backend> Write-Host "Role Code   :" $generalLogin.data.role_code
+Role Code   : GENERAL_USER
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> if ($generalLogin.data.token) {
+>>     Write-Host "Token       : FOUND"
+>> }$generalToken = $generalLogin.data.token
+Token       : FOUND
+PS D:\ITM-Data\itm\backend> if ($generalToken) {
+>>     Write-Host "GENERAL TOKEN FOUND"
+>> }
+GENERAL TOKEN FOUND
+PS D:\ITM-Data\itm\backend> $generalMe = Invoke-RestMethod `
+>>     -Uri "$base/auth/me" `
+>>     -Method GET `
+>>     -Headers @{
+>>         Authorization = "Bearer $generalToken"
+>>     }
+PS D:\ITM-Data\itm\backend> $generalMe | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "account_status":  "active",
+                 "email":  "test.general@itm.local",
+                 "employee_id":  "TEST-GEN-001",
+                 "full_name":  "Test General User",
+                 "must_change_password":  true,
+                 "permissions":  [
+                                     "panel.user.access",
+                                     "requisition.view"
+                                 ],
+                 "role_code":  "GENERAL_USER",
+                 "role_name":  "General User",
+                 "user_id":  4,
+                 "user_type":  3,
+                 "username":  "test.general"
+             },
+    "success":  true
+}
+PS D:\ITM-Data\itm\backend> $p = $generalMe.data.permissions
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> Write-Host "Role        :" $generalMe.data.role_code
+Role        : GENERAL_USER
+PS D:\ITM-Data\itm\backend> Write-Host "User Panel  :" ($p -contains "panel.user.access")
+User Panel  : True
+PS D:\ITM-Data\itm\backend> Write-Host "Admin Panel :" ($p -contains "panel.admin.access")
+Admin Panel : False
+PS D:\ITM-Data\itm\backend> Write-Host "View        :" ($p -contains "requisition.view")
+View        : True
+PS D:\ITM-Data\itm\backend> Write-Host "Approve     :" ($p -contains "requisition.approve")
+Approve     : False
+PS D:\ITM-Data\itm\backend> Write-Host "Deliver     :" ($p -contains "requisition.deliver")
+Deliver     : False
+PS D:\ITM-Data\itm\backend> Write-Host "Manage User :" ($p -contains "users.manage")
+Manage User : False
+PS D:\ITM-Data\itm\backend> $port = 8080
+PS D:\ITM-Data\itm\backend> $base = "http://127.0.0.1:$port/api/v1"
+PS D:\ITM-Data\itm\backend> $securePassword = Read-Host "Enter IT Personnel password" -AsSecureString
+Enter IT Personnel password: ****************
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR(
+>>     $securePassword
+>> )
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> try {
+>>     $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR(
+>>         $ptr
+>>     )
+>> }
+>> finally {
+>>     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR(
+>>         $ptr
+>>     )
+>> }$body = @{
+>>     username = "test.itpersonnel"
+>>     password = $password
+>> } | ConvertTo-Json
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $itLogin = Invoke-RestMethod `
+>>     -Uri "$base/auth/login" `
+>>     -Method POST `
+>>     -ContentType "application/json" `
+>>     -Body $body
+PS D:\ITM-Data\itm\backend> Write-Host "Success     :" $itLogin.success
+Success     : True
+PS D:\ITM-Data\itm\backend> Write-Host "Employee ID :" $itLogin.data.employee_id
+Employee ID : TEST-IT-001
+PS D:\ITM-Data\itm\backend> Write-Host "Username    :" $itLogin.data.username
+Username    : test.itpersonnel
+PS D:\ITM-Data\itm\backend> Write-Host "User Type   :" $itLogin.data.user_type
+User Type   : 2
+PS D:\ITM-Data\itm\backend> Write-Host "Role Code   :" $itLogin.data.role_code
+Role Code   : IT_PERSONNEL
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> if ($itLogin.data.token) {
+>>     Write-Host "Token       : FOUND"
+>> }$itToken = $itLogin.data.token
+Token       : FOUND
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $itMe = Invoke-RestMethod `
+>>     -Uri "$base/auth/me" `
+>>     -Method GET `
+>>     -Headers @{
+>>         Authorization = "Bearer $itToken"
+>>     }
+PS D:\ITM-Data\itm\backend> $itMe | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "account_status":  "active",
+                 "email":  "test.itpersonnel@itm.local",
+                 "employee_id":  "TEST-IT-001",
+                 "full_name":  "Test IT Personnel",
+                 "must_change_password":  true,
+                 "permissions":  [
+                                     "panel.user.access",
+                                     "requisition.approve",
+                                     "requisition.deliver",
+                                     "requisition.view"
+                                 ],
+                 "role_code":  "IT_PERSONNEL",
+                 "role_name":  "IT Personnel",
+                 "user_id":  3,
+                 "user_type":  2,
+                 "username":  "test.itpersonnel"
+             },
+    "success":  true
+}
+PS D:\ITM-Data\itm\backend> $itMe | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "account_status":  "active",
+                 "email":  "test.itpersonnel@itm.local",
+                 "employee_id":  "TEST-IT-001",
+                 "full_name":  "Test IT Personnel",
+                 "must_change_password":  true,
+                 "permissions":  [
+                                     "panel.user.access",
+                                     "requisition.approve",
+                                     "requisition.deliver",
+                                     "requisition.view"
+                                 ],
+                 "role_code":  "IT_PERSONNEL",
+                 "role_name":  "IT Personnel",
+                 "user_id":  3,
+                 "user_type":  2,
+                 "username":  "test.itpersonnel"
+             },
+    "success":  true
+}
+PS D:\ITM-Data\itm\backend> $p = $itMe.data.permissions
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> Write-Host "Role        :" $itMe.data.role_code
+Role        : IT_PERSONNEL
+PS D:\ITM-Data\itm\backend> Write-Host "User Panel  :" ($p -contains "panel.user.access")
+User Panel  : True
+PS D:\ITM-Data\itm\backend> Write-Host "Admin Panel :" ($p -contains "panel.admin.access")
+Admin Panel : False
+PS D:\ITM-Data\itm\backend> Write-Host "View        :" ($p -contains "requisition.view")
+View        : True
+PS D:\ITM-Data\itm\backend> Write-Host "Approve     :" ($p -contains "requisition.approve")
+Approve     : True
+PS D:\ITM-Data\itm\backend> Write-Host "Deliver     :" ($p -contains "requisition.deliver")
+Deliver     : True
+PS D:\ITM-Data\itm\backend> Write-Host "Manage User :" ($p -contains "users.manage")
+Manage User : False
+PS D:\ITM-Data\itm\backend> Get-ChildItem `
+>>     ".\internal\handler" `
+>>     -Recurse `
+>>     -Filter *.go |
+>> Select-String `
+>>     'requisitions/:id/approval'
+
+internal\handler\handlers.go:192:               "/requisitions/:id/approval",
+
+
+PS D:\ITM-Data\itm\backend> Get-ChildItem `
+>>     ".\internal\handler" `
+>>     -Recurse `
+>>     -Filter *.go |
+>> Select-String `
+>>     'requisitions/:id/delivery'
+
+internal\handler\handlers.go:197:               "/requisitions/:id/delivery",
+
+
+PS D:\ITM-Data\itm\backend> Select-String `
+>>     -Path ".\internal\handler\handlers.go" `
+>>     -Pattern 'type DashboardHandler struct' `
+>>     -Context 0,15
+
+> internal\handler\handlers.go:141:type DashboardHandler struct{ db *pgxpool.Pool }
+  internal\handler\handlers.go:142:
+  internal\handler\handlers.go:143:func NewDashboardHandler(db *pgxpool.Pool) *DashboardHandler { return &DashboardHandler{db: db} }
+  internal\handler\handlers.go:144:
+  internal\handler\handlers.go:145:func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
+  internal\handler\handlers.go:146:     g := rg.Group("/dashboard")
+  internal\handler\handlers.go:147:
+  internal\handler\handlers.go:148:     g.GET("/stats", h.Stats)
+  internal\handler\handlers.go:149:     g.GET("/summary", h.Summary)
+  internal\handler\handlers.go:150:     g.GET("/ticket-trend", h.TicketTrend)
+  internal\handler\handlers.go:151:
+  internal\handler\handlers.go:152:     g.GET(
+  internal\handler\handlers.go:153:             "/trouble-ticket-summary",
+  internal\handler\handlers.go:154:             h.TroubleTicketSummary,
+  internal\handler\handlers.go:155:     )
+  internal\handler\handlers.go:156:
+
+
+PS D:\ITM-Data\itm\backend> Select-String `
+>>     -Path ".\internal\handler\handlers.go" `
+>>     -Pattern 'func \(h \*DashboardHandler\) Register' `
+>>     -Context 0,70
+
+> internal\handler\handlers.go:145:func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
+  internal\handler\handlers.go:146:     g := rg.Group("/dashboard")
+  internal\handler\handlers.go:147:
+  internal\handler\handlers.go:148:     g.GET("/stats", h.Stats)
+  internal\handler\handlers.go:149:     g.GET("/summary", h.Summary)
+  internal\handler\handlers.go:150:     g.GET("/ticket-trend", h.TicketTrend)
+  internal\handler\handlers.go:151:
+  internal\handler\handlers.go:152:     g.GET(
+  internal\handler\handlers.go:153:             "/trouble-ticket-summary",
+  internal\handler\handlers.go:154:             h.TroubleTicketSummary,
+  internal\handler\handlers.go:155:     )
+  internal\handler\handlers.go:156:
+  internal\handler\handlers.go:157:     g.GET(
+  internal\handler\handlers.go:158:             "/trouble-ticket-overview",
+  internal\handler\handlers.go:159:             h.TroubleTicketOverview,
+  internal\handler\handlers.go:160:     )
+  internal\handler\handlers.go:161:
+  internal\handler\handlers.go:162:     g.GET(
+  internal\handler\handlers.go:163:             "/trouble-tickets",
+  internal\handler\handlers.go:164:             h.TroubleTicketList,
+  internal\handler\handlers.go:165:     )
+  internal\handler\handlers.go:166:
+  internal\handler\handlers.go:167:     g.GET(
+  internal\handler\handlers.go:168:             "/trouble-ticket-it-personnel",
+  internal\handler\handlers.go:169:             h.TroubleTicketITPersonnel,
+  internal\handler\handlers.go:170:     )
+  internal\handler\handlers.go:171:
+  internal\handler\handlers.go:172:     /* ==================================================
+  internal\handler\handlers.go:173:        REQUISITION
+  internal\handler\handlers.go:174:     ================================================== */
+  internal\handler\handlers.go:175:
+  internal\handler\handlers.go:176:     g.GET(
+  internal\handler\handlers.go:177:             "/requisition-dashboard-summary",
+  internal\handler\handlers.go:178:             h.RequisitionDashboardSummary,
+  internal\handler\handlers.go:179:     )
+  internal\handler\handlers.go:180:
+  internal\handler\handlers.go:181:     g.GET(
+  internal\handler\handlers.go:182:             "/requisition-summary",
+  internal\handler\handlers.go:183:             h.RequisitionSummary,
+  internal\handler\handlers.go:184:     )
+  internal\handler\handlers.go:185:
+  internal\handler\handlers.go:186:     g.GET(
+  internal\handler\handlers.go:187:             "/requisitions",
+  internal\handler\handlers.go:188:             h.RequisitionList,
+  internal\handler\handlers.go:189:     )
+  internal\handler\handlers.go:190:
+  internal\handler\handlers.go:191:     g.PATCH(
+  internal\handler\handlers.go:192:             "/requisitions/:id/approval",
+  internal\handler\handlers.go:193:             h.UpdateRequisitionApproval,
+  internal\handler\handlers.go:194:     )
+  internal\handler\handlers.go:195:
+  internal\handler\handlers.go:196:     g.PATCH(
+  internal\handler\handlers.go:197:             "/requisitions/:id/delivery",
+  internal\handler\handlers.go:198:             h.UpdateRequisitionDelivery,
+  internal\handler\handlers.go:199:     )
+  internal\handler\handlers.go:200:}
+  internal\handler\handlers.go:201:
+  internal\handler\handlers.go:202:func (h *DashboardHandler) Stats(c *gin.Context) {
+  internal\handler\handlers.go:203:     ctx := c.Request.Context()
+  internal\handler\handlers.go:204:     type S struct {
+  internal\handler\handlers.go:205:             TotalDevices     int `json:"total_devices"`
+  internal\handler\handlers.go:206:             AssignedDevices  int `json:"assigned_devices"`
+  internal\handler\handlers.go:207:             StockDevices     int `json:"stock_devices"`
+  internal\handler\handlers.go:208:             ActiveEmployees  int `json:"active_employees"`
+  internal\handler\handlers.go:209:             OpenTickets      int `json:"open_tickets"`
+  internal\handler\handlers.go:210:             RunningTickets   int `json:"running_tickets"`
+  internal\handler\handlers.go:211:             ClosedTickets    int `json:"closed_tickets"`
+  internal\handler\handlers.go:212:             WarrantyExpiring int `json:"warranty_expiring_30d"`
+  internal\handler\handlers.go:213:     }
+  internal\handler\handlers.go:214:     var s S
+  internal\handler\handlers.go:215:     h.db.QueryRow(ctx, "SELECT COUNT(*) FROM it_equipment WHERE active>0").Scan(&s.TotalDevices)
+
+
+PS D:\ITM-Data\itm\backend> Select-String `
+>>     -Path ".\internal\handler\handlers.go" `
+>>     -Pattern 'func \(h \*DashboardHandler\) Register' `
+>>     -Context 0,70
+
+> internal\handler\handlers.go:145:func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
+  internal\handler\handlers.go:146:     g := rg.Group("/dashboard")
+  internal\handler\handlers.go:147:
+  internal\handler\handlers.go:148:     g.GET("/stats", h.Stats)
+  internal\handler\handlers.go:149:     g.GET("/summary", h.Summary)
+  internal\handler\handlers.go:150:     g.GET("/ticket-trend", h.TicketTrend)
+  internal\handler\handlers.go:151:
+  internal\handler\handlers.go:152:     g.GET(
+  internal\handler\handlers.go:153:             "/trouble-ticket-summary",
+  internal\handler\handlers.go:154:             h.TroubleTicketSummary,
+  internal\handler\handlers.go:155:     )
+  internal\handler\handlers.go:156:
+  internal\handler\handlers.go:157:     g.GET(
+  internal\handler\handlers.go:158:             "/trouble-ticket-overview",
+  internal\handler\handlers.go:159:             h.TroubleTicketOverview,
+  internal\handler\handlers.go:160:     )
+  internal\handler\handlers.go:161:
+  internal\handler\handlers.go:162:     g.GET(
+  internal\handler\handlers.go:163:             "/trouble-tickets",
+  internal\handler\handlers.go:164:             h.TroubleTicketList,
+  internal\handler\handlers.go:165:     )
+  internal\handler\handlers.go:166:
+  internal\handler\handlers.go:167:     g.GET(
+  internal\handler\handlers.go:168:             "/trouble-ticket-it-personnel",
+  internal\handler\handlers.go:169:             h.TroubleTicketITPersonnel,
+  internal\handler\handlers.go:170:     )
+  internal\handler\handlers.go:171:
+  internal\handler\handlers.go:172:     /* ==================================================
+  internal\handler\handlers.go:173:        REQUISITION
+  internal\handler\handlers.go:174:     ================================================== */
+  internal\handler\handlers.go:175:
+  internal\handler\handlers.go:176:     g.GET(
+  internal\handler\handlers.go:177:             "/requisition-dashboard-summary",
+  internal\handler\handlers.go:178:             h.RequisitionDashboardSummary,
+  internal\handler\handlers.go:179:     )
+  internal\handler\handlers.go:180:
+  internal\handler\handlers.go:181:     g.GET(
+  internal\handler\handlers.go:182:             "/requisition-summary",
+  internal\handler\handlers.go:183:             h.RequisitionSummary,
+  internal\handler\handlers.go:184:     )
+  internal\handler\handlers.go:185:
+  internal\handler\handlers.go:186:     g.GET(
+  internal\handler\handlers.go:187:             "/requisitions",
+  internal\handler\handlers.go:188:             h.RequisitionList,
+  internal\handler\handlers.go:189:     )
+  internal\handler\handlers.go:190:
+  internal\handler\handlers.go:191:     g.PATCH(
+  internal\handler\handlers.go:192:             "/requisitions/:id/approval",
+  internal\handler\handlers.go:193:             h.UpdateRequisitionApproval,
+  internal\handler\handlers.go:194:     )
+  internal\handler\handlers.go:195:
+  internal\handler\handlers.go:196:     g.PATCH(
+  internal\handler\handlers.go:197:             "/requisitions/:id/delivery",
+  internal\handler\handlers.go:198:             h.UpdateRequisitionDelivery,
+  internal\handler\handlers.go:199:     )
+  internal\handler\handlers.go:200:}
+  internal\handler\handlers.go:201:
+  internal\handler\handlers.go:202:func (h *DashboardHandler) Stats(c *gin.Context) {
+  internal\handler\handlers.go:203:     ctx := c.Request.Context()
+  internal\handler\handlers.go:204:     type S struct {
+  internal\handler\handlers.go:205:             TotalDevices     int `json:"total_devices"`
+  internal\handler\handlers.go:206:             AssignedDevices  int `json:"assigned_devices"`
+  internal\handler\handlers.go:207:             StockDevices     int `json:"stock_devices"`
+  internal\handler\handlers.go:208:             ActiveEmployees  int `json:"active_employees"`
+  internal\handler\handlers.go:209:             OpenTickets      int `json:"open_tickets"`
+  internal\handler\handlers.go:210:             RunningTickets   int `json:"running_tickets"`
+  internal\handler\handlers.go:211:             ClosedTickets    int `json:"closed_tickets"`
+  internal\handler\handlers.go:212:             WarrantyExpiring int `json:"warranty_expiring_30d"`
+  internal\handler\handlers.go:213:     }
+  internal\handler\handlers.go:214:     var s S
+  internal\handler\handlers.go:215:     h.db.QueryRow(ctx, "SELECT COUNT(*) FROM it_equipment WHERE active>0").Scan(&s.TotalDevices)
+
+
+PS D:\ITM-Data\itm\backend> cd D:\ITM-Data\itm\backend
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> Copy-Item `
+>>     ".\internal\handler\handlers.go" `
+>>     ".\internal\handler\handlers.go.before-permission-security"
+PS D:\ITM-Data\itm\backend>     ".\internal\handler\handlers.go.before-permission-security
+>>
+>>     ".\internal\handler\handlers.go" `
+>> Copy-Item `^C
+PS D:\ITM-Data\itm\backend>     ".\internal\handler\handlers.go.before-permission-security"
+>>
+>>
+>>     ".\internal\handler\handlers.go" `
+>> Copy-Item `^C
+PS D:\ITM-Data\itm\backend> Get-Item ".\internal\handler\handlers.go.before-permission-security"
+
+
+    Directory: D:\ITM-Data\itm\backend\internal\handler
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----         8/16/2026   2:15 PM          84193 handlers.go.before-permission-security
+
+
+PS D:\ITM-Data\itm\backend> gofmt -w .\internal\handler\handlers.go
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/hash_password       [no test files]
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend> $generalToken = $generalLogin.data.token
+PS D:\ITM-Data\itm\backend> $generalView = Invoke-RestMethod `
+>>     -Uri "$base/dashboard/requisitions?view=pending&page=1&limit=5" `
+>>     -Method GET `
+>>     -Headers @{
+>>         Authorization = "Bearer $generalToken"
+>>     }
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> Write-Host "GENERAL USER VIEW: ALLOWED"
+GENERAL USER VIEW: ALLOWED
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/999999999/approval" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $generalToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"approved_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 403
+{"error":"permission denied","success":false}
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/999999999/delivery" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $generalToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"delivered_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 403
+{"error":"permission denied","success":false}
+PS D:\ITM-Data\itm\backend> $itToken = $itLogin.data.token
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/999999999/approval" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"approved_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 500
+{"error":"ERROR: value too long for type character varying(10) (SQLSTATE 22001)","success":false}
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/999999999/approval" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"approved_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 404
+{"error":"requisition not found","success":false}
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/999999999/delivery" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"delivered_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 500
+{"error":"ERROR: inconsistent types deduced for parameter $1 (SQLSTATE 42P08)","success":false}
+PS D:\ITM-Data\itm\backend>
+>> gofmt -w .\internal\handler\handlers.go
+PS D:\ITM-Data\itm\backend> cd D:\ITM-Data\itm\backend
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> gofmt -w .\internal\handler\handlers.go
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/hash_password       [no test files]
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend> $port = 8080
+PS D:\ITM-Data\itm\backend> $base = "http://127.0.0.1:$port/api/v1"
+PS D:\ITM-Data\itm\backend> $itToken = $itLogin.data.token
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/999999999/approval" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"approved_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 404
+{"error":"requisition not found","success":false}
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/999999999/delivery" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"delivered_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 404
+{"error":"requisition not found","success":false}
+PS D:\ITM-Data\itm\backend> cd D:\ITM-Data\itm\backend
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> Copy-Item `
+>>     ".\internal\handler\handlers.go" `
+>>     ".\internal\handler\handlers.go.before-workflow-hardening"
+PS D:\ITM-Data\itm\backend> cd D:\ITM-Data\itm\backend
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> gofmt -w .\internal\handler\handlers.go
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/hash_password       [no test files]
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend> $port = 8080
+PS D:\ITM-Data\itm\backend> $base = "http://127.0.0.1:$port/api/v1"
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/430/approval" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"approved_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 409
+{"error":"requisition approval has already been completed","success":false}
+PS D:\ITM-Data\itm\backend> $port = 8080
+PS D:\ITM-Data\itm\backend> $base = "http://127.0.0.1:$port/api/v1"
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/386/delivery" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"delivered_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 409
+{"error":"requisition must be approved before delivery","success":false}
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/430/approval" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"approved_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 409
+{"error":"requisition approval has already been completed","success":false}
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/386/delivery" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"delivered_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 409
+{"error":"requisition must be approved before delivery","success":false}
+PS D:\ITM-Data\itm\backend> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisitions/386/delivery" `
+>>         -Method PATCH `
+>>         -Headers @{
+>>             Authorization = "Bearer $itToken"
+>>         } `
+>>         -ContentType "application/json" `
+>>         -Body '{"delivered_val":1}'
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 409
+{"error":"requisition must be approved before delivery","success":false}
+PS D:\ITM-Data\itm\backend> $approval = Invoke-RestMethod `
+>>     -Uri "$base/dashboard/requisitions/$testID/approval" `
+>>     -Method PATCH `
+>>     -Headers @{
+>>         Authorization = "Bearer $itToken"
+>>     } `
+>>     -ContentType "application/json" `
+>>     -Body '{"approved_val":1}'
+Invoke-RestMethod : {"error":"invalid requisition id","success":false}
+At line:1 char:13
++ $approval = Invoke-RestMethod `
++             ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebException
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $testID = 431
+PS D:\ITM-Data\itm\backend> $approval = Invoke-RestMethod `
+>>     -Uri "$base/dashboard/requisitions/$testID/approval" `
+>>     -Method PATCH `
+>>     -Headers @{
+>>         Authorization = "Bearer $itToken"
+>>     } `
+>>     -ContentType "application/json" `
+>>     -Body '{"approved_val":1}'
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $approval | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "id":  431,
+                 "approved_val":  1,
+                 "approval_status":  "Petty Cash (Approved)",
+                 "approved_by":  "TEST-IT-001",
+                 "approved_date":  "2026-08-17 18:40:20.728665+06"
+             },
+    "success":  true
+}
+PS D:\ITM-Data\itm\backend>

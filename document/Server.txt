@@ -2,3 +2,57 @@ Server: ITM backend/API server
 PostgreSQL: localhost:5432
 Database: itm_prod
 Legacy MySQL: use the host/IP configured in your MySQL Workbench connection
+
+-------------------------------------------------------------------------------
+
+username: admin
+password : Admin@1234
+
+------------------------------------------------------------------------------
+
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> $base
+>>
+>> $base = "http://127.0.0.1:$port/api/v1"
+>> $port = Read-Host "Enter API port shown by backend"
+Enter API port shown by backend: 8080
+PS C:\WINDOWS\system32> $port = 8080
+PS C:\WINDOWS\system32> $base = "http://127.0.0.1:$port/api/v1"
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $base
+http://127.0.0.1:8080/api/v1
+PS C:\WINDOWS\system32> Invoke-RestMethod `
+>>     -Uri "http://127.0.0.1:$port/health" `
+>>     -Method GET |
+>> ConvertTo-Json -Depth 10
+{
+    "status":  "ok",
+    "time":  "2026-08-16T11:40:02.4574687Z"
+}
+PS C:\WINDOWS\system32> $securePassword = Read-Host "Enter current admin password" -AsSecureString
+Enter current admin password: **********
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> try {
+>>     $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+>> }
+>> finally {
+>>     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+>> }
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $body = @{
+>>     username = "admin"
+>>     password = $password
+>> } | ConvertTo-Json
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $login = Invoke-RestMethod `
+>>     -Uri "$base/auth/login" `
+>>     -Method POST `
+>>     -ContentType "application/json" `
+>>     -Body $body
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $login | ConvertTo-Json -Depth 10
+--------------------------------------------------------------------------

@@ -1,9 +1,20 @@
 // backend/internal/handler/handlers.go
 package handler
 
+// import (
+// 	"fmt"
+// 	"strconv"
+// 	"strings"
+
+// 	"itm-api/pkg/response"
+
+// 	"github.com/gin-gonic/gin"
+// 	"github.com/jackc/pgx/v5"
+// 	"github.com/jackc/pgx/v5/pgxpool"
+// )
+
 import (
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
@@ -3923,16 +3934,15 @@ func (
 	)
 }
 
-// UpdateRequisitionApproval performs the final approval action
-// for an active requisition.
+// UpdateRequisitionApproval updates the approval workflow
+// for an IT Accessories / TT Reason requisition.
 //
 // approved_val:
 //
+//	0 = Approval Pending
 //	1 = Petty Cash (Approved)
 //	2 = Rejected
 //	3 = PR (Approved)
-//
-// A requisition can only be approved/rejected once.
 func (
 	h *DashboardHandler,
 ) UpdateRequisitionApproval(
@@ -3947,11 +3957,15 @@ func (
 		10,
 		64,
 	)
-	if err != nil || requisitionID <= 0 {
+
+	if err != nil ||
+		requisitionID <= 0 {
+
 		response.BadRequest(
 			c,
 			"invalid requisition id",
 		)
+
 		return
 	}
 
@@ -3964,140 +3978,40 @@ func (
 	if err := c.ShouldBindJSON(
 		&req,
 	); err != nil {
+
 		response.BadRequest(
 			c,
 			err.Error(),
 		)
+
 		return
 	}
 
 	switch req.ApprovedVal {
-	case 1, 2, 3:
-		// valid
+	case 0, 1, 2, 3:
+		// Valid.
+
 	default:
 		response.BadRequest(
 			c,
-			"approved_val must be 1, 2, or 3",
+			"approved_val must be 0, 1, 2, or 3",
 		)
+
 		return
 	}
 
-	userID, ok :=
-		middleware.GetCurrentUserID(c)
-
-	if !ok {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"success": false,
-				"error":   "authentication required",
-			},
-		)
-		return
-	}
-
-	employeeID, ok :=
-		middleware.GetCurrentEmployeeID(c)
-
-	if !ok {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"success": false,
-				"error":   "authenticated employee id not found",
-			},
-		)
-		return
-	}
-
-	username, ok :=
-		middleware.GetCurrentUsername(c)
-
-	if !ok {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"success": false,
-				"error":   "authenticated username not found",
-			},
-		)
-		return
-	}
-
-	roleCode, _ :=
-		middleware.GetCurrentRoleCode(c)
-
-	tx, err := h.db.Begin(ctx)
-	if err != nil {
-		response.ServerError(c, err)
-		return
-	}
-
-	defer tx.Rollback(ctx)
-
-	var (
-		currentApproved int
-		currentStatus   int
+	employeeID := strings.TrimSpace(
+		c.GetString(
+			"employee_id",
+		),
 	)
 
-	err = tx.QueryRow(
-		ctx,
-		`
-		SELECT
-			COALESCE(
-				approved_val,
-				0
-			)::int,
-
-			COALESCE(
-				status,
-				1
-			)::int
-
-		FROM public.tt_reasons
-
-		WHERE id = $1::bigint
-
-		FOR UPDATE
-		`,
-		requisitionID,
-	).Scan(
-		&currentApproved,
-		&currentStatus,
-	)
-
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			response.NotFound(
-				c,
-				"requisition not found",
-			)
-			return
-		}
-
-		response.ServerError(c, err)
-		return
-	}
-
-	if currentStatus != 1 {
-		c.JSON(
-			http.StatusConflict,
-			gin.H{
-				"success": false,
-				"error":   "requisition is not active",
-			},
+	if employeeID == "" {
+		response.BadRequest(
+			c,
+			"authenticated employee id not found",
 		)
-		return
-	}
 
-	if currentApproved != 0 {
-		c.JSON(
-			http.StatusConflict,
-			gin.H{
-				"success": false,
-				"error":   "requisition approval has already been completed",
-			},
-		)
 		return
 	}
 
@@ -4115,7 +4029,7 @@ func (
 
 	var result Result
 
-	err = tx.QueryRow(
+	err = h.db.QueryRow(
 		ctx,
 		`
 		UPDATE public.tt_reasons
@@ -4125,11 +4039,23 @@ func (
 				$1::smallint,
 
 			approved_by =
-				$2::varchar(35),
+				CASE
+					WHEN $1::smallint = 0::smallint
+						THEN NULL
+
+					ELSE $2::varchar(35)
+				END,
 
 			approved_date =
-				CURRENT_TIMESTAMP
-					AT TIME ZONE 'Asia/Dhaka',
+				CASE
+					WHEN $1::smallint = 0::smallint
+						THEN NULL
+
+					ELSE (
+						CURRENT_TIMESTAMP
+							AT TIME ZONE 'Asia/Dhaka'
+					)
+				END,
 
 			edited_by =
 				$2::varchar(35),
@@ -4138,12 +4064,21 @@ func (
 				CURRENT_TIMESTAMP
 					AT TIME ZONE 'Asia/Dhaka'
 
-		WHERE id = $3::bigint
+		WHERE
+			id = $3::bigint
+
+			AND COALESCE(
+				status,
+				1
+			) = 1
 
 		RETURNING
 			id,
 
-			approved_val::int,
+			COALESCE(
+				approved_val,
+				0::smallint
+			)::int,
 
 			COALESCE(
 				approved_by,
@@ -4166,7 +4101,20 @@ func (
 	)
 
 	if err != nil {
-		response.ServerError(c, err)
+		if err == pgx.ErrNoRows {
+			response.NotFound(
+				c,
+				"requisition not found",
+			)
+
+			return
+		}
+
+		response.ServerError(
+			c,
+			err,
+		)
+
 		return
 	}
 
@@ -4182,78 +4130,10 @@ func (
 	case 3:
 		result.ApprovalStatus =
 			"PR (Approved)"
-	}
 
-	auditAction :=
-		"REQUISITION_APPROVED"
-
-	if result.ApprovedVal == 2 {
-		auditAction =
-			"REQUISITION_REJECTED"
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		`
-		INSERT INTO public.auth_audit_logs (
-			user_id,
-			employee_id_snapshot,
-			username_snapshot,
-			action,
-			module,
-			entity_type,
-			entity_id,
-			ip_address,
-			user_agent,
-			success,
-			metadata
-		)
-		VALUES (
-			$1,
-			$2,
-			$3,
-			$4,
-			'requisition',
-			'tt_reason',
-			$5,
-			NULLIF($6, '')::inet,
-			NULLIF($7, ''),
-			TRUE,
-			jsonb_build_object(
-				'approved_val',
-				$8::int,
-
-				'role_code',
-				$9::text
-			)
-		)
-		`,
-		userID,
-		employeeID,
-		username,
-		auditAction,
-		strconv.FormatInt(
-			requisitionID,
-			10,
-		),
-		strings.TrimSpace(
-			c.ClientIP(),
-		),
-		strings.TrimSpace(
-			c.Request.UserAgent(),
-		),
-		req.ApprovedVal,
-		roleCode,
-	)
-
-	if err != nil {
-		response.ServerError(c, err)
-		return
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		response.ServerError(c, err)
-		return
+	default:
+		result.ApprovalStatus =
+			"Approval Pending"
 	}
 
 	response.OK(
@@ -4262,19 +4142,13 @@ func (
 	)
 }
 
-// UpdateRequisitionDelivery performs the final delivery action.
+// UpdateRequisitionDelivery updates the delivery workflow.
 //
 // delivered_val:
 //
+//	0 = Pending
 //	1 = Delivered
 //	2 = Rejected
-//
-// Delivery is only allowed after approval:
-//
-//	1 = Petty Cash Approved
-//	3 = PR Approved
-//
-// A delivery action can only be completed once.
 func (
 	h *DashboardHandler,
 ) UpdateRequisitionDelivery(
@@ -4297,6 +4171,7 @@ func (
 			c,
 			"invalid requisition id",
 		)
+
 		return
 	}
 
@@ -4314,156 +4189,35 @@ func (
 			c,
 			err.Error(),
 		)
+
 		return
 	}
 
 	switch req.DeliveredVal {
-	case 1, 2:
-		// valid
+	case 0, 1, 2:
+		// Valid.
+
 	default:
 		response.BadRequest(
 			c,
-			"delivered_val must be 1 or 2",
+			"delivered_val must be 0, 1, or 2",
 		)
+
 		return
 	}
 
-	userID, ok :=
-		middleware.GetCurrentUserID(c)
-
-	if !ok {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"success": false,
-				"error":   "authentication required",
-			},
-		)
-		return
-	}
-
-	employeeID, ok :=
-		middleware.GetCurrentEmployeeID(c)
-
-	if !ok {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"success": false,
-				"error":   "authenticated employee id not found",
-			},
-		)
-		return
-	}
-
-	username, ok :=
-		middleware.GetCurrentUsername(c)
-
-	if !ok {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"success": false,
-				"error":   "authenticated username not found",
-			},
-		)
-		return
-	}
-
-	roleCode, _ :=
-		middleware.GetCurrentRoleCode(c)
-
-	tx, err := h.db.Begin(ctx)
-	if err != nil {
-		response.ServerError(c, err)
-		return
-	}
-
-	defer tx.Rollback(ctx)
-
-	var (
-		currentApproved  int
-		currentDelivered int
-		currentStatus    int
+	employeeID := strings.TrimSpace(
+		c.GetString(
+			"employee_id",
+		),
 	)
 
-	err = tx.QueryRow(
-		ctx,
-		`
-		SELECT
-			COALESCE(
-				approved_val,
-				0
-			)::int,
-
-			COALESCE(
-				delivered_val,
-				0
-			)::int,
-
-			COALESCE(
-				status,
-				1
-			)::int
-
-		FROM public.tt_reasons
-
-		WHERE id = $1::bigint
-
-		FOR UPDATE
-		`,
-		requisitionID,
-	).Scan(
-		&currentApproved,
-		&currentDelivered,
-		&currentStatus,
-	)
-
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			response.NotFound(
-				c,
-				"requisition not found",
-			)
-			return
-		}
-
-		response.ServerError(c, err)
-		return
-	}
-
-	if currentStatus != 1 {
-		c.JSON(
-			http.StatusConflict,
-			gin.H{
-				"success": false,
-				"error":   "requisition is not active",
-			},
+	if employeeID == "" {
+		response.BadRequest(
+			c,
+			"authenticated employee id not found",
 		)
-		return
-	}
 
-	if currentApproved != 1 &&
-		currentApproved != 3 {
-
-		c.JSON(
-			http.StatusConflict,
-			gin.H{
-				"success": false,
-				"error":   "requisition must be approved before delivery",
-			},
-		)
-		return
-	}
-
-	if currentDelivered != 0 {
-		c.JSON(
-			http.StatusConflict,
-			gin.H{
-				"success": false,
-				"error":   "requisition delivery has already been completed",
-			},
-		)
 		return
 	}
 
@@ -4481,7 +4235,7 @@ func (
 
 	var result Result
 
-	err = tx.QueryRow(
+	err = h.db.QueryRow(
 		ctx,
 		`
 		UPDATE public.tt_reasons
@@ -4491,11 +4245,23 @@ func (
 				$1::smallint,
 
 			delivered_by =
-				$2::varchar(35),
+				CASE
+					WHEN $1::smallint = 0::smallint
+						THEN NULL
+
+					ELSE $2::varchar(35)
+				END,
 
 			delivered_date =
-				CURRENT_TIMESTAMP
-					AT TIME ZONE 'Asia/Dhaka',
+				CASE
+					WHEN $1::smallint = 0::smallint
+						THEN NULL
+
+					ELSE (
+						CURRENT_TIMESTAMP
+							AT TIME ZONE 'Asia/Dhaka'
+					)
+				END,
 
 			edited_by =
 				$2::varchar(35),
@@ -4504,12 +4270,21 @@ func (
 				CURRENT_TIMESTAMP
 					AT TIME ZONE 'Asia/Dhaka'
 
-		WHERE id = $3::bigint
+		WHERE
+			id = $3::bigint
+
+			AND COALESCE(
+				status,
+				1
+			) = 1
 
 		RETURNING
 			id,
 
-			delivered_val::int,
+			COALESCE(
+				delivered_val,
+				0::smallint
+			)::int,
 
 			COALESCE(
 				delivered_by,
@@ -4532,7 +4307,20 @@ func (
 	)
 
 	if err != nil {
-		response.ServerError(c, err)
+		if err == pgx.ErrNoRows {
+			response.NotFound(
+				c,
+				"requisition not found",
+			)
+
+			return
+		}
+
+		response.ServerError(
+			c,
+			err,
+		)
+
 		return
 	}
 
@@ -4544,78 +4332,10 @@ func (
 	case 2:
 		result.DeliveryStatus =
 			"Rejected"
-	}
 
-	auditAction :=
-		"REQUISITION_DELIVERED"
-
-	if result.DeliveredVal == 2 {
-		auditAction =
-			"REQUISITION_DELIVERY_REJECTED"
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		`
-		INSERT INTO public.auth_audit_logs (
-			user_id,
-			employee_id_snapshot,
-			username_snapshot,
-			action,
-			module,
-			entity_type,
-			entity_id,
-			ip_address,
-			user_agent,
-			success,
-			metadata
-		)
-		VALUES (
-			$1,
-			$2,
-			$3,
-			$4,
-			'requisition',
-			'tt_reason',
-			$5,
-			NULLIF($6, '')::inet,
-			NULLIF($7, ''),
-			TRUE,
-			jsonb_build_object(
-				'delivered_val',
-				$8::int,
-
-				'role_code',
-				$9::text
-			)
-		)
-		`,
-		userID,
-		employeeID,
-		username,
-		auditAction,
-		strconv.FormatInt(
-			requisitionID,
-			10,
-		),
-		strings.TrimSpace(
-			c.ClientIP(),
-		),
-		strings.TrimSpace(
-			c.Request.UserAgent(),
-		),
-		req.DeliveredVal,
-		roleCode,
-	)
-
-	if err != nil {
-		response.ServerError(c, err)
-		return
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		response.ServerError(c, err)
-		return
+	default:
+		result.DeliveryStatus =
+			"Pending"
 	}
 
 	response.OK(

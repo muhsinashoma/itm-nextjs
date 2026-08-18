@@ -9,9 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Search, Bell, Menu, ChevronDown, PanelRightOpen } from "lucide-react";
 import { ThemeDropdown } from "@/components/theme-dropdown";
 import Link from "next/link";
-import { usePathname, useRouter, } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useDrawer } from "@/context/DrawerContext";
-import { clearAuthStorage, } from "@/lib/api";
 import {
     DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
@@ -39,31 +38,6 @@ export const Header = React.forwardRef<HTMLElement, HeaderProps>(
         const { toggle } = useDrawer();
         const pathname = usePathname();
 
-        const router =
-            useRouter();
-
-        function handleLogout() {
-            /*
-             * Clear authentication synchronously first.
-             *
-             * This is important because /auth checks for an
-             * existing token as soon as it mounts.
-             */
-            clearAuthStorage();
-
-            /*
-             * Use client-side replace for a fast/smooth logout.
-             *
-             * Do not use:
-             * window.location.href = "/auth"
-             *
-             * for normal manual logout.
-             */
-            router.replace(
-                "/auth"
-            );
-        }
-
         const [activeMenu, setActiveMenu] = React.useState<"notif" | "user" | "theme" | null>(null);
         const [notifications, setNotifications] = React.useState([
             { id: 1, title: "New task assigned", time: "2 min ago", read: false },
@@ -74,20 +48,11 @@ export const Header = React.forwardRef<HTMLElement, HeaderProps>(
 
         const unreadCount = notifications.filter((n) => !n.read).length;
 
-      
         const navItems = [
-            {
-                label: "Dashboard",
-                href: "/dashboard",
-            },
-            {
-                label: "Assigned TT",
-                href: "/dashboard/operations/assigned-tt",
-            },
-            {
-                label: "Create TT",
-                href: "/dashboard/operations/create_tt",
-            },
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Assigned TT", href: "/dashboard/operations/assigned-tt" },
+            { label: "Create TT", href: "/dashboard/operations/create_tt" },
+            { label: "Logout", href: "/auth" },
         ];
 
         return (
@@ -138,16 +103,6 @@ export const Header = React.forwardRef<HTMLElement, HeaderProps>(
                             );
                         })}
                     </nav>
-
-                    <button
-                        type="button"
-                        onClick={
-                            handleLogout
-                        }
-                        className="text-red-600 hover:text-red-700 transition-colors"
-                    >
-                        Logout
-                    </button>
                 </div>
 
                 {/* Right: actions */}
@@ -265,16 +220,7 @@ export const Header = React.forwardRef<HTMLElement, HeaderProps>(
                             </div>
                             <DropdownMenuItem className="m-1 rounded-lg">Profile</DropdownMenuItem>
                             <DropdownMenuItem className="m-1 rounded-lg">Settings</DropdownMenuItem>
-                            {/* <DropdownMenuItem className="m-1 rounded-lg text-red-600 focus:text-red-600">Logout</DropdownMenuItem> */}
-                            <DropdownMenuItem
-                                onSelect={
-                                    handleLogout
-                                }
-                                className="m-1 cursor-pointer rounded-lg text-red-600 focus:text-red-600"
-                            >
-                                Logout
-                            </DropdownMenuItem>
-
+                            <DropdownMenuItem className="m-1 rounded-lg text-red-600 focus:text-red-600">Logout</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

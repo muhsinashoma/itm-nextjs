@@ -1,0 +1,54 @@
+
+Step 0 — Create a safety point first
+
+Before changing authentication, create a Git branch:
+
+cd D:\ITM-Data\itm
+
+
+git status
+
+
+git add .
+
+git commit -m "Checkpoint before authentication security upgrade"
+
+
+git checkout -b feature/professional-auth
+--------------------------------------------------------------------------
+
+check branch name
+
+
+PS D:\ITM-Data\itm> git branch --show-current
+feature/professional-auth
+PS D:\ITM-Data\itm> 
+
+---------------------------------------------------------------------
+
+PS D:\ITM-Data\itm> git log -1
+commit 78fd316799086ed6d0b63eaf7b216780d05da9de (HEAD -> feature/professional-auth, main)
+Author: muhsinashoma <muhsina.akter2@gmail.com>
+Date:   Sun Aug 16 16:41:50 2026 +0600
+
+    To Checkpoint before authentication security upgrade
+PS D:\ITM-Data\itm>
+
+----------------------------------------------------------
+
+Recommended complete sequence
+
+
+git branch --show-current
+git status
+git diff
+git add .
+git status
+git commit -m "Update authentication and permission handling"
+git push
+
+-------------------------------------------------------
+
+
+
+

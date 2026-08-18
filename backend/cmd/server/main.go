@@ -1,4 +1,3 @@
-
 // backend/cmd/server/main.go
 package main
 
@@ -66,14 +65,36 @@ func main() {
 	v1.POST("/auth/refresh", authH.Refresh)
 
 	// Protected
+	// p := v1.Group("/")
+	// p.Use(middleware.Auth(cfg.JWTSecret))
+	// {
+	// 	handler.NewTicketHandler(pool).Register(p)
+	// 	handler.NewDeviceHandler(pool).Register(p)
+
+	// // New unique/current device API from asset_devices// This creates: GET /api/v1/assets/devices
+	//     handler.NewAssetDeviceHandler(pool).Register(p)
+
+	// 	handler.NewEmployeeHandler(pool).Register(p)
+	// 	handler.NewClaimHandler(pool).Register(p)
+	// 	handler.NewStockHandler(pool).Register(p)
+	// 	handler.NewReportHandler(pool).Register(p)
+	// 	handler.NewVendorHandler(pool).Register(p)
+	// 	handler.NewCategoryHandler(pool).Register(p)
+	// 	handler.NewDashboardHandler(pool).Register(p)
+	// }
+
+	// Protected
 	p := v1.Group("/")
 	p.Use(middleware.Auth(cfg.JWTSecret))
 	{
+		p.GET("/auth/me", authH.Me)
+
 		handler.NewTicketHandler(pool).Register(p)
 		handler.NewDeviceHandler(pool).Register(p)
 
-	// New unique/current device API from asset_devices// This creates: GET /api/v1/assets/devices
-	    handler.NewAssetDeviceHandler(pool).Register(p)
+		// New unique/current device API from asset_devices.
+		// This creates: GET /api/v1/assets/devices
+		handler.NewAssetDeviceHandler(pool).Register(p)
 
 		handler.NewEmployeeHandler(pool).Register(p)
 		handler.NewClaimHandler(pool).Register(p)

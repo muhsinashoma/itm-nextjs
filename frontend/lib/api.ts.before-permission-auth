@@ -46,20 +46,7 @@ export function getUser():
     }
 }
 
-
-/* ======================================================
-  Auth
-====================================================== */
-
-
-export function clearAuthStorage() {
-    if (
-        typeof window ===
-        "undefined"
-    ) {
-        return;
-    }
-
+export function clearAuth() {
     localStorage.removeItem(
         "itm_token"
     );
@@ -67,28 +54,11 @@ export function clearAuthStorage() {
     localStorage.removeItem(
         "itm_user"
     );
+
+    window.location.href =
+        "/auth";
 }
 
-export function clearAuth() {
-    if (
-        typeof window ===
-        "undefined"
-    ) {
-        return;
-    }
-
-    clearAuthStorage();
-
-    /*
-     * Used for automatic logout such as HTTP 401.
-     *
-     * replace() is preferable to href because the user
-     * should not return to a protected page with Back.
-     */
-    window.location.replace(
-        "/auth"
-    );
-}
 /* ======================================================
    REQUEST
 ====================================================== */
@@ -176,66 +146,6 @@ export interface ApiPage<T> {
     page: number;
     page_size: number;
 }
-
-/* ======================================================
-   AUTH TYPES
-====================================================== */
-
-export interface AuthLoginData {
-    token: string;
-
-    expires_in: number;
-
-    user_id: number;
-
-    employee_id: string;
-
-    username: string;
-
-    full_name: string;
-
-    user_type: number;
-
-    role_code: string;
-
-    must_change_password: boolean;
-}
-
-export interface AuthMeData {
-    user_id: number;
-
-    employee_id: string;
-
-    username: string;
-
-    full_name: string;
-
-    email: string;
-
-    user_type: number;
-
-    role_code: string;
-
-    role_name: string;
-
-    account_status: string;
-
-    must_change_password: boolean;
-
-    permissions: string[];
-}
-
-export type AuthPermission =
-    | "panel.admin.access"
-    | "panel.user.access"
-    | "requisition.view"
-    | "requisition.approve"
-    | "requisition.deliver"
-    | "users.view"
-    | "users.manage"
-    | "roles.manage"
-    | "system.manage"
-    | "audit.view";
 
 /* ======================================================
    GENERIC API METHODS
@@ -370,17 +280,34 @@ function toQuery(
    AUTH
 ====================================================== */
 
-
-
 export const authApi = {
     login: (
         username: string,
         password: string
     ) =>
         api.post<
-            ApiOk<
-                AuthLoginData
-            >
+            ApiOk<{
+                token:
+                string;
+
+                expires_in:
+                number;
+
+                user_id:
+                number;
+
+                employee_id:
+                string;
+
+                username:
+                string;
+
+                full_name:
+                string;
+
+                user_type:
+                number;
+            }>
         >(
             "/auth/login",
             {
@@ -392,78 +319,16 @@ export const authApi = {
     refresh: () =>
         api.post<
             ApiOk<{
-                token: string;
+                token:
+                string;
 
-                expires_in: number;
-
-                role_code?: string;
+                expires_in:
+                number;
             }>
         >(
             "/auth/refresh"
         ),
-
-    me: () =>
-        api.get<
-            ApiOk<
-                AuthMeData
-            >
-        >(
-            "/auth/me"
-        ),
 };
-
-/* ======================================================
-   AUTHORIZATION HELPERS
-====================================================== */
-
-export function hasPermission(
-    user: AuthMeData | null | undefined,
-    permission: AuthPermission
-): boolean {
-    if (!user) {
-        return false;
-    }
-
-    return user.permissions.includes(
-        permission
-    );
-}
-
-export function canAccessAdminPanel(
-    user: AuthMeData | null | undefined
-): boolean {
-    return hasPermission(
-        user,
-        "panel.admin.access"
-    );
-}
-
-export function canAccessUserPanel(
-    user: AuthMeData | null | undefined
-): boolean {
-    return hasPermission(
-        user,
-        "panel.user.access"
-    );
-}
-
-export function canApproveRequisition(
-    user: AuthMeData | null | undefined
-): boolean {
-    return hasPermission(
-        user,
-        "requisition.approve"
-    );
-}
-
-export function canDeliverRequisition(
-    user: AuthMeData | null | undefined
-): boolean {
-    return hasPermission(
-        user,
-        "requisition.deliver"
-    );
-}
 
 /* ======================================================
    DASHBOARD TYPES
