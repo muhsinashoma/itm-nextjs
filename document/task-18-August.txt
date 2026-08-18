@@ -1,0 +1,172 @@
+
+
+Yes — those logs confirm the Delivery action is now working from the actual system UI:
+
+OPTIONS .../430/delivery → 204 ✅
+PATCH   .../430/delivery → 200 ✅
+GET requisitions         → 200 ✅
+
+So the browser → frontend → authenticated API → permission middleware → workflow handler → PostgreSQL chain is working.
+
+Before moving to frontend role visibility, finish one final backend audit verification.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Step 7 — Test clean Logout
+
+First login normally.
+
+Then open browser DevTools → Console:
+
+localStorage.getItem("itm_token")
+
+It should contain a token.
+
+Then:
+
+JSON.parse(
+    localStorage.getItem(
+        "itm_user"
+    )
+)
+
+should contain your full /auth/me profile.
+
+
+
+-----------------------------------------------------------------------------------------------------------------
+
+localStorage.getItem("itm_token")
+
+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjEsImVtcCI6IkFETUlOLTAwMSIsInVuYW1lIjoiYWRtaW4iLCJyb2xlIjoxLCJyb2xlX2NvZGUiOiJJVF9BRE1JTiIsImlzcyI6Iml0bS1hcGkiLCJleHAiOjE3ODcwNzQyMzcsIm5iZiI6MTc4NzA0NTQzNywiaWF0IjoxNzg3MDQ1NDM3fQ._MuKntPcsr9LvxIYQPtHSpdgQFnrEtUDFRJL2vMHzoM'
+
+JSON.parse(localStorage.getItem("itm_token"))
+
+----------------------------------------------------------------------------------------------------------------
+
+JSON.parse(localStorage.getItem("itm_user"))
+
+
+{
+    "account_status": "active",
+    "email": "admin@itm.local",
+    "employee_id": "ADMIN-001",
+    "full_name": "System Administrator",
+    "must_change_password": false,
+    "permissions": [
+        "audit.view",
+        "panel.admin.access",
+        "panel.user.access",
+        "requisition.approve",
+        "requisition.deliver",
+        "requisition.view",
+        "users.manage",
+        "users.view"
+    ],
+    "role_code": "IT_ADMIN",
+    "role_name": "IT Administrator",
+    "user_id": 1,
+    "user_type": 1,
+    "username": "admin"
+}
+
+---------------------------------------------------------------------------------------------------------------
+Now click Logout.
+
+Expected behavior:
+
+Click Logout
+     ↓
+token deleted immediately
+     ↓
+user profile deleted immediately
+     ↓
+router.replace("/auth")
+     ↓
+Login page appears
+-----------------------------------------------------------------------------------------------------------------
+
+SELECT
+    id,
+    tt_no,
+
+    approved_val,
+    approved_by,
+    approved_date,
+
+    delivered_val,
+    delivered_by,
+    delivered_date,
+
+    edited_by,
+    edited_at
+FROM public.tt_reasons
+WHERE id = 430;
+
+
+
+
+The frontend rules should become:
+
+ROOT
+Admin Panel ✅
+User Panel  ✅
+Approval    ✅
+Delivery    ✅
+
+
+IT_ADMIN
+Admin Panel ✅
+User Panel  ✅
+Approval    ✅
+Delivery    ✅
+
+
+IT_PERSONNEL
+Admin Panel ❌
+User Panel  ✅
+Approval    ✅
+Delivery    ✅
+
+
+GENERAL_USER
+Admin Panel ❌
+User Panel  ✅
+Approval    ❌
+Delivery    ❌
+
+But frontend hiding is only UX. Your backend 403 protection stays in place permanently.
+
+
+This is what ->এটাই হলো
+that's it ->এটাই হলো
+
+that's it for now -> আপাতত এটুকুই।
+
+that's it for today -> আজকের মতো এটুকুই।
+
+------------------------------------------------------------------------
+
+
+3. Check only these new files
+
+Because the full project still has those unrelated JSX errors, use:
+
+cd D:\ITM-Data\itm\frontend
+
+
+npx tsc --noEmit 2>&1 |
+Select-String `
+    "app/auth/page.tsx|app/dashboard/layout.tsx|lib/api.ts"
+
+If this returns nothing, that's good: these three auth files have no TypeScript errors.
+
+Your other six broken report pages may still appear during a normal npx tsc --noEmit; we are not mixing those fixes into authentication yet.
+
+
+
+
+--------------------------------------------------------------------------
+
+Next.js should hot reload automatically.
+

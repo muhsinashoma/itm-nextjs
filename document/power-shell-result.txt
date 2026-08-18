@@ -1,0 +1,272 @@
+
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> $port = 8080
+PS C:\WINDOWS\system32> $base = "http://127.0.0.1:$port/api/v1"
+PS C:\WINDOWS\system32> Invoke-RestMethod `
+>>     -Uri "http://127.0.0.1:$port/health" `
+>>     -Method GET
+
+status time
+------ ----
+ok     2026-08-17T05:26:22.8494063Z
+
+
+PS C:\WINDOWS\system32> cd D:\ITM-Data\itm\backend
+PS D:\ITM-Data\itm\backend> $securePassword = Read-Host "Enter admin password" -AsSecureString
+Enter admin password: **********
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR(
+>>     $securePassword
+>> )
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> try {
+>>     $password =
+>>         [Runtime.InteropServices.Marshal]::PtrToStringBSTR(
+>>             $ptr
+>>         )
+>> }
+>> finally {
+>>     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR(
+>>         $ptr
+>>     )
+>> }
+PS D:\ITM-Data\itm\backend> $body = @{
+>>     username = "admin"
+>>     password = $password
+>> } | ConvertTo-Json
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $login = Invoke-RestMethod `
+>>     -Uri "$base/auth/login" `
+>>     -Method POST `
+>>     -ContentType "application/json" `
+>>     -Body $body
+PS D:\ITM-Data\itm\backend> Write-Host "Success              :" $login.success
+Success              : True
+PS D:\ITM-Data\itm\backend> Write-Host "Employee ID          :" $login.data.employee_id
+Employee ID          : ADMIN-001
+PS D:\ITM-Data\itm\backend> Write-Host "Username             :" $login.data.username
+Username             : admin
+PS D:\ITM-Data\itm\backend> Write-Host "User Type            :" $login.data.user_type
+User Type            : 1
+PS D:\ITM-Data\itm\backend> Write-Host "Role Code            :" $login.data.role_code
+Role Code            : IT_ADMIN
+PS D:\ITM-Data\itm\backend> Write-Host "Must Change Password :" $login.data.must_change_password
+Must Change Password : False
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> if ($login.data.token) {
+>>     Write-Host "Token                : FOUND"
+>> }
+Token                : FOUND
+PS D:\ITM-Data\itm\backend> $token = $login.data.token
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $me = Invoke-RestMethod `
+>>     -Uri "$base/auth/me" `
+>>     -Method GET `
+>>     -Headers @{
+>>         Authorization = "Bearer $token"
+>>     }
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $me | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "account_status":  "active",
+                 "email":  "admin@itm.local",
+                 "employee_id":  "ADMIN-001",
+                 "full_name":  "System Administrator",
+                 "must_change_password":  false,
+                 "permissions":  [
+                                     "audit.view",
+                                     "panel.admin.access",
+                                     "panel.user.access",
+                                     "requisition.approve",
+                                     "requisition.deliver",
+                                     "requisition.view",
+                                     "users.manage",
+                                     "users.view"
+                                 ],
+                 "role_code":  "IT_ADMIN",
+                 "role_name":  "IT Administrator",
+                 "user_id":  1,
+                 "user_type":  1,
+                 "username":  "admin"
+             },
+    "success":  true
+}
+PS D:\ITM-Data\itm\backend>
+
+
+
+------------------------------------------------------------
+
+Perfect — this stage is fully working. Your current IT_ADMIN account is now authenticated through the new role/permission model, /auth/me works, and the expected permissions are coming from PostgreSQL.
+
+The next safe step is to create and test the real ROOT account. Do not disable ADMIN-001 yet.
+
+--------------------------------------------------------
+
+Root Password
+
+PS D:\ITM-Data\itm\backend> go run ./cmd/hash_password
+Enter password:f@hrt1@itm_new
+
+
+------------------------------------------------------
+
+
+Windows PowerShell
+
+IT Personnel
+
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> cd D:
+PS D:\> cd ITM-Data
+PS D:\ITM-Data> cd itm
+PS D:\ITM-Data\itm> cd backend
+PS D:\ITM-Data\itm\backend> go run ./cmd/hash_password
+Enter password: f@hrt1@itm_itprs
+
+$2a$10$zVCr89B5mk0DEdQgBgjFjOrmb/NaNKYGPRS0v5900QtqQZhqfLhsK
+
+-------------------------------------------------------------------------
+
+General User
+
+
+PS D:\ITM-Data\itm\backend> go run ./cmd/hash_password
+Enter password: f@hrt1@itm_guser
+
+$2a$10$gZzjpUY5Kw0XHY9S3EXlweXeJydRk6Fl1NqTBgpABA52BTrXPqt7y
+PS D:\ITM-Data\itm\backend> $port = 8080
+PS D:\ITM-Data\itm\backend> $base = "http://127.0.0.1:$port/api/v1"
+PS D:\ITM-Data\itm\backend> $securePassword = Read-Host "Enter IT Personnel password" -AsSecureString
+Enter IT Personnel password: ****************
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR(
+>>     $securePassword
+>> )
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> try {
+>>     $password =
+>>         [Runtime.InteropServices.Marshal]::PtrToStringBSTR(
+>>             $ptr
+>>         )
+>> }
+>> finally {
+>>     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR(
+>>         $ptr
+>>     )
+>> }
+PS D:\ITM-Data\itm\backend> $body = @{
+>>     username = "test.itpersonnel"
+>>     password = $password
+>> } | ConvertTo-Json
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $itLogin = Invoke-RestMethod `
+>>     -Uri "$base/auth/login" `
+>>     -Method POST `
+>>     -ContentType "application/json" `
+>>     -Body $body
+PS D:\ITM-Data\itm\backend> $itToken = $itLogin.data.token
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $itMe = Invoke-RestMethod `
+>>     -Uri "$base/auth/me" `
+>>     -Method GET `
+>>     -Headers @{
+>>         Authorization = "Bearer $itToken"
+>>     }
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> $itMe | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "account_status":  "active",
+                 "email":  "test.itpersonnel@itm.local",
+                 "employee_id":  "TEST-IT-001",
+                 "full_name":  "Test IT Personnel",
+                 "must_change_password":  true,
+                 "permissions":  [
+                                     "panel.user.access",
+                                     "requisition.approve",
+                                     "requisition.deliver",
+                                     "requisition.view"
+                                 ],
+                 "role_code":  "IT_PERSONNEL",
+                 "role_name":  "IT Personnel",
+                 "user_id":  3,
+                 "user_type":  2,
+                 "username":  "test.itpersonnel"
+             },
+    "success":  true
+}
+PS D:\ITM-Data\itm\backend> $p = $itMe.data.permissions
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> Write-Host "User Panel :" ($p -contains "panel.user.access")
+User Panel : True
+PS D:\ITM-Data\itm\backend> Write-Host "Admin Panel:" ($p -contains "panel.admin.access")
+Admin Panel: False
+PS D:\ITM-Data\itm\backend> Write-Host "Approve    :" ($p -contains "requisition.approve")
+Approve    : True
+PS D:\ITM-Data\itm\backend> Write-Host "Deliver    :" ($p -contains "requisition.deliver")
+Deliver    : True
+PS D:\ITM-Data\itm\backend> Write-Host "Manage User:" ($p -contains "users.manage")
+Manage User: False
+
+
+----------------------------------------------------
+
+Enter password: f@hrt1@itm_guser
+
+cd D:\ITM-Data\itm\backend>
+
+General User Login
+
+powershell
+
+$port = 8080
+$base = "http://127.0.0.1:$port/api/v1"
+
+-------------------------------------------------------
+
+Enter the general user password:
+
+$securePassword = Read-Host "Enter General User" -AsSecureString
+
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR(
+    $securePassword
+)
+
+try {
+    $password =
+        [Runtime.InteropServices.Marshal]::PtrToStringBSTR(
+            $ptr
+        )
+}
+finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR(
+        $ptr
+    )
+}
+
+---------------------------------------------------
+
+
+
+---------------------------------------------------
+
+
+Notice the correct structure:
+
+Invoke-RestMethod
+    ↓
+-Uri
+    ↓
+-Method
+    ↓
+-Headers @{
+    Authorization = ...
+}
+
+--------------------------------------------

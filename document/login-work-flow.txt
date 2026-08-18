@@ -1,0 +1,20 @@
+
+
+
+We want the flow to become:
+
+-------------------------------------------
+
+username/password
+        ↓
+POST /auth/login
+        ↓
+save JWT
+        ↓
+GET /auth/me
+        ↓
+save complete AuthMeData
+        ↓
+permissions[]
+        ↓
+open dashboard
