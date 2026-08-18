@@ -1,0 +1,369 @@
+
+
+https://chatgpt.com/g/g-p-6a5378cdfc588191b929a3b5ca9c1c9a/c/6a6aea6e-6794-83e8-a9d3-22852803845a
+
+
+
+Step 5 — Log in again
+
+Use the demo account one more time.
+
+Important: login should now return:
+
+user_type             = 1
+role_code             = IT_ADMIN
+must_change_password  = false
+
+If role_code is missing, stop there and tell me. Don't move forward.
+--------------------------------------------------------------
+
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> $base
+>>
+>> $base = "http://127.0.0.1:$port/api/v1"
+>> $port = Read-Host "Enter API port shown by backend"
+Enter API port shown by backend: 8080
+PS C:\WINDOWS\system32> $port = 8080
+PS C:\WINDOWS\system32> $base = "http://127.0.0.1:$port/api/v1"
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $base
+http://127.0.0.1:8080/api/v1
+PS C:\WINDOWS\system32> Invoke-RestMethod `
+>>     -Uri "http://127.0.0.1:$port/health" `
+>>     -Method GET |
+>> ConvertTo-Json -Depth 10
+{
+    "status":  "ok",
+    "time":  "2026-08-16T11:40:02.4574687Z"
+}
+PS C:\WINDOWS\system32> $securePassword = Read-Host "Enter current admin password" -AsSecureString
+Enter current admin password: **********
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> try {
+>>     $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+>> }
+>> finally {
+>>     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+>> }
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $body = @{
+>>     username = "admin"
+>>     password = $password
+>> } | ConvertTo-Json
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $login = Invoke-RestMethod `
+>>     -Uri "$base/auth/login" `
+>>     -Method POST `
+>>     -ContentType "application/json" `
+>>     -Body $body
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $login | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "employee_id":  "ADMIN-001",
+                 "expires_in":  28800,
+                 "full_name":  "System Administrator",
+                 "token":  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjEsImVtcCI6IkFETUlOLTAwMSIsInVuYW1lIjoiYWRtaW4iLCJyb2xlIjoxLCJleHAiOjE3ODY5MDk1NDMsImlhdCI6MTc4Njg4MDc0M30.Ccg_9pPWKeiGS4qQ3tt7NPOHFMiqwP-hNUI1q41vlR4",
+                 "user_id":  1,
+                 "user_type":  1,
+                 "username":  "admin"
+             },
+    "success":  true
+}
+PS C:\WINDOWS\system32> if ($login.data -and $login.data.token) {
+>>     $token = $login.data.token
+>> }
+PS C:\WINDOWS\system32> elseif ($login.token) {
+>>     $token = $login.token
+>> }
+elseif : The term 'elseif' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and
+try again.
+At line:1 char:1
++ elseif ($login.token) {
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (elseif:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\WINDOWS\system32> else {
+>>     $token = $null
+>> }
+else : The term 'else' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try
+again.
+At line:1 char:1
++ else {
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (else:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> if ($token) {
+>>     Write-Host "TOKEN FOUND"
+>> } else {
+>>     Write-Host "TOKEN NOT FOUND"
+>> }^C
+PS C:\WINDOWS\system32> if ($login.data -and $login.data.token) {
+>>     $token = $login.data.token
+>> }
+PS C:\WINDOWS\system32> elseif ($login.token) {
+>>     $token = $login.token
+>> }
+elseif : The term 'elseif' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and
+try again.
+At line:1 char:1
++ elseif ($login.token) {
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (elseif:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\WINDOWS\system32> else {
+>>     $token = $null
+>> }
+else : The term 'else' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try
+again.
+At line:1 char:1
++ else {
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (else:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> if ($token) {
+>>     Write-Host "TOKEN FOUND"
+>> } else {
+>>     Write-Host "TOKEN NOT FOUND"
+>> }
+TOKEN FOUND
+PS C:\WINDOWS\system32> $result = Invoke-RestMethod `
+>>     -Uri "$base/dashboard/requisition-dashboard-summary" `
+>>     -Method GET `
+>>     -Headers @{
+>>         Authorization = "Bearer $token"
+>>     }
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $result | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "pending_categories":  7,
+                 "approval_pending":  11,
+                 "rejected":  28,
+                 "approved":  391,
+                 "total_active":  430
+             },
+    "success":  true
+}
+PS C:\WINDOWS\system32> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisition-dashboard-summary" `
+>>         -Method GET
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 401
+{"error":"missing or invalid authorization token","success":false}
+PS C:\WINDOWS\system32> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisition-dashboard-summary" `
+>>         -Method GET `
+>>         -Headers @{
+>>             Authorization = "Bearer abc123"
+>>         }
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 401
+{"error":"invalid or expired token","success":false}
+PS C:\WINDOWS\system32> $token = $login.data.token
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> if ($token) {
+>>     Write-Host "TOKEN FOUND"
+>> } else {
+>>     Write-Host "TOKEN NOT FOUND"
+>> }
+TOKEN FOUND
+PS C:\WINDOWS\system32> $result = Invoke-RestMethod `
+>>     -Uri "$base/dashboard/requisition-dashboard-summary" `
+>>     -Method GET `
+>>     -Headers @{
+>>         Authorization = "Bearer $token"
+>>     }
+PS C:\WINDOWS\system32>
+PS C:\WINDOWS\system32> $result | ConvertTo-Json -Depth 10
+{
+    "data":  {
+                 "pending_categories":  7,
+                 "approval_pending":  11,
+                 "rejected":  28,
+                 "approved":  391,
+                 "total_active":  430
+             },
+    "success":  true
+}
+PS C:\WINDOWS\system32> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisition-dashboard-summary" `
+>>         -Method GET
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 401
+{"error":"missing or invalid authorization token","success":false}
+PS C:\WINDOWS\system32> try {
+>>     Invoke-RestMethod `
+>>         -Uri "$base/dashboard/requisition-dashboard-summary" `
+>>         -Method GET `
+>>         -Headers @{
+>>             Authorization = "Bearer abc123"
+>>         }
+>> }
+>> catch {
+>>     Write-Host "HTTP:" $_.Exception.Response.StatusCode.value__
+>>     Write-Host $_.ErrorDetails.Message
+>> }
+HTTP: 401
+{"error":"invalid or expired token","success":false}
+PS C:\WINDOWS\system32> cd D:\ITM-Data\itm\backend
+PS D:\ITM-Data\itm\backend>
+PS D:\ITM-Data\itm\backend> Copy-Item `
+>>   ".\internal\handler\auth.go" `
+>>   ".\internal\handler\auth.go.before-professional-auth"
+PS D:\ITM-Data\itm\backend> Get-Item ".\internal\handler\auth.go.before-professional-auth"
+
+
+    Directory: D:\ITM-Data\itm\backend\internal\handler
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----         6/24/2026  11:55 AM           3743 auth.go.before-professional-auth
+
+
+PS D:\ITM-Data\itm\backend> gofmt -w .\internal\handler\auth.go
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend> gofmt -w .\internal\middleware\permission.go
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend> gofmt -w .\internal\handler\auth.go
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend> gofmt -w .\cmd\server\main.go
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend>
+
+
+
+------------------------------------------------------------------
+
+Set Login Password
+
+
+PS D:\ITM-Data\itm\backend> go run ./cmd/hash_password
+Enter password: Admin@1234
+2026/08/17 11:45:04 password must be at least 12 characters
+exit status 1
+PS D:\ITM-Data\itm\backend> go run ./cmd/hash_password
+Enter password: Admin@1234
+2026/08/17 11:47:16 password must be at least 12 characters
+exit status 1
+PS D:\ITM-Data\itm\backend> go run ./cmd/hash_password
+Enter password: f@hrt1@itm_new
+
+$2a$10$Z.pdR11CzVeq3Cayodjy1eHzhsJqk3ujzvEp82Nr8mZh.f0gEzdb6
+PS D:\ITM-Data\itm\backend>
+
+------------------------------------------------------------------
+
+SELECT
+    id,
+    employee_id,
+    username,
+    user_type,
+    active,
+    account_status
+FROM public.users
+WHERE
+    LOWER(username) = 'itm.root'
+    OR employee_id = 'ROOT-001';
+
+----------------------------------------------------------------
+
+
+BEGIN;
+
+INSERT INTO public.users (
+    employee_id,
+    username,
+    full_name,
+    email,
+    password_hash,
+    user_type,
+    active,
+    account_status,
+    must_change_password,
+    failed_login_attempts
+)
+VALUES (
+    'ROOT-001',
+    'itm.root',
+    'ITM Root Administrator',
+    'root@itm.local',
+    '$2a$10$Z.pdR11CzVeq3Cayodjy1eHzhsJqk3ujzvEp82Nr8mZh.f0gEzdb6',
+    0,
+    TRUE,
+    'active',
+    TRUE,
+    0
+);
+
+INSERT INTO public.auth_user_roles (
+    user_id,
+    role_id,
+    active
+)
+SELECT
+    u.id,
+    r.id,
+    TRUE
+FROM public.users u
+JOIN public.auth_roles r
+    ON r.code = 'ROOT'
+WHERE u.username = 'itm.root';
+
+COMMIT;
+
+-----------------------------------------
