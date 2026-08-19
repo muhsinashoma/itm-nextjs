@@ -1,0 +1,83 @@
+
+test.general
+f@hrt1@itm_guser
+
+-------------------------------------------------------------------------------------------------
+Username : itm.root
+Password : f@hrt1@itm_new
+------------------------------------------------------------------------------------------------------
+username : admin
+Password : Admin@1234
+-------------------------------------------------------------------------------------------------------
+Username : test.itpersonnel
+Password : f@hrt1@itm_itprs
+-------------------------------------------------------------------------------------------------------
+Username : test.general
+Password : f@hrt1@itm_guser
+-------------------------------------------------------------------------------------------------------
+
+
+
+http://localhost:5173/dashboard/user
+
+http://localhost:5173/dashboard/user
+
+
+test.general
+f@hrt1@itm_guser
+
+------------------------------------------------------------------------------------------------------
+
+
+
+| Role             | Purpose                          | User Panel | Own Employee Dashboard | IT / Operations | Admin Features | Approve / Deliver | User Management | System / Role Management | Delete / Override |
+| ---------------- | -------------------------------- | ---------: | ---------------------: | --------------: | -------------: | ----------------: | --------------: | -----------------------: | ----------------: |
+| **ROOT**         | Full system owner                |          ✅ |                      ✅ |               ✅ |              ✅ |                 ✅ |               ✅ |                        ✅ |                 ✅ |
+| **IT_ADMIN**     | Highest normal ITM administrator |          ❌ |                      ✅ |               ✅ |              ✅ |                 ✅ |               ✅ |                        ❌ |   Normal app only |
+| **IT_PERSONNEL** | IT operational staff             |          ❌ |                      ❌ |               ✅ |              ❌ |                 ✅ |               ❌ |                        ❌ |                 ❌ |
+| **GENERAL_USER** | Normal employee                  |          ❌ |   ✅ Own dashboard only |               ❌ |              ❌ |                 ❌ |               ❌ |                        ❌ |                 ❌ |
+
+
+
+The login routing will now be:
+
+ROOT
+→ /dashboard
+
+
+IT_ADMIN
+→ /dashboard
+
+
+IT_PERSONNEL
+→ /dashboard
+
+
+GENERAL_USER
+→ /dashboard/user
+
+
+Because ROOT and IT_ADMIN also have dashboard.self.access, the code deliberately checks panel.staff.access first.
+
+After this passes, the next page to create is:
+
+frontend/app/dashboard/user/page.tsx
+
+for the real Own Employee Dashboard.
+
+
+
+SELECT
+    id,
+    username,
+    employee_id,
+    full_name,
+    user_type,
+    account_status
+FROM public.users
+WHERE username = 'test.general';
+
+
+
+"id","username","employee_id","full_name","user_type","account_status"
+4,"test.general","02-0908","Test General User",3,"active"
