@@ -26,7 +26,7 @@ export function getToken():
 }
 
 export function getUser():
-    | AuthMeData
+    | Record<string, any>
     | null {
     if (
         typeof window ===
@@ -226,10 +226,8 @@ export interface AuthMeData {
 }
 
 export type AuthPermission =
-    | "panel.user.access"
-    | "dashboard.self.access"
-    | "panel.staff.access"
     | "panel.admin.access"
+    | "panel.user.access"
     | "requisition.view"
     | "requisition.approve"
     | "requisition.deliver"
@@ -414,8 +412,6 @@ export const authApi = {
         ),
 };
 
-
-
 /* ======================================================
    AUTHORIZATION HELPERS
 ====================================================== */
@@ -433,39 +429,21 @@ export function hasPermission(
     );
 }
 
-export function canAccessRootUserPanel(
-    user: AuthMeData | null | undefined
-): boolean {
-    return hasPermission(
-        user,
-        "panel.user.access"
-    );
-}
-
-export function canAccessOwnDashboard(
-    user: AuthMeData | null | undefined
-): boolean {
-    return hasPermission(
-        user,
-        "dashboard.self.access"
-    );
-}
-
-export function canAccessStaffPanel(
-    user: AuthMeData | null | undefined
-): boolean {
-    return hasPermission(
-        user,
-        "panel.staff.access"
-    );
-}
-
 export function canAccessAdminPanel(
     user: AuthMeData | null | undefined
 ): boolean {
     return hasPermission(
         user,
         "panel.admin.access"
+    );
+}
+
+export function canAccessUserPanel(
+    user: AuthMeData | null | undefined
+): boolean {
+    return hasPermission(
+        user,
+        "panel.user.access"
     );
 }
 
@@ -486,6 +464,7 @@ export function canDeliverRequisition(
         "requisition.deliver"
     );
 }
+
 /* ======================================================
    DASHBOARD TYPES
 ====================================================== */
@@ -693,91 +672,6 @@ export interface TroubleTicketItem {
     string;
 }
 
-export interface OwnEmployeeProfile {
-    employee_id: string;
-    employee_name: string;
-    designation: string;
-    department: string;
-    work_field: string;
-    sub_function: string;
-    active: string;
-    personal_cell: string;
-    official_cell: string;
-    email: string;
-    official_email: string;
-    picture: string;
-}
-
-export interface OwnTicketSummary {
-    total: number;
-    open: number;
-    running: number;
-    closed: number;
-}
-
-export interface OwnDashboardData {
-    employee: OwnEmployeeProfile;
-    tickets: OwnTicketSummary;
-}
-
-export interface OwnTroubleTicketItem {
-    id: number;
-    tt_no: string;
-    query_type: string;
-    description: string;
-    department: string;
-    assigned_id: string;
-    assigned_name: string;
-    status: string;
-    created_at: string;
-}
-
-
-
-
-/* ======================================================
-   OWN EMPLOYEE DASHBOARD
-====================================================== */
-
-export interface OwnEmployeeProfile {
-    employee_id: string;
-    employee_name: string;
-    designation: string;
-    department: string;
-    work_field: string;
-    sub_function: string;
-    active: string;
-    personal_cell: string;
-    official_cell: string;
-    email: string;
-    official_email: string;
-    picture: string;
-}
-
-export interface OwnTicketSummary {
-    total: number;
-    open: number;
-    running: number;
-    closed: number;
-}
-
-export interface OwnDashboardData {
-    employee: OwnEmployeeProfile;
-    tickets: OwnTicketSummary;
-}
-
-export interface OwnTroubleTicketItem {
-    id: number;
-    tt_no: string;
-    query_type: string;
-    description: string;
-    department: string;
-    assigned_id: string;
-    assigned_name: string;
-    status: string;
-    created_at: string;
-}
-
 /* ======================================================
    DASHBOARD API
 ====================================================== */
@@ -925,7 +819,53 @@ export const dashboardApi = {
             ),
 
 
-  /* ======================================================
+    // requisitionDashboardSummary: () =>
+    //     api.get<
+    //         ApiOk<
+    //             RequisitionDashboardSummary
+    //         >
+    //     >(
+    //         "/dashboard/requisition-dashboard-summary"
+    //     ),
+
+    // requisitionSummary: () =>
+    //     api.get<
+    //         ApiOk<
+    //             RequisitionCategorySummary[]
+    //         >
+    //     >(
+    //         "/dashboard/requisition-summary"
+    //     ),
+
+    // requisitions: (params?: {
+    //     view?:
+    //     | "all"
+    //     | "pending"
+    //     | "rejected"
+    //     | "approved";
+
+    //     category?: string;
+
+    //     search?: string;
+
+    //     from_date?: string;
+    //     to_date?: string;
+
+    //     page?: number;
+    //     limit?: number;
+    // }) =>
+    //     api.get<
+    //         ApiPage<
+    //             RequisitionItem
+    //         >
+    //     >(
+    //         `/dashboard/requisitions${toQuery(
+    //             params
+    //         )}`
+    //     ),
+
+
+    /* ======================================================
    REQUISITION
 ====================================================== */
 
@@ -1028,54 +968,6 @@ export const dashboardApi = {
 
 };
 
-
-
-/* ======================================================
-   OWN EMPLOYEE DASHBOARD API
-
-   Backend:
-   GET /api/v1/user/dashboard
-   GET /api/v1/user/trouble-tickets
-
-   employee_id is NOT supplied by frontend.
-   Backend resolves it from authenticated JWT.
-====================================================== */
-
-export const ownDashboardApi = {
-    dashboard: () =>
-        api.get<
-            ApiOk<
-                OwnDashboardData
-            >
-        >(
-            "/user/dashboard"
-        ),
-
-    troubleTickets: (
-        params?: {
-            page?: number;
-
-            limit?: number;
-
-            status?:
-            | "all"
-            | "open"
-            | "running"
-            | "closed";
-
-            search?: string;
-        }
-    ) =>
-        api.get<
-            ApiPage<
-                OwnTroubleTicketItem
-            >
-        >(
-            `/user/trouble-tickets${toQuery(
-                params
-            )}`
-        ),
-};
 /* ======================================================
    TICKET
 ====================================================== */
