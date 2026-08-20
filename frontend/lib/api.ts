@@ -2973,3 +2973,66 @@ export const downstreamApi = {
             "/user/downstream-summary"
         ),
 };
+
+
+/* ======================================================
+   USER SIDEBAR SUMMARY
+====================================================== */
+
+export interface UserSidebarSummaryData {
+    device_count: number;
+    ticket_count: number;
+}
+
+export const userSidebarApi = {
+    summary: () =>
+        api.get<
+            ApiOk<UserSidebarSummaryData>
+        >(
+            "/user/sidebar-summary"
+        ),
+};
+
+
+/* ======================================================
+   OWN USER DEVICES
+====================================================== */
+
+export interface OwnDeviceItem {
+    id: number;
+    device_serial: string;
+    category: string;
+    brand: string;
+    model: string;
+
+    employee_id: string;
+    employee_name: string;
+    department: string;
+    designation: string;
+
+    mr_number: string;
+    pr_number: string;
+
+    assigned_date: string;
+    purchase_date: string;
+    warranty_date: string;
+
+    status: string;
+}
+
+export const ownDevicesApi = {
+    list: (
+        params?: {
+            page?: number;
+            limit?: number;
+            search?: string;
+        }
+    ) =>
+        api.get<
+            ApiPage<OwnDeviceItem>
+        >(
+            `/user/devices${toQuery(
+                params
+            )}`
+        ),
+};
