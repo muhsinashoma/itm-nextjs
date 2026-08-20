@@ -25,21 +25,23 @@ func NewUserDashboardHandler(
 	}
 }
 
-/* ============================================================
-   ROUTES
+/*
+	============================================================
+	  ROUTES
 
-   Required permission:
-   dashboard.self.access
+	  Required permission:
+	  dashboard.self.access
 
-   Allowed currently:
-   ROOT
-   IT_ADMIN
-   GENERAL_USER
+	  Allowed currently:
+	  ROOT
+	  IT_ADMIN
+	  GENERAL_USER
 
-   Not allowed:
-   IT_PERSONNEL
-============================================================ */
+	  Not allowed:
+	  IT_PERSONNEL
 
+============================================================
+*/
 func (
 	h *UserDashboardHandler,
 ) Register(
@@ -60,14 +62,34 @@ func (
 	)
 
 	g.GET(
+		"/sidebar-summary",
+		h.SidebarSummary,
+	)
+
+	g.GET(
 		"/trouble-tickets",
 		h.TroubleTickets,
 	)
 
 	g.GET(
-    "/downstream-summary",
-    h.DownstreamSummary,
-   )
+		"/downstream-summary",
+		h.DownstreamSummary,
+	)
+
+	g.GET(
+		"/devices",
+		h.Devices,
+	)
+
+	// g.GET(
+	// 	"/downstream-employees",
+	// 	h.DownstreamEmployees,
+	// )
+
+	// g.GET(
+	// 	"/downstream-devices",
+	// 	h.DownstreamDevices,
+	// )
 }
 
 /* ============================================================
@@ -136,34 +158,34 @@ type OwnTroubleTicketItem struct {
 	CreatedAt string `json:"created_at"`
 }
 
-
 type DownstreamEmployeeSummary struct {
-    DirectEmployees int64 `json:"direct_employees"`
+	DirectEmployees int64 `json:"direct_employees"`
 
-    AllEmployees int64 `json:"all_employees"`
+	AllEmployees int64 `json:"all_employees"`
 }
 
 type DownstreamDeviceSummary struct {
-    AssignedDevices int64 `json:"assigned_devices"`
+	AssignedDevices int64 `json:"assigned_devices"`
 }
 
 type DownstreamTicketSummary struct {
-    Total int64 `json:"total"`
+	Total int64 `json:"total"`
 
-    Open int64 `json:"open"`
+	Open int64 `json:"open"`
 
-    Running int64 `json:"running"`
+	Running int64 `json:"running"`
 
-    Closed int64 `json:"closed"`
+	Closed int64 `json:"closed"`
 }
 
 type DownstreamSummaryResponse struct {
-    Employees DownstreamEmployeeSummary `json:"employees"`
+	Employees DownstreamEmployeeSummary `json:"employees"`
 
-    Devices DownstreamDeviceSummary `json:"devices"`
+	Devices DownstreamDeviceSummary `json:"devices"`
 
-    Tickets DownstreamTicketSummary `json:"tickets"`
+	Tickets DownstreamTicketSummary `json:"tickets"`
 }
+
 /* ============================================================
    STATUS NORMALIZATION
 
@@ -855,7 +877,6 @@ func (
 	)
 }
 
-
 /* ============================================================
    GET /api/v1/user/downstream-summary
 
@@ -871,38 +892,38 @@ func (
 ============================================================ */
 
 func (
-    h *UserDashboardHandler,
+	h *UserDashboardHandler,
 ) DownstreamSummary(
-    c *gin.Context,
+	c *gin.Context,
 ) {
-    ctx :=
-        c.Request.Context()
+	ctx :=
+		c.Request.Context()
 
-    employeeID,
-        ok :=
-        middleware.GetCurrentEmployeeID(
-            c,
-        )
+	employeeID,
+		ok :=
+		middleware.GetCurrentEmployeeID(
+			c,
+		)
 
-    if !ok {
-        response.BadRequest(
-            c,
-            "authenticated employee ID is missing",
-        )
+	if !ok {
+		response.BadRequest(
+			c,
+			"authenticated employee ID is missing",
+		)
 
-        return
-    }
+		return
+	}
 
-    /* ========================================================
-       DOWNSTREAM EMPLOYEES
-    ======================================================== */
+	/* ========================================================
+	   DOWNSTREAM EMPLOYEES
+	======================================================== */
 
-    var employeeSummary DownstreamEmployeeSummary
+	var employeeSummary DownstreamEmployeeSummary
 
-    err :=
-        h.db.QueryRow(
-            ctx,
-            `
+	err :=
+		h.db.QueryRow(
+			ctx,
+			`
             SELECT
                 COUNT(
                     DISTINCT CASE
@@ -930,38 +951,38 @@ func (
                 OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
                 OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
             `,
-            employeeID,
-        ).Scan(
-            &employeeSummary.DirectEmployees,
-            &employeeSummary.AllEmployees,
-        )
+			employeeID,
+		).Scan(
+			&employeeSummary.DirectEmployees,
+			&employeeSummary.AllEmployees,
+		)
 
-    if err != nil {
-        response.ServerError(
-            c,
-            err,
-        )
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
 
-        return
-    }
+		return
+	}
 
-    /* ========================================================
-       DOWNSTREAM ASSIGNED DEVICES
+	/* ========================================================
+	   DOWNSTREAM ASSIGNED DEVICES
 
-       Count currently assigned devices owned by downstream
-       employees.
+	   Count currently assigned devices owned by downstream
+	   employees.
 
-       Current assigned device rule:
-       row_status = 1
-       asset_status = 1
-    ======================================================== */
+	   Current assigned device rule:
+	   row_status = 1
+	   asset_status = 1
+	======================================================== */
 
-    var deviceSummary DownstreamDeviceSummary
+	var deviceSummary DownstreamDeviceSummary
 
-    err =
-        h.db.QueryRow(
-            ctx,
-            `
+	err =
+		h.db.QueryRow(
+			ctx,
+			`
             WITH downstream_employees AS (
                 SELECT DISTINCT
                     BTRIM(
@@ -999,29 +1020,29 @@ func (
                 ad.row_status = 1
                 AND ad.asset_status = 1
             `,
-            employeeID,
-        ).Scan(
-            &deviceSummary.AssignedDevices,
-        )
+			employeeID,
+		).Scan(
+			&deviceSummary.AssignedDevices,
+		)
 
-    if err != nil {
-        response.ServerError(
-            c,
-            err,
-        )
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
 
-        return
-    }
+		return
+	}
 
-    /* ========================================================
-       DOWNSTREAM TROUBLE TICKETS
-    ======================================================== */
+	/* ========================================================
+	   DOWNSTREAM TROUBLE TICKETS
+	======================================================== */
 
-    var ticketSummary DownstreamTicketSummary
+	var ticketSummary DownstreamTicketSummary
 
-    downstreamTicketSQL :=
-        fmt.Sprintf(
-            `
+	downstreamTicketSQL :=
+		fmt.Sprintf(
+			`
             WITH downstream_employees AS (
                 SELECT DISTINCT
                     BTRIM(
@@ -1074,36 +1095,536 @@ func (
 
             FROM downstream_tickets
             `,
-            ownTicketStatusExpression,
-        )
+			ownTicketStatusExpression,
+		)
 
-    err =
-        h.db.QueryRow(
-            ctx,
-            downstreamTicketSQL,
-            employeeID,
-        ).Scan(
-            &ticketSummary.Total,
-            &ticketSummary.Open,
-            &ticketSummary.Running,
-            &ticketSummary.Closed,
-        )
+	err =
+		h.db.QueryRow(
+			ctx,
+			downstreamTicketSQL,
+			employeeID,
+		).Scan(
+			&ticketSummary.Total,
+			&ticketSummary.Open,
+			&ticketSummary.Running,
+			&ticketSummary.Closed,
+		)
 
-    if err != nil {
-        response.ServerError(
-            c,
-            err,
-        )
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
 
-        return
-    }
+		return
+	}
 
-    response.OK(
-        c,
-        DownstreamSummaryResponse{
-            Employees: employeeSummary,
-            Devices:   deviceSummary,
-            Tickets:   ticketSummary,
-        },
-    )
+	response.OK(
+		c,
+		DownstreamSummaryResponse{
+			Employees: employeeSummary,
+			Devices:   deviceSummary,
+			Tickets:   ticketSummary,
+		},
+	)
+}
+
+type UserSidebarSummary struct {
+	DeviceCount int64 `json:"device_count"`
+
+	TicketCount int64 `json:"ticket_count"`
+}
+
+/* ============================================================
+   GET /api/v1/user/sidebar-summary
+
+   LEFT SIDEBAR ONLY.
+
+   Returns information belonging to the authenticated user:
+
+   - current assigned device count
+   - own Trouble Ticket count
+
+   SECURITY:
+   employee_id comes only from JWT/context.
+============================================================ */
+
+func (
+	h *UserDashboardHandler,
+) SidebarSummary(
+	c *gin.Context,
+) {
+	ctx :=
+		c.Request.Context()
+
+	employeeID,
+		ok :=
+		middleware.GetCurrentEmployeeID(
+			c,
+		)
+
+	if !ok {
+		response.BadRequest(
+			c,
+			"authenticated employee ID is missing",
+		)
+
+		return
+	}
+
+	var summary UserSidebarSummary
+
+	err :=
+		h.db.QueryRow(
+			ctx,
+			`
+			SELECT
+				(
+					SELECT
+						COUNT(*)::bigint
+
+					FROM public.asset_devices ad
+
+					WHERE
+						ad.row_status = 1
+
+						AND ad.asset_status = 1
+
+						AND BTRIM(
+							COALESCE(
+								ad.emp_id,
+								''
+							)
+						) = BTRIM($1)
+				) AS device_count,
+
+				(
+					SELECT
+						COUNT(*)::bigint
+
+					FROM public.trouble_tickets t
+
+					WHERE BTRIM(
+						COALESCE(
+							t.employee_id,
+							''
+						)
+					) = BTRIM($1)
+				) AS ticket_count
+			`,
+			employeeID,
+		).Scan(
+			&summary.DeviceCount,
+			&summary.TicketCount,
+		)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	response.OK(
+		c,
+		summary,
+	)
+}
+
+type OwnDeviceItem struct {
+	ID int64 `json:"id"`
+
+	DeviceSerial string `json:"device_serial"`
+
+	Category string `json:"category"`
+
+	Brand string `json:"brand"`
+
+	Model string `json:"model"`
+
+	EmployeeID string `json:"employee_id"`
+
+	EmployeeName string `json:"employee_name"`
+
+	Department string `json:"department"`
+
+	Designation string `json:"designation"`
+
+	MRNumber string `json:"mr_number"`
+
+	PRNumber string `json:"pr_number"`
+
+	AssignedDate string `json:"assigned_date"`
+
+	PurchaseDate string `json:"purchase_date"`
+
+	WarrantyDate string `json:"warranty_date"`
+
+	Status string `json:"status"`
+}
+
+/* ============================================================
+   GET /api/v1/user/devices
+
+   Returns current assigned devices belonging ONLY
+   to the authenticated employee.
+
+   Query:
+   page=1
+   limit=20
+   search=...
+
+   SECURITY:
+   employee_id comes from JWT/context only.
+============================================================ */
+
+func (
+	h *UserDashboardHandler,
+) Devices(
+	c *gin.Context,
+) {
+	ctx :=
+		c.Request.Context()
+
+	employeeID,
+		ok :=
+		middleware.GetCurrentEmployeeID(
+			c,
+		)
+
+	if !ok {
+		response.BadRequest(
+			c,
+			"authenticated employee ID is missing",
+		)
+
+		return
+	}
+
+	page,
+		err :=
+		strconv.Atoi(
+			c.DefaultQuery(
+				"page",
+				"1",
+			),
+		)
+
+	if err != nil ||
+		page < 1 {
+		page = 1
+	}
+
+	limit,
+		err :=
+		strconv.Atoi(
+			c.DefaultQuery(
+				"limit",
+				"20",
+			),
+		)
+
+	if err != nil ||
+		limit < 1 {
+		limit = 20
+	}
+
+	if limit > 100 {
+		limit = 100
+	}
+
+	search :=
+		strings.TrimSpace(
+			c.Query(
+				"search",
+			),
+		)
+
+	offset :=
+		(page - 1) *
+			limit
+
+	args :=
+		[]any{
+			employeeID,
+		}
+
+	searchFilter :=
+		""
+
+	if search != "" {
+		searchFilter = `
+			AND (
+				   COALESCE(ad.device_serial, '') ILIKE $2
+				OR COALESCE(ad.category, '') ILIKE $2
+				OR COALESCE(ad.brand, '') ILIKE $2
+				OR COALESCE(ad.model, '') ILIKE $2
+				OR COALESCE(ad.mr_number, '') ILIKE $2
+				OR COALESCE(ad.pr_number, '') ILIKE $2
+			)
+		`
+
+		args =
+			append(
+				args,
+				"%"+search+"%",
+			)
+	}
+
+	/* ========================================================
+	   COUNT
+	======================================================== */
+
+	countSQL :=
+		fmt.Sprintf(
+			`
+			SELECT
+				COUNT(*)::bigint
+
+			FROM public.asset_devices ad
+
+			WHERE
+				ad.row_status = 1
+
+				AND ad.asset_status = 1
+
+				AND BTRIM(
+					COALESCE(
+						ad.emp_id,
+						''
+					)
+				) = BTRIM($1)
+
+				%s
+			`,
+			searchFilter,
+		)
+
+	var total int64
+
+	err =
+		h.db.QueryRow(
+			ctx,
+			countSQL,
+			args...,
+		).Scan(
+			&total,
+		)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	/* ========================================================
+	   LIST
+	======================================================== */
+
+	listArgs :=
+		append(
+			[]any{},
+			args...,
+		)
+
+	limitPlaceholder :=
+		len(listArgs) + 1
+
+	offsetPlaceholder :=
+		len(listArgs) + 2
+
+	listArgs =
+		append(
+			listArgs,
+			limit,
+			offset,
+		)
+
+	listSQL :=
+		fmt.Sprintf(
+			`
+			SELECT
+				ad.id,
+
+				COALESCE(
+					ad.device_serial,
+					''
+				),
+
+				COALESCE(
+					ad.category,
+					''
+				),
+
+				COALESCE(
+					ad.brand,
+					''
+				),
+
+				COALESCE(
+					ad.model,
+					''
+				),
+
+				COALESCE(
+					ad.emp_id,
+					''
+				),
+
+				COALESCE(
+					ad.emp_name,
+					''
+				),
+
+				COALESCE(
+					ad.department,
+					''
+				),
+
+				COALESCE(
+					ad.designation,
+					''
+				),
+
+				COALESCE(
+					ad.mr_number,
+					''
+				),
+
+				COALESCE(
+					ad.pr_number,
+					''
+				),
+
+				COALESCE(
+					ad.assigned_date::text,
+					''
+				),
+
+				COALESCE(
+					ad.purchase_date::text,
+					''
+				),
+
+				COALESCE(
+					ad.warranty_date::text,
+					''
+				),
+
+				'Assigned'::text
+
+			FROM public.asset_devices ad
+
+			WHERE
+				ad.row_status = 1
+
+				AND ad.asset_status = 1
+
+				AND BTRIM(
+					COALESCE(
+						ad.emp_id,
+						''
+					)
+				) = BTRIM($1)
+
+				%s
+
+			ORDER BY
+				ad.assigned_date DESC NULLS LAST,
+				ad.id DESC
+
+			LIMIT $%d
+			OFFSET $%d
+			`,
+			searchFilter,
+			limitPlaceholder,
+			offsetPlaceholder,
+		)
+
+	rows,
+		err :=
+		h.db.Query(
+			ctx,
+			listSQL,
+			listArgs...,
+		)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	defer rows.Close()
+
+	items :=
+		make(
+			[]OwnDeviceItem,
+			0,
+		)
+
+	for rows.Next() {
+		var item OwnDeviceItem
+
+		err :=
+			rows.Scan(
+				&item.ID,
+				&item.DeviceSerial,
+				&item.Category,
+				&item.Brand,
+				&item.Model,
+				&item.EmployeeID,
+				&item.EmployeeName,
+				&item.Department,
+				&item.Designation,
+				&item.MRNumber,
+				&item.PRNumber,
+				&item.AssignedDate,
+				&item.PurchaseDate,
+				&item.WarrantyDate,
+				&item.Status,
+			)
+
+		if err != nil {
+			response.ServerError(
+				c,
+				err,
+			)
+
+			return
+		}
+
+		items =
+			append(
+				items,
+				item,
+			)
+	}
+
+	if err :=
+		rows.Err(); err != nil {
+
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	response.Paginated(
+		c,
+		items,
+		int(total),
+		page,
+		limit,
+	)
 }
