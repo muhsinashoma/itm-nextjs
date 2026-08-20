@@ -26,6 +26,9 @@ http://localhost:5173/dashboard/user
 test.general
 f@hrt1@itm_guser
 
+
+For the Device History page, I would make it fully dynamic and user-scoped.
+ডিভাইস হিস্ট্রি পেজটিকে আমি সম্পূর্ণ ডাইনামিক এবং ইউজার-স্কোপড করে তুলব।
 ------------------------------------------------------------------------------------------------------
 
 

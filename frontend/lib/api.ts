@@ -2935,3 +2935,41 @@ export interface RequisitionItem {
     device_assigned_by: string;
     device_assigned_date: string;
 }
+
+
+/* ======================================================
+   USER DOWNSTREAM SUMMARY
+====================================================== */
+
+export interface DownstreamEmployeeSummary {
+    direct_employees: number;
+    all_employees: number;
+}
+
+export interface DownstreamDeviceSummary {
+    assigned_devices: number;
+}
+
+export interface DownstreamTicketSummary {
+    total: number;
+    open: number;
+    running: number;
+    closed: number;
+}
+
+export interface DownstreamSummaryData {
+    employees: DownstreamEmployeeSummary;
+    devices: DownstreamDeviceSummary;
+    tickets: DownstreamTicketSummary;
+}
+
+export const downstreamApi = {
+    summary: () =>
+        api.get<
+            ApiOk<
+                DownstreamSummaryData
+            >
+        >(
+            "/user/downstream-summary"
+        ),
+};
