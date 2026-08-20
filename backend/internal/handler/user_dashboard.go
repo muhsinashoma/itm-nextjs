@@ -63,6 +63,11 @@ func (
 		"/trouble-tickets",
 		h.TroubleTickets,
 	)
+
+	g.GET(
+    "/downstream-summary",
+    h.DownstreamSummary,
+   )
 }
 
 /* ============================================================
@@ -131,6 +136,34 @@ type OwnTroubleTicketItem struct {
 	CreatedAt string `json:"created_at"`
 }
 
+
+type DownstreamEmployeeSummary struct {
+    DirectEmployees int64 `json:"direct_employees"`
+
+    AllEmployees int64 `json:"all_employees"`
+}
+
+type DownstreamDeviceSummary struct {
+    AssignedDevices int64 `json:"assigned_devices"`
+}
+
+type DownstreamTicketSummary struct {
+    Total int64 `json:"total"`
+
+    Open int64 `json:"open"`
+
+    Running int64 `json:"running"`
+
+    Closed int64 `json:"closed"`
+}
+
+type DownstreamSummaryResponse struct {
+    Employees DownstreamEmployeeSummary `json:"employees"`
+
+    Devices DownstreamDeviceSummary `json:"devices"`
+
+    Tickets DownstreamTicketSummary `json:"tickets"`
+}
 /* ============================================================
    STATUS NORMALIZATION
 
@@ -820,4 +853,257 @@ func (
 		page,
 		limit,
 	)
+}
+
+
+/* ============================================================
+   GET /api/v1/user/downstream-summary
+
+   SECURITY:
+   employee_id comes only from authenticated JWT context.
+
+   Downstream rules:
+   direct employee:
+   tr1 = logged-in employee
+
+   all downstream:
+   logged-in employee appears in tr1..tr6
+============================================================ */
+
+func (
+    h *UserDashboardHandler,
+) DownstreamSummary(
+    c *gin.Context,
+) {
+    ctx :=
+        c.Request.Context()
+
+    employeeID,
+        ok :=
+        middleware.GetCurrentEmployeeID(
+            c,
+        )
+
+    if !ok {
+        response.BadRequest(
+            c,
+            "authenticated employee ID is missing",
+        )
+
+        return
+    }
+
+    /* ========================================================
+       DOWNSTREAM EMPLOYEES
+    ======================================================== */
+
+    var employeeSummary DownstreamEmployeeSummary
+
+    err :=
+        h.db.QueryRow(
+            ctx,
+            `
+            SELECT
+                COUNT(
+                    DISTINCT CASE
+                        WHEN BTRIM(
+                            COALESCE(
+                                et.tr1,
+                                ''
+                            )
+                        ) = BTRIM($1)
+                        THEN et.employee_id
+                    END
+                )::bigint AS direct_employees,
+
+                COUNT(
+                    DISTINCT et.employee_id
+                )::bigint AS all_employees
+
+            FROM public.employee_tier et
+
+            WHERE
+                   BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
+                OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
+                OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
+                OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
+                OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
+                OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
+            `,
+            employeeID,
+        ).Scan(
+            &employeeSummary.DirectEmployees,
+            &employeeSummary.AllEmployees,
+        )
+
+    if err != nil {
+        response.ServerError(
+            c,
+            err,
+        )
+
+        return
+    }
+
+    /* ========================================================
+       DOWNSTREAM ASSIGNED DEVICES
+
+       Count currently assigned devices owned by downstream
+       employees.
+
+       Current assigned device rule:
+       row_status = 1
+       asset_status = 1
+    ======================================================== */
+
+    var deviceSummary DownstreamDeviceSummary
+
+    err =
+        h.db.QueryRow(
+            ctx,
+            `
+            WITH downstream_employees AS (
+                SELECT DISTINCT
+                    BTRIM(
+                        COALESCE(
+                            et.employee_id,
+                            ''
+                        )
+                    ) AS employee_id
+
+                FROM public.employee_tier et
+
+                WHERE
+                       BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
+            )
+
+            SELECT
+                COUNT(*)::bigint
+
+            FROM public.asset_devices ad
+
+            INNER JOIN downstream_employees de
+                ON BTRIM(
+                    COALESCE(
+                        ad.emp_id,
+                        ''
+                    )
+                ) = de.employee_id
+
+            WHERE
+                ad.row_status = 1
+                AND ad.asset_status = 1
+            `,
+            employeeID,
+        ).Scan(
+            &deviceSummary.AssignedDevices,
+        )
+
+    if err != nil {
+        response.ServerError(
+            c,
+            err,
+        )
+
+        return
+    }
+
+    /* ========================================================
+       DOWNSTREAM TROUBLE TICKETS
+    ======================================================== */
+
+    var ticketSummary DownstreamTicketSummary
+
+    downstreamTicketSQL :=
+        fmt.Sprintf(
+            `
+            WITH downstream_employees AS (
+                SELECT DISTINCT
+                    BTRIM(
+                        COALESCE(
+                            et.employee_id,
+                            ''
+                        )
+                    ) AS employee_id
+
+                FROM public.employee_tier et
+
+                WHERE
+                       BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
+                    OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
+            ),
+
+            downstream_tickets AS (
+                SELECT
+                    %s AS normalized_status
+
+                FROM public.trouble_tickets t
+
+                INNER JOIN downstream_employees de
+                    ON BTRIM(
+                        COALESCE(
+                            t.employee_id,
+                            ''
+                        )
+                    ) = de.employee_id
+            )
+
+            SELECT
+                COUNT(*)::bigint,
+
+                COUNT(*) FILTER (
+                    WHERE normalized_status = 'Open'
+                )::bigint,
+
+                COUNT(*) FILTER (
+                    WHERE normalized_status = 'Running'
+                )::bigint,
+
+                COUNT(*) FILTER (
+                    WHERE normalized_status = 'Closed'
+                )::bigint
+
+            FROM downstream_tickets
+            `,
+            ownTicketStatusExpression,
+        )
+
+    err =
+        h.db.QueryRow(
+            ctx,
+            downstreamTicketSQL,
+            employeeID,
+        ).Scan(
+            &ticketSummary.Total,
+            &ticketSummary.Open,
+            &ticketSummary.Running,
+            &ticketSummary.Closed,
+        )
+
+    if err != nil {
+        response.ServerError(
+            c,
+            err,
+        )
+
+        return
+    }
+
+    response.OK(
+        c,
+        DownstreamSummaryResponse{
+            Employees: employeeSummary,
+            Devices:   deviceSummary,
+            Tickets:   ticketSummary,
+        },
+    )
 }
