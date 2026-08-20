@@ -81,6 +81,11 @@ func (
 		h.Devices,
 	)
 
+	g.GET(
+		"/device-history",
+		h.DeviceHistory,
+	)
+
 	// g.GET(
 	// 	"/downstream-employees",
 	// 	h.DownstreamEmployees,
@@ -1591,6 +1596,707 @@ func (
 				&item.PurchaseDate,
 				&item.WarrantyDate,
 				&item.Status,
+			)
+
+		if err != nil {
+			response.ServerError(
+				c,
+				err,
+			)
+
+			return
+		}
+
+		items =
+			append(
+				items,
+				item,
+			)
+	}
+
+	if err :=
+		rows.Err(); err != nil {
+
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	response.Paginated(
+		c,
+		items,
+		int(total),
+		page,
+		limit,
+	)
+}
+
+type UserDeviceHistoryItem struct {
+	ID int64 `json:"id"`
+
+	AssetDeviceID *int64 `json:"asset_device_id"`
+
+	LegacyEquipmentID *int64 `json:"legacy_equipment_id"`
+
+	DeviceSerial string `json:"device_serial"`
+
+	Category string `json:"category"`
+
+	Brand string `json:"brand"`
+
+	Model string `json:"model"`
+
+	DeviceType string `json:"device_type"`
+
+	StatusCode int16 `json:"status_code"`
+
+	StatusLabel string `json:"status_label"`
+
+	RawStatus string `json:"raw_status"`
+
+	PreviousStatus string `json:"previous_status"`
+
+	ReturnStatus string `json:"return_status"`
+
+	TransferStatus string `json:"transfer_status"`
+
+	EmpID string `json:"emp_id"`
+
+	EmpName string `json:"emp_name"`
+
+	Department string `json:"department"`
+
+	Designation string `json:"designation"`
+
+	MRNumber string `json:"mr_number"`
+
+	PRNumber string `json:"pr_number"`
+
+	Vendor string `json:"vendor"`
+
+	AssignedDate string `json:"assigned_date"`
+
+	TransferredAt string `json:"transferred_at"`
+
+	ReturnedAt string `json:"returned_at"`
+
+	HistoryReason string `json:"history_reason"`
+
+	CreatedAt string `json:"created_at"`
+
+	UpdatedAt string `json:"updated_at"`
+}
+
+/* ============================================================
+   GET /api/v1/user/device-history
+
+   Returns device history ONLY for the authenticated employee.
+
+   Query:
+   page=1
+   limit=20
+   status=all|assigned|transferred|returned
+   search=...
+
+   SECURITY:
+   employee_id is obtained only from JWT/context.
+============================================================ */
+
+func (
+	h *UserDashboardHandler,
+) DeviceHistory(
+	c *gin.Context,
+) {
+	ctx :=
+		c.Request.Context()
+
+	employeeID,
+		ok :=
+		middleware.GetCurrentEmployeeID(
+			c,
+		)
+
+	if !ok {
+		response.BadRequest(
+			c,
+			"authenticated employee ID is missing",
+		)
+
+		return
+	}
+
+	/* ========================================================
+	   PAGINATION
+	======================================================== */
+
+	page,
+		err :=
+		strconv.Atoi(
+			c.DefaultQuery(
+				"page",
+				"1",
+			),
+		)
+
+	if err != nil ||
+		page < 1 {
+		page = 1
+	}
+
+	limit,
+		err :=
+		strconv.Atoi(
+			c.DefaultQuery(
+				"limit",
+				"20",
+			),
+		)
+
+	if err != nil ||
+		limit < 1 {
+		limit = 20
+	}
+
+	if limit > 100 {
+		limit = 100
+	}
+
+	offset :=
+		(page - 1) *
+			limit
+
+	/* ========================================================
+	   FILTERS
+	======================================================== */
+
+	status :=
+		strings.ToLower(
+			strings.TrimSpace(
+				c.DefaultQuery(
+					"status",
+					"all",
+				),
+			),
+		)
+
+	switch status {
+	case
+		"all",
+		"assigned",
+		"transferred",
+		"returned":
+
+	default:
+		response.BadRequest(
+			c,
+			"status must be one of: all, assigned, transferred, returned",
+		)
+
+		return
+	}
+
+	search :=
+		strings.TrimSpace(
+			c.Query(
+				"search",
+			),
+		)
+
+	/* ========================================================
+	   BASE QUERY
+
+	   asset_device_history stores historical state.
+
+	   asset_devices is joined only to enrich history with:
+
+	   category
+	   brand
+	   model
+	   device_type
+	======================================================== */
+
+	baseSQL := `
+		WITH own_history AS (
+			SELECT
+				h.id,
+
+				h.asset_device_id,
+
+				h.legacy_equipment_id,
+
+				COALESCE(
+					NULLIF(
+						BTRIM(
+							h.device_serial
+						),
+						''
+					),
+					NULLIF(
+						BTRIM(
+							ad.device_serial
+						),
+						''
+					),
+					''
+				) AS device_serial,
+
+				COALESCE(
+					ad.category,
+					''
+				) AS category,
+
+				COALESCE(
+					ad.brand,
+					''
+				) AS brand,
+
+				COALESCE(
+					ad.model,
+					''
+				) AS model,
+
+				COALESCE(
+					ad.device_type,
+					''
+				) AS device_type,
+
+				COALESCE(
+					h.status_code,
+					-1
+				)::smallint AS status_code,
+
+				CASE h.status_code
+					WHEN 0 THEN 'Available'
+					WHEN 1 THEN 'Assigned'
+					WHEN 2 THEN 'Damaged'
+					WHEN 3 THEN 'Transferred'
+					WHEN 4 THEN 'Returned'
+					WHEN 5 THEN 'Lost'
+					WHEN 7 THEN 'Ownership Transfer'
+					WHEN 8 THEN 'Claim Raised'
+					WHEN 15 THEN 'Service Request'
+
+					ELSE COALESCE(
+						NULLIF(
+							BTRIM(
+								h.raw_status
+							),
+							''
+						),
+						'Unknown'
+					)
+				END AS status_label,
+
+				COALESCE(
+					h.raw_status,
+					''
+				) AS raw_status,
+
+				COALESCE(
+					h.previous_status::text,
+					''
+				) AS previous_status,
+
+				COALESCE(
+					h.return_status::text,
+					''
+				) AS return_status,
+
+				COALESCE(
+					h.transfer_status::text,
+					''
+				) AS transfer_status,
+
+				COALESCE(
+					h.emp_id,
+					''
+				) AS emp_id,
+
+				COALESCE(
+					h.emp_name,
+					''
+				) AS emp_name,
+
+				COALESCE(
+					h.department,
+					''
+				) AS department,
+
+				COALESCE(
+					h.designation,
+					''
+				) AS designation,
+
+				COALESCE(
+					h.mr_number,
+					''
+				) AS mr_number,
+
+				COALESCE(
+					h.pr_number,
+					''
+				) AS pr_number,
+
+				COALESCE(
+					h.vendor,
+					''
+				) AS vendor,
+
+				COALESCE(
+					h.assigned_date::text,
+					''
+				) AS assigned_date,
+
+				COALESCE(
+					h.transferred_at::text,
+					''
+				) AS transferred_at,
+
+				COALESCE(
+					h.returned_at::text,
+					''
+				) AS returned_at,
+
+				COALESCE(
+					h.history_reason,
+					''
+				) AS history_reason,
+
+				COALESCE(
+					h.created_at_source::text,
+					''
+				) AS created_at,
+
+				COALESCE(
+					h.updated_at_source::text,
+					''
+				) AS updated_at,
+
+				h.updated_at_source AS sort_updated_at,
+
+				h.created_at_source AS sort_created_at
+
+			FROM public.asset_device_history h
+
+			LEFT JOIN public.asset_devices ad
+				ON ad.id =
+					h.asset_device_id
+
+			WHERE BTRIM(
+				COALESCE(
+					h.emp_id,
+					''
+				)
+			) = BTRIM($1)
+		)
+	`
+
+	/* ========================================================
+	   DYNAMIC FILTERS
+	======================================================== */
+
+	args :=
+		[]any{
+			employeeID,
+		}
+
+	placeholder :=
+		2
+
+	statusFilter :=
+		""
+
+	if status != "all" {
+		statusFilter =
+			fmt.Sprintf(
+				`
+				AND LOWER(
+					own_history.status_label
+				) = $%d
+				`,
+				placeholder,
+			)
+
+		args =
+			append(
+				args,
+				status,
+			)
+
+		placeholder++
+	}
+
+	searchFilter :=
+		""
+
+	if search != "" {
+		searchFilter =
+			fmt.Sprintf(
+				`
+				AND (
+					   COALESCE(
+							own_history.device_serial,
+							''
+						) ILIKE $%d
+
+					OR COALESCE(
+							own_history.category,
+							''
+						) ILIKE $%d
+
+					OR COALESCE(
+							own_history.brand,
+							''
+						) ILIKE $%d
+
+					OR COALESCE(
+							own_history.model,
+							''
+						) ILIKE $%d
+
+					OR COALESCE(
+							own_history.history_reason,
+							''
+						) ILIKE $%d
+
+					OR COALESCE(
+							own_history.pr_number,
+							''
+						) ILIKE $%d
+
+					OR COALESCE(
+							own_history.mr_number,
+							''
+						) ILIKE $%d
+				)
+				`,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+				placeholder,
+			)
+
+		args =
+			append(
+				args,
+				"%"+search+"%",
+			)
+
+		placeholder++
+	}
+
+	/* ========================================================
+	   COUNT
+	======================================================== */
+
+	countSQL :=
+		fmt.Sprintf(
+			`
+			%s
+
+			SELECT
+				COUNT(*)::bigint
+
+			FROM own_history
+
+			WHERE 1 = 1
+
+			%s
+			%s
+			`,
+			baseSQL,
+			statusFilter,
+			searchFilter,
+		)
+
+	var total int64
+
+	err =
+		h.db.QueryRow(
+			ctx,
+			countSQL,
+			args...,
+		).Scan(
+			&total,
+		)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	/* ========================================================
+	   LIST
+	======================================================== */
+
+	listArgs :=
+		append(
+			[]any{},
+			args...,
+		)
+
+	limitPlaceholder :=
+		len(listArgs) + 1
+
+	offsetPlaceholder :=
+		len(listArgs) + 2
+
+	listArgs =
+		append(
+			listArgs,
+			limit,
+			offset,
+		)
+
+	listSQL :=
+		fmt.Sprintf(
+			`
+			%s
+
+			SELECT
+				own_history.id,
+
+				own_history.asset_device_id,
+
+				own_history.legacy_equipment_id,
+
+				own_history.device_serial,
+
+				own_history.category,
+
+				own_history.brand,
+
+				own_history.model,
+
+				own_history.device_type,
+
+				own_history.status_code,
+
+				own_history.status_label,
+
+				own_history.raw_status,
+
+				own_history.previous_status,
+
+				own_history.return_status,
+
+				own_history.transfer_status,
+
+				own_history.emp_id,
+
+				own_history.emp_name,
+
+				own_history.department,
+
+				own_history.designation,
+
+				own_history.mr_number,
+
+				own_history.pr_number,
+
+				own_history.vendor,
+
+				own_history.assigned_date,
+
+				own_history.transferred_at,
+
+				own_history.returned_at,
+
+				own_history.history_reason,
+
+				own_history.created_at,
+
+				own_history.updated_at
+
+			FROM own_history
+
+			WHERE 1 = 1
+
+			%s
+			%s
+
+			ORDER BY
+				own_history.sort_updated_at DESC NULLS LAST,
+				own_history.sort_created_at DESC NULLS LAST,
+				own_history.id DESC
+
+			LIMIT $%d
+			OFFSET $%d
+			`,
+			baseSQL,
+			statusFilter,
+			searchFilter,
+			limitPlaceholder,
+			offsetPlaceholder,
+		)
+
+	rows,
+		err :=
+		h.db.Query(
+			ctx,
+			listSQL,
+			listArgs...,
+		)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	defer rows.Close()
+
+	items :=
+		make(
+			[]UserDeviceHistoryItem,
+			0,
+		)
+
+	for rows.Next() {
+		var item UserDeviceHistoryItem
+
+		err :=
+			rows.Scan(
+				&item.ID,
+				&item.AssetDeviceID,
+				&item.LegacyEquipmentID,
+				&item.DeviceSerial,
+				&item.Category,
+				&item.Brand,
+				&item.Model,
+				&item.DeviceType,
+				&item.StatusCode,
+				&item.StatusLabel,
+				&item.RawStatus,
+				&item.PreviousStatus,
+				&item.ReturnStatus,
+				&item.TransferStatus,
+				&item.EmpID,
+				&item.EmpName,
+				&item.Department,
+				&item.Designation,
+				&item.MRNumber,
+				&item.PRNumber,
+				&item.Vendor,
+				&item.AssignedDate,
+				&item.TransferredAt,
+				&item.ReturnedAt,
+				&item.HistoryReason,
+				&item.CreatedAt,
+				&item.UpdatedAt,
 			)
 
 		if err != nil {
