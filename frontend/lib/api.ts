@@ -3036,3 +3036,52 @@ export const ownDevicesApi = {
             )}`
         ),
 };
+
+
+
+/* ======================================================
+   DOWNSTREAM DEVICES
+====================================================== */
+
+export interface DownstreamDeviceItem {
+    id: number;
+
+    device_serial: string;
+    category: string;
+    brand: string;
+    model: string;
+
+    employee_id: string;
+    employee_name: string;
+    department: string;
+    designation: string;
+
+    relationship: string;
+    tier_level: number;
+
+    mr_number: string;
+    pr_number: string;
+
+    assigned_date: string;
+    purchase_date: string;
+    warranty_date: string;
+
+    status: string;
+}
+
+export const downstreamDevicesApi = {
+    list: (
+        params?: {
+            page?: number;
+            limit?: number;
+            search?: string;
+        }
+    ) =>
+        api.get<
+            ApiPage<DownstreamDeviceItem>
+        >(
+            `/user/downstream-devices${toQuery(
+                params
+            )}`
+        ),
+};

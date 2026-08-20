@@ -86,15 +86,16 @@ func (
 		h.DeviceHistory,
 	)
 
+	g.GET(
+		"/downstream-devices",
+		h.DownstreamDevices,
+	)
+
 	// g.GET(
 	// 	"/downstream-employees",
 	// 	h.DownstreamEmployees,
 	// )
 
-	// g.GET(
-	// 	"/downstream-devices",
-	// 	h.DownstreamDevices,
-	// )
 }
 
 /* ============================================================
@@ -2297,6 +2298,669 @@ func (
 				&item.HistoryReason,
 				&item.CreatedAt,
 				&item.UpdatedAt,
+			)
+
+		if err != nil {
+			response.ServerError(
+				c,
+				err,
+			)
+
+			return
+		}
+
+		items =
+			append(
+				items,
+				item,
+			)
+	}
+
+	if err :=
+		rows.Err(); err != nil {
+
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	response.Paginated(
+		c,
+		items,
+		int(total),
+		page,
+		limit,
+	)
+}
+
+type DownstreamDeviceItem struct {
+	ID int64 `json:"id"`
+
+	DeviceSerial string `json:"device_serial"`
+
+	Category string `json:"category"`
+
+	Brand string `json:"brand"`
+
+	Model string `json:"model"`
+
+	EmployeeID string `json:"employee_id"`
+
+	EmployeeName string `json:"employee_name"`
+
+	Department string `json:"department"`
+
+	Designation string `json:"designation"`
+
+	Relationship string `json:"relationship"`
+
+	TierLevel int `json:"tier_level"`
+
+	MRNumber string `json:"mr_number"`
+
+	PRNumber string `json:"pr_number"`
+
+	AssignedDate string `json:"assigned_date"`
+
+	PurchaseDate string `json:"purchase_date"`
+
+	WarrantyDate string `json:"warranty_date"`
+
+	Status string `json:"status"`
+}
+
+/* ============================================================
+   GET /api/v1/user/downstream-devices
+
+   Returns currently assigned devices belonging to employees
+   under the authenticated employee's hierarchy.
+
+   Query:
+   page=1
+   limit=20
+   search=...
+
+   SECURITY:
+   employee_id comes ONLY from JWT/context.
+
+   Hierarchy:
+   tr1     = Direct
+   tr2-tr6 = Indirect
+============================================================ */
+
+func (
+	h *UserDashboardHandler,
+) DownstreamDevices(
+	c *gin.Context,
+) {
+	ctx :=
+		c.Request.Context()
+
+	employeeID,
+		ok :=
+		middleware.GetCurrentEmployeeID(
+			c,
+		)
+
+	if !ok {
+		response.BadRequest(
+			c,
+			"authenticated employee ID is missing",
+		)
+
+		return
+	}
+
+	/* ========================================================
+	   PAGINATION
+	======================================================== */
+
+	page,
+		err :=
+		strconv.Atoi(
+			c.DefaultQuery(
+				"page",
+				"1",
+			),
+		)
+
+	if err != nil ||
+		page < 1 {
+		page = 1
+	}
+
+	limit,
+		err :=
+		strconv.Atoi(
+			c.DefaultQuery(
+				"limit",
+				"20",
+			),
+		)
+
+	if err != nil ||
+		limit < 1 {
+		limit = 20
+	}
+
+	if limit > 100 {
+		limit = 100
+	}
+
+	offset :=
+		(page - 1) *
+			limit
+
+	search :=
+		strings.TrimSpace(
+			c.Query(
+				"search",
+			),
+		)
+
+	/* ========================================================
+	   DOWNSTREAM BASE
+
+	   Uses the same hierarchy rule as DownstreamSummary.
+
+	   MIN(tier_level) is used in case legacy tier data contains
+	   more than one hierarchy row for the same employee.
+	======================================================== */
+
+	baseSQL := `
+		WITH downstream_employees AS (
+			SELECT
+				BTRIM(
+					COALESCE(
+						et.employee_id,
+						''
+					)
+				) AS employee_id,
+
+				MIN(
+					CASE
+						WHEN BTRIM(
+							COALESCE(
+								et.tr1,
+								''
+							)
+						) = BTRIM($1)
+							THEN 1
+
+						WHEN BTRIM(
+							COALESCE(
+								et.tr2,
+								''
+							)
+						) = BTRIM($1)
+							THEN 2
+
+						WHEN BTRIM(
+							COALESCE(
+								et.tr3,
+								''
+							)
+						) = BTRIM($1)
+							THEN 3
+
+						WHEN BTRIM(
+							COALESCE(
+								et.tr4,
+								''
+							)
+						) = BTRIM($1)
+							THEN 4
+
+						WHEN BTRIM(
+							COALESCE(
+								et.tr5,
+								''
+							)
+						) = BTRIM($1)
+							THEN 5
+
+						WHEN BTRIM(
+							COALESCE(
+								et.tr6,
+								''
+							)
+						) = BTRIM($1)
+							THEN 6
+
+						ELSE 99
+					END
+				)::int AS tier_level
+
+			FROM public.employee_tier et
+
+			WHERE
+				NULLIF(
+					BTRIM(
+						COALESCE(
+							et.employee_id,
+							''
+						)
+					),
+					''
+				) IS NOT NULL
+
+				AND (
+					   BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
+					OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
+					OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
+					OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
+					OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
+					OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
+				)
+
+			GROUP BY
+				BTRIM(
+					COALESCE(
+						et.employee_id,
+						''
+					)
+				)
+		),
+
+		downstream_devices AS (
+			SELECT
+				ad.id,
+
+				COALESCE(
+					ad.device_serial,
+					''
+				) AS device_serial,
+
+				COALESCE(
+					ad.category,
+					''
+				) AS category,
+
+				COALESCE(
+					ad.brand,
+					''
+				) AS brand,
+
+				COALESCE(
+					ad.model,
+					''
+				) AS model,
+
+				COALESCE(
+					ad.emp_id,
+					''
+				) AS employee_id,
+
+				COALESCE(
+					NULLIF(
+						BTRIM(
+							office.employee_name
+						),
+						''
+					),
+					NULLIF(
+						BTRIM(
+							ad.emp_name
+						),
+						''
+					),
+					''
+				) AS employee_name,
+
+				COALESCE(
+					NULLIF(
+						BTRIM(
+							office.department_name
+						),
+						''
+					),
+					NULLIF(
+						BTRIM(
+							ad.department
+						),
+						''
+					),
+					''
+				) AS department,
+
+				COALESCE(
+					NULLIF(
+						BTRIM(
+							office.designation
+						),
+						''
+					),
+					NULLIF(
+						BTRIM(
+							ad.designation
+						),
+						''
+					),
+					''
+				) AS designation,
+
+				CASE
+					WHEN de.tier_level = 1
+						THEN 'Direct'
+					ELSE 'Indirect'
+				END AS relationship,
+
+				de.tier_level,
+
+				COALESCE(
+					ad.mr_number,
+					''
+				) AS mr_number,
+
+				COALESCE(
+					ad.pr_number,
+					''
+				) AS pr_number,
+
+				COALESCE(
+					ad.assigned_date::text,
+					''
+				) AS assigned_date,
+
+				COALESCE(
+					ad.purchase_date::text,
+					''
+				) AS purchase_date,
+
+				COALESCE(
+					ad.warranty_date::text,
+					''
+				) AS warranty_date,
+
+				'Assigned'::text AS status,
+
+				ad.assigned_date AS sort_assigned_date
+
+			FROM public.asset_devices ad
+
+			INNER JOIN downstream_employees de
+				ON de.employee_id =
+					BTRIM(
+						COALESCE(
+							ad.emp_id,
+							''
+						)
+					)
+
+			LEFT JOIN public.employee_office_info office
+				ON BTRIM(
+					COALESCE(
+						office.employee_id,
+						''
+					)
+				) =
+				BTRIM(
+					COALESCE(
+						ad.emp_id,
+						''
+					)
+				)
+
+			WHERE
+				ad.row_status = 1
+
+				AND ad.asset_status = 1
+		)
+	`
+
+	/* ========================================================
+	   SEARCH
+	======================================================== */
+
+	args :=
+		[]any{
+			employeeID,
+		}
+
+	searchFilter :=
+		""
+
+	if search != "" {
+		args =
+			append(
+				args,
+				"%"+search+"%",
+			)
+
+		searchFilter = `
+			AND (
+				   COALESCE(
+						downstream_devices.device_serial,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.category,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.brand,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.model,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.employee_id,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.employee_name,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.department,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.designation,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.pr_number,
+						''
+					) ILIKE $2
+
+				OR COALESCE(
+						downstream_devices.mr_number,
+						''
+					) ILIKE $2
+			)
+		`
+	}
+
+	/* ========================================================
+	   COUNT
+	======================================================== */
+
+	countSQL :=
+		fmt.Sprintf(
+			`
+			%s
+
+			SELECT
+				COUNT(*)::bigint
+
+			FROM downstream_devices
+
+			WHERE 1 = 1
+
+			%s
+			`,
+			baseSQL,
+			searchFilter,
+		)
+
+	var total int64
+
+	err =
+		h.db.QueryRow(
+			ctx,
+			countSQL,
+			args...,
+		).Scan(
+			&total,
+		)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	/* ========================================================
+	   LIST
+	======================================================== */
+
+	listArgs :=
+		append(
+			[]any{},
+			args...,
+		)
+
+	limitPlaceholder :=
+		len(listArgs) + 1
+
+	offsetPlaceholder :=
+		len(listArgs) + 2
+
+	listArgs =
+		append(
+			listArgs,
+			limit,
+			offset,
+		)
+
+	listSQL :=
+		fmt.Sprintf(
+			`
+			%s
+
+			SELECT
+				downstream_devices.id,
+
+				downstream_devices.device_serial,
+
+				downstream_devices.category,
+
+				downstream_devices.brand,
+
+				downstream_devices.model,
+
+				downstream_devices.employee_id,
+
+				downstream_devices.employee_name,
+
+				downstream_devices.department,
+
+				downstream_devices.designation,
+
+				downstream_devices.relationship,
+
+				downstream_devices.tier_level,
+
+				downstream_devices.mr_number,
+
+				downstream_devices.pr_number,
+
+				downstream_devices.assigned_date,
+
+				downstream_devices.purchase_date,
+
+				downstream_devices.warranty_date,
+
+				downstream_devices.status
+
+			FROM downstream_devices
+
+			WHERE 1 = 1
+
+			%s
+
+			ORDER BY
+				downstream_devices.tier_level ASC,
+
+				downstream_devices.employee_name ASC,
+
+				downstream_devices.sort_assigned_date DESC NULLS LAST,
+
+				downstream_devices.id DESC
+
+			LIMIT $%d
+			OFFSET $%d
+			`,
+			baseSQL,
+			searchFilter,
+			limitPlaceholder,
+			offsetPlaceholder,
+		)
+
+	rows,
+		err :=
+		h.db.Query(
+			ctx,
+			listSQL,
+			listArgs...,
+		)
+
+	if err != nil {
+		response.ServerError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	defer rows.Close()
+
+	items :=
+		make(
+			[]DownstreamDeviceItem,
+			0,
+		)
+
+	for rows.Next() {
+		var item DownstreamDeviceItem
+
+		err :=
+			rows.Scan(
+				&item.ID,
+				&item.DeviceSerial,
+				&item.Category,
+				&item.Brand,
+				&item.Model,
+				&item.EmployeeID,
+				&item.EmployeeName,
+				&item.Department,
+				&item.Designation,
+				&item.Relationship,
+				&item.TierLevel,
+				&item.MRNumber,
+				&item.PRNumber,
+				&item.AssignedDate,
+				&item.PurchaseDate,
+				&item.WarrantyDate,
+				&item.Status,
 			)
 
 		if err != nil {
