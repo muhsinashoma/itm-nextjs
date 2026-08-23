@@ -1,4 +1,5 @@
-// //frontend/app/dashboard/user/downstream-employee/page.tsx
+// // //frontend/app/dashboard/user/downstream-employee/page.tsx
+
 
 // "use client";
 
@@ -445,38 +446,32 @@
 //                 : "All Downstream Employees";
 
 //     return (
-//         <div className="min-w-0 space-y-4 p-1">
-//             {/* HEADER */}
+//         <div className="min-w-0 space-y-2.5">
+//             {/* ==================================================
+//                 COMPACT HEADER
+//             ================================================== */}
 
-//             <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-//                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-//                     <div className="flex items-center gap-3">
-//                         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-//                             <Users className="h-5 w-5" />
+//             <section className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+//                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+//                     <div className="flex items-center gap-2.5">
+//                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+//                             <Users className="h-4 w-4" />
 //                         </div>
 
-//                         <div>
-//                             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-//                                 Reporting
-//                                 Hierarchy
+//                         <div className="min-w-0">
+//                             <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+//                                 Reporting Hierarchy
 //                             </p>
 
-//                             <h1 className="text-xl font-bold text-foreground">
-//                                 Downstream
-//                                 Employees
-//                             </h1>
+//                             <div className="flex flex-wrap items-baseline gap-x-2">
+//                                 <h1 className="text-lg font-bold text-foreground">
+//                                     Downstream Employees
+//                                 </h1>
 
-//                             <p className="mt-0.5 text-xs text-muted-foreground">
-//                                 Active
-//                                 employees
-//                                 under your
-//                                 reporting
-//                                 hierarchy
-//                                 with current
-//                                 assigned
-//                                 device
-//                                 counts
-//                             </p>
+//                                 <span className="text-[10px] text-muted-foreground">
+//                                     Active team with assigned device counts
+//                                 </span>
+//                             </div>
 //                         </div>
 //                     </div>
 
@@ -489,7 +484,7 @@
 //                             loading ||
 //                             summaryLoading
 //                         }
-//                         className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-xs font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+//                         className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 text-[11px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
 //                     >
 //                         <RefreshCw
 //                             className={`h-3.5 w-3.5 ${loading ||
@@ -504,9 +499,11 @@
 //                 </div>
 //             </section>
 
-//             {/* SUMMARY */}
+//             {/* ==================================================
+//                 COMPACT SUMMARY CARDS
+//             ================================================== */}
 
-//             <section className="grid gap-3 sm:grid-cols-3">
+//             <section className="grid gap-2 sm:grid-cols-3">
 //                 <SummaryCard
 //                     title="All Downstream"
 //                     subtitle="Active employees"
@@ -529,8 +526,9 @@
 //                         summaryLoading
 //                     }
 //                     icon={
-//                         <Users className="h-5 w-5" />
+//                         <Users className="h-4 w-4" />
 //                     }
+//                     tone="blue"
 //                 />
 
 //                 <SummaryCard
@@ -555,8 +553,9 @@
 //                         summaryLoading
 //                     }
 //                     icon={
-//                         <UserRoundCheck className="h-5 w-5" />
+//                         <UserRoundCheck className="h-4 w-4" />
 //                     }
+//                     tone="emerald"
 //                 />
 
 //                 <SummaryCard
@@ -581,37 +580,43 @@
 //                         summaryLoading
 //                     }
 //                     icon={
-//                         <Network className="h-5 w-5" />
+//                         <Network className="h-4 w-4" />
 //                     }
+//                     tone="violet"
 //                 />
 //             </section>
 
-//             {/* LIST */}
+//             {/* ==================================================
+//                 EMPLOYEE TABLE
+//                 - No inner horizontal scrolling
+//                 - No inner vertical scrolling
+//                 - Fixed column widths keep Devices visible
+//             ================================================== */}
 
 //             <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
 //                 {/* TOOLBAR */}
 
-//                 <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+//                 <div className="flex flex-col gap-2 border-b border-border px-3.5 py-2.5 lg:flex-row lg:items-center lg:justify-between">
 //                     <div>
-//                         <h2 className="text-sm font-semibold text-foreground">
-//                             {
-//                                 tableTitle
-//                             }
-//                         </h2>
+//                         <div className="flex items-center gap-2">
+//                             <h2 className="text-sm font-semibold text-foreground">
+//                                 {
+//                                     tableTitle
+//                                 }
+//                             </h2>
 
-//                         <p className="mt-0.5 text-[11px] text-muted-foreground">
-//                             {total.toLocaleString()}{" "}
-//                             employee
-//                             {total ===
-//                                 1
-//                                 ? ""
-//                                 : "s"}{" "}
-//                             found
+//                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+//                                 {total.toLocaleString()}
+//                             </span>
+//                         </div>
+
+//                         <p className="mt-0.5 text-[10px] text-muted-foreground">
+//                             Name, ID, department, function, designation and devices
 //                         </p>
 //                     </div>
 
 //                     <div className="flex w-full lg:w-auto">
-//                         <div className="relative flex-1 lg:w-80">
+//                         <div className="relative flex-1 lg:w-72">
 //                             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 
 //                             <input
@@ -639,7 +644,7 @@
 //                                     }
 //                                 }}
 //                                 placeholder="Name, ID, department, function..."
-//                                 className="h-9 w-full rounded-l-lg border border-r-0 border-border bg-background pl-9 pr-3 text-xs text-foreground outline-none focus:border-primary"
+//                                 className="h-8 w-full rounded-l-lg border border-r-0 border-border bg-background pl-9 pr-3 text-[11px] text-foreground outline-none focus:border-primary"
 //                             />
 //                         </div>
 
@@ -648,7 +653,7 @@
 //                             onClick={
 //                                 handleSearch
 //                             }
-//                             className="h-9 bg-slate-900 px-4 text-xs font-medium text-white hover:bg-slate-800"
+//                             className="h-8 rounded-r-lg bg-slate-900 px-4 text-[11px] font-medium text-white hover:bg-slate-800"
 //                         >
 //                             Search
 //                         </button>
@@ -659,7 +664,7 @@
 //                                 onClick={
 //                                     clearSearch
 //                                 }
-//                                 className="h-9 rounded-r-lg border border-l-0 border-border bg-background px-3 text-xs text-muted-foreground hover:bg-muted"
+//                                 className="ml-1 h-8 rounded-lg border border-border bg-background px-2.5 text-[10px] text-muted-foreground hover:bg-muted"
 //                             >
 //                                 Clear
 //                             </button>
@@ -668,7 +673,7 @@
 //                 </div>
 
 //                 {error && (
-//                     <div className="border-b border-red-100 bg-red-50 px-4 py-3 text-xs text-red-700">
+//                     <div className="border-b border-red-100 bg-red-50 px-3.5 py-2 text-[11px] text-red-700">
 //                         {
 //                             error
 //                         }
@@ -677,10 +682,19 @@
 
 //                 {/* TABLE */}
 
-//                 <div className="overflow-x-auto">
-//                     <table className="w-full min-w-[1080px] border-collapse text-left">
+//                 <div className="w-full">
+//                     <table className="w-full table-fixed border-collapse text-left">
+//                         <colgroup>
+//                             <col className="w-[4%]" />
+//                             <col className="w-[23%]" />
+//                             <col className="w-[12%]" />
+//                             <col className="w-[23%]" />
+//                             <col className="w-[28%]" />
+//                             <col className="w-[10%]" />
+//                         </colgroup>
+
 //                         <thead>
-//                             <tr className="border-b border-border bg-muted/40">
+//                             <tr className="border-b border-border bg-slate-50/80">
 //                                 <Th>
 //                                     SL
 //                                 </Th>
@@ -690,20 +704,18 @@
 //                                 </Th>
 
 //                                 <Th>
-//                                     Relationship
+//                                     Relation
 //                                 </Th>
 
 //                                 <Th>
-//                                     Department
-//                                     /
-//                                     Function
+//                                     Department / Function
 //                                 </Th>
 
 //                                 <Th>
 //                                     Designation
 //                                 </Th>
 
-//                                 <Th align="right">
+//                                 <Th align="center">
 //                                     Devices
 //                                 </Th>
 //                             </tr>
@@ -716,14 +728,12 @@
 //                                         colSpan={
 //                                             6
 //                                         }
-//                                         className="h-52 text-center"
+//                                         className="h-36 text-center"
 //                                     >
 //                                         <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
 //                                             <Loader2 className="h-4 w-4 animate-spin" />
 
-//                                             Loading
-//                                             downstream
-//                                             employees...
+//                                             Loading employees...
 //                                         </div>
 //                                     </td>
 //                                 </tr>
@@ -734,26 +744,16 @@
 //                                         colSpan={
 //                                             6
 //                                         }
-//                                         className="h-52 text-center"
+//                                         className="h-36 text-center"
 //                                     >
-//                                         <Users className="mx-auto h-8 w-8 text-muted-foreground/40" />
+//                                         <Users className="mx-auto h-7 w-7 text-muted-foreground/40" />
 
-//                                         <p className="mt-3 text-sm font-semibold text-foreground">
-//                                             No
-//                                             downstream
-//                                             employees
-//                                             found
+//                                         <p className="mt-2 text-sm font-semibold text-foreground">
+//                                             No downstream employees found
 //                                         </p>
 
-//                                         <p className="mt-1 text-xs text-muted-foreground">
-//                                             No
-//                                             active
-//                                             employee
-//                                             matches
-//                                             this
-//                                             scope
-//                                             or
-//                                             search.
+//                                         <p className="mt-0.5 text-[10px] text-muted-foreground">
+//                                             No active employee matches this scope or search.
 //                                         </p>
 //                                     </td>
 //                                 </tr>
@@ -767,14 +767,16 @@
 //                                             key={
 //                                                 employee.employee_id
 //                                             }
-//                                             className="border-b border-border/70 transition last:border-0 hover:bg-muted/30"
+//                                             className="border-b border-border/60 transition-colors last:border-0 hover:bg-slate-50/70"
 //                                         >
 //                                             <Td>
-//                                                 {(page -
-//                                                     1) *
-//                                                     PAGE_SIZE +
-//                                                     index +
-//                                                     1}
+//                                                 <span className="tabular-nums text-[10px] text-muted-foreground">
+//                                                     {(page -
+//                                                         1) *
+//                                                         PAGE_SIZE +
+//                                                         index +
+//                                                         1}
+//                                                 </span>
 //                                             </Td>
 
 //                                             <Td>
@@ -797,32 +799,33 @@
 //                                             </Td>
 
 //                                             <Td>
-//                                                 <div className="min-w-[230px]">
-//                                                     <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-//                                                         <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-
-//                                                         <span>
-//                                                             {employee.department ||
-//                                                                 "Not available"}
-//                                                         </span>
-//                                                     </div>
-
-//                                                     <p className="mt-1 pl-5 text-[10px] text-muted-foreground">
-//                                                         {employee.sub_function ||
-//                                                             employee.work_field ||
-//                                                             "Function not available"}
-//                                                     </p>
-//                                                 </div>
+//                                                 <DepartmentFunctionCell
+//                                                     department={
+//                                                         employee.department
+//                                                     }
+//                                                     subFunction={
+//                                                         employee.sub_function
+//                                                     }
+//                                                     workField={
+//                                                         employee.work_field
+//                                                     }
+//                                                 />
 //                                             </Td>
 
 //                                             <Td>
-//                                                 <span className="block max-w-[220px] whitespace-normal text-xs text-foreground">
+//                                                 <p
+//                                                     className="line-clamp-2 pr-2 text-[11px] leading-4 text-foreground"
+//                                                     title={
+//                                                         employee.designation ||
+//                                                         ""
+//                                                     }
+//                                                 >
 //                                                     {employee.designation ||
 //                                                         "—"}
-//                                                 </span>
+//                                                 </p>
 //                                             </Td>
 
-//                                             <Td align="right">
+//                                             <Td align="center">
 //                                                 <DeviceCountBadge
 //                                                     count={
 //                                                         employee.device_count
@@ -839,8 +842,8 @@
 
 //                 {/* PAGINATION */}
 
-//                 <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-//                     <div className="text-[11px] text-muted-foreground">
+//                 <div className="flex flex-col gap-2 border-t border-border px-3.5 py-2 sm:flex-row sm:items-center sm:justify-between">
+//                     <div className="text-[10px] text-muted-foreground">
 //                         Showing{" "}
 //                         {total ===
 //                             0
@@ -849,7 +852,7 @@
 //                                 1) *
 //                             PAGE_SIZE +
 //                             1}
-//                         {" - "}
+//                         {"–"}
 //                         {Math.min(
 //                             page *
 //                             PAGE_SIZE,
@@ -859,8 +862,8 @@
 //                         {total.toLocaleString()}
 //                     </div>
 
-//                     <div className="flex items-center gap-3">
-//                         <span className="text-[11px] text-muted-foreground">
+//                     <div className="flex items-center gap-2">
+//                         <span className="text-[10px] text-muted-foreground">
 //                             Page{" "}
 //                             {
 //                                 page
@@ -871,49 +874,47 @@
 //                             }
 //                         </span>
 
-//                         <div className="flex gap-2">
-//                             <button
-//                                 type="button"
-//                                 disabled={
-//                                     page <=
-//                                     1 ||
-//                                     loading
-//                                 }
-//                                 onClick={() =>
-//                                     goToPage(
-//                                         Math.max(
-//                                             1,
-//                                             page -
-//                                             1
-//                                         )
+//                         <button
+//                             type="button"
+//                             disabled={
+//                                 page <=
+//                                 1 ||
+//                                 loading
+//                             }
+//                             onClick={() =>
+//                                 goToPage(
+//                                     Math.max(
+//                                         1,
+//                                         page -
+//                                         1
 //                                     )
-//                                 }
-//                                 className="h-8 rounded-lg border border-border px-3 text-[11px] font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-//                             >
-//                                 Previous
-//                             </button>
+//                                 )
+//                             }
+//                             className="h-7 rounded-md border border-border px-2.5 text-[10px] font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+//                         >
+//                             Previous
+//                         </button>
 
-//                             <button
-//                                 type="button"
-//                                 disabled={
-//                                     page >=
-//                                     totalPages ||
-//                                     loading
-//                                 }
-//                                 onClick={() =>
-//                                     goToPage(
-//                                         Math.min(
-//                                             totalPages,
-//                                             page +
-//                                             1
-//                                         )
+//                         <button
+//                             type="button"
+//                             disabled={
+//                                 page >=
+//                                 totalPages ||
+//                                 loading
+//                             }
+//                             onClick={() =>
+//                                 goToPage(
+//                                     Math.min(
+//                                         totalPages,
+//                                         page +
+//                                         1
 //                                     )
-//                                 }
-//                                 className="h-8 rounded-lg border border-border px-3 text-[11px] font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-//                             >
-//                                 Next
-//                             </button>
-//                         </div>
+//                                 )
+//                             }
+//                             className="h-7 rounded-md border border-border px-2.5 text-[10px] font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+//                         >
+//                             Next
+//                         </button>
 //                     </div>
 //                 </div>
 //             </section>
@@ -925,6 +926,11 @@
 //    SMALL COMPONENTS
 // ====================================================== */
 
+// type SummaryTone =
+//     | "blue"
+//     | "emerald"
+//     | "violet";
+
 // function SummaryCard({
 //     title,
 //     subtitle,
@@ -933,6 +939,7 @@
 //     href,
 //     active,
 //     loading,
+//     tone,
 // }: {
 //     title: string;
 //     subtitle: string;
@@ -941,7 +948,54 @@
 //     href: string;
 //     active: boolean;
 //     loading: boolean;
+//     tone: SummaryTone;
 // }) {
+//     const toneClasses: Record<
+//         SummaryTone,
+//         {
+//             card: string;
+//             icon: string;
+//             active: string;
+//             number: string;
+//         }
+//     > = {
+//         blue: {
+//             card:
+//                 "border-sky-100 bg-sky-50/70 hover:border-sky-200 hover:bg-sky-50",
+//             icon:
+//                 "bg-sky-100 text-sky-700",
+//             active:
+//                 "border-sky-400 ring-1 ring-sky-200",
+//             number:
+//                 "text-sky-950",
+//         },
+//         emerald: {
+//             card:
+//                 "border-emerald-100 bg-emerald-50/70 hover:border-emerald-200 hover:bg-emerald-50",
+//             icon:
+//                 "bg-emerald-100 text-emerald-700",
+//             active:
+//                 "border-emerald-400 ring-1 ring-emerald-200",
+//             number:
+//                 "text-emerald-950",
+//         },
+//         violet: {
+//             card:
+//                 "border-violet-100 bg-violet-50/70 hover:border-violet-200 hover:bg-violet-50",
+//             icon:
+//                 "bg-violet-100 text-violet-700",
+//             active:
+//                 "border-violet-400 ring-1 ring-violet-200",
+//             number:
+//                 "text-violet-950",
+//         },
+//     };
+
+//     const classes =
+//         toneClasses[
+//         tone
+//         ];
+
 //     return (
 //         <Link
 //             href={
@@ -952,26 +1006,30 @@
 //                     ? "page"
 //                     : undefined
 //             }
-//             className={`group block rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md ${active
-//                 ? "border-primary ring-1 ring-primary/20"
-//                 : "border-border"
+//             className={`group rounded-xl border px-3 py-2.5 shadow-sm transition-all ${classes.card
+//                 } ${active
+//                     ? classes.active
+//                     : ""
 //                 }`}
 //         >
-//             <div className="flex items-center justify-between gap-4">
-//                 <div>
-//                     <p className="text-[11px] font-medium text-muted-foreground">
+//             <div className="flex items-center justify-between gap-3">
+//                 <div className="min-w-0">
+//                     <p className="truncate text-[10px] font-semibold text-muted-foreground">
 //                         {
 //                             title
 //                         }
 //                     </p>
 
-//                     <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">
+//                     <p
+//                         className={`mt-0.5 text-xl font-bold tracking-tight ${classes.number
+//                             }`}
+//                     >
 //                         {loading
 //                             ? "—"
 //                             : value.toLocaleString()}
 //                     </p>
 
-//                     <p className="mt-1 text-[10px] text-muted-foreground">
+//                     <p className="mt-0.5 truncate text-[9px] text-muted-foreground">
 //                         {
 //                             subtitle
 //                         }
@@ -979,9 +1037,7 @@
 //                 </div>
 
 //                 <div
-//                     className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${active
-//                         ? "bg-primary/10 text-primary"
-//                         : "bg-muted text-muted-foreground group-hover:text-foreground"
+//                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${classes.icon
 //                         }`}
 //                 >
 //                     {
@@ -999,42 +1055,81 @@
 //     employee: DownstreamEmployeeItem;
 // }) {
 //     const initials =
-//         employee.employee_name
-//             .split(/\s+/)
-//             .filter(
-//                 Boolean
-//             )
-//             .slice(
-//                 0,
-//                 2
-//             )
-//             .map(
-//                 (part) =>
-//                     part[0]?.toUpperCase() ??
-//                     ""
-//             )
-//             .join("") ||
-//         "U";
+//         getEmployeeInitials(
+//             employee.employee_name,
+//             employee.employee_id
+//         );
 
 //     return (
-//         <div className="flex min-w-[260px] items-center gap-3">
-//             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200">
+//         <div className="flex min-w-0 items-center gap-2">
+//             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 text-[10px] font-bold text-slate-700 shadow-sm">
 //                 {
 //                     initials
 //                 }
 //             </div>
 
 //             <div className="min-w-0">
-//                 <p className="truncate text-xs font-semibold text-foreground">
+//                 <p
+//                     className="truncate text-[11px] font-semibold leading-4 text-foreground"
+//                     title={
+//                         employee.employee_name ||
+//                         ""
+//                     }
+//                 >
 //                     {employee.employee_name ||
 //                         "Unnamed employee"}
 //                 </p>
 
-//                 <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+//                 <p className="truncate text-[9px] font-medium leading-3.5 text-muted-foreground">
 //                     {employee.employee_id ||
 //                         "—"}
 //                 </p>
 //             </div>
+//         </div>
+//     );
+// }
+
+// function DepartmentFunctionCell({
+//     department,
+//     subFunction,
+//     workField,
+// }: {
+//     department?: string;
+//     subFunction?: string;
+//     workField?: string;
+// }) {
+//     const functionName =
+//         subFunction ||
+//         workField ||
+//         "Function not available";
+
+//     return (
+//         <div className="min-w-0 pr-2">
+//             <div className="flex min-w-0 items-center gap-1.5">
+//                 <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
+
+//                 <p
+//                     className="truncate text-[10.5px] font-semibold leading-4 text-foreground"
+//                     title={
+//                         department ||
+//                         ""
+//                     }
+//                 >
+//                     {department ||
+//                         "Not available"}
+//                 </p>
+//             </div>
+
+//             <p
+//                 className="truncate pl-[18px] text-[9px] leading-3.5 text-muted-foreground"
+//                 title={
+//                     functionName
+//                 }
+//             >
+//                 {
+//                     functionName
+//                 }
+//             </p>
 //         </div>
 //     );
 // }
@@ -1051,12 +1146,12 @@
 //         "direct";
 
 //     return (
-//         <div className="flex flex-col items-start gap-1">
+//         <div className="flex flex-col items-start gap-0.5">
 //             <span
 //                 className={
 //                     direct
-//                         ? "inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-100"
-//                         : "inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-100"
+//                         ? "inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700 ring-1 ring-blue-100"
+//                         : "inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-semibold text-violet-700 ring-1 ring-violet-100"
 //                 }
 //             >
 //                 {direct
@@ -1065,7 +1160,7 @@
 //             </span>
 
 //             {tier ? (
-//                 <span className="text-[9px] text-muted-foreground">
+//                 <span className="text-[8.5px] leading-3 text-muted-foreground">
 //                     Tier{" "}
 //                     {
 //                         tier
@@ -1081,18 +1176,117 @@
 // }: {
 //     count: number;
 // }) {
-//     return (
-//         <div className="inline-flex min-w-[76px] items-center justify-end gap-2 rounded-lg bg-violet-50 px-2.5 py-1.5 text-violet-700 ring-1 ring-violet-100">
-//             <MonitorSmartphone className="h-3.5 w-3.5" />
+//     const value =
+//         Number(
+//             count ??
+//             0
+//         );
 
-//             <span className="text-xs font-bold tabular-nums">
-//                 {Number(
-//                     count ??
-//                     0
-//                 ).toLocaleString()}
+//     return (
+//         <div
+//             className="mx-auto inline-flex min-w-[52px] items-center justify-center gap-1 rounded-lg border border-violet-100 bg-violet-50 px-2 py-1 text-violet-700"
+//             title={`${value.toLocaleString()} assigned device${value === 1
+//                 ? ""
+//                 : "s"
+//                 }`}
+//         >
+//             <MonitorSmartphone className="h-3 w-3 shrink-0" />
+
+//             <span className="text-[10px] font-bold tabular-nums">
+//                 {value.toLocaleString()}
 //             </span>
 //         </div>
 //     );
+// }
+
+// function getEmployeeInitials(
+//     name?: string,
+//     employeeID?: string
+// ): string {
+//     const normalizedName =
+//         (
+//             name ??
+//             ""
+//         ).trim();
+
+//     /*
+//      * Backend can fall back to employee_id when no employee
+//      * master name is available. In that case show "ID"
+//      * instead of an awkward numeric avatar.
+//      */
+//     if (
+//         !normalizedName ||
+//         normalizedName ===
+//         (
+//             employeeID ??
+//             ""
+//         ).trim()
+//     ) {
+//         return "ID";
+//     }
+
+//     const words =
+//         normalizedName
+//             .split(/\s+/)
+//             .map(
+//                 (word) =>
+//                     word.replace(
+//                         /[^A-Za-zÀ-ÖØ-öø-ÿ]/g,
+//                         ""
+//                     )
+//             )
+//             .filter(
+//                 Boolean
+//             );
+
+//     if (
+//         words.length ===
+//         0
+//     ) {
+//         return "ID";
+//     }
+
+//     if (
+//         words.length ===
+//         1
+//     ) {
+//         const word =
+//             words[0];
+
+//         return (
+//             (
+//                 word[0] ??
+//                 ""
+//             ) +
+//             (
+//                 word[
+//                 word.length -
+//                 1
+//                 ] ??
+//                 ""
+//             )
+//         ).toUpperCase();
+//     }
+
+//     const first =
+//         words[0];
+
+//     const last =
+//         words[
+//         words.length -
+//         1
+//         ];
+
+//     return (
+//         (
+//             first[0] ??
+//             ""
+//         ) +
+//         (
+//             last[0] ??
+//             ""
+//         )
+//     ).toUpperCase();
 // }
 
 // function Th({
@@ -1100,13 +1294,13 @@
 //     align = "left",
 // }: {
 //     children: ReactNode;
-//     align?: "left" | "right";
+//     align?: "left" | "center";
 // }) {
 //     return (
 //         <th
-//             className={`whitespace-nowrap px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground ${align ===
-//                 "right"
-//                 ? "text-right"
+//             className={`px-2.5 py-2 text-[9px] font-semibold uppercase tracking-[0.04em] text-muted-foreground ${align ===
+//                 "center"
+//                 ? "text-center"
 //                 : "text-left"
 //                 }`}
 //         >
@@ -1122,13 +1316,13 @@
 //     align = "left",
 // }: {
 //     children: ReactNode;
-//     align?: "left" | "right";
+//     align?: "left" | "center";
 // }) {
 //     return (
 //         <td
-//             className={`px-4 py-3 text-xs text-muted-foreground ${align ===
-//                 "right"
-//                 ? "text-right"
+//             className={`px-2.5 py-2 align-middle ${align ===
+//                 "center"
+//                 ? "text-center"
 //                 : "text-left"
 //                 }`}
 //         >
@@ -1165,6 +1359,7 @@ import {
     Network,
     RefreshCw,
     Search,
+    Sparkles,
     UserRoundCheck,
     Users,
 } from "lucide-react";
@@ -1178,14 +1373,31 @@ import {
 
 const PAGE_SIZE = 20;
 
+type SummaryTone =
+    | "blue"
+    | "emerald"
+    | "violet";
+
+type AvatarPalette = {
+    ring: string;
+    bg: string;
+    text: string;
+    glow: string;
+};
+
+const AVATAR_PALETTES: AvatarPalette[] = [
+    { ring: "ring-rose-200", bg: "from-rose-100 via-pink-100 to-rose-50", text: "text-rose-700", glow: "shadow-rose-100" },
+    { ring: "ring-orange-200", bg: "from-orange-100 via-amber-100 to-orange-50", text: "text-orange-700", glow: "shadow-orange-100" },
+    { ring: "ring-emerald-200", bg: "from-emerald-100 via-teal-100 to-emerald-50", text: "text-emerald-700", glow: "shadow-emerald-100" },
+    { ring: "ring-sky-200", bg: "from-sky-100 via-cyan-100 to-sky-50", text: "text-sky-700", glow: "shadow-sky-100" },
+    { ring: "ring-indigo-200", bg: "from-indigo-100 via-blue-100 to-indigo-50", text: "text-indigo-700", glow: "shadow-indigo-100" },
+    { ring: "ring-violet-200", bg: "from-violet-100 via-fuchsia-100 to-violet-50", text: "text-violet-700", glow: "shadow-violet-100" },
+];
+
 export default function DownstreamEmployeePage() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-
-    /* ======================================================
-       URL STATE
-    ====================================================== */
 
     const scope =
         useMemo<DownstreamEmployeeScope>(
@@ -1248,60 +1460,32 @@ export default function DownstreamEmployeePage() {
             ]
         );
 
-    /* ======================================================
-       STATE
-    ====================================================== */
-
-    const [
-        employees,
-        setEmployees,
-    ] =
+    const [employees, setEmployees] =
         useState<
             DownstreamEmployeeItem[]
         >([]);
 
-    const [
-        total,
-        setTotal,
-    ] =
+    const [total, setTotal] =
         useState(0);
 
-    const [
-        directTotal,
-        setDirectTotal,
-    ] =
+    const [directTotal, setDirectTotal] =
         useState(0);
 
-    const [
-        allTotal,
-        setAllTotal,
-    ] =
+    const [allTotal, setAllTotal] =
         useState(0);
 
-    const [
-        search,
-        setSearch,
-    ] =
+    const [search, setSearch] =
         useState(
             appliedSearch
         );
 
-    const [
-        loading,
-        setLoading,
-    ] =
+    const [loading, setLoading] =
         useState(true);
 
-    const [
-        summaryLoading,
-        setSummaryLoading,
-    ] =
+    const [summaryLoading, setSummaryLoading] =
         useState(true);
 
-    const [
-        error,
-        setError,
-    ] =
+    const [error, setError] =
         useState("");
 
     useEffect(
@@ -1315,10 +1499,6 @@ export default function DownstreamEmployeePage() {
         ]
     );
 
-    /* ======================================================
-       LOAD EMPLOYEE LIST
-    ====================================================== */
-
     const loadEmployees =
         useCallback(
             async () => {
@@ -1326,7 +1506,6 @@ export default function DownstreamEmployeePage() {
                     setLoading(
                         true
                     );
-
                     setError(
                         ""
                     );
@@ -1361,11 +1540,9 @@ export default function DownstreamEmployeePage() {
                     setEmployees(
                         []
                     );
-
                     setTotal(
                         0
                     );
-
                     setError(
                         reason instanceof
                             Error
@@ -1384,10 +1561,6 @@ export default function DownstreamEmployeePage() {
                 appliedSearch,
             ]
         );
-
-    /* ======================================================
-       LOAD SUMMARY
-    ====================================================== */
 
     const loadSummary =
         useCallback(
@@ -1428,7 +1601,6 @@ export default function DownstreamEmployeePage() {
                     setDirectTotal(
                         0
                     );
-
                     setAllTotal(
                         0
                     );
@@ -1458,10 +1630,6 @@ export default function DownstreamEmployeePage() {
             loadSummary,
         ]
     );
-
-    /* ======================================================
-       URL HELPERS
-    ====================================================== */
 
     function buildUrl({
         nextScope = scope,
@@ -1557,10 +1725,6 @@ export default function DownstreamEmployeePage() {
         );
     }
 
-    /* ======================================================
-       DERIVED
-    ====================================================== */
-
     const indirectTotal =
         Math.max(
             0,
@@ -1586,14 +1750,10 @@ export default function DownstreamEmployeePage() {
 
     return (
         <div className="min-w-0 space-y-2.5">
-            {/* ==================================================
-                COMPACT HEADER
-            ================================================== */}
-
             <section className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2.5">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 ring-1 ring-blue-100">
                             <Users className="h-4 w-4" />
                         </div>
 
@@ -1632,116 +1792,52 @@ export default function DownstreamEmployeePage() {
                                     : ""
                                 }`}
                         />
-
                         Refresh
                     </button>
                 </div>
             </section>
 
-            {/* ==================================================
-                COMPACT SUMMARY CARDS
-            ================================================== */}
-
             <section className="grid gap-2 sm:grid-cols-3">
                 <SummaryCard
                     title="All Downstream"
                     subtitle="Active employees"
-                    value={
-                        allTotal
-                    }
-                    href={buildUrl(
-                        {
-                            nextScope:
-                                "all",
-                            nextPage:
-                                1,
-                        }
-                    )}
-                    active={
-                        scope ===
-                        "all"
-                    }
-                    loading={
-                        summaryLoading
-                    }
-                    icon={
-                        <Users className="h-4 w-4" />
-                    }
+                    value={allTotal}
+                    href={buildUrl({ nextScope: "all", nextPage: 1 })}
+                    active={scope === "all"}
+                    loading={summaryLoading}
+                    icon={<Users className="h-4 w-4" />}
                     tone="blue"
                 />
 
                 <SummaryCard
                     title="Direct"
                     subtitle="Immediate reports"
-                    value={
-                        directTotal
-                    }
-                    href={buildUrl(
-                        {
-                            nextScope:
-                                "direct",
-                            nextPage:
-                                1,
-                        }
-                    )}
-                    active={
-                        scope ===
-                        "direct"
-                    }
-                    loading={
-                        summaryLoading
-                    }
-                    icon={
-                        <UserRoundCheck className="h-4 w-4" />
-                    }
+                    value={directTotal}
+                    href={buildUrl({ nextScope: "direct", nextPage: 1 })}
+                    active={scope === "direct"}
+                    loading={summaryLoading}
+                    icon={<UserRoundCheck className="h-4 w-4" />}
                     tone="emerald"
                 />
 
                 <SummaryCard
                     title="Indirect"
                     subtitle="Extended hierarchy"
-                    value={
-                        indirectTotal
-                    }
-                    href={buildUrl(
-                        {
-                            nextScope:
-                                "indirect",
-                            nextPage:
-                                1,
-                        }
-                    )}
-                    active={
-                        scope ===
-                        "indirect"
-                    }
-                    loading={
-                        summaryLoading
-                    }
-                    icon={
-                        <Network className="h-4 w-4" />
-                    }
+                    value={indirectTotal}
+                    href={buildUrl({ nextScope: "indirect", nextPage: 1 })}
+                    active={scope === "indirect"}
+                    loading={summaryLoading}
+                    icon={<Network className="h-4 w-4" />}
                     tone="violet"
                 />
             </section>
 
-            {/* ==================================================
-                EMPLOYEE TABLE
-                - No inner horizontal scrolling
-                - No inner vertical scrolling
-                - Fixed column widths keep Devices visible
-            ================================================== */}
-
             <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                {/* TOOLBAR */}
-
                 <div className="flex flex-col gap-2 border-b border-border px-3.5 py-2.5 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <div className="flex items-center gap-2">
                             <h2 className="text-sm font-semibold text-foreground">
-                                {
-                                    tableTitle
-                                }
+                                {tableTitle}
                             </h2>
 
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
@@ -1760,21 +1856,13 @@ export default function DownstreamEmployeePage() {
 
                             <input
                                 type="text"
-                                value={
-                                    search
-                                }
-                                onChange={(
-                                    event
-                                ) =>
+                                value={search}
+                                onChange={(event) =>
                                     setSearch(
-                                        event
-                                            .target
-                                            .value
+                                        event.target.value
                                     )
                                 }
-                                onKeyDown={(
-                                    event
-                                ) => {
+                                onKeyDown={(event) => {
                                     if (
                                         event.key ===
                                         "Enter"
@@ -1789,9 +1877,7 @@ export default function DownstreamEmployeePage() {
 
                         <button
                             type="button"
-                            onClick={
-                                handleSearch
-                            }
+                            onClick={handleSearch}
                             className="h-8 rounded-r-lg bg-slate-900 px-4 text-[11px] font-medium text-white hover:bg-slate-800"
                         >
                             Search
@@ -1800,9 +1886,7 @@ export default function DownstreamEmployeePage() {
                         {appliedSearch && (
                             <button
                                 type="button"
-                                onClick={
-                                    clearSearch
-                                }
+                                onClick={clearSearch}
                                 className="ml-1 h-8 rounded-lg border border-border bg-background px-2.5 text-[10px] text-muted-foreground hover:bg-muted"
                             >
                                 Clear
@@ -1813,13 +1897,9 @@ export default function DownstreamEmployeePage() {
 
                 {error && (
                     <div className="border-b border-red-100 bg-red-50 px-3.5 py-2 text-[11px] text-red-700">
-                        {
-                            error
-                        }
+                        {error}
                     </div>
                 )}
-
-                {/* TABLE */}
 
                 <div className="w-full">
                     <table className="w-full table-fixed border-collapse text-left">
@@ -1834,199 +1914,111 @@ export default function DownstreamEmployeePage() {
 
                         <thead>
                             <tr className="border-b border-border bg-slate-50/80">
-                                <Th>
-                                    SL
-                                </Th>
-
-                                <Th>
-                                    Employee
-                                </Th>
-
-                                <Th>
-                                    Relation
-                                </Th>
-
-                                <Th>
-                                    Department / Function
-                                </Th>
-
-                                <Th>
-                                    Designation
-                                </Th>
-
-                                <Th align="center">
-                                    Devices
-                                </Th>
+                                <Th>SL</Th>
+                                <Th>Employee</Th>
+                                <Th>Relation</Th>
+                                <Th>Department / Function</Th>
+                                <Th>Designation</Th>
+                                <Th align="center">Devices</Th>
                             </tr>
                         </thead>
 
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td
-                                        colSpan={
-                                            6
-                                        }
-                                        className="h-36 text-center"
-                                    >
+                                    <td colSpan={6} className="h-36 text-center">
                                         <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                                             <Loader2 className="h-4 w-4 animate-spin" />
-
                                             Loading employees...
                                         </div>
                                     </td>
                                 </tr>
-                            ) : employees.length ===
-                                0 ? (
+                            ) : employees.length === 0 ? (
                                 <tr>
-                                    <td
-                                        colSpan={
-                                            6
-                                        }
-                                        className="h-36 text-center"
-                                    >
+                                    <td colSpan={6} className="h-36 text-center">
                                         <Users className="mx-auto h-7 w-7 text-muted-foreground/40" />
-
                                         <p className="mt-2 text-sm font-semibold text-foreground">
                                             No downstream employees found
                                         </p>
-
                                         <p className="mt-0.5 text-[10px] text-muted-foreground">
                                             No active employee matches this scope or search.
                                         </p>
                                     </td>
                                 </tr>
                             ) : (
-                                employees.map(
-                                    (
-                                        employee,
-                                        index
-                                    ) => (
-                                        <tr
-                                            key={
-                                                employee.employee_id
-                                            }
-                                            className="border-b border-border/60 transition-colors last:border-0 hover:bg-slate-50/70"
-                                        >
-                                            <Td>
-                                                <span className="tabular-nums text-[10px] text-muted-foreground">
-                                                    {(page -
-                                                        1) *
-                                                        PAGE_SIZE +
-                                                        index +
-                                                        1}
-                                                </span>
-                                            </Td>
+                                employees.map((employee, index) => (
+                                    <tr
+                                        key={employee.employee_id}
+                                        className="border-b border-border/60 transition-colors last:border-0 hover:bg-slate-50/70"
+                                    >
+                                        <Td>
+                                            <span className="tabular-nums text-[10px] text-muted-foreground">
+                                                {(page - 1) * PAGE_SIZE + index + 1}
+                                            </span>
+                                        </Td>
 
-                                            <Td>
-                                                <EmployeeCell
-                                                    employee={
-                                                        employee
-                                                    }
-                                                />
-                                            </Td>
+                                        <Td>
+                                            <EmployeeCell employee={employee} />
+                                        </Td>
 
-                                            <Td>
-                                                <RelationshipBadge
-                                                    relationship={
-                                                        employee.relationship
-                                                    }
-                                                    tier={
-                                                        employee.tier_level
-                                                    }
-                                                />
-                                            </Td>
+                                        <Td>
+                                            <RelationshipBadge
+                                                relationship={employee.relationship}
+                                                tier={employee.tier_level}
+                                            />
+                                        </Td>
 
-                                            <Td>
-                                                <DepartmentFunctionCell
-                                                    department={
-                                                        employee.department
-                                                    }
-                                                    subFunction={
-                                                        employee.sub_function
-                                                    }
-                                                    workField={
-                                                        employee.work_field
-                                                    }
-                                                />
-                                            </Td>
+                                        <Td>
+                                            <DepartmentFunctionCell
+                                                department={employee.department}
+                                                subFunction={employee.sub_function}
+                                                workField={employee.work_field}
+                                            />
+                                        </Td>
 
-                                            <Td>
-                                                <p
-                                                    className="line-clamp-2 pr-2 text-[11px] leading-4 text-foreground"
-                                                    title={
-                                                        employee.designation ||
-                                                        ""
-                                                    }
-                                                >
-                                                    {employee.designation ||
-                                                        "—"}
-                                                </p>
-                                            </Td>
+                                        <Td>
+                                            <p
+                                                className="line-clamp-2 pr-2 text-[11px] leading-4 text-foreground"
+                                                title={employee.designation || ""}
+                                            >
+                                                {employee.designation || "—"}
+                                            </p>
+                                        </Td>
 
-                                            <Td align="center">
-                                                <DeviceCountBadge
-                                                    count={
-                                                        employee.device_count
-                                                    }
-                                                />
-                                            </Td>
-                                        </tr>
-                                    )
-                                )
+                                        <Td align="center">
+                                            <DeviceCountPill
+                                                count={employee.device_count}
+                                            />
+                                        </Td>
+                                    </tr>
+                                ))
                             )}
                         </tbody>
                     </table>
                 </div>
 
-                {/* PAGINATION */}
-
                 <div className="flex flex-col gap-2 border-t border-border px-3.5 py-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-[10px] text-muted-foreground">
                         Showing{" "}
-                        {total ===
-                            0
+                        {total === 0
                             ? 0
-                            : (page -
-                                1) *
-                            PAGE_SIZE +
-                            1}
+                            : (page - 1) * PAGE_SIZE + 1}
                         {"–"}
-                        {Math.min(
-                            page *
-                            PAGE_SIZE,
-                            total
-                        )}{" "}
-                        of{" "}
+                        {Math.min(page * PAGE_SIZE, total)} of{" "}
                         {total.toLocaleString()}
                     </div>
 
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-muted-foreground">
-                            Page{" "}
-                            {
-                                page
-                            }{" "}
-                            of{" "}
-                            {
-                                totalPages
-                            }
+                            Page {page} of {totalPages}
                         </span>
 
                         <button
                             type="button"
-                            disabled={
-                                page <=
-                                1 ||
-                                loading
-                            }
+                            disabled={page <= 1 || loading}
                             onClick={() =>
                                 goToPage(
-                                    Math.max(
-                                        1,
-                                        page -
-                                        1
-                                    )
+                                    Math.max(1, page - 1)
                                 )
                             }
                             className="h-7 rounded-md border border-border px-2.5 text-[10px] font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
@@ -2036,18 +2028,10 @@ export default function DownstreamEmployeePage() {
 
                         <button
                             type="button"
-                            disabled={
-                                page >=
-                                totalPages ||
-                                loading
-                            }
+                            disabled={page >= totalPages || loading}
                             onClick={() =>
                                 goToPage(
-                                    Math.min(
-                                        totalPages,
-                                        page +
-                                        1
-                                    )
+                                    Math.min(totalPages, page + 1)
                                 )
                             }
                             className="h-7 rounded-md border border-border px-2.5 text-[10px] font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
@@ -2060,15 +2044,6 @@ export default function DownstreamEmployeePage() {
         </div>
     );
 }
-
-/* ======================================================
-   SMALL COMPONENTS
-====================================================== */
-
-type SummaryTone =
-    | "blue"
-    | "emerald"
-    | "violet";
 
 function SummaryCard({
     title,
@@ -2099,89 +2074,52 @@ function SummaryCard({
         }
     > = {
         blue: {
-            card:
-                "border-sky-100 bg-sky-50/70 hover:border-sky-200 hover:bg-sky-50",
-            icon:
-                "bg-sky-100 text-sky-700",
-            active:
-                "border-sky-400 ring-1 ring-sky-200",
-            number:
-                "text-sky-950",
+            card: "border-sky-100 bg-sky-50/70 hover:border-sky-200 hover:bg-sky-50",
+            icon: "bg-sky-100 text-sky-700",
+            active: "border-sky-400 ring-1 ring-sky-200",
+            number: "text-sky-950",
         },
         emerald: {
-            card:
-                "border-emerald-100 bg-emerald-50/70 hover:border-emerald-200 hover:bg-emerald-50",
-            icon:
-                "bg-emerald-100 text-emerald-700",
-            active:
-                "border-emerald-400 ring-1 ring-emerald-200",
-            number:
-                "text-emerald-950",
+            card: "border-emerald-100 bg-emerald-50/70 hover:border-emerald-200 hover:bg-emerald-50",
+            icon: "bg-emerald-100 text-emerald-700",
+            active: "border-emerald-400 ring-1 ring-emerald-200",
+            number: "text-emerald-950",
         },
         violet: {
-            card:
-                "border-violet-100 bg-violet-50/70 hover:border-violet-200 hover:bg-violet-50",
-            icon:
-                "bg-violet-100 text-violet-700",
-            active:
-                "border-violet-400 ring-1 ring-violet-200",
-            number:
-                "text-violet-950",
+            card: "border-violet-100 bg-violet-50/70 hover:border-violet-200 hover:bg-violet-50",
+            icon: "bg-violet-100 text-violet-700",
+            active: "border-violet-400 ring-1 ring-violet-200",
+            number: "text-violet-950",
         },
     };
 
     const classes =
-        toneClasses[
-        tone
-        ];
+        toneClasses[tone];
 
     return (
         <Link
-            href={
-                href
-            }
-            aria-current={
-                active
-                    ? "page"
-                    : undefined
-            }
-            className={`group rounded-xl border px-3 py-2.5 shadow-sm transition-all ${classes.card
-                } ${active
-                    ? classes.active
-                    : ""
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`group rounded-xl border px-3 py-2.5 shadow-sm transition-all ${classes.card} ${active ? classes.active : ""
                 }`}
         >
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                     <p className="truncate text-[10px] font-semibold text-muted-foreground">
-                        {
-                            title
-                        }
+                        {title}
                     </p>
 
-                    <p
-                        className={`mt-0.5 text-xl font-bold tracking-tight ${classes.number
-                            }`}
-                    >
-                        {loading
-                            ? "—"
-                            : value.toLocaleString()}
+                    <p className={`mt-0.5 text-xl font-bold tracking-tight ${classes.number}`}>
+                        {loading ? "—" : value.toLocaleString()}
                     </p>
 
                     <p className="mt-0.5 truncate text-[9px] text-muted-foreground">
-                        {
-                            subtitle
-                        }
+                        {subtitle}
                     </p>
                 </div>
 
-                <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${classes.icon
-                        }`}
-                >
-                    {
-                        icon
-                    }
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${classes.icon}`}>
+                    {icon}
                 </div>
             </div>
         </Link>
@@ -2193,35 +2131,36 @@ function EmployeeCell({
 }: {
     employee: DownstreamEmployeeItem;
 }) {
-    const initials =
-        getEmployeeInitials(
+    const avatarText =
+        getAvatarText(
             employee.employee_name,
             employee.employee_id
         );
 
+    const palette =
+        getAvatarPalette(
+            employee.employee_id ||
+            employee.employee_name
+        );
+
     return (
         <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 text-[10px] font-bold text-slate-700 shadow-sm">
-                {
-                    initials
-                }
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${palette.bg} ${palette.text} ring-1 ${palette.ring} shadow-sm ${palette.glow}`}>
+                <span className="text-[10px] font-extrabold tracking-wide">
+                    {avatarText}
+                </span>
             </div>
 
             <div className="min-w-0">
                 <p
                     className="truncate text-[11px] font-semibold leading-4 text-foreground"
-                    title={
-                        employee.employee_name ||
-                        ""
-                    }
+                    title={employee.employee_name || ""}
                 >
-                    {employee.employee_name ||
-                        "Unnamed employee"}
+                    {employee.employee_name || "Unnamed employee"}
                 </p>
 
                 <p className="truncate text-[9px] font-medium leading-3.5 text-muted-foreground">
-                    {employee.employee_id ||
-                        "—"}
+                    {employee.employee_id || "—"}
                 </p>
             </div>
         </div>
@@ -2249,25 +2188,17 @@ function DepartmentFunctionCell({
 
                 <p
                     className="truncate text-[10.5px] font-semibold leading-4 text-foreground"
-                    title={
-                        department ||
-                        ""
-                    }
+                    title={department || ""}
                 >
-                    {department ||
-                        "Not available"}
+                    {department || "Not available"}
                 </p>
             </div>
 
             <p
                 className="truncate pl-[18px] text-[9px] leading-3.5 text-muted-foreground"
-                title={
-                    functionName
-                }
+                title={functionName}
             >
-                {
-                    functionName
-                }
+                {functionName}
             </p>
         </div>
     );
@@ -2300,132 +2231,142 @@ function RelationshipBadge({
 
             {tier ? (
                 <span className="text-[8.5px] leading-3 text-muted-foreground">
-                    Tier{" "}
-                    {
-                        tier
-                    }
+                    Tier {tier}
                 </span>
             ) : null}
         </div>
     );
 }
 
-function DeviceCountBadge({
+function DeviceCountPill({
     count,
 }: {
     count: number;
 }) {
     const value =
         Number(
-            count ??
-            0
+            count ?? 0
         );
 
     return (
         <div
-            className="mx-auto inline-flex min-w-[52px] items-center justify-center gap-1 rounded-lg border border-violet-100 bg-violet-50 px-2 py-1 text-violet-700"
+            className="mx-auto inline-flex min-w-[68px] items-center justify-center gap-1.5 rounded-full border border-violet-200 bg-gradient-to-r from-violet-50 via-fuchsia-50 to-indigo-50 px-2.5 py-1.5 text-violet-700 shadow-sm shadow-violet-100"
             title={`${value.toLocaleString()} assigned device${value === 1
                     ? ""
                     : "s"
                 }`}
         >
-            <MonitorSmartphone className="h-3 w-3 shrink-0" />
+            <div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-white/80 ring-1 ring-violet-100">
+                <MonitorSmartphone className="h-2.5 w-2.5 shrink-0" />
+            </div>
 
-            <span className="text-[10px] font-bold tabular-nums">
+            <span className="text-[10px] font-extrabold tabular-nums">
                 {value.toLocaleString()}
             </span>
+
+            {value >= 5 ? (
+                <Sparkles className="h-2.5 w-2.5 shrink-0 text-fuchsia-500" />
+            ) : null}
         </div>
     );
 }
 
-function getEmployeeInitials(
+function getAvatarText(
     name?: string,
     employeeID?: string
 ): string {
     const normalizedName =
-        (
-            name ??
-            ""
-        ).trim();
+        (name ?? "").trim();
 
-    /*
-     * Backend can fall back to employee_id when no employee
-     * master name is available. In that case show "ID"
-     * instead of an awkward numeric avatar.
-     */
     if (
         !normalizedName ||
         normalizedName ===
-        (
-            employeeID ??
-            ""
-        ).trim()
+        (employeeID ?? "").trim()
     ) {
+        const normalizedID =
+            (employeeID ?? "")
+                .replace(
+                    /[^A-Za-z0-9]/g,
+                    ""
+                )
+                .trim();
+
+        if (
+            normalizedID.length >= 2
+        ) {
+            return (
+                normalizedID[0] +
+                normalizedID[normalizedID.length - 1]
+            ).toUpperCase();
+        }
+
         return "ID";
+    }
+
+    const onlyLetters =
+        normalizedName.replace(
+            /[^A-Za-zÀ-ÖØ-öø-ÿ]/g,
+            ""
+        );
+
+    if (
+        onlyLetters.length >= 2
+    ) {
+        return (
+            onlyLetters[0] +
+            onlyLetters[onlyLetters.length - 1]
+        ).toUpperCase();
     }
 
     const words =
         normalizedName
             .split(/\s+/)
-            .map(
-                (word) =>
-                    word.replace(
-                        /[^A-Za-zÀ-ÖØ-öø-ÿ]/g,
-                        ""
-                    )
-            )
-            .filter(
-                Boolean
-            );
+            .filter(Boolean);
 
     if (
-        words.length ===
-        0
-    ) {
-        return "ID";
-    }
-
-    if (
-        words.length ===
-        1
+        words.length === 1
     ) {
         const word =
             words[0];
 
         return (
-            (
-                word[0] ??
-                ""
-            ) +
-            (
-                word[
-                word.length -
-                1
-                ] ??
-                ""
-            )
+            (word[0] ?? "") +
+            (word[word.length - 1] ?? "")
         ).toUpperCase();
     }
 
-    const first =
-        words[0];
-
-    const last =
-        words[
-        words.length -
-        1
-        ];
+    const firstWord = words[0];
+    const lastWord =
+        words[words.length - 1];
 
     return (
-        (
-            first[0] ??
-            ""
-        ) +
-        (
-            last[0] ??
-            ""
-        )
+        (firstWord[0] ?? "") +
+        (lastWord[lastWord.length - 1] ?? "")
     ).toUpperCase();
+}
+
+function getAvatarPalette(
+    seed?: string
+): AvatarPalette {
+    const value =
+        (seed ?? "default").trim();
+
+    let hash = 0;
+
+    for (
+        let i = 0;
+        i < value.length;
+        i += 1
+    ) {
+        hash =
+            (hash * 31 +
+                value.charCodeAt(i)) %
+            100000;
+    }
+
+    return AVATAR_PALETTES[
+        hash % AVATAR_PALETTES.length
+    ];
 }
 
 function Th({
@@ -2437,15 +2378,12 @@ function Th({
 }) {
     return (
         <th
-            className={`px-2.5 py-2 text-[9px] font-semibold uppercase tracking-[0.04em] text-muted-foreground ${align ===
-                    "center"
+            className={`px-2.5 py-2 text-[9px] font-semibold uppercase tracking-[0.04em] text-muted-foreground ${align === "center"
                     ? "text-center"
                     : "text-left"
                 }`}
         >
-            {
-                children
-            }
+            {children}
         </th>
     );
 }
@@ -2459,15 +2397,12 @@ function Td({
 }) {
     return (
         <td
-            className={`px-2.5 py-2 align-middle ${align ===
-                    "center"
+            className={`px-2.5 py-2 align-middle ${align === "center"
                     ? "text-center"
                     : "text-left"
                 }`}
         >
-            {
-                children
-            }
+            {children}
         </td>
     );
 }
