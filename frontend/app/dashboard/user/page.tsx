@@ -1,10 +1,13 @@
 // frontend/app/dashboard/user/page.tsx
+
 "use client";
 
 import {
     useCallback,
     useEffect,
+    useMemo,
     useState,
+    type ReactNode,
 } from "react";
 
 import {
@@ -20,6 +23,7 @@ import {
     Search,
     Ticket,
     UserRound,
+    Workflow,
 } from "lucide-react";
 
 import {
@@ -28,76 +32,97 @@ import {
     type OwnTroubleTicketItem,
 } from "@/lib/api";
 
+const PAGE_SIZE = 10;
+
+type TicketStatusFilter =
+    | "all"
+    | "open"
+    | "running"
+    | "closed";
+
+type SummaryTone =
+    | "slate"
+    | "blue"
+    | "amber"
+    | "emerald";
+
 export default function UserDashboardPage() {
     const [
         dashboard,
         setDashboard,
-    ] = useState<OwnDashboardData | null>(
-        null
-    );
+    ] =
+        useState<OwnDashboardData | null>(
+            null
+        );
 
     const [
         tickets,
         setTickets,
-    ] = useState<
-        OwnTroubleTicketItem[]
-    >([]);
+    ] =
+        useState<
+            OwnTroubleTicketItem[]
+        >([]);
 
     const [
         total,
         setTotal,
-    ] = useState(0);
+    ] =
+        useState(0);
 
     const [
         page,
         setPage,
-    ] = useState(1);
-
-    const [
-        pageSize,
-    ] = useState(20);
+    ] =
+        useState(1);
 
     const [
         search,
         setSearch,
-    ] = useState("");
+    ] =
+        useState("");
 
     const [
         appliedSearch,
         setAppliedSearch,
-    ] = useState("");
+    ] =
+        useState("");
 
     const [
         status,
         setStatus,
-    ] = useState<
-        | "all"
-        | "open"
-        | "running"
-        | "closed"
-    >("all");
+    ] =
+        useState<TicketStatusFilter>(
+            "all"
+        );
 
     const [
         loading,
         setLoading,
-    ] = useState(true);
+    ] =
+        useState(true);
 
     const [
         ticketsLoading,
         setTicketsLoading,
-    ] = useState(true);
+    ] =
+        useState(true);
 
     const [
         error,
         setError,
-    ] = useState("");
+    ] =
+        useState("");
 
     const loadDashboard =
         useCallback(
             async () => {
                 try {
-                    setLoading(true);
-                    setError("");
+                    setLoading(
+                        true
+                    );
+                    setError(
+                        ""
+                    );
 
                     const response =
                         await ownDashboardApi.dashboard();
@@ -105,13 +130,16 @@ export default function UserDashboardPage() {
                     setDashboard(
                         response.data
                     );
-                } catch (reason) {
+                } catch (
+                reason
+                ) {
                     setDashboard(
                         null
                     );
 
                     setError(
-                        reason instanceof Error
+                        reason instanceof
+                            Error
                             ? reason.message
                             : "Unable to load employee dashboard."
                     );
@@ -137,7 +165,7 @@ export default function UserDashboardPage() {
                             {
                                 page,
                                 limit:
-                                    pageSize,
+                                    PAGE_SIZE,
                                 status,
                                 search:
                                     appliedSearch ||
@@ -156,13 +184,19 @@ export default function UserDashboardPage() {
                             0
                         )
                     );
-                } catch (reason) {
-                    setTickets([]);
-
-                    setTotal(0);
+                } catch (
+                reason
+                ) {
+                    setTickets(
+                        []
+                    );
+                    setTotal(
+                        0
+                    );
 
                     setError(
-                        reason instanceof Error
+                        reason instanceof
+                            Error
                             ? reason.message
                             : "Unable to load Trouble Tickets."
                     );
@@ -174,54 +208,83 @@ export default function UserDashboardPage() {
             },
             [
                 page,
-                pageSize,
                 status,
                 appliedSearch,
             ]
         );
 
-    useEffect(() => {
-        void loadDashboard();
-    }, [
-        loadDashboard,
-    ]);
-
-    useEffect(() => {
-        void loadTickets();
-    }, [
-        loadTickets,
-    ]);
-
-    const handleSearch =
-        () => {
-            setPage(1);
-
-            setAppliedSearch(
-                search.trim()
-            );
-        };
-
-    const handleRefresh =
+    useEffect(
         () => {
             void loadDashboard();
+        },
+        [
+            loadDashboard,
+        ]
+    );
+
+    useEffect(
+        () => {
             void loadTickets();
-        };
+        },
+        [
+            loadTickets,
+        ]
+    );
+
+    function handleSearch() {
+        setPage(
+            1
+        );
+
+        setAppliedSearch(
+            search.trim()
+        );
+    }
+
+    function clearSearch() {
+        setSearch(
+            ""
+        );
+        setAppliedSearch(
+            ""
+        );
+        setPage(
+            1
+        );
+    }
+
+    function changeStatus(
+        nextStatus: TicketStatusFilter
+    ) {
+        setStatus(
+            nextStatus
+        );
+        setPage(
+            1
+        );
+    }
+
+    function handleRefresh() {
+        void loadDashboard();
+        void loadTickets();
+    }
 
     const totalPages =
         Math.max(
             1,
             Math.ceil(
                 total /
-                pageSize
+                PAGE_SIZE
             )
         );
 
-    if (loading) {
+    if (
+        loading
+    ) {
         return (
             <div className="flex min-h-[420px] items-center justify-center">
-                <div className="flex items-center gap-3 text-sm text-slate-500">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-
+                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-500 shadow-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Loading your dashboard...
                 </div>
             </div>
@@ -233,8 +296,8 @@ export default function UserDashboardPage() {
         !dashboard
     ) {
         return (
-            <div className="p-6">
-                <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+            <div className="p-4">
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
                     <div className="flex items-start gap-3">
                         <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
 
@@ -244,7 +307,9 @@ export default function UserDashboardPage() {
                             </h2>
 
                             <p className="mt-1 text-sm text-red-700">
-                                {error}
+                                {
+                                    error
+                                }
                             </p>
 
                             <button
@@ -252,10 +317,9 @@ export default function UserDashboardPage() {
                                 onClick={
                                     handleRefresh
                                 }
-                                className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-red-700 px-4 text-sm font-medium text-white hover:bg-red-800"
+                                className="mt-3 inline-flex h-8 items-center gap-2 rounded-lg bg-red-700 px-3 text-xs font-medium text-white hover:bg-red-800"
                             >
-                                <RefreshCw className="h-4 w-4" />
-
+                                <RefreshCw className="h-3.5 w-3.5" />
                                 Retry
                             </button>
                         </div>
@@ -265,95 +329,129 @@ export default function UserDashboardPage() {
         );
     }
 
-    if (!dashboard) {
+    if (
+        !dashboard
+    ) {
         return null;
     }
 
     const {
         employee,
-        tickets: summary,
-    } = dashboard;
+        tickets:
+        summary,
+    } =
+        dashboard;
+
+    const closureRate =
+        summary.total >
+            0
+            ? Math.round(
+                (
+                    summary.closed /
+                    summary.total
+                ) *
+                100
+            )
+            : 0;
+
+    const avatarText =
+        getAvatarText(
+            employee.employee_name,
+            employee.employee_id
+        );
 
     return (
-        <div className="min-w-0 space-y-5 p-4 sm:p-5 lg:p-6">
-            {/* HEADER */}
+        <div className="min-w-0 space-y-3 p-2 sm:p-3 lg:p-4">
+            {/* ==================================================
+                COMPACT HERO / EMPLOYEE OVERVIEW
+            ================================================== */}
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex min-w-0 items-center gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                            <UserRound className="h-7 w-7" />
-                        </div>
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="bg-gradient-to-r from-slate-50 via-white to-slate-100 px-4 py-4 text-slate-900 sm:px-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-black tracking-wide text-slate-700 shadow-sm ring-1 ring-slate-100">
+                                {
+                                    avatarText
+                                }
+                            </div>
 
-                        <div className="min-w-0">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                Employee Dashboard
-                            </p>
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                        Employee Dashboard
+                                    </p>
 
-                            <h1 className="truncate text-xl font-bold text-slate-900 sm:text-2xl">
-                                Welcome,{" "}
-                                {employee.employee_name ||
-                                    employee.employee_id}
-                            </h1>
-
-                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
-                                {employee.designation && (
-                                    <span>
-                                        {
-                                            employee.designation
-                                        }
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-300 ring-1 ring-emerald-400/20">
+                                        <BadgeCheck className="h-3 w-3" />
+                                        Active
                                     </span>
-                                )}
+                                </div>
 
-                                {employee.designation &&
-                                    employee.department && (
+                                <h1 className="mt-1 truncate text-lg font-bold text-slate-900 sm:text-xl">
+                                    {employee.employee_name ||
+                                        employee.employee_id}
+                                </h1>
+
+                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-600">
+                                    {employee.designation && (
                                         <span>
-                                            •
+                                            {
+                                                employee.designation
+                                            }
                                         </span>
                                     )}
 
-                                {employee.department && (
-                                    <span>
-                                        {
-                                            employee.department
-                                        }
-                                    </span>
-                                )}
+                                    {employee.designation &&
+                                        employee.department && (
+                                            <span className="text-slate-300">
+                                                •
+                                            </span>
+                                        )}
+
+                                    {employee.department && (
+                                        <span>
+                                            {
+                                                employee.department
+                                            }
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
+
+                        <div className="flex items-center gap-2">
+                            <div className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-sm sm:block">
+                                <p className="text-[9px] uppercase tracking-wide text-slate-500">
+                                    Ticket Closure
+                                </p>
+
+                                <p className="mt-0.5 text-lg font-bold text-emerald-600">
+                                    {
+                                        closureRate
+                                    }
+                                    %
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={
+                                    handleRefresh
+                                }
+                                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            >
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                Refresh
+                            </button>
+                        </div>
                     </div>
-
-                    <button
-                        type="button"
-                        onClick={
-                            handleRefresh
-                        }
-                        className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                    >
-                        <RefreshCw className="h-4 w-4" />
-
-                        Refresh
-                    </button>
-                </div>
-            </section>
-
-            {/* EMPLOYEE INFORMATION */}
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4">
-                    <h2 className="text-sm font-semibold text-slate-900">
-                        Employee Information
-                    </h2>
-
-                    <p className="mt-0.5 text-xs text-slate-500">
-                        Your official employee profile
-                    </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    <InfoItem
+                <div className="grid gap-px bg-slate-200 sm:grid-cols-2 xl:grid-cols-6">
+                    <ProfileMetric
                         icon={
-                            <BadgeCheck className="h-4 w-4" />
+                            <BadgeCheck className="h-3.5 w-3.5" />
                         }
                         label="Employee ID"
                         value={
@@ -361,9 +459,9 @@ export default function UserDashboardPage() {
                         }
                     />
 
-                    <InfoItem
+                    <ProfileMetric
                         icon={
-                            <UserRound className="h-4 w-4" />
+                            <UserRound className="h-3.5 w-3.5" />
                         }
                         label="Designation"
                         value={
@@ -371,9 +469,9 @@ export default function UserDashboardPage() {
                         }
                     />
 
-                    <InfoItem
+                    <ProfileMetric
                         icon={
-                            <Building2 className="h-4 w-4" />
+                            <Building2 className="h-3.5 w-3.5" />
                         }
                         label="Department"
                         value={
@@ -381,9 +479,20 @@ export default function UserDashboardPage() {
                         }
                     />
 
-                    <InfoItem
+                    <ProfileMetric
                         icon={
-                            <Phone className="h-4 w-4" />
+                            <Workflow className="h-3.5 w-3.5" />
+                        }
+                        label="Work Field"
+                        value={
+                            employee.work_field ||
+                            employee.sub_function
+                        }
+                    />
+
+                    <ProfileMetric
+                        icon={
+                            <Phone className="h-3.5 w-3.5" />
                         }
                         label="Official Mobile"
                         value={
@@ -391,190 +500,275 @@ export default function UserDashboardPage() {
                         }
                     />
 
-                    <InfoItem
+                    <ProfileMetric
                         icon={
-                            <Mail className="h-4 w-4" />
+                            <Mail className="h-3.5 w-3.5" />
                         }
                         label="Official Email"
                         value={
                             employee.official_email
                         }
                     />
-
-                    <InfoItem
-                        icon={
-                            <Building2 className="h-4 w-4" />
-                        }
-                        label="Work Field"
-                        value={
-                            employee.work_field
-                        }
-                    />
                 </div>
             </section>
 
-            {/* TT SUMMARY */}
+            {/* ==================================================
+                TT SUMMARY - CLICKABLE FILTER CARDS
+            ================================================== */}
 
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <SummaryCard
+            <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <TicketSummaryCard
                     label="Total Tickets"
                     value={
                         summary.total
                     }
+                    percent={
+                        100
+                    }
+                    helper="All your tickets"
                     icon={
-                        <Ticket className="h-5 w-5" />
+                        <Ticket className="h-4 w-4" />
+                    }
+                    tone="slate"
+                    active={
+                        status ===
+                        "all"
+                    }
+                    onClick={() =>
+                        changeStatus(
+                            "all"
+                        )
                     }
                 />
 
-                <SummaryCard
+                <TicketSummaryCard
                     label="Open"
                     value={
                         summary.open
                     }
+                    percent={
+                        getPercent(
+                            summary.open,
+                            summary.total
+                        )
+                    }
+                    helper="Needs attention"
                     icon={
-                        <AlertCircle className="h-5 w-5" />
+                        <AlertCircle className="h-4 w-4" />
+                    }
+                    tone="blue"
+                    active={
+                        status ===
+                        "open"
+                    }
+                    onClick={() =>
+                        changeStatus(
+                            "open"
+                        )
                     }
                 />
 
-                <SummaryCard
+                <TicketSummaryCard
                     label="Running"
                     value={
                         summary.running
                     }
+                    percent={
+                        getPercent(
+                            summary.running,
+                            summary.total
+                        )
+                    }
+                    helper="Currently in progress"
                     icon={
-                        <Clock3 className="h-5 w-5" />
+                        <Clock3 className="h-4 w-4" />
+                    }
+                    tone="amber"
+                    active={
+                        status ===
+                        "running"
+                    }
+                    onClick={() =>
+                        changeStatus(
+                            "running"
+                        )
                     }
                 />
 
-                <SummaryCard
+                <TicketSummaryCard
                     label="Closed"
                     value={
                         summary.closed
                     }
+                    percent={
+                        closureRate
+                    }
+                    helper={`${closureRate}% closure rate`}
                     icon={
-                        <CheckCircle2 className="h-5 w-5" />
+                        <CheckCircle2 className="h-4 w-4" />
+                    }
+                    tone="emerald"
+                    active={
+                        status ===
+                        "closed"
+                    }
+                    onClick={() =>
+                        changeStatus(
+                            "closed"
+                        )
                     }
                 />
             </section>
 
-            {/* MY TROUBLE TICKETS */}
+            {/* ==================================================
+                TROUBLE TICKET TABLE - 10 ROWS AT A GLANCE
+            ================================================== */}
 
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 p-4 sm:p-5">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
+                <div className="flex flex-col gap-2 border-b border-slate-200 px-3.5 py-2.5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
                             <h2 className="text-sm font-semibold text-slate-900">
                                 My Trouble Tickets
                             </h2>
 
-                            <p className="mt-0.5 text-xs text-slate-500">
-                                {total.toLocaleString()}{" "}
-                                ticket
-                                {total === 1
-                                    ? ""
-                                    : "s"}{" "}
-                                found
-                            </p>
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                {total.toLocaleString()}
+                            </span>
+
+                            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[9px] font-semibold text-indigo-700 ring-1 ring-indigo-100">
+                                10 rows / page
+                            </span>
                         </div>
 
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <select
-                                value={
-                                    status
-                                }
-                                onChange={(
+                        <p className="mt-0.5 text-[10px] text-slate-500">
+                            Latest ticket activity with essential details at a glance
+                        </p>
+                    </div>
+
+                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                        <select
+                            value={
+                                status
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                changeStatus(
                                     event
-                                ) => {
-                                    setStatus(
+                                        .target
+                                        .value as TicketStatusFilter
+                                )
+                            }
+                            className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-700 outline-none transition focus:border-indigo-300"
+                        >
+                            <option value="all">
+                                All Status
+                            </option>
+
+                            <option value="open">
+                                Open
+                            </option>
+
+                            <option value="running">
+                                Running
+                            </option>
+
+                            <option value="closed">
+                                Closed
+                            </option>
+                        </select>
+
+                        <div className="flex min-w-0 flex-1 lg:w-72">
+                            <div className="relative min-w-0 flex-1">
+                                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+
+                                <input
+                                    type="text"
+                                    value={
+                                        search
+                                    }
+                                    onChange={(
                                         event
-                                            .target
-                                            .value as
-                                        | "all"
-                                        | "open"
-                                        | "running"
-                                        | "closed"
-                                    );
+                                    ) =>
+                                        setSearch(
+                                            event
+                                                .target
+                                                .value
+                                        )
+                                    }
+                                    onKeyDown={(
+                                        event
+                                    ) => {
+                                        if (
+                                            event.key ===
+                                            "Enter"
+                                        ) {
+                                            handleSearch();
+                                        }
+                                    }}
+                                    placeholder="TT no, query, department..."
+                                    className="h-8 w-full rounded-l-lg border border-r-0 border-slate-200 bg-white pl-9 pr-3 text-[11px] outline-none transition focus:border-indigo-300"
+                                />
+                            </div>
 
-                                    setPage(
-                                        1
-                                    );
-                                }}
-                                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none"
+                            <button
+                                type="button"
+                                onClick={
+                                    handleSearch
+                                }
+                                className="h-8 rounded-r-lg border border-slate-200 bg-slate-100 px-3.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200"
                             >
-                                <option value="all">
-                                    All Status
-                                </option>
+                                Search
+                            </button>
 
-                                <option value="open">
-                                    Open
-                                </option>
-
-                                <option value="running">
-                                    Running
-                                </option>
-
-                                <option value="closed">
-                                    Closed
-                                </option>
-                            </select>
-
-                            <div className="flex">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                                    <input
-                                        type="text"
-                                        value={
-                                            search
-                                        }
-                                        onChange={(
-                                            event
-                                        ) =>
-                                            setSearch(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                        }
-                                        onKeyDown={(
-                                            event
-                                        ) => {
-                                            if (
-                                                event.key ===
-                                                "Enter"
-                                            ) {
-                                                handleSearch();
-                                            }
-                                        }}
-                                        placeholder="Search tickets..."
-                                        className="h-9 w-full rounded-l-lg border border-r-0 border-slate-200 bg-white pl-9 pr-3 text-sm outline-none sm:w-56"
-                                    />
-                                </div>
-
+                            {appliedSearch && (
                                 <button
                                     type="button"
                                     onClick={
-                                        handleSearch
+                                        clearSearch
                                     }
-                                    className="h-9 rounded-r-lg bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+                                    className="ml-1 h-8 rounded-lg border border-slate-200 px-2.5 text-[10px] font-medium text-slate-500 hover:bg-slate-50"
                                 >
-                                    Search
+                                    Clear
                                 </button>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[900px] border-collapse text-left">
+                {error && dashboard && (
+                    <div className="border-b border-red-100 bg-red-50 px-3.5 py-2 text-[10px] text-red-700">
+                        {
+                            error
+                        }
+                    </div>
+                )}
+
+                <div className="w-full">
+                    <table className="w-full table-fixed border-collapse text-left">
+                        <colgroup>
+                            <col className="w-[4%]" />
+                            <col className="w-[15%]" />
+                            <col className="w-[25%]" />
+                            <col className="w-[16%]" />
+                            <col className="w-[16%]" />
+                            <col className="w-[10%]" />
+                            <col className="w-[14%]" />
+                        </colgroup>
+
                         <thead>
-                            <tr className="border-b border-slate-200 bg-slate-50">
+                            <tr className="border-b border-slate-200 bg-slate-50/90">
+                                <Th align="center">
+                                    SL
+                                </Th>
+
                                 <Th>
                                     TT No
                                 </Th>
 
                                 <Th>
-                                    Query Type
+                                    Query / Description
                                 </Th>
 
                                 <Th>
@@ -600,13 +794,12 @@ export default function UserDashboardPage() {
                                 <tr>
                                     <td
                                         colSpan={
-                                            6
+                                            7
                                         }
-                                        className="h-40 text-center"
+                                        className="h-32 text-center"
                                     >
-                                        <div className="inline-flex items-center gap-2 text-sm text-slate-500">
+                                        <div className="inline-flex items-center gap-2 text-xs text-slate-500">
                                             <Loader2 className="h-4 w-4 animate-spin" />
-
                                             Loading Trouble Tickets...
                                         </div>
                                     </td>
@@ -616,18 +809,18 @@ export default function UserDashboardPage() {
                                 <tr>
                                     <td
                                         colSpan={
-                                            6
+                                            7
                                         }
-                                        className="h-40 text-center"
+                                        className="h-32 text-center"
                                     >
                                         <Ticket className="mx-auto h-7 w-7 text-slate-300" />
 
-                                        <p className="mt-2 text-sm font-medium text-slate-700">
+                                        <p className="mt-2 text-sm font-semibold text-slate-700">
                                             No Trouble Tickets found
                                         </p>
 
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            Your ticket list will appear here.
+                                        <p className="mt-0.5 text-[10px] text-slate-500">
+                                            Change the filters or search to see more results.
                                         </p>
                                     </td>
                                 </tr>
@@ -638,37 +831,107 @@ export default function UserDashboardPage() {
                                         index
                                     ) => (
                                         <tr
-                                            key={`${item.tt_no}-${index}`}
-                                            className="border-b border-slate-100 transition last:border-b-0 hover:bg-slate-50"
+                                            key={`${item.tt_no}-${item.id}-${index}`}
+                                            className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-indigo-50/30"
                                         >
-                                            <Td>
-                                                <span className="font-semibold text-slate-900">
-                                                    {
-                                                        item.tt_no
-                                                    }
+                                            <Td align="center">
+                                                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-100 px-1.5 text-[9px] font-bold tabular-nums text-slate-600">
+                                                    {(page -
+                                                        1) *
+                                                        PAGE_SIZE +
+                                                        index +
+                                                        1}
                                                 </span>
                                             </Td>
 
                                             <Td>
-                                                {
-                                                    item.query_type ||
-                                                    "—"
-                                                }
+                                                <div className="min-w-0">
+                                                    <p
+                                                        className="truncate text-[10.5px] font-bold text-slate-900"
+                                                        title={
+                                                            item.tt_no
+                                                        }
+                                                    >
+                                                        {
+                                                            item.tt_no
+                                                        }
+                                                    </p>
+
+                                                    <p className="mt-0.5 text-[9px] text-slate-400">
+                                                        ID{" "}
+                                                        {
+                                                            item.id
+                                                        }
+                                                    </p>
+                                                </div>
                                             </Td>
 
                                             <Td>
-                                                {
-                                                    item.department ||
-                                                    "—"
-                                                }
+                                                <div className="min-w-0 pr-2">
+                                                    <p
+                                                        className="truncate text-[10.5px] font-semibold text-slate-800"
+                                                        title={
+                                                            item.query_type ||
+                                                            ""
+                                                        }
+                                                    >
+                                                        {item.query_type ||
+                                                            "No query type"}
+                                                    </p>
+
+                                                    <p
+                                                        className="mt-0.5 line-clamp-1 text-[9px] leading-3.5 text-slate-500"
+                                                        title={
+                                                            item.description ||
+                                                            ""
+                                                        }
+                                                    >
+                                                        {item.description ||
+                                                            "No description"}
+                                                    </p>
+                                                </div>
                                             </Td>
 
                                             <Td>
-                                                {
-                                                    item.assigned_name ||
-                                                    item.assigned_id ||
-                                                    "—"
-                                                }
+                                                <div className="flex min-w-0 items-center gap-1.5">
+                                                    <Building2 className="h-3 w-3 shrink-0 text-slate-400" />
+
+                                                    <span
+                                                        className="truncate text-[10px] font-medium text-slate-700"
+                                                        title={
+                                                            item.department ||
+                                                            ""
+                                                        }
+                                                    >
+                                                        {item.department ||
+                                                            "—"}
+                                                    </span>
+                                                </div>
+                                            </Td>
+
+                                            <Td>
+                                                <div className="min-w-0">
+                                                    <p
+                                                        className="truncate text-[10px] font-semibold text-slate-800"
+                                                        title={
+                                                            item.assigned_name ||
+                                                            ""
+                                                        }
+                                                    >
+                                                        {item.assigned_name ||
+                                                            item.assigned_id ||
+                                                            "Unassigned"}
+                                                    </p>
+
+                                                    {item.assigned_name &&
+                                                        item.assigned_id && (
+                                                            <p className="mt-0.5 truncate text-[9px] text-slate-400">
+                                                                {
+                                                                    item.assigned_id
+                                                                }
+                                                            </p>
+                                                        )}
+                                                </div>
                                             </Td>
 
                                             <Td>
@@ -680,9 +943,11 @@ export default function UserDashboardPage() {
                                             </Td>
 
                                             <Td>
-                                                {formatDate(
-                                                    item.created_at
-                                                )}
+                                                <DateCell
+                                                    value={
+                                                        item.created_at
+                                                    }
+                                                />
                                             </Td>
                                         </tr>
                                     )
@@ -692,17 +957,43 @@ export default function UserDashboardPage() {
                     </table>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs text-slate-500">
-                        Page {page} of{" "}
-                        {totalPages}
-                    </p>
+                <div className="flex flex-col gap-2 border-t border-slate-200 bg-slate-50/40 px-3.5 py-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-[10px] text-slate-500">
+                        Showing{" "}
+                        {total ===
+                            0
+                            ? 0
+                            : (page -
+                                1) *
+                            PAGE_SIZE +
+                            1}
+                        {"–"}
+                        {Math.min(
+                            page *
+                            PAGE_SIZE,
+                            total
+                        )}{" "}
+                        of{" "}
+                        {total.toLocaleString()}
+                    </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-500">
+                            Page{" "}
+                            {
+                                page
+                            }{" "}
+                            of{" "}
+                            {
+                                totalPages
+                            }
+                        </span>
+
                         <button
                             type="button"
                             disabled={
-                                page <= 1 ||
+                                page <=
+                                1 ||
                                 ticketsLoading
                             }
                             onClick={() =>
@@ -717,7 +1008,7 @@ export default function UserDashboardPage() {
                                         )
                                 )
                             }
-                            className="h-8 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[10px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             Previous
                         </button>
@@ -741,7 +1032,7 @@ export default function UserDashboardPage() {
                                         )
                                 )
                             }
-                            className="h-8 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[10px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             Next
                         </button>
@@ -752,56 +1043,38 @@ export default function UserDashboardPage() {
     );
 }
 
-function SummaryCard({
-    label,
-    value,
-    icon,
-}: {
-    label: string;
-    value: number;
-    icon: React.ReactNode;
-}) {
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-                <div>
-                    <p className="text-xs font-medium text-slate-500">
-                        {label}
-                    </p>
+/* ======================================================
+   COMPONENTS
+====================================================== */
 
-                    <p className="mt-2 text-2xl font-bold text-slate-900">
-                        {Number(
-                            value ?? 0
-                        ).toLocaleString()}
-                    </p>
-                </div>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-                    {icon}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function InfoItem({
+function ProfileMetric({
     icon,
     label,
     value,
 }: {
-    icon: React.ReactNode;
+    icon: ReactNode;
     label: string;
     value?: string | null;
 }) {
     return (
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-                {icon}
+        <div className="min-w-0 bg-white px-3 py-2.5">
+            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.04em] text-slate-400">
+                {
+                    icon
+                }
 
-                {label}
+                {
+                    label
+                }
             </div>
 
-            <p className="mt-1.5 truncate text-sm font-medium text-slate-900">
+            <p
+                className="mt-1 truncate text-[10.5px] font-semibold text-slate-800"
+                title={
+                    value?.trim() ||
+                    "Not available"
+                }
+            >
                 {value?.trim() ||
                     "Not available"}
             </p>
@@ -809,26 +1082,214 @@ function InfoItem({
     );
 }
 
+function TicketSummaryCard({
+    label,
+    value,
+    percent,
+    helper,
+    icon,
+    tone,
+    active,
+    onClick,
+}: {
+    label: string;
+    value: number;
+    percent: number;
+    helper: string;
+    icon: ReactNode;
+    tone: SummaryTone;
+    active: boolean;
+    onClick: () => void;
+}) {
+    const styles: Record<
+        SummaryTone,
+        {
+            wrapper: string;
+            icon: string;
+            number: string;
+            bar: string;
+            active: string;
+        }
+    > = {
+        slate: {
+            wrapper:
+                "border-slate-200 bg-gradient-to-br from-white to-slate-50",
+            icon:
+                "bg-slate-100 text-slate-700",
+            number:
+                "text-slate-900",
+            bar:
+                "bg-slate-700",
+            active:
+                "ring-slate-300",
+        },
+
+        blue: {
+            wrapper:
+                "border-blue-100 bg-gradient-to-br from-white to-blue-50/70",
+            icon:
+                "bg-blue-100 text-blue-700",
+            number:
+                "text-blue-950",
+            bar:
+                "bg-blue-500",
+            active:
+                "ring-blue-300",
+        },
+
+        amber: {
+            wrapper:
+                "border-amber-100 bg-gradient-to-br from-white to-amber-50/70",
+            icon:
+                "bg-amber-100 text-amber-700",
+            number:
+                "text-amber-950",
+            bar:
+                "bg-amber-500",
+            active:
+                "ring-amber-300",
+        },
+
+        emerald: {
+            wrapper:
+                "border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70",
+            icon:
+                "bg-emerald-100 text-emerald-700",
+            number:
+                "text-emerald-950",
+            bar:
+                "bg-emerald-500",
+            active:
+                "ring-emerald-300",
+        },
+    };
+
+    const style =
+        styles[
+        tone
+        ];
+
+    return (
+        <button
+            type="button"
+            onClick={
+                onClick
+            }
+            className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-[1px] hover:shadow-md ${style.wrapper
+                } ${active
+                    ? `ring-1 ${style.active}`
+                    : ""
+                }`}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-[10px] font-semibold text-slate-500">
+                        {
+                            label
+                        }
+                    </p>
+
+                    <p
+                        className={`mt-0.5 text-xl font-bold ${style.number
+                            }`}
+                    >
+                        {Number(
+                            value ??
+                            0
+                        ).toLocaleString()}
+                    </p>
+                </div>
+
+                <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg ${style.icon
+                        }`}
+                >
+                    {
+                        icon
+                    }
+                </div>
+            </div>
+
+            <div className="mt-2.5">
+                <div className="flex items-center justify-between gap-2 text-[9px] text-slate-500">
+                    <span className="truncate">
+                        {
+                            helper
+                        }
+                    </span>
+
+                    <span className="font-semibold tabular-nums">
+                        {
+                            percent
+                        }
+                        %
+                    </span>
+                </div>
+
+                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/80 ring-1 ring-slate-100">
+                    <div
+                        className={`h-full rounded-full ${style.bar
+                            }`}
+                        style={{
+                            width: `${Math.min(
+                                100,
+                                Math.max(
+                                    0,
+                                    percent
+                                )
+                            )}%`,
+                        }}
+                    />
+                </div>
+            </div>
+        </button>
+    );
+}
+
 function Th({
     children,
+    align = "left",
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
+    align?:
+    | "left"
+    | "center";
 }) {
     return (
-        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {children}
+        <th
+            className={`px-2.5 py-2 text-[9px] font-semibold uppercase tracking-[0.04em] text-slate-500 ${align ===
+                "center"
+                ? "text-center"
+                : "text-left"
+                }`}
+        >
+            {
+                children
+            }
         </th>
     );
 }
 
 function Td({
     children,
+    align = "left",
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
+    align?:
+    | "left"
+    | "center";
 }) {
     return (
-        <td className="px-4 py-3 text-sm text-slate-600">
-            {children}
+        <td
+            className={`px-2.5 py-2 align-middle text-[10px] text-slate-600 ${align ===
+                "center"
+                ? "text-center"
+                : "text-left"
+                }`}
+        >
+            {
+                children
+            }
         </td>
     );
 }
@@ -840,15 +1301,19 @@ function StatusBadge({
 }) {
     const normalized =
         (
-            status ?? ""
-        ).toLowerCase();
+            status ??
+            ""
+        )
+            .trim()
+            .toLowerCase();
 
     if (
         normalized ===
         "closed"
     ) {
         return (
-            <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Closed
             </span>
         );
@@ -861,36 +1326,181 @@ function StatusBadge({
         "in progress"
     ) {
         return (
-            <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700 ring-1 ring-amber-100">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                 Running
             </span>
         );
     }
 
     return (
-        <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-            {status || "Open"}
+        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700 ring-1 ring-blue-100">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+            {status ||
+                "Open"}
         </span>
     );
 }
 
-function formatDate(
-    value?: string
-) {
-    if (!value) {
-        return "—";
+function DateCell({
+    value,
+}: {
+    value?: string;
+}) {
+    if (
+        !value
+    ) {
+        return (
+            <span className="text-slate-400">
+                —
+            </span>
+        );
     }
 
     const date =
-        new Date(value);
+        new Date(
+            value
+        );
 
     if (
         Number.isNaN(
             date.getTime()
         )
     ) {
-        return value;
+        return (
+            <span
+                className="truncate text-[9px] text-slate-600"
+                title={
+                    value
+                }
+            >
+                {
+                    value
+                }
+            </span>
+        );
     }
 
-    return date.toLocaleString();
+    return (
+        <div className="min-w-0">
+            <p className="text-[9.5px] font-semibold text-slate-700">
+                {date.toLocaleDateString(
+                    "en-GB",
+                    {
+                        day:
+                            "2-digit",
+                        month:
+                            "short",
+                        year:
+                            "numeric",
+                    }
+                )}
+            </p>
+
+            <p className="mt-0.5 text-[8.5px] text-slate-400">
+                {date.toLocaleTimeString(
+                    [],
+                    {
+                        hour:
+                            "2-digit",
+                        minute:
+                            "2-digit",
+                    }
+                )}
+            </p>
+        </div>
+    );
+}
+
+function getPercent(
+    value: number,
+    total: number
+): number {
+    if (
+        total <=
+        0
+    ) {
+        return 0;
+    }
+
+    return Math.round(
+        (
+            value /
+            total
+        ) *
+        100
+    );
+}
+
+function getAvatarText(
+    name?: string,
+    employeeID?: string
+): string {
+    const normalizedName =
+        (
+            name ??
+            ""
+        ).trim();
+
+    if (
+        !normalizedName
+    ) {
+        return (
+            employeeID
+                ?.replace(
+                    /[^A-Za-z0-9]/g,
+                    ""
+                )
+                .slice(
+                    -2
+                )
+                .toUpperCase() ||
+            "U"
+        );
+    }
+
+    const words =
+        normalizedName
+            .split(
+                /\s+/
+            )
+            .filter(
+                Boolean
+            );
+
+    if (
+        words.length ===
+        1
+    ) {
+        const word =
+            words[0];
+
+        return (
+            (
+                word[0] ??
+                ""
+            ) +
+            (
+                word[
+                word.length -
+                1
+                ] ??
+                ""
+            )
+        ).toUpperCase();
+    }
+
+    return (
+        (
+            words[0][0] ??
+            ""
+        ) +
+        (
+            words[
+            words.length -
+            1
+            ][0] ??
+            ""
+        )
+    ).toUpperCase();
 }

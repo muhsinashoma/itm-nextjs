@@ -1,5 +1,5 @@
 
-// // frontend/app/dashboard/user/downstream-device/page.tsx
+// frontend/app/dashboard/user/downstream-device/page.tsx
 
 "use client";
 
