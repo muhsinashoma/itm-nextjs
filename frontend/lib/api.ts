@@ -1,3 +1,4 @@
+
 // frontend/lib/api.ts
 
 // Central API client for ITM Go backend
@@ -925,9 +926,9 @@ export const dashboardApi = {
             ),
 
 
-  /* ======================================================
-   REQUISITION
-====================================================== */
+    /* ======================================================
+     REQUISITION
+  ====================================================== */
 
     requisitionDashboardSummary: () =>
         api.get<
@@ -2948,6 +2949,8 @@ export interface DownstreamEmployeeSummary {
 
 export interface DownstreamDeviceSummary {
     assigned_devices: number;
+    direct_devices: number;
+    indirect_devices: number;
 }
 
 export interface DownstreamTicketSummary {
@@ -3043,6 +3046,11 @@ export const ownDevicesApi = {
    DOWNSTREAM DEVICES
 ====================================================== */
 
+export type DownstreamDeviceScope =
+    | "all"
+    | "direct"
+    | "indirect";
+
 export interface DownstreamDeviceItem {
     id: number;
 
@@ -3069,13 +3077,16 @@ export interface DownstreamDeviceItem {
     status: string;
 }
 
+export interface DownstreamDevicesParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+    scope?: DownstreamDeviceScope;
+}
+
 export const downstreamDevicesApi = {
     list: (
-        params?: {
-            page?: number;
-            limit?: number;
-            search?: string;
-        }
+        params?: DownstreamDevicesParams
     ) =>
         api.get<
             ApiPage<DownstreamDeviceItem>
