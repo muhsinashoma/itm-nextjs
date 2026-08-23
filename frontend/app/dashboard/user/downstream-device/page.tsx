@@ -1,53 +1,23 @@
+
 // // frontend/app/dashboard/user/downstream-device/page.tsx
-// "use client";
 
-// import {
-//     MonitorSmartphone,
-// } from "lucide-react";
-
-// export default function DownstreamDevicePage() {
-//     return (
-//         <div className="p-4 sm:p-5 lg:p-6">
-//             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-//                 <div className="flex items-center gap-3">
-//                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
-//                         <MonitorSmartphone className="h-5 w-5" />
-//                     </div>
-
-//                     <div>
-//                         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-//                             My Devices
-//                         </p>
-
-//                         <h1 className="text-xl font-bold text-slate-900">
-//                             Downstream Device
-//                         </h1>
-//                     </div>
-//                 </div>
-
-//                 <div className="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-//                     <p className="text-sm font-medium text-slate-700">
-//                         Downstream device information will load here.
-//                     </p>
-
-//                     <p className="mt-1 text-xs text-slate-500">
-//                         The secure user-specific device API will be connected next.
-//                     </p>
-//                 </div>
-//             </div>
-//         </div>
-//     );
-// }
-
-
-// frontend/app/dashboard/user/downstream-device/page.tsx
 "use client";
 
 import {
     useCallback,
     useEffect,
+    useMemo,
     useState,
+    type ReactNode,
 } from "react";
+
+import Link from "next/link";
+
+import {
+    usePathname,
+    useRouter,
+    useSearchParams,
+} from "next/navigation";
 
 import {
     ArrowLeftRight,
@@ -60,11 +30,107 @@ import {
 } from "lucide-react";
 
 import {
+    downstreamApi,
     downstreamDevicesApi,
     type DownstreamDeviceItem,
+    type DownstreamDeviceScope,
 } from "@/lib/api";
 
+const PAGE_SIZE = 20;
+
+const EMPTY_DEVICE_SUMMARY = {
+    assigned_devices: 0,
+    direct_devices: 0,
+    indirect_devices: 0,
+};
+
+type DeviceSummary = typeof EMPTY_DEVICE_SUMMARY;
+
 export default function DownstreamDevicePage() {
+    const router =
+        useRouter();
+
+    const pathname =
+        usePathname();
+
+    const searchParams =
+        useSearchParams();
+
+    /* ======================================================
+       URL STATE
+    ====================================================== */
+
+    const scope =
+        useMemo<
+            DownstreamDeviceScope
+        >(
+            () => {
+                const value =
+                    searchParams.get(
+                        "scope"
+                    );
+
+                if (
+                    value ===
+                    "direct" ||
+                    value ===
+                    "indirect"
+                ) {
+                    return value;
+                }
+
+                return "all";
+            },
+            [
+                searchParams,
+            ]
+        );
+
+    const page =
+        useMemo(
+            () => {
+                const value =
+                    Number(
+                        searchParams.get(
+                            "page"
+                        ) ??
+                        "1"
+                    );
+
+                if (
+                    !Number.isInteger(
+                        value
+                    ) ||
+                    value < 1
+                ) {
+                    return 1;
+                }
+
+                return value;
+            },
+            [
+                searchParams,
+            ]
+        );
+
+    const appliedSearch =
+        useMemo(
+            () =>
+                searchParams
+                    .get(
+                        "search"
+                    )
+                    ?.trim() ??
+                "",
+            [
+                searchParams,
+            ]
+        );
+
+    /* ======================================================
+       LOCAL STATE
+    ====================================================== */
+
     const [
         devices,
         setDevices,
@@ -80,25 +146,12 @@ export default function DownstreamDevicePage() {
         useState(0);
 
     const [
-        page,
-        setPage,
-    ] =
-        useState(1);
-
-    const pageSize =
-        20;
-
-    const [
         search,
         setSearch,
     ] =
-        useState("");
-
-    const [
-        appliedSearch,
-        setAppliedSearch,
-    ] =
-        useState("");
+        useState(
+            appliedSearch
+        );
 
     const [
         loading,
@@ -107,10 +160,35 @@ export default function DownstreamDevicePage() {
         useState(true);
 
     const [
+        summaryLoading,
+        setSummaryLoading,
+    ] =
+        useState(true);
+
+    const [
         error,
         setError,
     ] =
         useState("");
+
+    const [
+        summary,
+        setSummary,
+    ] =
+        useState<DeviceSummary>(
+            EMPTY_DEVICE_SUMMARY
+        );
+
+    useEffect(
+        () => {
+            setSearch(
+                appliedSearch
+            );
+        },
+        [
+            appliedSearch,
+        ]
+    );
 
     /* ======================================================
        LOAD DOWNSTREAM DEVICES
@@ -133,7 +211,8 @@ export default function DownstreamDevicePage() {
                             {
                                 page,
                                 limit:
-                                    pageSize,
+                                    PAGE_SIZE,
+                                scope,
                                 search:
                                     appliedSearch ||
                                     undefined,
@@ -176,8 +255,72 @@ export default function DownstreamDevicePage() {
             },
             [
                 page,
+                scope,
                 appliedSearch,
             ]
+        );
+
+    /* ======================================================
+       LOAD FULL DOWNSTREAM SUMMARY
+    ====================================================== */
+
+    const loadSummary =
+        useCallback(
+            async () => {
+                try {
+                    setSummaryLoading(
+                        true
+                    );
+
+                    const response =
+                        await downstreamApi.summary();
+
+                    const devicesSummary =
+                        response.data
+                            .devices;
+
+                    setSummary(
+                        {
+                            assigned_devices:
+                                Number(
+                                    devicesSummary
+                                        .assigned_devices ??
+                                    0
+                                ),
+
+                            direct_devices:
+                                Number(
+                                    devicesSummary
+                                        .direct_devices ??
+                                    0
+                                ),
+
+                            indirect_devices:
+                                Number(
+                                    devicesSummary
+                                        .indirect_devices ??
+                                    0
+                                ),
+                        }
+                    );
+                } catch (
+                reason
+                ) {
+                    console.error(
+                        "Failed to load downstream summary:",
+                        reason
+                    );
+
+                    setSummary(
+                        EMPTY_DEVICE_SUMMARY
+                    );
+                } finally {
+                    setSummaryLoading(
+                        false
+                    );
+                }
+            },
+            []
         );
 
     useEffect(
@@ -189,17 +332,72 @@ export default function DownstreamDevicePage() {
         ]
     );
 
+    useEffect(
+        () => {
+            void loadSummary();
+        },
+        [
+            loadSummary,
+        ]
+    );
+
     /* ======================================================
-       SEARCH
+       URL HELPERS
     ====================================================== */
 
-    function handleSearch() {
-        setPage(
-            1
+    function buildUrl({
+        nextScope = scope,
+        nextPage = page,
+        nextSearch =
+        appliedSearch,
+    }: {
+        nextScope?: DownstreamDeviceScope;
+        nextPage?: number;
+        nextSearch?: string;
+    }) {
+        const params =
+            new URLSearchParams();
+
+        params.set(
+            "scope",
+            nextScope
         );
 
-        setAppliedSearch(
-            search.trim()
+        params.set(
+            "page",
+            String(
+                Math.max(
+                    1,
+                    nextPage
+                )
+            )
+        );
+
+        const normalizedSearch =
+            nextSearch.trim();
+
+        if (
+            normalizedSearch
+        ) {
+            params.set(
+                "search",
+                normalizedSearch
+            );
+        }
+
+        return `${pathname}?${params.toString()}`;
+    }
+
+    function handleSearch() {
+        router.push(
+            buildUrl(
+                {
+                    nextPage:
+                        1,
+                    nextSearch:
+                        search,
+                }
+            )
         );
     }
 
@@ -208,43 +406,60 @@ export default function DownstreamDevicePage() {
             ""
         );
 
-        setAppliedSearch(
-            ""
-        );
-
-        setPage(
-            1
+        router.push(
+            buildUrl(
+                {
+                    nextPage:
+                        1,
+                    nextSearch:
+                        "",
+                }
+            )
         );
     }
+
+    function goToPage(
+        nextPage: number
+    ) {
+        router.push(
+            buildUrl(
+                {
+                    nextPage,
+                }
+            )
+        );
+    }
+
+    async function handleRefresh() {
+        await Promise.all(
+            [
+                loadDevices(),
+                loadSummary(),
+            ]
+        );
+    }
+
+    /* ======================================================
+       DERIVED VALUES
+    ====================================================== */
 
     const totalPages =
         Math.max(
             1,
             Math.ceil(
                 total /
-                pageSize
+                PAGE_SIZE
             )
         );
 
-    const directOnPage =
-        devices.filter(
-            (
-                item
-            ) =>
-                item.relationship
-                    ?.toLowerCase() ===
-                "direct"
-        ).length;
-
-    const indirectOnPage =
-        devices.filter(
-            (
-                item
-            ) =>
-                item.relationship
-                    ?.toLowerCase() ===
+    const tableTitle =
+        scope ===
+            "direct"
+            ? "Direct Downstream Devices"
+            : scope ===
                 "indirect"
-        ).length;
+                ? "Indirect Downstream Devices"
+                : "All Downstream Devices";
 
     return (
         <div className="min-w-0 space-y-4 p-1">
@@ -261,15 +476,21 @@ export default function DownstreamDevicePage() {
 
                         <div>
                             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                                Downstream Assets
+                                Downstream
+                                Assets
                             </p>
 
                             <h1 className="text-xl font-bold text-foreground">
-                                Downstream Devices
+                                Downstream
+                                Devices
                             </h1>
 
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                                Assigned devices under your reporting hierarchy
+                                Assigned
+                                devices
+                                under your
+                                reporting
+                                hierarchy
                             </p>
                         </div>
                     </div>
@@ -277,17 +498,19 @@ export default function DownstreamDevicePage() {
                     <button
                         type="button"
                         onClick={() =>
-                            void loadDevices()
+                            void handleRefresh()
                         }
                         disabled={
-                            loading
+                            loading ||
+                            summaryLoading
                         }
-                        className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-xs font-medium text-foreground transition hover:bg-muted disabled:opacity-50"
+                        className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-xs font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <RefreshCw
-                            className={`h-3.5 w-3.5 ${loading
-                                    ? "animate-spin"
-                                    : ""
+                            className={`h-3.5 w-3.5 ${loading ||
+                                summaryLoading
+                                ? "animate-spin"
+                                : ""
                                 }`}
                         />
 
@@ -297,14 +520,29 @@ export default function DownstreamDevicePage() {
             </section>
 
             {/* ==================================================
-                SUMMARY
+                SUMMARY / CLICKABLE FILTER CARDS
             ================================================== */}
 
             <section className="grid gap-3 sm:grid-cols-3">
                 <SummaryCard
                     title="Assigned Devices"
                     value={
-                        total
+                        summary.assigned_devices
+                    }
+                    href={buildUrl(
+                        {
+                            nextScope:
+                                "all",
+                            nextPage:
+                                1,
+                        }
+                    )}
+                    active={
+                        scope ===
+                        "all"
+                    }
+                    loading={
+                        summaryLoading
                     }
                     icon={
                         <Laptop className="h-5 w-5" />
@@ -312,9 +550,24 @@ export default function DownstreamDevicePage() {
                 />
 
                 <SummaryCard
-                    title="Direct on This Page"
+                    title="Direct Devices"
                     value={
-                        directOnPage
+                        summary.direct_devices
+                    }
+                    href={buildUrl(
+                        {
+                            nextScope:
+                                "direct",
+                            nextPage:
+                                1,
+                        }
+                    )}
+                    active={
+                        scope ===
+                        "direct"
+                    }
+                    loading={
+                        summaryLoading
                     }
                     icon={
                         <Users className="h-5 w-5" />
@@ -322,9 +575,24 @@ export default function DownstreamDevicePage() {
                 />
 
                 <SummaryCard
-                    title="Indirect on This Page"
+                    title="Indirect Devices"
                     value={
-                        indirectOnPage
+                        summary.indirect_devices
+                    }
+                    href={buildUrl(
+                        {
+                            nextScope:
+                                "indirect",
+                            nextPage:
+                                1,
+                        }
+                    )}
+                    active={
+                        scope ===
+                        "indirect"
+                    }
+                    loading={
+                        summaryLoading
                     }
                     icon={
                         <ArrowLeftRight className="h-5 w-5" />
@@ -342,13 +610,16 @@ export default function DownstreamDevicePage() {
                 <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h2 className="text-sm font-semibold text-foreground">
-                            Downstream Device List
+                            {
+                                tableTitle
+                            }
                         </h2>
 
                         <p className="mt-0.5 text-[11px] text-muted-foreground">
                             {total.toLocaleString()}{" "}
-                            assigned device
-                            {total === 1
+                            device
+                            {total ===
+                                1
                                 ? ""
                                 : "s"}{" "}
                             found
@@ -441,7 +712,8 @@ export default function DownstreamDevicePage() {
                                 </Th>
 
                                 <Th>
-                                    Device Serial
+                                    Device
+                                    Serial
                                 </Th>
 
                                 <Th>
@@ -449,7 +721,9 @@ export default function DownstreamDevicePage() {
                                 </Th>
 
                                 <Th>
-                                    Brand / Model
+                                    Brand
+                                    /
+                                    Model
                                 </Th>
 
                                 <Th>
@@ -457,11 +731,13 @@ export default function DownstreamDevicePage() {
                                 </Th>
 
                                 <Th>
-                                    PR Number
+                                    PR
+                                    Number
                                 </Th>
 
                                 <Th>
-                                    Assigned Date
+                                    Assigned
+                                    Date
                                 </Th>
 
                                 <Th>
@@ -486,7 +762,9 @@ export default function DownstreamDevicePage() {
                                         <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                                             <Loader2 className="h-4 w-4 animate-spin" />
 
-                                            Loading downstream devices...
+                                            Loading
+                                            downstream
+                                            devices...
                                         </div>
                                     </td>
                                 </tr>
@@ -502,11 +780,21 @@ export default function DownstreamDevicePage() {
                                         <MonitorSmartphone className="mx-auto h-8 w-8 text-muted-foreground/40" />
 
                                         <p className="mt-3 text-sm font-semibold text-foreground">
-                                            No downstream devices found
+                                            No
+                                            downstream
+                                            devices
+                                            found
                                         </p>
 
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            No device matches your search.
+                                            No
+                                            device
+                                            matches
+                                            the
+                                            selected
+                                            scope
+                                            or
+                                            search.
                                         </p>
                                     </td>
                                 </tr>
@@ -523,16 +811,12 @@ export default function DownstreamDevicePage() {
                                             className="border-b border-border/70 transition last:border-0 hover:bg-muted/30"
                                         >
                                             <Td>
-                                                {(
-                                                    page -
-                                                    1
-                                                ) *
-                                                    pageSize +
+                                                {(page -
+                                                    1) *
+                                                    PAGE_SIZE +
                                                     index +
                                                     1}
                                             </Td>
-
-                                            {/* EMPLOYEE */}
 
                                             <Td>
                                                 <div className="min-w-[180px]">
@@ -542,9 +826,8 @@ export default function DownstreamDevicePage() {
                                                     </p>
 
                                                     <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                                        {
-                                                            device.employee_id
-                                                        }
+                                                        {device.employee_id ||
+                                                            "—"}
                                                     </p>
 
                                                     {device.designation && (
@@ -557,8 +840,6 @@ export default function DownstreamDevicePage() {
                                                 </div>
                                             </Td>
 
-                                            {/* RELATIONSHIP */}
-
                                             <Td>
                                                 <RelationshipBadge
                                                     relationship={
@@ -570,8 +851,6 @@ export default function DownstreamDevicePage() {
                                                 />
                                             </Td>
 
-                                            {/* SERIAL */}
-
                                             <Td>
                                                 <span className="font-semibold text-foreground">
                                                     {device.device_serial ||
@@ -579,14 +858,10 @@ export default function DownstreamDevicePage() {
                                                 </span>
                                             </Td>
 
-                                            {/* CATEGORY */}
-
                                             <Td>
                                                 {device.category ||
                                                     "—"}
                                             </Td>
-
-                                            {/* BRAND MODEL */}
 
                                             <Td>
                                                 <div className="min-w-[180px]">
@@ -605,16 +880,12 @@ export default function DownstreamDevicePage() {
                                                 </div>
                                             </Td>
 
-                                            {/* DEPARTMENT */}
-
                                             <Td>
                                                 <span className="block max-w-[190px] whitespace-normal">
                                                     {device.department ||
                                                         "—"}
                                                 </span>
                                             </Td>
-
-                                            {/* PR */}
 
                                             <Td>
                                                 <span className="block max-w-[180px] break-all text-[10px]">
@@ -623,15 +894,11 @@ export default function DownstreamDevicePage() {
                                                 </span>
                                             </Td>
 
-                                            {/* ASSIGNED */}
-
                                             <Td>
                                                 {formatDate(
                                                     device.assigned_date
                                                 )}
                                             </Td>
-
-                                            {/* WARRANTY */}
 
                                             <Td>
                                                 {formatDate(
@@ -639,8 +906,6 @@ export default function DownstreamDevicePage() {
                                                     true
                                                 )}
                                             </Td>
-
-                                            {/* STATUS */}
 
                                             <Td>
                                                 <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
@@ -663,16 +928,17 @@ export default function DownstreamDevicePage() {
                 <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-[11px] text-muted-foreground">
                         Showing{" "}
-                        {total === 0
+                        {total ===
+                            0
                             ? 0
                             : (page -
                                 1) *
-                            pageSize +
+                            PAGE_SIZE +
                             1}
                         {" - "}
                         {Math.min(
                             page *
-                            pageSize,
+                            PAGE_SIZE,
                             total
                         )}{" "}
                         of{" "}
@@ -681,8 +947,14 @@ export default function DownstreamDevicePage() {
 
                     <div className="flex items-center gap-3">
                         <span className="text-[11px] text-muted-foreground">
-                            Page {page} of{" "}
-                            {totalPages}
+                            Page{" "}
+                            {
+                                page
+                            }{" "}
+                            of{" "}
+                            {
+                                totalPages
+                            }
                         </span>
 
                         <div className="flex gap-2">
@@ -694,15 +966,12 @@ export default function DownstreamDevicePage() {
                                     loading
                                 }
                                 onClick={() =>
-                                    setPage(
-                                        (
-                                            current
-                                        ) =>
-                                            Math.max(
-                                                1,
-                                                current -
-                                                1
-                                            )
+                                    goToPage(
+                                        Math.max(
+                                            1,
+                                            page -
+                                            1
+                                        )
                                     )
                                 }
                                 className="h-8 rounded-lg border border-border px-3 text-[11px] font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
@@ -718,15 +987,12 @@ export default function DownstreamDevicePage() {
                                     loading
                                 }
                                 onClick={() =>
-                                    setPage(
-                                        (
-                                            current
-                                        ) =>
-                                            Math.min(
-                                                totalPages,
-                                                current +
-                                                1
-                                            )
+                                    goToPage(
+                                        Math.min(
+                                            totalPages,
+                                            page +
+                                            1
+                                        )
                                     )
                                 }
                                 className="h-8 rounded-lg border border-border px-3 text-[11px] font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
@@ -749,13 +1015,32 @@ function SummaryCard({
     title,
     value,
     icon,
+    href,
+    active,
+    loading,
 }: {
     title: string;
     value: number;
-    icon: React.ReactNode;
+    icon: ReactNode;
+    href: string;
+    active: boolean;
+    loading: boolean;
 }) {
     return (
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <Link
+            href={
+                href
+            }
+            aria-current={
+                active
+                    ? "page"
+                    : undefined
+            }
+            className={`block rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md ${active
+                ? "border-primary ring-1 ring-primary/20"
+                : "border-border"
+                }`}
+        >
             <div className="flex items-center justify-between">
                 <div>
                     <p className="text-[11px] text-muted-foreground">
@@ -765,17 +1050,24 @@ function SummaryCard({
                     </p>
 
                     <p className="mt-1 text-2xl font-bold text-foreground">
-                        {value.toLocaleString()}
+                        {loading
+                            ? "—"
+                            : value.toLocaleString()}
                     </p>
                 </div>
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${active
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-foreground"
+                        }`}
+                >
                     {
                         icon
                     }
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }
 
@@ -787,8 +1079,7 @@ function RelationshipBadge({
     tier?: number;
 }) {
     const direct =
-        relationship
-            ?.toLowerCase() ===
+        relationship?.toLowerCase() ===
         "direct";
 
     return (
@@ -806,7 +1097,10 @@ function RelationshipBadge({
 
             {tier ? (
                 <span className="text-[9px] text-muted-foreground">
-                    Tier {tier}
+                    Tier{" "}
+                    {
+                        tier
+                    }
                 </span>
             ) : null}
         </div>
@@ -816,7 +1110,7 @@ function RelationshipBadge({
 function Th({
     children,
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
 }) {
     return (
         <th className="whitespace-nowrap px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -830,7 +1124,7 @@ function Th({
 function Td({
     children,
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
 }) {
     return (
         <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -845,7 +1139,9 @@ function formatDate(
     value?: string,
     dateOnly = false
 ): string {
-    if (!value) {
+    if (
+        !value
+    ) {
         return "—";
     }
 

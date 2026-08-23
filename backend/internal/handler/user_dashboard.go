@@ -1,3 +1,4 @@
+
 // backend/internal/handler/user_dashboard.go
 package handler
 
@@ -172,6 +173,8 @@ type DownstreamEmployeeSummary struct {
 
 type DownstreamDeviceSummary struct {
 	AssignedDevices int64 `json:"assigned_devices"`
+	DirectDevices   int64 `json:"direct_devices"`
+	IndirectDevices int64 `json:"indirect_devices"`
 }
 
 type DownstreamTicketSummary struct {
@@ -237,6 +240,181 @@ const ownTicketStatusExpression = `
 
 		ELSE 'Open'
 	END
+`
+
+/*
+	============================================================
+	  SHARED DOWNSTREAM HIERARCHY
+
+	  Business rule:
+
+	  DIRECT
+	  - logged-in employee appears in tr1.
+
+	  INDIRECT
+	  - logged-in employee appears somewhere in tr2..tr6
+	  - but the employee is NOT classified indirect when any
+	    matching row has tr1 = logged-in employee.
+
+	  This matters because legacy tier data can repeat the same
+	  manager in more than one tr column.
+
+	  tier_level preserves the nearest reporting depth for UI:
+	  1 = direct, 2..6 = indirect.
+
+	  employee_id always comes from JWT/authenticated context.
+
+============================================================
+*/
+// const downstreamEmployeeHierarchyCTE = `
+// downstream_employees AS (
+// 	SELECT
+// 		BTRIM(
+// 			COALESCE(
+// 				et.employee_id,
+// 				''
+// 			)
+// 		) AS employee_id,
+
+// 		CASE
+// 			WHEN BOOL_OR(
+// 				BTRIM(
+// 					COALESCE(
+// 						et.tr1,
+// 						''
+// 					)
+// 				) = BTRIM($1)
+// 			)
+// 				THEN 'Direct'
+// 			ELSE 'Indirect'
+// 		END AS relationship,
+
+// 		MIN(
+// 			CASE
+// 				WHEN BTRIM(COALESCE(et.tr1, '')) = BTRIM($1) THEN 1
+// 				WHEN BTRIM(COALESCE(et.tr2, '')) = BTRIM($1) THEN 2
+// 				WHEN BTRIM(COALESCE(et.tr3, '')) = BTRIM($1) THEN 3
+// 				WHEN BTRIM(COALESCE(et.tr4, '')) = BTRIM($1) THEN 4
+// 				WHEN BTRIM(COALESCE(et.tr5, '')) = BTRIM($1) THEN 5
+// 				WHEN BTRIM(COALESCE(et.tr6, '')) = BTRIM($1) THEN 6
+// 				ELSE 99
+// 			END
+// 		)::int AS tier_level
+
+// 	FROM public.employee_tier et
+
+// 	WHERE
+// 		NULLIF(
+// 			BTRIM(
+// 				COALESCE(
+// 					et.employee_id,
+// 					''
+// 				)
+// 			),
+// 			''
+// 		) IS NOT NULL
+
+// 		AND (
+// 			   BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
+// 			OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
+// 			OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
+// 			OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
+// 			OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
+// 			OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
+// 		)
+
+// 	GROUP BY
+// 		BTRIM(
+// 			COALESCE(
+// 				et.employee_id,
+// 				''
+// 			)
+// 		)
+// )
+// `
+
+
+const downstreamEmployeeHierarchyCTE = `
+downstream_employees AS (
+	SELECT
+		BTRIM(
+			COALESCE(
+				et.employee_id,
+				''
+			)
+		) AS employee_id,
+
+		CASE
+			WHEN BOOL_OR(
+				BTRIM(
+					COALESCE(
+						et.tr1,
+						''
+					)
+				) = BTRIM($1)
+			)
+				THEN 'Direct'
+			ELSE 'Indirect'
+		END AS relationship,
+
+		MIN(
+			CASE
+				WHEN BTRIM(COALESCE(et.tr1, '')) = BTRIM($1) THEN 1
+				WHEN BTRIM(COALESCE(et.tr2, '')) = BTRIM($1) THEN 2
+				WHEN BTRIM(COALESCE(et.tr3, '')) = BTRIM($1) THEN 3
+				WHEN BTRIM(COALESCE(et.tr4, '')) = BTRIM($1) THEN 4
+				WHEN BTRIM(COALESCE(et.tr5, '')) = BTRIM($1) THEN 5
+				WHEN BTRIM(COALESCE(et.tr6, '')) = BTRIM($1) THEN 6
+				ELSE 99
+			END
+		)::int AS tier_level
+
+	FROM public.employee_tier et
+
+	WHERE
+		/* Employee ID must exist */
+		NULLIF(
+			BTRIM(
+				COALESCE(
+					et.employee_id,
+					''
+				)
+			),
+			''
+		) IS NOT NULL
+
+		/* ============================================
+		   ACTIVE EMPLOYEE ONLY
+		============================================ */
+		AND LOWER(
+			BTRIM(
+				COALESCE(
+					et.active,
+					''
+				)
+			)
+		) = 'yes'
+
+		/* ============================================
+		   DOWNSTREAM OF LOGGED-IN EMPLOYEE
+		============================================ */
+		AND (
+			   BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
+			OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
+			OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
+			OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
+			OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
+			OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
+		)
+
+	GROUP BY
+		BTRIM(
+			COALESCE(
+				et.employee_id,
+				''
+			)
+		)
+)
 `
 
 /* ============================================================
@@ -922,41 +1100,35 @@ func (
 
 	/* ========================================================
 	   DOWNSTREAM EMPLOYEES
+
+	   Direct:
+	   relationship = Direct
+
+	   All:
+	   every distinct employee matched by tr1..tr6
 	======================================================== */
 
 	var employeeSummary DownstreamEmployeeSummary
 
+	employeeSummarySQL :=
+		`
+		WITH
+		` + downstreamEmployeeHierarchyCTE + `
+
+		SELECT
+			COUNT(*) FILTER (
+				WHERE relationship = 'Direct'
+			)::bigint AS direct_employees,
+
+			COUNT(*)::bigint AS all_employees
+
+		FROM downstream_employees
+		`
+
 	err :=
 		h.db.QueryRow(
 			ctx,
-			`
-            SELECT
-                COUNT(
-                    DISTINCT CASE
-                        WHEN BTRIM(
-                            COALESCE(
-                                et.tr1,
-                                ''
-                            )
-                        ) = BTRIM($1)
-                        THEN et.employee_id
-                    END
-                )::bigint AS direct_employees,
-
-                COUNT(
-                    DISTINCT et.employee_id
-                )::bigint AS all_employees
-
-            FROM public.employee_tier et
-
-            WHERE
-                   BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
-                OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
-                OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
-                OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
-                OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
-                OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
-            `,
+			employeeSummarySQL,
 			employeeID,
 		).Scan(
 			&employeeSummary.DirectEmployees,
@@ -975,60 +1147,57 @@ func (
 	/* ========================================================
 	   DOWNSTREAM ASSIGNED DEVICES
 
-	   Count currently assigned devices owned by downstream
-	   employees.
-
-	   Current assigned device rule:
+	   Current assigned device:
 	   row_status = 1
 	   asset_status = 1
+
+	   IMPORTANT:
+	   Direct / Indirect device totals use the SAME shared
+	   hierarchy rule as the employee counts and device list.
 	======================================================== */
 
 	var deviceSummary DownstreamDeviceSummary
 
+	deviceSummarySQL :=
+		`
+		WITH
+		` + downstreamEmployeeHierarchyCTE + `
+
+		SELECT
+			COUNT(*)::bigint AS assigned_devices,
+
+			COUNT(*) FILTER (
+				WHERE de.relationship = 'Direct'
+			)::bigint AS direct_devices,
+
+			COUNT(*) FILTER (
+				WHERE de.relationship = 'Indirect'
+			)::bigint AS indirect_devices
+
+		FROM public.asset_devices ad
+
+		INNER JOIN downstream_employees de
+			ON BTRIM(
+				COALESCE(
+					ad.emp_id,
+					''
+				)
+			) = de.employee_id
+
+		WHERE
+			ad.row_status = 1
+			AND ad.asset_status = 1
+		`
+
 	err =
 		h.db.QueryRow(
 			ctx,
-			`
-            WITH downstream_employees AS (
-                SELECT DISTINCT
-                    BTRIM(
-                        COALESCE(
-                            et.employee_id,
-                            ''
-                        )
-                    ) AS employee_id
-
-                FROM public.employee_tier et
-
-                WHERE
-                       BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
-            )
-
-            SELECT
-                COUNT(*)::bigint
-
-            FROM public.asset_devices ad
-
-            INNER JOIN downstream_employees de
-                ON BTRIM(
-                    COALESCE(
-                        ad.emp_id,
-                        ''
-                    )
-                ) = de.employee_id
-
-            WHERE
-                ad.row_status = 1
-                AND ad.asset_status = 1
-            `,
+			deviceSummarySQL,
 			employeeID,
 		).Scan(
 			&deviceSummary.AssignedDevices,
+			&deviceSummary.DirectDevices,
+			&deviceSummary.IndirectDevices,
 		)
 
 	if err != nil {
@@ -1049,58 +1218,42 @@ func (
 	downstreamTicketSQL :=
 		fmt.Sprintf(
 			`
-            WITH downstream_employees AS (
-                SELECT DISTINCT
-                    BTRIM(
-                        COALESCE(
-                            et.employee_id,
-                            ''
-                        )
-                    ) AS employee_id
+			WITH
+			%s,
 
-                FROM public.employee_tier et
+			downstream_tickets AS (
+				SELECT
+					%s AS normalized_status
 
-                WHERE
-                       BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
-                    OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
-            ),
+				FROM public.trouble_tickets t
 
-            downstream_tickets AS (
-                SELECT
-                    %s AS normalized_status
+				INNER JOIN downstream_employees de
+					ON BTRIM(
+						COALESCE(
+							t.employee_id,
+							''
+						)
+					) = de.employee_id
+			)
 
-                FROM public.trouble_tickets t
+			SELECT
+				COUNT(*)::bigint,
 
-                INNER JOIN downstream_employees de
-                    ON BTRIM(
-                        COALESCE(
-                            t.employee_id,
-                            ''
-                        )
-                    ) = de.employee_id
-            )
+				COUNT(*) FILTER (
+					WHERE normalized_status = 'Open'
+				)::bigint,
 
-            SELECT
-                COUNT(*)::bigint,
+				COUNT(*) FILTER (
+					WHERE normalized_status = 'Running'
+				)::bigint,
 
-                COUNT(*) FILTER (
-                    WHERE normalized_status = 'Open'
-                )::bigint,
+				COUNT(*) FILTER (
+					WHERE normalized_status = 'Closed'
+				)::bigint
 
-                COUNT(*) FILTER (
-                    WHERE normalized_status = 'Running'
-                )::bigint,
-
-                COUNT(*) FILTER (
-                    WHERE normalized_status = 'Closed'
-                )::bigint
-
-            FROM downstream_tickets
-            `,
+			FROM downstream_tickets
+			`,
+			downstreamEmployeeHierarchyCTE,
 			ownTicketStatusExpression,
 		)
 
@@ -2381,6 +2534,7 @@ type DownstreamDeviceItem struct {
    Query:
    page=1
    limit=20
+   scope=all|direct|indirect
    search=...
 
    SECURITY:
@@ -2454,6 +2608,10 @@ func (
 		(page - 1) *
 			limit
 
+	/* ========================================================
+	   FILTERS
+	======================================================== */
+
 	search :=
 		strings.TrimSpace(
 			c.Query(
@@ -2461,109 +2619,55 @@ func (
 			),
 		)
 
+	scope :=
+		strings.ToLower(
+			strings.TrimSpace(
+				c.DefaultQuery(
+					"scope",
+					"all",
+				),
+			),
+		)
+
+	switch scope {
+	case
+		"all",
+		"direct",
+		"indirect":
+
+		// valid
+
+	default:
+		response.BadRequest(
+			c,
+			"scope must be one of: all, direct, indirect",
+		)
+
+		return
+	}
+
 	/* ========================================================
-	   DOWNSTREAM BASE
+	   DOWNSTREAM DEVICE BASE
 
-	   Uses the same hierarchy rule as DownstreamSummary.
+	   Shared hierarchy business rule:
 
-	   MIN(tier_level) is used in case legacy tier data contains
-	   more than one hierarchy row for the same employee.
+	   Direct:
+	   tr1 = logged-in employee
+
+	   Indirect:
+	   employee matches tr2..tr6 and is not classified Direct
+
+	   tier_level:
+	   nearest reporting depth, used only for display/sorting.
+
+	   relationship:
+	   source of truth for Direct / Indirect filtering.
 	======================================================== */
 
-	baseSQL := `
-		WITH downstream_employees AS (
-			SELECT
-				BTRIM(
-					COALESCE(
-						et.employee_id,
-						''
-					)
-				) AS employee_id,
-
-				MIN(
-					CASE
-						WHEN BTRIM(
-							COALESCE(
-								et.tr1,
-								''
-							)
-						) = BTRIM($1)
-							THEN 1
-
-						WHEN BTRIM(
-							COALESCE(
-								et.tr2,
-								''
-							)
-						) = BTRIM($1)
-							THEN 2
-
-						WHEN BTRIM(
-							COALESCE(
-								et.tr3,
-								''
-							)
-						) = BTRIM($1)
-							THEN 3
-
-						WHEN BTRIM(
-							COALESCE(
-								et.tr4,
-								''
-							)
-						) = BTRIM($1)
-							THEN 4
-
-						WHEN BTRIM(
-							COALESCE(
-								et.tr5,
-								''
-							)
-						) = BTRIM($1)
-							THEN 5
-
-						WHEN BTRIM(
-							COALESCE(
-								et.tr6,
-								''
-							)
-						) = BTRIM($1)
-							THEN 6
-
-						ELSE 99
-					END
-				)::int AS tier_level
-
-			FROM public.employee_tier et
-
-			WHERE
-				NULLIF(
-					BTRIM(
-						COALESCE(
-							et.employee_id,
-							''
-						)
-					),
-					''
-				) IS NOT NULL
-
-				AND (
-					   BTRIM(COALESCE(et.tr1, '')) = BTRIM($1)
-					OR BTRIM(COALESCE(et.tr2, '')) = BTRIM($1)
-					OR BTRIM(COALESCE(et.tr3, '')) = BTRIM($1)
-					OR BTRIM(COALESCE(et.tr4, '')) = BTRIM($1)
-					OR BTRIM(COALESCE(et.tr5, '')) = BTRIM($1)
-					OR BTRIM(COALESCE(et.tr6, '')) = BTRIM($1)
-				)
-
-			GROUP BY
-				BTRIM(
-					COALESCE(
-						et.employee_id,
-						''
-					)
-				)
-		),
+	baseSQL :=
+		`
+		WITH
+		` + downstreamEmployeeHierarchyCTE + `,
 
 		downstream_devices AS (
 			SELECT
@@ -2642,11 +2746,7 @@ func (
 					''
 				) AS designation,
 
-				CASE
-					WHEN de.tier_level = 1
-						THEN 'Direct'
-					ELSE 'Indirect'
-				END AS relationship,
+				de.relationship,
 
 				de.tier_level,
 
@@ -2706,10 +2806,28 @@ func (
 
 			WHERE
 				ad.row_status = 1
-
 				AND ad.asset_status = 1
 		)
-	`
+		`
+
+	/* ========================================================
+	   SCOPE
+	======================================================== */
+
+	scopeFilter :=
+		""
+
+	switch scope {
+	case "direct":
+		scopeFilter = `
+			AND downstream_devices.relationship = 'Direct'
+		`
+
+	case "indirect":
+		scopeFilter = `
+			AND downstream_devices.relationship = 'Indirect'
+		`
+	}
 
 	/* ========================================================
 	   SEARCH
@@ -2782,11 +2900,15 @@ func (
 						''
 					) ILIKE $2
 			)
-		`
+			`
 	}
 
 	/* ========================================================
 	   COUNT
+
+	   Count is executed AFTER scope/search filtering but BEFORE
+	   LIMIT/OFFSET, so frontend pagination receives the real
+	   filtered total.
 	======================================================== */
 
 	countSQL :=
@@ -2802,8 +2924,10 @@ func (
 			WHERE 1 = 1
 
 			%s
+			%s
 			`,
 			baseSQL,
+			scopeFilter,
 			searchFilter,
 		)
 
@@ -2857,37 +2981,21 @@ func (
 
 			SELECT
 				downstream_devices.id,
-
 				downstream_devices.device_serial,
-
 				downstream_devices.category,
-
 				downstream_devices.brand,
-
 				downstream_devices.model,
-
 				downstream_devices.employee_id,
-
 				downstream_devices.employee_name,
-
 				downstream_devices.department,
-
 				downstream_devices.designation,
-
 				downstream_devices.relationship,
-
 				downstream_devices.tier_level,
-
 				downstream_devices.mr_number,
-
 				downstream_devices.pr_number,
-
 				downstream_devices.assigned_date,
-
 				downstream_devices.purchase_date,
-
 				downstream_devices.warranty_date,
-
 				downstream_devices.status
 
 			FROM downstream_devices
@@ -2895,8 +3003,15 @@ func (
 			WHERE 1 = 1
 
 			%s
+			%s
 
 			ORDER BY
+				CASE
+					WHEN downstream_devices.relationship = 'Direct'
+						THEN 0
+					ELSE 1
+				END ASC,
+
 				downstream_devices.tier_level ASC,
 
 				downstream_devices.employee_name ASC,
@@ -2909,6 +3024,7 @@ func (
 			OFFSET $%d
 			`,
 			baseSQL,
+			scopeFilter,
 			searchFilter,
 			limitPlaceholder,
 			offsetPlaceholder,
