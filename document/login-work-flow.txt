@@ -18,3 +18,35 @@ save complete AuthMeData
 permissions[]
         ↓
 open dashboard
+
+
+---------------------------------------------------------
+
+{
+    "data": {
+        "account_status": "active",
+        "email": "admin@itm.local",
+        "employee_id": "ADMIN-001",
+        "full_name": "System Administrator",
+        "must_change_password": false,
+        "permissions": [
+            "audit.view",
+            "dashboard.self.access",
+            "panel.admin.access",
+            "panel.staff.access",
+            "requisition.approve",
+            "requisition.deliver",
+            "requisition.view",
+            "users.manage",
+            "users.view"
+        ],
+        "role_code": "IT_ADMIN",
+        "role_name": "IT Administrator",
+        "user_id": 1,
+        "user_type": 1,
+        "username": "admin"
+    },
+    "success": true
+}
+
+----------------------------------------------------------
