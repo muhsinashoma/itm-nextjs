@@ -1,0 +1,11 @@
+"employee_id","expected_username","user_id","db_username","full_name","email","user_type","active","account_status"
+"02-2426","ahsan.sharif",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2787","ahsan.sharif",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2833","bashir.alam",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2749","fahmid",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2293","md.arifulislam",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2465","md.arifulislam",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2732","mdjahid.hasan",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2666","mijanur",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2730","minhazul",NULL,NULL,NULL,NULL,NULL,NULL,NULL
+"02-2069","rabbani",NULL,NULL,NULL,NULL,NULL,NULL,NULL

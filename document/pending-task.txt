@@ -1,0 +1,88 @@
+https://chatgpt.com/g/g-p-6a5378cdfc588191b929a3b5ca9c1c9a/c/6a8a7c40-36f4-83e8-8a59-4ba8633d33b6
+
+Yes, you can proceed with the dashboard fix now. The core user migration is working, because real users can log in and their individual dashboard loads correctly. I would not call the migration 100% closed yet because the remaining duplicate-account cleanup/final backup is still pending, but that does not block this frontend routing fix.
+
+The dashboard problem in your screenshot has a clear cause: your layout treats only /dashboard/user and /dashboard/user/* as the User Panel. When you click Create TT, the URL becomes /dashboard/operations/create_tt, so isUserArea becomes false and the layout intentionally renders the normal Sidebar and RightSidebar. Your shared Header also hardcodes Create TT to /dashboard/operations/create_tt and Dashboard to /dashboard, so a General User is being sent out of the user route namespace.
+
+
+
+powershell output
+
+-----------------------------------------
+
+
+PS D:\ITM-Data\itm\backend> gofmt -w .\cmd\migrate_reviewed_duplicates\main.go
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/hash_password       [no test files]
+?       itm-api/cmd/inspect_duplicate_users     [no test files]
+?       itm-api/cmd/migrate_duplicate_users     [no test files]
+?       itm-api/cmd/migrate_live_users  [no test files]
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/migrate_reviewed_duplicates [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend> go build ./...
+PS D:\ITM-Data\itm\backend> go run .\cmd\migrate_reviewed_duplicates --file .\data\tbl_user_info.xlsx
+============================================================
+REVIEWED DUPLICATE USER RECOVERY
+============================================================
+Mode: DRY RUN
+Approved canonical rows:
+  row=159 employee_id=02-2069 username=rabbani
+  row=165 employee_id=02-2732 username=mdjahid.hasan
+  row=170 employee_id=02-2730 username=minhazul
+  row=238 employee_id=02-2666 username=mijanur
+True username conflicts are NOT touched.
+Passwords are never printed.
+============================================================
+[READY] row=159 employee_id=02-2069 username=rabbani full_name="Md Golam Rabbani" date="2025-10-09 00:00:00" source_user_type=3 target_user_type=3 role=GENERAL_USER
+[READY] row=165 employee_id=02-2732 username=mdjahid.hasan full_name="Md. Jahid Hasan" date="2025-09-23 00:00:00" source_user_type=3 target_user_type=3 role=GENERAL_USER
+[READY] row=170 employee_id=02-2730 username=minhazul full_name="Md. Minhazul Abedin Nihat" date="2025-09-16 00:00:00" source_user_type=3 target_user_type=3 role=GENERAL_USER
+[READY] row=238 employee_id=02-2666 username=mijanur full_name="Md. Mijanur Rahman" date="2025-04-22 00:00:00" source_user_type=3 target_user_type=3 role=GENERAL_USER
+
+============================================================
+REVIEWED DUPLICATE RECOVERY SUMMARY
+============================================================
+Mode          : DRY RUN
+Approved rows : 4
+Ready         : 4
+Created       : 0
+Skipped       : 0
+============================================================
+DRY RUN ONLY: no database rows were changed.
+PS D:\ITM-Data\itm\backend> go run .\cmd\migrate_reviewed_duplicates --file .\data\tbl_user_info.xlsx --apply
+============================================================
+REVIEWED DUPLICATE USER RECOVERY
+============================================================
+Mode: APPLY
+Approved canonical rows:
+  row=159 employee_id=02-2069 username=rabbani
+  row=165 employee_id=02-2732 username=mdjahid.hasan
+  row=170 employee_id=02-2730 username=minhazul
+  row=238 employee_id=02-2666 username=mijanur
+True username conflicts are NOT touched.
+Passwords are never printed.
+============================================================
+[READY] row=159 employee_id=02-2069 username=rabbani full_name="Md Golam Rabbani" date="2025-10-09 00:00:00" source_user_type=3 target_user_type=3 role=GENERAL_USER
+[CREATED] row=159 employee_id=02-2069 username=rabbani role=GENERAL_USER
+[READY] row=165 employee_id=02-2732 username=mdjahid.hasan full_name="Md. Jahid Hasan" date="2025-09-23 00:00:00" source_user_type=3 target_user_type=3 role=GENERAL_USER
+[CREATED] row=165 employee_id=02-2732 username=mdjahid.hasan role=GENERAL_USER
+[READY] row=170 employee_id=02-2730 username=minhazul full_name="Md. Minhazul Abedin Nihat" date="2025-09-16 00:00:00" source_user_type=3 target_user_type=3 role=GENERAL_USER
+[CREATED] row=170 employee_id=02-2730 username=minhazul role=GENERAL_USER
+[READY] row=238 employee_id=02-2666 username=mijanur full_name="Md. Mijanur Rahman" date="2025-04-22 00:00:00" source_user_type=3 target_user_type=3 role=GENERAL_USER
+[CREATED] row=238 employee_id=02-2666 username=mijanur role=GENERAL_USER
+
+============================================================
+REVIEWED DUPLICATE RECOVERY SUMMARY
+============================================================
+Mode          : APPLY
+Approved rows : 4
+Ready         : 4
+Created       : 4
+Skipped       : 0
+============================================================
+PS D:\ITM-Data\itm\backend>

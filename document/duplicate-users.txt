@@ -1,0 +1,353 @@
+https://chatgpt.com/g/g-p-6a5378cdfc588191b929a3b5ca9c1c9a/c/6a8a7c40-36f4-83e8-8a59-4ba8633d33b6
+
+
+This output is clear. The 18 skipped rows are not 18 different users. They break down into 8 duplicated usernames.
+
+Six groups are duplicates for the same employee ID and can potentially be recovered safely:
+
+bashir.alam      → 02-2833   (2 rows)
+fahmid           → 02-2749   (2 rows)
+rabbani          → 02-2069   (4 rows)
+mdjahid.hasan    → 02-2732   (2 rows)
+minhazul         → 02-2730   (2 rows)
+mijanur          → 02-2666   (2 rows)
+
+Two usernames are real conflicts because the same username belongs to different employee IDs:
+
+ahsan.sharif
+  → 02-2787
+  → 02-2426
+
+md.arifulislam
+  → 02-2465
+  → 02-2293
+
+Do not automatically import those last four employees yet.
+
+Step 1 — Check whether these 10 employees exist in public.users
+
+Run this in pgAdmin:
+
+SELECT
+    x.employee_id,
+    x.expected_username,
+    u.id AS user_id,
+    u.username AS db_username,
+    u.full_name,
+    u.email,
+    u.user_type,
+    u.active,
+    u.account_status
+FROM (
+    VALUES
+        ('02-2833', 'bashir.alam'),
+        ('02-2749', 'fahmid'),
+        ('02-2069', 'rabbani'),
+        ('02-2732', 'mdjahid.hasan'),
+        ('02-2730', 'minhazul'),
+        ('02-2666', 'mijanur'),
+        ('02-2787', 'ahsan.sharif'),
+        ('02-2426', 'ahsan.sharif'),
+        ('02-2465', 'md.arifulislam'),
+        ('02-2293', 'md.arifulislam')
+) AS x(employee_id, expected_username)
+
+LEFT JOIN public.users u
+    ON BTRIM(COALESCE(u.employee_id, '')) = x.employee_id
+
+ORDER BY
+    x.expected_username,
+    x.employee_id;
+
+For skipped users, I expect something like:
+
+employee_id | expected_username | user_id
+------------+-------------------+--------
+02-2833     | bashir.alam       | NULL
+02-2749     | fahmid            | NULL
+...
+
+user_id = NULL means that employee is still missing from the new authentication database.
+
+Step 2 — Do not manually insert the six users yet
+
+Before choosing one of the duplicated Excel rows, we need to verify that the duplicate records for the same employee are really equivalent.
+
+For example:
+
+bashir.alam
+row 69 → employee_id 02-2833
+row 70 → employee_id 02-2833
+
+We need to compare:
+
+username
+employee_id
+password equality
+full_name
+email
+mobile
+user_type
+active
+status
+
+We should not display the passwords themselves. We only need to determine whether the duplicated rows have the same password.
+
+The rows to compare are:
+
+bashir.alam
+  rows 69, 70
+
+fahmid
+  rows 150, 152
+
+rabbani
+  rows 159, 167, 179, 837
+
+mdjahid.hasan
+  rows 165, 174
+
+minhazul
+  rows 170, 178
+
+mijanur
+  rows 238, 246
+Step 3 — Leave the true conflicts untouched
+
+For these:
+
+ahsan.sharif
+row 68  → 02-2787
+row 481 → 02-2426
+
+and:
+
+md.arifulislam
+row 438 → 02-2465
+row 619 → 02-2293
+
+do not:
+
+rename automatically
+append numbers
+choose newest row automatically
+overwrite one employee with the other
+
+Because username is a login identity and must belong to one specific account.
+
+Later we need to determine from the authoritative HR/legacy system which employee actually owns:
+
+ahsan.sharif
+md.arifulislam
+
+and assign a different approved username to the other employee if needed.
+
+Step 4 — Next cleanup target is only six employees
+
+Once their Excel duplicate rows are confirmed equivalent, we will migrate exactly:
+
+02-2833 → bashir.alam
+02-2749 → fahmid
+02-2069 → rabbani
+02-2732 → mdjahid.hasan
+02-2730 → minhazul
+02-2666 → mijanur
+
+That would change your user count from:
+
+2007
+
+to:
+
+2013
+
+assuming all six are currently missing.
+
+The four real-conflict employee IDs would remain unresolved for manual review.
+
+Step 5 — Do not rerun this
+
+Do not run:
+
+go run .\cmd\migrate_live_users --file .\data\tbl_user_info.xlsx --apply
+
+again.
+
+The 2,003-user migration is already complete. We will use a small dedicated duplicate-resolution migration for only these six accounts, so the existing live users are untouched.
+
+Your immediate next action is the pgAdmin query from Step 1. Send me that result. If those six safe employee IDs show user_id = NULL, the next step will be a small Go command that reads only those duplicate Excel rows, verifies they match without exposing passwords, and imports one canonical account per employee.
+
+
+
+-------------------------------------------------------------------------------
+
+10 employees exist
+
+
+SELECT
+    x.employee_id,
+    x.expected_username,
+    u.id AS user_id,
+    u.username AS db_username,
+    u.full_name,
+    u.email,
+    u.user_type,
+    u.active,
+    u.account_status
+FROM (
+    VALUES
+        ('02-2833', 'bashir.alam'),
+        ('02-2749', 'fahmid'),
+        ('02-2069', 'rabbani'),
+        ('02-2732', 'mdjahid.hasan'),
+        ('02-2730', 'minhazul'),
+        ('02-2666', 'mijanur'),
+        ('02-2787', 'ahsan.sharif'),
+        ('02-2426', 'ahsan.sharif'),
+        ('02-2465', 'md.arifulislam'),
+        ('02-2293', 'md.arifulislam')
+) AS x(employee_id, expected_username)
+
+LEFT JOIN public.users u
+    ON BTRIM(COALESCE(u.employee_id, '')) = x.employee_id
+
+ORDER BY
+    x.expected_username,
+    x.employee_id;
+
+
+----------------------------------------------------------------------------
+
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\WINDOWS\system32> cd D:
+PS D:\> cd ITM-Data
+PS D:\ITM-Data> cd itm
+PS D:\ITM-Data\itm> cd backend
+PS D:\ITM-Data\itm\backend> Select-String `
+>>   -Path .\data\migration_safe_dry_run.txt `
+>>   -Pattern 'duplicate username in Excel'
+
+data\migration_safe_dry_run.txt:78:[SKIP] row=68 username=ahsan.sharif employee_id=02-2787 reason=duplicate username
+in Excel
+data\migration_safe_dry_run.txt:79:[SKIP] row=69 username=bashir.alam employee_id=02-2833 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:80:[SKIP] row=70 username=bashir.alam employee_id=02-2833 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:160:[SKIP] row=150 username=fahmid employee_id=02-2749 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:162:[SKIP] row=152 username=fahmid employee_id=02-2749 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:169:[SKIP] row=159 username=rabbani employee_id=02-2069 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:175:[SKIP] row=165 username=mdjahid.hasan employee_id=02-2732 reason=duplicate
+username in Excel
+data\migration_safe_dry_run.txt:177:[SKIP] row=167 username=rabbani employee_id=02-2069 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:180:[SKIP] row=170 username=minhazul employee_id=02-2730 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:184:[SKIP] row=174 username=mdjahid.hasan employee_id=02-2732 reason=duplicate
+username in Excel
+data\migration_safe_dry_run.txt:190:[SKIP] row=178 username=minhazul employee_id=02-2730 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:191:[SKIP] row=179 username=rabbani employee_id=02-2069 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:250:[SKIP] row=238 username=mijanur employee_id=02-2666 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:258:[SKIP] row=246 username=mijanur employee_id=02-2666 reason=duplicate username in
+Excel
+data\migration_safe_dry_run.txt:454:[SKIP] row=438 username=md.arifulislam employee_id=02-2465 reason=duplicate
+username in Excel
+data\migration_safe_dry_run.txt:498:[SKIP] row=481 username=ahsan.sharif employee_id=02-2426 reason=duplicate username
+in Excel
+data\migration_safe_dry_run.txt:638:[SKIP] row=619 username=md.arifulislam employee_id=02-2293 reason=duplicate
+username in Excel
+data\migration_safe_dry_run.txt:841:[SKIP] row=837 username=rabbani employee_id=02-2069 reason=duplicate username in
+Excel
+
+
+PS D:\ITM-Data\itm\backend> New-Item -ItemType Directory -Force .\cmd\migrate_duplicate_users
+
+
+    Directory: D:\ITM-Data\itm\backend\cmd
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----         8/24/2026  11:47 AM                migrate_duplicate_users
+
+
+PS D:\ITM-Data\itm\backend> gofmt -w .\cmd\migrate_duplicate_users\main.go
+PS D:\ITM-Data\itm\backend> go test ./...
+?       itm-api/cmd/hash_password       [no test files]
+?       itm-api/cmd/migrate_duplicate_users     [no test files]
+?       itm-api/cmd/migrate_live_users  [no test files]
+?       itm-api/cmd/migrate_passwords   [no test files]
+?       itm-api/cmd/server      [no test files]
+?       itm-api/internal/config [no test files]
+?       itm-api/internal/db     [no test files]
+?       itm-api/internal/handler        [no test files]
+?       itm-api/internal/middleware     [no test files]
+?       itm-api/pkg/response    [no test files]
+PS D:\ITM-Data\itm\backend> go build ./...
+PS D:\ITM-Data\itm\backend> go run .\cmd\migrate_duplicate_users --file .\data\tbl_user_info.xlsx
+============================================================
+SAFE DUPLICATE USER RECOVERY
+============================================================
+Mode: DRY RUN
+Only these six employee IDs are eligible:
+  02-2833 -> bashir.alam
+  02-2749 -> fahmid
+  02-2069 -> rabbani
+  02-2732 -> mdjahid.hasan
+  02-2730 -> minhazul
+  02-2666 -> mijanur
+The true conflicts ahsan.sharif and md.arifulislam are NOT touched.
+============================================================
+[READY] employee_id=02-2833 username=bashir.alam rows=69,70 source_user_type=3 target_user_type=3 role=GENERAL_USER password_match=true
+[READY] employee_id=02-2749 username=fahmid rows=150,152 source_user_type=3 target_user_type=3 role=GENERAL_USER password_match=true
+[SKIP] employee_id=02-2069 username=rabbani rows=159,167,179,837 reason=duplicate rows differ: full_name differs
+[SKIP] employee_id=02-2732 username=mdjahid.hasan rows=165,174 reason=duplicate rows differ: password differs
+[SKIP] employee_id=02-2730 username=minhazul rows=170,178 reason=duplicate rows differ: password differs
+[SKIP] employee_id=02-2666 username=mijanur rows=238,246 reason=duplicate rows differ: password differs
+
+============================================================
+SAFE DUPLICATE RECOVERY SUMMARY
+============================================================
+Mode                     : DRY RUN
+Allowlisted employees    : 6
+Ready                     : 2
+Created                   : 0
+Skipped                   : 4
+Missing/insufficient rows : 0
+============================================================
+DRY RUN ONLY: no database rows were changed.
+PS D:\ITM-Data\itm\backend>
+-------------------------------------------------------------------------------
+
+
+SELECT
+    x.employee_id,
+    x.expected_username,
+    u.id AS user_id,
+    u.username AS db_username
+FROM (
+    VALUES
+        ('02-2069', 'rabbani'),
+        ('02-2732', 'mdjahid.hasan'),
+        ('02-2730', 'minhazul'),
+        ('02-2666', 'mijanur'),
+        ('02-2787', 'ahsan.sharif'),
+        ('02-2426', 'ahsan.sharif'),
+        ('02-2465', 'md.arifulislam'),
+        ('02-2293', 'md.arifulislam')
+) AS x(employee_id, expected_username)
+
+LEFT JOIN public.users u
+    ON BTRIM(COALESCE(u.employee_id, '')) = x.employee_id
+
+ORDER BY x.expected_username, x.employee_id;
+
+
+
