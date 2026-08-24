@@ -1,5 +1,5 @@
 
-// components/ui/right-sidebar.tsx
+// frontend/components/ui/right-sidebar.tsx
 "use client";
 
 import { LucideCalendar } from "lucide-react";
