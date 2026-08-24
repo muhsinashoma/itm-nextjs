@@ -5,11 +5,8 @@ https://chatgpt.com/g/g-p-6a5378cdfc588191b929a3b5ca9c1c9a/c/6a8a7c40-36f4-83e8-
 username: admin
 password : Admin@1234
 
-
-
 username : test.itpersonnel
 password : f@hrt1@itm_itprs
-
 
 
 username : itm.root
@@ -19,16 +16,6 @@ password : f@hrt1@itm_new
 Username : test.general
 Password : f@hrt1@itm_guser
 
-
-
-general user 
-
-username : sofiqul
-password : sofiqul
-
-
-username : mrabbi
-password : mrabbi
 
 -------------------------------------------------------------------------
 
@@ -50,4 +37,18 @@ password : 016755
 
 username : shakil.khan
 password : munmunj1
+
+general user 
+---------------------------------------------------------
+
+username : sofiqul
+password : sofiqul
+
+
+username : mrabbi
+password : mrabbi
+
+---------------------------------------------------
+
+
 
