@@ -1,4 +1,4 @@
-// backend/internal/handler/handlers.go
+// itm/backend/internal/handler/handlers.go
 package handler
 
 import (
@@ -233,11 +233,26 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 		"/trouble-tickets",
 		h.TroubleTicketList,
 	)
+	
+	g.GET(
+		"/trouble-tickets/:id/details",
+		h.TroubleTicketDetails,
+	)
 
 	g.GET(
 		"/trouble-ticket-it-personnel",
 		h.TroubleTicketITPersonnel,
 	)
+
+	 // Fault Types
+    // g.GET(
+    //     "/faults",
+    //     middleware.RequirePermission(
+    //         h.db,
+    //         "trouble_ticket.view",
+    //     ),
+    //     h.FaultList,
+    // )
 
 	/* ============================================================
 	   REQUISITION
@@ -1820,6 +1835,286 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	)
 }
 
+
+
+func (h *DashboardHandler) TroubleTicketDetails(c *gin.Context) {
+
+	ctx := c.Request.Context()
+
+	id := c.Param("id")
+
+
+	type Ticket struct {
+
+		ID int64 `json:"id"`
+
+		TTNo string `json:"tt_no"`
+
+		EmployeeID string `json:"employee_id"`
+
+		EmployeeName string `json:"employee_name"`
+
+		Department string `json:"department"`
+
+		Function string `json:"function"`
+
+		Mobile string `json:"mobile"`
+
+		QueryType string `json:"query_type"`
+
+		Reason string `json:"reason"`
+
+		Status string `json:"status"`
+
+		CreatedAt string `json:"created_at"`
+
+		AssignedID string `json:"assigned_id"`
+
+		AssignedName string `json:"assigned_name"`
+	}
+
+
+
+	var ticket Ticket
+
+
+
+	err := h.db.QueryRow(
+		ctx,
+		`
+		SELECT
+
+			t.id,
+
+			COALESCE(t.tt_no::text,''),
+
+			COALESCE(t.employee_id,''),
+
+			COALESCE(e.employee_name,''),
+
+			COALESCE(e.department_name,''),
+
+			COALESCE(e.work_field,''),
+
+			COALESCE(e.employee_id,''),
+
+			COALESCE(t.query_type,''),
+
+			COALESCE(t.reason_of_problem,''),
+
+			CASE
+				WHEN t.status_progess = 3
+				THEN 'Closed'
+				ELSE 'Open'
+			END,
+
+			COALESCE(t.created_at::text,''),
+
+			COALESCE(t.assigned_id,''),
+
+			COALESCE(a.employee_name,'')
+
+
+		FROM trouble_tickets t
+
+
+		LEFT JOIN employee_office_info e
+
+		ON e.employee_id=t.employee_id
+
+
+
+		LEFT JOIN employee_office_info a
+
+		ON a.employee_id=t.assigned_id
+
+
+
+		WHERE t.id=$1
+
+		`,
+		id,
+	).Scan(
+
+		&ticket.ID,
+
+		&ticket.TTNo,
+
+		&ticket.EmployeeID,
+
+		&ticket.EmployeeName,
+
+		&ticket.Department,
+
+		&ticket.Function,
+
+		&ticket.Mobile,
+
+		&ticket.QueryType,
+
+		&ticket.Reason,
+
+		&ticket.Status,
+
+		&ticket.CreatedAt,
+
+		&ticket.AssignedID,
+
+		&ticket.AssignedName,
+	)
+
+
+	if err != nil {
+
+		response.NotFound(
+			c,
+			"ticket not found",
+		)
+
+		return
+	}
+
+
+
+	type History struct {
+
+		ID int64 `json:"id"`
+
+		UserID string `json:"user_id"`
+
+		UserName string `json:"user_name"`
+
+		Team string `json:"team"`
+
+		AssignedID string `json:"assigned_id"`
+
+		AssignedName string `json:"assigned_name"`
+
+		Note string `json:"note"`
+
+		Date string `json:"date"`
+	}
+
+
+
+	history := []History{}
+
+
+
+	rows,err := h.db.Query(
+		ctx,
+		`
+
+		SELECT
+
+			u.id,
+
+			COALESCE(u.user,''),
+
+			COALESCE(e.employee_name,''),
+
+			COALESCE(u.logical_team,''),
+
+			COALESCE(u.logical_team_person,''),
+
+			COALESCE(a.employee_name,''),
+
+			COALESCE(u.tt_note,''),
+
+			COALESCE(u.date::text,'')
+
+
+		FROM tbl_tt_update u
+
+
+		LEFT JOIN employee_office_info e
+
+		ON e.employee_id=u.user
+
+
+		LEFT JOIN employee_office_info a
+
+		ON a.employee_id=u.logical_team_person
+
+
+
+		WHERE BTRIM(u.tt_no)=BTRIM(
+			(
+				SELECT tt_no::text
+				FROM trouble_tickets
+				WHERE id=$1
+			)
+		)
+
+
+		ORDER BY u.id ASC
+
+
+		`,
+		id,
+	)
+
+
+
+	if err!=nil{
+
+		response.ServerError(c,err)
+
+		return
+	}
+
+
+	defer rows.Close()
+
+
+
+	for rows.Next(){
+
+
+		var h History
+
+
+		rows.Scan(
+
+			&h.ID,
+
+			&h.UserID,
+
+			&h.UserName,
+
+			&h.Team,
+
+			&h.AssignedID,
+
+			&h.AssignedName,
+
+			&h.Note,
+
+			&h.Date,
+
+		)
+
+
+		history=append(
+			history,
+			h,
+		)
+	}
+
+
+
+	response.OK(
+		c,
+		gin.H{
+
+			"ticket":ticket,
+
+			"history":history,
+
+		},
+	)
+
+}
 // ─── Claim ───────────────────────────────────────────────────────────────────
 
 type ClaimHandler struct{ db *pgxpool.Pool }
@@ -4623,3 +4918,4 @@ func (
 		result,
 	)
 }
+

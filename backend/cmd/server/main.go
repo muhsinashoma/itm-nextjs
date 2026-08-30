@@ -326,33 +326,7 @@ func main() {
 		protected,
 	)
 
-	/* ============================================================
-	   ROLE & ACCESS MANAGEMENT
-
-	   Creates:
-
-	   GET
-	   /api/v1/admin/role-access/overview
-
-	   GET
-	   /api/v1/admin/role-access/roles
-
-	   GET
-	   /api/v1/admin/role-access/permissions
-
-	   GET
-	   /api/v1/admin/role-access/users
-
-	   PUT
-	   /api/v1/admin/role-access/users/:id/role
-
-	   PUT
-	   /api/v1/admin/role-access/roles/:id/permissions
-
-	   The RoleAccessHandler itself additionally enforces:
-
-	   roles.manage
-	============================================================ */
+	
 
 	roleAccessHandler :=
 		handler.NewRoleAccessHandler(

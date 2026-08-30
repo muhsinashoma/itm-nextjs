@@ -1,4 +1,5 @@
 // frontend/app/dashboard/trouble-tickets/page.tsx
+
 "use client";
 
 import {
@@ -16,38 +17,53 @@ import {
     AlertCircle,
     ArrowLeft,
     LoaderCircle,
+    X,
 } from "lucide-react";
+
 
 import {
     DataTable,
 } from "@/components/data-table";
+
 
 import {
     columns,
     toSection,
 } from "@/components/tt-columns";
 
+
 import {
     Button,
 } from "@/components/ui/button";
+
 
 import type {
     Section,
 } from "@/types/tt";
 
+
 import {
     dashboardApi,
+
     type TroubleTicketITPersonnel,
+
     type TroubleTicketScope,
+
     type TroubleTicketStatus,
+
+    type TroubleTicketDetail,
+
 } from "@/lib/api";
+
+
 
 /* ======================================================
    VALID SCOPES
 ====================================================== */
 
 const VALID_SCOPES:
-    TroubleTicketScope[] = [
+    TroubleTicketScope[] =
+    [
         "all",
         "opened_today",
         "closed_today",
@@ -55,126 +71,121 @@ const VALID_SCOPES:
         "procurement",
     ];
 
+
+
 /* ======================================================
-   SCOPE CONFIGURATION
+   SCOPE CONFIG
 ====================================================== */
 
-const SCOPE_CONFIG: Record<
-    TroubleTicketScope,
-    {
-        title: string;
-        description: string;
-        emptyTitle: string;
-        emptyDescription: string;
-    }
-> = {
+
+const SCOPE_CONFIG:
+    Record<
+        TroubleTicketScope,
+        {
+            title: string;
+            description: string;
+            emptyTitle: string;
+            emptyDescription: string;
+        }
+    > =
+{
+
     all: {
-        title:
-            "All Trouble Tickets",
-
-        description:
-            "Complete Trouble Ticket records",
-
-        emptyTitle:
-            "No Trouble Tickets found",
-
+        title: "All Trouble Tickets",
+        description: "Complete Trouble Ticket records",
+        emptyTitle: "No Trouble Tickets found",
         emptyDescription:
             "Trouble Ticket records will appear here.",
     },
 
+
     opened_today: {
-        title:
-            "TT Opened Today",
-
-        description:
-            "Trouble Tickets registered today",
-
-        emptyTitle:
-            "No Trouble Tickets opened today",
-
+        title: "TT Opened Today",
+        description: "Trouble Tickets registered today",
+        emptyTitle: "No Trouble Tickets opened today",
         emptyDescription:
-            "Newly registered tickets will appear here automatically.",
+            "New tickets will appear here.",
     },
+
 
     closed_today: {
-        title:
-            "TT Closed Today",
-
-        description:
-            "Trouble Tickets resolved today",
-
-        emptyTitle:
-            "No Trouble Tickets closed today",
-
+        title: "TT Closed Today",
+        description: "Trouble Tickets resolved today",
+        emptyTitle: "No Trouble Tickets closed today",
         emptyDescription:
-            "Resolved tickets will appear here after closure.",
+            "Closed tickets will appear here.",
     },
+
 
     running: {
-        title:
-            "Running Trouble Tickets",
-
-        description:
-            "Currently active Trouble Tickets",
-
-        emptyTitle:
-            "No Running Trouble Tickets",
-
+        title: "Running Trouble Tickets",
+        description: "Currently active Trouble Tickets",
+        emptyTitle: "No Running Trouble Tickets",
         emptyDescription:
-            "There are currently no active Trouble Tickets.",
+            "Active tickets will appear here.",
     },
+
 
     procurement: {
-        title:
-            "Procurement Trouble Tickets",
-
+        title: "Procurement Trouble Tickets",
         description:
-            "Active Trouble Tickets requiring procurement",
-
+            "Tickets requiring procurement",
         emptyTitle:
             "No Procurement Trouble Tickets",
-
         emptyDescription:
-            "Tickets requiring procurement will appear here.",
+            "Procurement tickets will appear here.",
     },
+
 };
+
+
+
 
 /* ======================================================
    SCOPE BUTTONS
 ====================================================== */
 
-const SCOPE_OPTIONS: {
-    scope: TroubleTicketScope;
-    label: string;
-}[] = [
+
+const SCOPE_OPTIONS =
+    [
         {
-            scope: "all",
+            scope: "all" as TroubleTicketScope,
             label: "All",
         },
+
         {
-            scope: "opened_today",
+            scope: "opened_today" as TroubleTicketScope,
             label: "Opened Today",
         },
+
         {
-            scope: "closed_today",
+            scope: "closed_today" as TroubleTicketScope,
             label: "Closed Today",
         },
+
         {
-            scope: "running",
+            scope: "running" as TroubleTicketScope,
             label: "Running TT",
         },
+
         {
-            scope: "procurement",
+            scope: "procurement" as TroubleTicketScope,
             label: "Procurement TT",
         },
+
     ];
 
+
+
 /* ======================================================
-   SERVER FILTER TYPE
+   FILTER TYPE
 ====================================================== */
 
+
 type TroubleTicketFilters = {
+
     fromDate: string;
+
     toDate: string;
 
     employeeId: string;
@@ -182,118 +193,182 @@ type TroubleTicketFilters = {
     status: string;
 
     itPersonal: string;
+
 };
+
+
+
 
 /* ======================================================
    PAGE CONTENT
 ====================================================== */
 
+
 function TroubleTicketListContent() {
+
+
     const router =
         useRouter();
+
 
     const searchParams =
         useSearchParams();
 
-    /* ==================================================
-       RESOLVE CURRENT SCOPE
-    ================================================== */
+
 
     const rawScope =
         searchParams.get(
             "scope"
-        ) ?? "all";
+        )
+        ??
+        "all";
+
+
 
     const scope:
         TroubleTicketScope =
         VALID_SCOPES.includes(
             rawScope as TroubleTicketScope
         )
-            ? (
-                rawScope as
-                TroubleTicketScope
-            )
-            : "all";
+            ?
+            rawScope as TroubleTicketScope
+            :
+            "all";
+
+
 
     const config =
-        SCOPE_CONFIG[
-        scope
-        ];
+        SCOPE_CONFIG[scope];
 
-    /* ==================================================
-       TROUBLE TICKET STATE
-    ================================================== */
+
 
     const [
         rows,
-        setRows,
+        setRows
     ] =
-        useState<
-            Section[]
-        >([]);
+        useState<Section[]>([]);
+
+
 
     const [
         total,
-        setTotal,
+        setTotal
     ] =
-        useState(
-            0
-        );
+        useState(0);
+
+
 
     const [
         loading,
-        setLoading,
+        setLoading
     ] =
-        useState(
-            true
-        );
+        useState(true);
+
+
 
     const [
         error,
-        setError,
+        setError
     ] =
         useState("");
 
-    /* ==================================================
-       COMBINED SERVER FILTERS
-    ================================================== */
+
+
+    /*
+        TT DETAILS
+    */
+
+
+    const [
+        selectedTT,
+        setSelectedTT
+    ] =
+        useState<
+            TroubleTicketDetail | null
+        >(null);
+
+
+
+    const [
+        showTTModal,
+        setShowTTModal
+    ] =
+        useState(false);
+
+
+
+    const openTTDetails =
+        async (
+            id: number
+        ) => {
+
+
+            try {
+
+
+                const response =
+                    await dashboardApi
+                        .troubleTicketDetails(id);
+
+
+
+                setSelectedTT(
+                    response.data
+                );
+
+
+
+                setShowTTModal(
+                    true
+                );
+
+
+            }
+            catch (error) {
+
+                console.error(
+                    "TT details error",
+                    error
+                );
+
+            }
+
+        };
+
+
 
     const [
         serverFilters,
-        setServerFilters,
+        setServerFilters
     ] =
-        useState<
-            TroubleTicketFilters
-        >({
-            fromDate: "",
-            toDate: "",
+        useState<TroubleTicketFilters>(
+            {
 
-            employeeId: "",
+                fromDate: "",
+                toDate: "",
+                employeeId: "",
+                status: "",
+                itPersonal: "",
 
-            status: "",
+            });
 
-            itPersonal: "",
-        });
 
-    /* ==================================================
-       IT PERSONNEL STATE
-    ================================================== */
 
     const [
         itPersonnel,
-        setItPersonnel,
+        setItPersonnel
     ] =
         useState<
             TroubleTicketITPersonnel[]
         >([]);
 
+
+
     const [
         itPersonnelLoading,
-        setItPersonnelLoading,
+        setItPersonnelLoading
     ] =
-        useState(
-            true
-        );
+        useState(true);
 
     /* ==================================================
        LOAD ACTIVE IT PERSONNEL
