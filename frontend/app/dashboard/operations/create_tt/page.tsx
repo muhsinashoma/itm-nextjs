@@ -1968,6 +1968,115 @@ function DescriptionField({
    ATTACHMENT
 ============================================================ */
 
+// function AttachmentField({
+//     ticket,
+//     onChange,
+//     onRemove,
+//     disabled,
+//     compact = false,
+// }: {
+//     ticket: TicketDraft;
+//     onChange: (
+//         id: string,
+//         event: ChangeEvent<HTMLInputElement>
+//     ) => void;
+//     onRemove: (id: string) => void;
+//     disabled: boolean;
+//     compact?: boolean;
+// }) {
+//     return (
+//         <div>
+//             <label className="mb-1 block text-[10px] font-semibold text-slate-700">
+//                 Attachment
+//             </label>
+
+//             <div
+//                 className={`relative flex items-center gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 transition hover:border-blue-300 hover:bg-blue-50/30 ${compact
+//                     ? "h-8 px-2"
+//                     : "h-[82px] px-2.5"
+//                     }`}
+//             >
+//                 <input
+//                     type="file"
+//                     disabled={disabled}
+//                     onChange={(event) =>
+//                         onChange(
+//                             ticket.clientId,
+//                             event
+//                         )
+//                     }
+//                     className="absolute inset-0 z-10 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+//                     accept="*/*"
+//                 />
+
+//                 <Paperclip
+//                     className={`shrink-0 text-slate-400 ${compact
+//                         ? "h-3.5 w-3.5"
+//                         : "h-5 w-5"
+//                         }`}
+//                 />
+
+//                 <div className="min-w-0 flex-1">
+//                     {ticket.attachment ? (
+//                         <div className="flex min-w-0 items-center gap-1.5">
+//                             <p className="truncate text-[10px] font-medium text-slate-700">
+//                                 {
+//                                     ticket
+//                                         .attachment
+//                                         .name
+//                                 }
+//                             </p>
+
+//                             <button
+//                                 type="button"
+//                                 disabled={
+//                                     disabled
+//                                 }
+//                                 onClick={(
+//                                     event
+//                                 ) => {
+//                                     event.preventDefault();
+//                                     event.stopPropagation();
+//                                     onRemove(
+//                                         ticket.clientId
+//                                     );
+//                                 }}
+//                                 className="relative z-20 shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-red-500"
+//                                 aria-label="Remove attachment"
+//                             >
+//                                 <X className="h-3 w-3 text-red-500" />
+//                             </button>
+//                         </div>
+//                     ) : (
+//                         <>
+//                             <p
+//                                 className={`font-medium text-slate-600 ${compact
+//                                     ? "text-[10px]"
+//                                     : "text-xs"
+//                                     }`}
+//                             >
+//                                 Attach file
+//                             </p>
+
+//                             {!compact && (
+//                                 <p className="text-[9px] text-slate-400">
+//                                     Maximum 5 MB
+//                                 </p>
+//                             )}
+//                         </>
+//                     )}
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// }
+
+
+
+/* ============================================================
+  File ATTACHMENT
+============================================================ */
+
 function AttachmentField({
     ticket,
     onChange,
@@ -1984,18 +2093,59 @@ function AttachmentField({
     disabled: boolean;
     compact?: boolean;
 }) {
+    const attachment = ticket.attachment;
+
+    const isImage =
+        !!attachment &&
+        (
+            attachment.type === "image/jpeg" ||
+            attachment.type === "image/png" ||
+            /\.(jpe?g|png)$/i.test(
+                attachment.name
+            )
+        );
+
+    const previewUrl = useMemo(() => {
+        if (!attachment || !isImage) {
+            return null;
+        }
+
+        return URL.createObjectURL(
+            attachment
+        );
+    }, [attachment, isImage]);
+
+    useEffect(() => {
+        return () => {
+            if (previewUrl) {
+                URL.revokeObjectURL(
+                    previewUrl
+                );
+            }
+        };
+    }, [previewUrl]);
+
     return (
-        <div>
+        <div className="min-w-0">
             <label className="mb-1 block text-[10px] font-semibold text-slate-700">
                 Attachment
             </label>
 
             <div
-                className={`relative flex items-center gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 transition hover:border-blue-300 hover:bg-blue-50/30 ${compact
-                    ? "h-8 px-2"
-                    : "h-[82px] px-2.5"
-                    }`}
+                className={`
+                    relative flex min-w-0 items-center overflow-hidden
+                    rounded-md border border-dashed
+                    border-slate-300 bg-slate-50
+                    transition
+                    hover:border-blue-300
+                    hover:bg-blue-50/30
+                    ${compact
+                        ? "h-8 px-2"
+                        : "h-[82px] px-2.5"
+                    }
+                `}
             >
+                {/* File picker */}
                 <input
                     type="file"
                     disabled={disabled}
@@ -2006,54 +2156,160 @@ function AttachmentField({
                         )
                     }
                     className="absolute inset-0 z-10 cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                    accept="*/*"
+                    accept="image/jpeg,image/png,.jpg,.jpeg,.png,*/*"
                 />
 
-                <Paperclip
-                    className={`shrink-0 text-slate-400 ${compact
-                        ? "h-3.5 w-3.5"
-                        : "h-5 w-5"
-                        }`}
-                />
+                {attachment ? (
+                    <div className="relative z-[11] flex min-w-0 flex-1 items-center gap-2">
+                        {/* ==================================================
+                            IMAGE PREVIEW
+                        ================================================== */}
 
-                <div className="min-w-0 flex-1">
-                    {ticket.attachment ? (
-                        <div className="flex min-w-0 items-center gap-1.5">
-                            <p className="truncate text-[10px] font-medium text-slate-700">
-                                {
-                                    ticket
-                                        .attachment
-                                        .name
+                        {isImage &&
+                            previewUrl && (
+                                <div
+                                    className={`
+                                        shrink-0 overflow-hidden rounded-md
+                                        border border-slate-200
+                                        bg-white
+                                        ${compact
+                                            ? "h-7 w-7"
+                                            : "h-14 w-14"
+                                        }
+                                    `}
+                                >
+                                    <img
+                                        src={
+                                            previewUrl
+                                        }
+                                        alt={
+                                            attachment.name
+                                        }
+                                        className="h-full w-full object-cover"
+                                    />
+                                </div>
+                            )}
+
+                        {/* ==================================================
+                            NON-IMAGE FILE ICON
+                        ================================================== */}
+
+                        {!isImage && (
+                            <div
+                                className={`
+                                    flex shrink-0 items-center
+                                    justify-center rounded-md
+                                    bg-white text-slate-400
+                                    ${compact
+                                        ? "h-7 w-7"
+                                        : "h-10 w-10"
+                                    }
+                                `}
+                            >
+                                <Paperclip
+                                    className={
+                                        compact
+                                            ? "h-3.5 w-3.5"
+                                            : "h-5 w-5"
+                                    }
+                                />
+                            </div>
+                        )}
+
+                        {/* ==================================================
+                            FILE INFORMATION
+                        ================================================== */}
+
+                        <div className="min-w-0 flex-1">
+                            <p
+                                className={`
+                                    truncate font-medium text-slate-700
+                                    ${compact
+                                        ? "text-[10px]"
+                                        : "text-xs"
+                                    }
+                                `}
+                                title={
+                                    attachment.name
                                 }
+                            >
+                                {attachment.name}
                             </p>
 
-                            <button
-                                type="button"
-                                disabled={
-                                    disabled
-                                }
-                                onClick={(
-                                    event
-                                ) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    onRemove(
-                                        ticket.clientId
-                                    );
-                                }}
-                                className="relative z-20 shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-red-500"
-                                aria-label="Remove attachment"
-                            >
-                                <X className="h-3 w-3 text-red-500" />
-                            </button>
+                            {!compact && (
+                                <p className="text-[9px] text-slate-400">
+                                    {(
+                                        attachment.size /
+                                        1024
+                                    ).toFixed(0)}{" "}
+                                    KB
+                                </p>
+                            )}
                         </div>
-                    ) : (
-                        <>
+
+                        {/* ==================================================
+                            REMOVE FILE
+                        ================================================== */}
+
+                        <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={(
+                                event
+                            ) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+
+                                onRemove(
+                                    ticket.clientId
+                                );
+                            }}
+                            aria-label="Remove attachment"
+                            className="
+                                relative z-20
+                                flex shrink-0
+                                items-center justify-center
+                                rounded-md
+                                p-1
+                                text-red-500
+                                transition
+                                hover:bg-red-50
+                                hover:text-red-600
+                                focus:outline-none
+                                focus:ring-2
+                                focus:ring-red-200
+                                disabled:cursor-not-allowed
+                                disabled:opacity-40
+                            "
+                        >
+                            <X className="h-3.5 w-3.5 text-red-500" />
+                        </button>
+                    </div>
+                ) : (
+                    /* ======================================================
+                       EMPTY ATTACHMENT
+                    ====================================================== */
+
+                    <div className="pointer-events-none flex min-w-0 flex-1 items-center gap-2">
+                        <Paperclip
+                            className={`
+                                shrink-0 text-slate-400
+                                ${compact
+                                    ? "h-3.5 w-3.5"
+                                    : "h-5 w-5"
+                                }
+                            `}
+                        />
+
+                        <div className="min-w-0">
                             <p
-                                className={`font-medium text-slate-600 ${compact
-                                    ? "text-[10px]"
-                                    : "text-xs"
-                                    }`}
+                                className={`
+                                    font-medium text-slate-600
+                                    ${compact
+                                        ? "text-[10px]"
+                                        : "text-xs"
+                                    }
+                                `}
                             >
                                 Attach file
                             </p>
@@ -2063,9 +2319,9 @@ function AttachmentField({
                                     Maximum 5 MB
                                 </p>
                             )}
-                        </>
-                    )}
-                </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
