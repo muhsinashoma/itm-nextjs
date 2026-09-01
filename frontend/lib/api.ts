@@ -1,8 +1,4 @@
 
-//itm/frontend/lib/api.ts
-// Central API client for ITM Go backend
-
-
 // frontend/lib/api.ts
 
 // Central API client for ITM Go backend
@@ -698,78 +694,6 @@ export interface TroubleTicketItem {
     string;
 }
 
-
-/* ======================================================
-   TROUBLE TICKET DETAILS + HISTORY
-====================================================== */
-
-
-export interface TroubleTicketDetail {
-
-    ticket: {
-
-        id: number;
-
-        tt_no: string;
-
-        employee_id: string;
-
-        employee_name: string;
-
-        department: string;
-
-        function: string;
-
-        mobile: string;
-
-        query_type: string;
-
-        requisition_type: string;
-
-        status: string;
-
-        delivered_status: string;
-
-        assigned_id: string;
-
-        assigned_name: string;
-
-        created_at: string;
-
-        age_seconds: number;
-    };
-
-
-    history: TroubleTicketHistory[];
-}
-
-
-
-export interface TroubleTicketHistory {
-
-    id: number;
-
-    tt_no: string;
-
-    updated_by_id: string;
-
-    updated_by_name: string;
-
-    logical_team: string;
-
-    assigned_id: string;
-
-    assigned_name: string;
-
-    department: string;
-
-    status: string;
-
-    created_at: string;
-
-    note?: string;
-}
-
 export interface OwnEmployeeProfile {
     employee_id: string;
     employee_name: string;
@@ -1002,23 +926,6 @@ export const dashboardApi = {
             ),
 
 
-    /*
-     * Full TT details with history
-     *
-     * Backend:
-     * GET /dashboard/trouble-tickets/:id/details
-     */
-    troubleTicketDetails: (
-        id: number
-    ) =>
-        api.get<
-            ApiOk<
-                TroubleTicketDetail
-            >
-        >(
-            `/dashboard/trouble-tickets/${id}/details`
-        ),
-
     /* ======================================================
      REQUISITION
   ====================================================== */
@@ -1170,237 +1077,8 @@ export const ownDashboardApi = {
             )}`
         ),
 };
-
-
-
 /* ======================================================
-   FAULT TYPES
-====================================================== */
-
-export interface FaultType {
-    id: number;
-
-    fault_name: string;
-
-    fault_register?:
-    string | null;
-
-    fault_desc?:
-    string | null;
-
-    status?:
-    number | null;
-}
-
-/* ======================================================
-   TICKET
-====================================================== */
-
-// export interface Ticket {
-//     id:
-//     number;
-
-//     tt_no:
-//     number;
-
-//     employee_id:
-//     string;
-
-//     employee_name:
-//     string;
-
-//     department:
-//     string;
-
-//     phone:
-//     string;
-
-//     email:
-//     string;
-
-//     client_name:
-//     string;
-
-//     fault_type:
-//     number;
-
-//     fault_type_name:
-//     string;
-
-//     reason_of_problem:
-//     string;
-
-//     fault_date_time:
-//     string;
-
-//     status_progress:
-//     number;
-
-//     attach_file:
-//     string;
-
-//     created_by:
-//     string;
-
-//     created_at:
-//     string;
-
-//     ticket_age:
-//     string;
-// }
-
-// export const ticketApi = {
-//     list: (
-//         p?: {
-//             page?:
-//             number;
-
-//             page_size?:
-//             number;
-
-//             status?:
-//             string;
-
-//             emp_id?:
-//             string;
-
-//             search?:
-//             string;
-//         }
-//     ) => {
-//         const q =
-//             new URLSearchParams(
-//                 Object.fromEntries(
-//                     Object.entries(
-//                         p ??
-//                         {}
-//                     ).filter(
-//                         ([
-//                             ,
-//                             value,
-//                         ]) =>
-//                             value !==
-//                             undefined
-//                     )
-//                 ) as any
-//             ).toString();
-
-//         return api.get<
-//             ApiPage<
-//                 Ticket
-//             >
-//         >(
-//             `/tickets?${q}`
-//         );
-//     },
-
-//     get: (
-//         id:
-//             number
-//     ) =>
-//         api.get<
-//             ApiOk<
-//                 Ticket
-//             >
-//         >(
-//             `/tickets/${id}`
-//         ),
-
-//     create: (
-//         body:
-//             Partial<Ticket>
-//     ) =>
-//         api.post<
-//             ApiOk<{
-//                 id:
-//                 number;
-
-//                 tt_no:
-//                 number;
-//             }>
-//         >(
-//             "/tickets",
-//             body
-//         ),
-
-//     update: (
-//         id:
-//             number,
-
-//         body:
-//             Partial<Ticket>
-//     ) =>
-//         api.put<
-//             ApiOk<any>
-//         >(
-//             `/tickets/${id}`,
-//             body
-//         ),
-
-//     close: (
-//         id:
-//             number,
-
-//         closing_description?:
-//             string
-//     ) =>
-//         api.patch(
-//             `/tickets/${id}/close`,
-//             {
-//                 closing_description,
-//             }
-//         ),
-
-//     updateStatus: (
-//         id:
-//             number,
-
-//         status:
-//             number
-//     ) =>
-//         api.patch(
-//             `/tickets/${id}/status`,
-//             {
-//                 status,
-//             }
-//         ),
-
-//     delete: (
-//         id:
-//             number
-//     ) =>
-//         api.del(
-//             `/tickets/${id}`
-//         ),
-
-//     getUpdates: (
-//         id:
-//             number
-//     ) =>
-//         api.get<
-//             ApiOk<
-//                 any[]
-//             >
-//         >(
-//             `/tickets/${id}/updates`
-//         ),
-
-//     addUpdate: (
-//         id:
-//             number,
-
-//         body:
-//             any
-//     ) =>
-//         api.post(
-//             `/tickets/${id}/updates`,
-//             body
-//         ),
-// };
-
-
-/* ======================================================
-   Fault Type
+   TROUBLE TICKET
 ====================================================== */
 
 export interface FaultType {
@@ -1411,301 +1089,211 @@ export interface FaultType {
     status?: number | null;
 }
 
-/* ======================================================
-   TICKET
-====================================================== */
-
 export interface Ticket {
-    id:
-    number;
+    id: number;
+    legacy_id: number | null;
+    tt_no: string;
 
-    tt_no:
-    number;
+    employee_id: string;
+    employee_name: string;
+    designation: string;
 
-    employee_id:
-    string;
+    department: string;
+    function_name: string;
 
-    employee_name:
-    string;
+    company_name: string;
+    mobile_no: string;
+    email: string;
 
-    department:
-    string;
+    query_type: string;
+    description: string;
 
-    phone:
-    string;
+    requested_by: string;
+    assigned_id: string;
+    assigned_name: string;
 
-    email:
-    string;
+    status: string;
+    requisition_type: string;
+    delivered_status: string;
 
-    client_name:
-    string;
+    created_at: string;
+    closed_at: string | null;
 
-    fault_type:
-    number;
+    closed_by: string | null;
+    closing_description: string | null;
 
-    fault_type_name:
-    string;
+    source_status: number | null;
+    source_progress: number | null;
+    source_device_requisition: number | null;
 
-    reason_of_problem:
-    string;
+    legacy_data: Record<string, unknown> | null;
 
-    fault_date_time:
-    string;
+    inserted_at: string;
+    updated_at: string;
+}
 
-    status_progress:
-    number;
+export interface CreateTroubleTicketRequest {
+    reason_of_problem: string;
+    fault_type: number;
+}
 
-    attach_file:
-    string;
+export interface CreateTroubleTicketResponse {
+    created: {
+        id: number;
+        tt_no: string;
+    }[];
+    count: number;
+}
 
-    created_by:
-    string;
-
-    created_at:
-    string;
-
-    ticket_age:
-    string;
+export interface TroubleTicketUpdate {
+    id: number;
+    ticket_id: number;
+    status: string | null;
+    note: string | null;
+    updated_by: string | null;
+    department: string | null;
+    attachment_url: string | null;
+    created_at: string;
 }
 
 export const ticketApi = {
-
-    /* ==================================================
-       FAULT TYPES
-
-       GET /api/v1/tickets/fault-types
-    ================================================== */
-
-    // faultTypes: () =>
-    //     api.get<
-    //         ApiOk<
-    //             FaultType[]
-    //         >
-    //     >(
-    //         "/tickets/fault-types"
-    //     ),
-
-    faultTypes: () =>
-        api.get<ApiOk<FaultType[]>>(
-            "/tickets/fault-types"
-        ),
-
-    /* ==================================================
-       LIST
-    ================================================== */
-
     list: (
         p?: {
-            page?:
-            number;
-
-            page_size?:
-            number;
-
-            status?:
-            string;
-
-            emp_id?:
-            string;
-
-            search?:
-            string;
+            page?: number;
+            page_size?: number;
+            status?: string;
+            emp_id?: string;
+            search?: string;
         }
     ) => {
-        const q =
-            new URLSearchParams();
-
-        Object.entries(
-            p ??
-            {}
-        ).forEach(
-            ([
-                key,
-                value,
-            ]) => {
-                if (
-                    value !==
-                    undefined &&
-                    value !==
-                    null &&
-                    value !==
-                    ""
-                ) {
-                    q.set(
-                        key,
-                        String(
-                            value
-                        )
-                    );
-                }
-            }
-        );
-
-        const query =
-            q.toString();
+        const qs = toQuery(p);
 
         return api.get<
-            ApiPage<
-                Ticket
-            >
+            ApiPage<Ticket>
         >(
-            `/tickets${query
-                ? `?${query}`
-                : ""
-            }`
+            `/tickets${qs}`
         );
     },
 
-    /* ==================================================
-       GET
-    ================================================== */
-
     get: (
-        id:
-            number
+        id: number
     ) =>
         api.get<
-            ApiOk<
-                Ticket
-            >
+            ApiOk<Ticket>
         >(
             `/tickets/${id}`
         ),
 
-    /* ==================================================
-       CREATE
-    ================================================== */
-
     create: (
-        body: {
-            reason_of_problem:
-            string;
-
-            client_name?:
-            string;
-
-            department?:
-            string |
-            null;
-
-            phone?:
-            string |
-            null;
-
-            email?:
-            string |
-            null;
-
-            fault_type?:
-            number |
-            null;
-        }
+        body: CreateTroubleTicketRequest
     ) =>
         api.post<
             ApiOk<{
-                id:
-                number;
-
-                tt_no:
-                number;
+                id: number;
+                tt_no: string;
             }>
         >(
             "/tickets",
             body
         ),
 
-    /* ==================================================
-       UPDATE
-    ================================================== */
+    createBulk: (
+        tickets: CreateTroubleTicketRequest[]
+    ) =>
+        api.post<
+            ApiOk<CreateTroubleTicketResponse>
+        >(
+            "/tickets/bulk",
+            {
+                tickets,
+            }
+        ),
 
     update: (
-        id:
-            number,
-
-        body:
-            Partial<Ticket>
+        id: number,
+        body: Partial<CreateTroubleTicketRequest> & {
+            status?: string;
+            department?: string | null;
+            note?: string | null;
+        }
     ) =>
         api.put<
-            ApiOk<any>
+            ApiOk<{
+                updated: boolean;
+            }>
         >(
             `/tickets/${id}`,
             body
         ),
 
-    /* ==================================================
-       CLOSE
-    ================================================== */
-
     close: (
-        id:
-            number,
-
-        closing_description?:
-            string
+        id: number,
+        closing_description?: string
     ) =>
-        api.patch(
+        api.patch<
+            ApiOk<{
+                closed: boolean;
+            }>
+        >(
             `/tickets/${id}/close`,
             {
                 closing_description,
             }
         ),
 
-    /* ==================================================
-       STATUS
-    ================================================== */
-
     updateStatus: (
-        id:
-            number,
-
-        status:
-            number
+        id: number,
+        status: number | string
     ) =>
-        api.patch(
+        api.patch<
+            ApiOk<{
+                updated: boolean;
+            }>
+        >(
             `/tickets/${id}/status`,
             {
                 status,
             }
         ),
 
-    /* ==================================================
-       DELETE
-    ================================================== */
-
     delete: (
-        id:
-            number
+        id: number
     ) =>
         api.del(
             `/tickets/${id}`
         ),
 
-    /* ==================================================
-       UPDATES
-    ================================================== */
-
     getUpdates: (
-        id:
-            number
+        id: number
     ) =>
         api.get<
-            ApiOk<
-                any[]
-            >
+            ApiOk<TroubleTicketUpdate[]>
         >(
             `/tickets/${id}/updates`
         ),
 
     addUpdate: (
-        id:
-            number,
-
-        body:
-            any
+        id: number,
+        body: {
+            note: string;
+            department?: string | null;
+            attachment_url?: string | null;
+        }
     ) =>
-        api.post(
+        api.post<
+            ApiOk<{
+                id: number;
+            }>
+        >(
             `/tickets/${id}/updates`,
             body
+        ),
+
+    faultTypes: () =>
+        api.get<
+            ApiOk<FaultType[]>
+        >(
+            "/tickets/fault-types"
         ),
 };
 
@@ -3522,46 +3110,3 @@ export const downstreamDevicesApi = {
             )}`
         ),
 };
-
-/* ======================================================
-   DOWNSTREAM EMPLOYEES
-====================================================== */
-
-export type DownstreamEmployeeScope =
-    | "all"
-    | "direct"
-    | "indirect";
-
-export interface DownstreamEmployeeItem {
-    employee_id: string;
-    employee_name: string;
-    designation: string;
-    department: string;
-    work_field: string;
-    sub_function: string;
-    relationship: string;
-    tier_level: number;
-    device_count: number;
-}
-
-export interface DownstreamEmployeesParams {
-    page?: number;
-    limit?: number;
-    scope?: DownstreamEmployeeScope;
-    search?: string;
-}
-
-export const downstreamEmployeesApi = {
-    list: (
-        params?: DownstreamEmployeesParams
-    ) =>
-        api.get<
-            ApiPage<DownstreamEmployeeItem>
-        >(
-            `/user/downstream-employees${toQuery(
-                params
-            )}`
-        ),
-};
-
-
