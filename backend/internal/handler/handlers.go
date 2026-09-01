@@ -144,62 +144,6 @@ type DashboardHandler struct{ db *pgxpool.Pool }
 
 func NewDashboardHandler(db *pgxpool.Pool) *DashboardHandler { return &DashboardHandler{db: db} }
 
-// func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
-// 	g := rg.Group("/dashboard")
-
-// 	g.GET("/stats", h.Stats)
-// 	g.GET("/summary", h.Summary)
-// 	g.GET("/ticket-trend", h.TicketTrend)
-
-// 	g.GET(
-// 		"/trouble-ticket-summary",
-// 		h.TroubleTicketSummary,
-// 	)
-
-// 	g.GET(
-// 		"/trouble-ticket-overview",
-// 		h.TroubleTicketOverview,
-// 	)
-
-// 	g.GET(
-// 		"/trouble-tickets",
-// 		h.TroubleTicketList,
-// 	)
-
-// 	g.GET(
-// 		"/trouble-ticket-it-personnel",
-// 		h.TroubleTicketITPersonnel,
-// 	)
-
-// 	/* ==================================================
-// 	   REQUISITION
-// 	================================================== */
-
-// 	g.GET(
-// 		"/requisition-dashboard-summary",
-// 		h.RequisitionDashboardSummary,
-// 	)
-
-// 	g.GET(
-// 		"/requisition-summary",
-// 		h.RequisitionSummary,
-// 	)
-
-// 	g.GET(
-// 		"/requisitions",
-// 		h.RequisitionList,
-// 	)
-
-// 	g.PATCH(
-// 		"/requisitions/:id/approval",
-// 		h.UpdateRequisitionApproval,
-// 	)
-
-// 	g.PATCH(
-// 		"/requisitions/:id/delivery",
-// 		h.UpdateRequisitionDelivery,
-// 	)
-// }
 
 func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/dashboard")

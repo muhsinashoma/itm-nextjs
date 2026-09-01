@@ -63,7 +63,7 @@ interface TicketDraft {
 
 interface CreatedTicket {
     index: number;
-    ttNo: string | number;
+    ttNo: string;
 }
 
 interface FailedTicket {
@@ -593,8 +593,7 @@ export default function CreateTTPage() {
         setCreatedTickets([]);
         setFailedTickets([]);
 
-        const validationError =
-            validate();
+        const validationError = validate();
 
         if (validationError) {
             setSubmitError(validationError);
@@ -604,112 +603,104 @@ export default function CreateTTPage() {
         try {
             setSubmitting(true);
 
-            const successful: CreatedTicket[] =
-                [];
+            /*
+             * IMPORTANT:
+             *
+             * The backend now uses the normalized schema:
+             *
+             * trouble_tickets:
+             *   employee_id
+             *   employee_name
+             *   designation
+             *   department
+             *   function_name
+             *   company_name
+             *   phone
+             *   email
+             *   fault_type_id
+             *   query_type
+             *   description
+             *   requested_by
+             *   status
+             *
+             * Employee/requester information is resolved by the
+             * backend from the authenticated JWT. Therefore the
+             * browser only sends the actual ticket input.
+             *
+             * One bulk request creates 1-10 tickets atomically.
+             */
 
-            const failed: FailedTicket[] =
-                [];
+            const payload = tickets.map((ticket) => ({
+                reason_of_problem:
+                    ticket.description.trim(),
+
+                fault_type:
+                    ticket.faultType!.id,
+            }));
+
+            const response =
+                await ticketApi.createBulk(
+                    payload
+                );
+
+            const created =
+                Array.isArray(
+                    response?.data?.created
+                )
+                    ? response.data.created
+                    : [];
+
+            const successful: CreatedTicket[] =
+                created.map(
+                    (item, index) => ({
+                        index: index + 1,
+                        ttNo: String(
+                            item.tt_no
+                        ),
+                    })
+                );
+
+            setCreatedTickets(
+                successful
+            );
+
+            setFailedTickets([]);
+
+            setSubmitSuccess(
+                `${successful.length} trouble ticket${successful.length === 1
+                    ? ""
+                    : "s"
+                } created successfully.`
+            );
 
             /*
-             * Submit sequentially.
-             *
-             * This keeps the backend/database load predictable
-             * when the user creates up to 10 tickets.
+             * Reset the form only after the backend confirms
+             * the complete bulk transaction succeeded.
              */
-            for (
-                let i = 0;
-                i < tickets.length;
-                i++
-            ) {
-                const ticket = tickets[i];
+            setTickets([
+                createEmptyTicket(),
+            ]);
 
-                try {
-                    const response =
-                        await ticketApi.create({
-                            reason_of_problem:
-                                ticket.description.trim(),
+            setOpenFaultId(null);
+            setFaultSearch("");
+        } catch (error) {
+            console.error(
+                "Failed to create trouble tickets:",
+                error
+            );
 
-                            client_name:
-                                "Fiber@Home Global Ltd",
-
-                            department:
-                                employee?.department ||
-                                null,
-
-                            phone:
-                                employee?.official_cell ||
-                                employee?.personal_cell ||
-                                null,
-
-                            email:
-                                employee?.official_email ||
-                                employee?.email ||
-                                null,
-
-                            fault_type:
-                                ticket.faultType!.id,
-                        });
-
-                    successful.push({
-                        index: i + 1,
-                        ttNo:
-                            response.data.tt_no,
-                    });
-                } catch (error) {
-                    console.error(
-                        `Failed to create TT #${i + 1}:`,
-                        error
-                    );
-
-                    failed.push({
-                        index: i + 1,
-                        error:
-                            error instanceof Error
-                                ? error.message
-                                : "Unable to create this ticket.",
-                    });
-                }
-            }
-
-            setCreatedTickets(successful);
-            setFailedTickets(failed);
-
-            if (
-                successful.length ===
-                tickets.length &&
-                failed.length === 0
-            ) {
-                setSubmitSuccess(
-                    `${successful.length} trouble ticket${successful.length === 1
-                        ? ""
-                        : "s"
-                    } created successfully.`
-                );
-
-                setTickets([
-                    createEmptyTicket(),
-                ]);
-
-                return;
-            }
-
-            if (
-                successful.length > 0 &&
-                failed.length > 0
-            ) {
-                setSubmitError(
-                    `${successful.length} ticket${successful.length === 1
-                        ? ""
-                        : "s"
-                    } created successfully, but ${failed.length
-                    } could not be created.`
-                );
-
-                return;
-            }
+            /*
+             * Backend bulk creation is transactional.
+             * If it fails, the complete request is rolled back,
+             * so we do not show partial success.
+             */
+            setCreatedTickets([]);
+            setFailedTickets([]);
 
             setSubmitError(
-                "No trouble tickets were created. Please review the form and try again."
+                error instanceof Error
+                    ? error.message
+                    : "Unable to create the trouble tickets."
             );
         } finally {
             setSubmitting(false);
@@ -1702,7 +1693,7 @@ function CompactTicketRow({
                             }`}
                         className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
                     >
-                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        <Trash2 className="h-3.5 w-3.5" />
                     </button>
                 )}
             </div>
@@ -1968,115 +1959,6 @@ function DescriptionField({
    ATTACHMENT
 ============================================================ */
 
-// function AttachmentField({
-//     ticket,
-//     onChange,
-//     onRemove,
-//     disabled,
-//     compact = false,
-// }: {
-//     ticket: TicketDraft;
-//     onChange: (
-//         id: string,
-//         event: ChangeEvent<HTMLInputElement>
-//     ) => void;
-//     onRemove: (id: string) => void;
-//     disabled: boolean;
-//     compact?: boolean;
-// }) {
-//     return (
-//         <div>
-//             <label className="mb-1 block text-[10px] font-semibold text-slate-700">
-//                 Attachment
-//             </label>
-
-//             <div
-//                 className={`relative flex items-center gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 transition hover:border-blue-300 hover:bg-blue-50/30 ${compact
-//                     ? "h-8 px-2"
-//                     : "h-[82px] px-2.5"
-//                     }`}
-//             >
-//                 <input
-//                     type="file"
-//                     disabled={disabled}
-//                     onChange={(event) =>
-//                         onChange(
-//                             ticket.clientId,
-//                             event
-//                         )
-//                     }
-//                     className="absolute inset-0 z-10 cursor-pointer opacity-0 disabled:cursor-not-allowed"
-//                     accept="*/*"
-//                 />
-
-//                 <Paperclip
-//                     className={`shrink-0 text-slate-400 ${compact
-//                         ? "h-3.5 w-3.5"
-//                         : "h-5 w-5"
-//                         }`}
-//                 />
-
-//                 <div className="min-w-0 flex-1">
-//                     {ticket.attachment ? (
-//                         <div className="flex min-w-0 items-center gap-1.5">
-//                             <p className="truncate text-[10px] font-medium text-slate-700">
-//                                 {
-//                                     ticket
-//                                         .attachment
-//                                         .name
-//                                 }
-//                             </p>
-
-//                             <button
-//                                 type="button"
-//                                 disabled={
-//                                     disabled
-//                                 }
-//                                 onClick={(
-//                                     event
-//                                 ) => {
-//                                     event.preventDefault();
-//                                     event.stopPropagation();
-//                                     onRemove(
-//                                         ticket.clientId
-//                                     );
-//                                 }}
-//                                 className="relative z-20 shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-red-500"
-//                                 aria-label="Remove attachment"
-//                             >
-//                                 <X className="h-3 w-3 text-red-500" />
-//                             </button>
-//                         </div>
-//                     ) : (
-//                         <>
-//                             <p
-//                                 className={`font-medium text-slate-600 ${compact
-//                                     ? "text-[10px]"
-//                                     : "text-xs"
-//                                     }`}
-//                             >
-//                                 Attach file
-//                             </p>
-
-//                             {!compact && (
-//                                 <p className="text-[9px] text-slate-400">
-//                                     Maximum 5 MB
-//                                 </p>
-//                             )}
-//                         </>
-//                     )}
-//                 </div>
-//             </div>
-//         </div>
-//     );
-// }
-
-
-
-/* ============================================================
-  File ATTACHMENT
-============================================================ */
-
 function AttachmentField({
     ticket,
     onChange,
@@ -2093,59 +1975,18 @@ function AttachmentField({
     disabled: boolean;
     compact?: boolean;
 }) {
-    const attachment = ticket.attachment;
-
-    const isImage =
-        !!attachment &&
-        (
-            attachment.type === "image/jpeg" ||
-            attachment.type === "image/png" ||
-            /\.(jpe?g|png)$/i.test(
-                attachment.name
-            )
-        );
-
-    const previewUrl = useMemo(() => {
-        if (!attachment || !isImage) {
-            return null;
-        }
-
-        return URL.createObjectURL(
-            attachment
-        );
-    }, [attachment, isImage]);
-
-    useEffect(() => {
-        return () => {
-            if (previewUrl) {
-                URL.revokeObjectURL(
-                    previewUrl
-                );
-            }
-        };
-    }, [previewUrl]);
-
     return (
-        <div className="min-w-0">
+        <div>
             <label className="mb-1 block text-[10px] font-semibold text-slate-700">
                 Attachment
             </label>
 
             <div
-                className={`
-                    relative flex min-w-0 items-center overflow-hidden
-                    rounded-md border border-dashed
-                    border-slate-300 bg-slate-50
-                    transition
-                    hover:border-blue-300
-                    hover:bg-blue-50/30
-                    ${compact
-                        ? "h-8 px-2"
-                        : "h-[82px] px-2.5"
-                    }
-                `}
+                className={`relative flex items-center gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 transition hover:border-blue-300 hover:bg-blue-50/30 ${compact
+                    ? "h-8 px-2"
+                    : "h-[82px] px-2.5"
+                    }`}
             >
-                {/* File picker */}
                 <input
                     type="file"
                     disabled={disabled}
@@ -2156,160 +1997,54 @@ function AttachmentField({
                         )
                     }
                     className="absolute inset-0 z-10 cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                    accept="image/jpeg,image/png,.jpg,.jpeg,.png,*/*"
+                    accept="*/*"
                 />
 
-                {attachment ? (
-                    <div className="relative z-[11] flex min-w-0 flex-1 items-center gap-2">
-                        {/* ==================================================
-                            IMAGE PREVIEW
-                        ================================================== */}
+                <Paperclip
+                    className={`shrink-0 text-slate-400 ${compact
+                        ? "h-3.5 w-3.5"
+                        : "h-5 w-5"
+                        }`}
+                />
 
-                        {isImage &&
-                            previewUrl && (
-                                <div
-                                    className={`
-                                        shrink-0 overflow-hidden rounded-md
-                                        border border-slate-200
-                                        bg-white
-                                        ${compact
-                                            ? "h-7 w-7"
-                                            : "h-14 w-14"
-                                        }
-                                    `}
-                                >
-                                    <img
-                                        src={
-                                            previewUrl
-                                        }
-                                        alt={
-                                            attachment.name
-                                        }
-                                        className="h-full w-full object-cover"
-                                    />
-                                </div>
-                            )}
-
-                        {/* ==================================================
-                            NON-IMAGE FILE ICON
-                        ================================================== */}
-
-                        {!isImage && (
-                            <div
-                                className={`
-                                    flex shrink-0 items-center
-                                    justify-center rounded-md
-                                    bg-white text-slate-400
-                                    ${compact
-                                        ? "h-7 w-7"
-                                        : "h-10 w-10"
-                                    }
-                                `}
-                            >
-                                <Paperclip
-                                    className={
-                                        compact
-                                            ? "h-3.5 w-3.5"
-                                            : "h-5 w-5"
-                                    }
-                                />
-                            </div>
-                        )}
-
-                        {/* ==================================================
-                            FILE INFORMATION
-                        ================================================== */}
-
-                        <div className="min-w-0 flex-1">
-                            <p
-                                className={`
-                                    truncate font-medium text-slate-700
-                                    ${compact
-                                        ? "text-[10px]"
-                                        : "text-xs"
-                                    }
-                                `}
-                                title={
-                                    attachment.name
+                <div className="min-w-0 flex-1">
+                    {ticket.attachment ? (
+                        <div className="flex min-w-0 items-center gap-1.5">
+                            <p className="truncate text-[10px] font-medium text-slate-700">
+                                {
+                                    ticket
+                                        .attachment
+                                        .name
                                 }
-                            >
-                                {attachment.name}
                             </p>
 
-                            {!compact && (
-                                <p className="text-[9px] text-slate-400">
-                                    {(
-                                        attachment.size /
-                                        1024
-                                    ).toFixed(0)}{" "}
-                                    KB
-                                </p>
-                            )}
-                        </div>
-
-                        {/* ==================================================
-                            REMOVE FILE
-                        ================================================== */}
-
-                        <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={(
-                                event
-                            ) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-
-                                onRemove(
-                                    ticket.clientId
-                                );
-                            }}
-                            aria-label="Remove attachment"
-                            className="
-                                relative z-20
-                                flex shrink-0
-                                items-center justify-center
-                                rounded-md
-                                p-1
-                                text-red-500
-                                transition
-                                hover:bg-red-50
-                                hover:text-red-600
-                                focus:outline-none
-                                focus:ring-2
-                                focus:ring-red-200
-                                disabled:cursor-not-allowed
-                                disabled:opacity-40
-                            "
-                        >
-                            <X className="h-3.5 w-3.5 text-red-500" />
-                        </button>
-                    </div>
-                ) : (
-                    /* ======================================================
-                       EMPTY ATTACHMENT
-                    ====================================================== */
-
-                    <div className="pointer-events-none flex min-w-0 flex-1 items-center gap-2">
-                        <Paperclip
-                            className={`
-                                shrink-0 text-slate-400
-                                ${compact
-                                    ? "h-3.5 w-3.5"
-                                    : "h-5 w-5"
+                            <button
+                                type="button"
+                                disabled={
+                                    disabled
                                 }
-                            `}
-                        />
-
-                        <div className="min-w-0">
+                                onClick={(
+                                    event
+                                ) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onRemove(
+                                        ticket.clientId
+                                    );
+                                }}
+                                className="relative z-20 shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-red-500"
+                                aria-label="Remove attachment"
+                            >
+                                <X className="h-3 w-3 text-red-500" />
+                            </button>
+                        </div>
+                    ) : (
+                        <>
                             <p
-                                className={`
-                                    font-medium text-slate-600
-                                    ${compact
-                                        ? "text-[10px]"
-                                        : "text-xs"
-                                    }
-                                `}
+                                className={`font-medium text-slate-600 ${compact
+                                    ? "text-[10px]"
+                                    : "text-xs"
+                                    }`}
                             >
                                 Attach file
                             </p>
@@ -2319,9 +2054,9 @@ function AttachmentField({
                                     Maximum 5 MB
                                 </p>
                             )}
-                        </div>
-                    </div>
-                )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -2338,10 +2073,7 @@ function AlertBanner({
 }) {
     return (
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-            <AlertCircle
-                className="h-4 w-4 shrink-0 text-red-500"
-            />
-
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{message}</span>
         </div>
     );

@@ -1,427 +1,10 @@
-// //backend/internal/handler/ticket.go
-// package handler
-
-// import (
-// 	"context"
-// 	"fmt"
-// 	"net/http"
-// 	"strconv"
-// 	"time"
-
-// 	"itm-api/pkg/response"
-
-// 	"github.com/gin-gonic/gin"
-// 	"github.com/jackc/pgx/v5/pgxpool"
-// )
-
-// type TicketHandler struct{ db *pgxpool.Pool }
-
-// func NewTicketHandler(db *pgxpool.Pool) *TicketHandler { return &TicketHandler{db: db} }
-
-// func (h *TicketHandler) Register(rg *gin.RouterGroup) {
-// 	g := rg.Group("/tickets")
-// 	g.GET("", h.List)
-// 	g.GET("/:id", h.Get)
-// 	g.POST("", h.Create)
-// 	g.PUT("/:id", h.Update)
-// 	g.DELETE("/:id", h.Delete)
-// 	g.PATCH("/:id/close", h.Close)
-// 	g.PATCH("/:id/status", h.UpdateStatus)
-// 	g.GET("/:id/updates", h.GetUpdates)
-// 	g.POST("/:id/updates", h.AddUpdate)
-// }
-
-// func (h *TicketHandler) List(c *gin.Context) {
-// 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-// 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-// 	if page < 1 { page = 1 }
-// 	if ps > 100 { ps = 100 }
-// 	offset := (page - 1) * ps
-
-// 	args := []any{}
-// 	where := "WHERE t.active = TRUE"
-// 	i := 1
-
-// 	if s := c.Query("status"); s != "" {
-// 		args = append(args, s); where += fmt.Sprintf(" AND t.status_progress::text=$%d", i); i++
-// 	}
-// 	if e := c.Query("emp_id"); e != "" {
-// 		args = append(args, e); where += fmt.Sprintf(" AND t.employee_id=$%d", i); i++
-// 	}
-// 	if q := c.Query("search"); q != "" {
-// 		args = append(args, "%"+q+"%")
-// 		where += fmt.Sprintf(" AND (t.client_name ILIKE $%d OR t.reason_of_problem ILIKE $%d OR t.tt_no::text LIKE $%d)", i, i, i); i++
-// 	}
-
-// 	var total int
-// 	ca := make([]any, len(args)); copy(ca, args)
-// 	h.db.QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM trouble_tickets t "+where, ca...).Scan(&total)
-
-// 	args = append(args, ps, offset)
-// 	q := fmt.Sprintf(`
-// 		SELECT t.id, t.tt_no, t.employee_id,
-// 		       COALESCE(e.employee_name, t.employee_id) AS emp_name,
-// 		       COALESCE(t.depertment, e.department_name) AS department,
-// 		       t.phone, t.email, t.client_name,
-// 		       t.client_fault_type, f.fault_name,
-// 		       t.reason_of_problem,
-// 		       t.fault_date_time,
-// 		       t.status_progess,
-// 		       t.attach_file, t.user AS created_by, t.status_update_date AS created_at,
-// 		       to_char(NOW()-t.status_update_date,'DD"d" HH24"h"') AS ticket_age
-// 		FROM trouble_tickets t
-// 		LEFT JOIN employee_office_info e ON e.employee_id=t.employee_id
-// 		LEFT JOIN fault_types f ON f.id=t.client_fault_type
-// 		%s ORDER BY t.id DESC LIMIT $%d OFFSET $%d`, where, i, i+1)
-
-// 	rows, err := h.db.Query(c.Request.Context(), q, args...)
-// 	if err != nil { response.ServerError(c, err); return }
-// 	defer rows.Close()
-
-// 	type Row struct {
-// 		ID        int64   `json:"id"`
-// 		TTNo      float64 `json:"tt_no"`
-// 		EmpID     *string `json:"employee_id"`
-// 		EmpName   *string `json:"employee_name"`
-// 		Dept      *string `json:"department"`
-// 		Phone     *string `json:"phone"`
-// 		Email     *string `json:"email"`
-// 		Client    *string `json:"client_name"`
-// 		FaultType *int    `json:"fault_type"`
-// 		FaultName *string `json:"fault_type_name"`
-// 		Reason    *string `json:"reason_of_problem"`
-// 		FaultDT   *string `json:"fault_date_time"`
-// 		Status    int     `json:"status_progress"`
-// 		Attach    *string `json:"attach_file"`
-// 		CreatedBy *string `json:"created_by"`
-// 		CreatedAt *string `json:"created_at"`
-// 		Age       *string `json:"ticket_age"`
-// 	}
-// 	var result []Row
-// 	for rows.Next() {
-// 		var r Row
-// 		rows.Scan(&r.ID, &r.TTNo, &r.EmpID, &r.EmpName, &r.Dept,
-// 			&r.Phone, &r.Email, &r.Client, &r.FaultType, &r.FaultName,
-// 			&r.Reason, &r.FaultDT, &r.Status, &r.Attach,
-// 			&r.CreatedBy, &r.CreatedAt, &r.Age)
-// 		result = append(result, r)
-// 	}
-// 	if result == nil { result = []Row{} }
-// 	response.Paginated(c, result, total, page, ps)
-// }
-
-// func (h *TicketHandler) Get(c *gin.Context) {
-// 	type Row struct {
-// 		ID        int64   `json:"id"`
-// 		TTNo      float64 `json:"tt_no"`
-// 		EmpID     *string `json:"employee_id"`
-// 		EmpName   *string `json:"employee_name"`
-// 		Dept      *string `json:"department"`
-// 		Phone     *string `json:"phone"`
-// 		Email     *string `json:"email"`
-// 		Client    *string `json:"client_name"`
-// 		FaultType *int    `json:"fault_type"`
-// 		FaultName *string `json:"fault_type_name"`
-// 		Reason    *string `json:"reason_of_problem"`
-// 		Status    int     `json:"status_progress"`
-// 		CreatedAt *string `json:"created_at"`
-// 		Age       *string `json:"ticket_age"`
-// 	}
-// 	var r Row
-// 	err := h.db.QueryRow(c.Request.Context(), `
-// 		SELECT t.id, t.tt_no, t.employee_id,
-// 		       COALESCE(e.employee_name, t.employee_id),
-// 		       COALESCE(t.depertment, e.department_name),
-// 		       t.phone, t.email, t.client_name,
-// 		       t.client_fault_type, f.fault_name,
-// 		       t.reason_of_problem, t.status_progess,
-// 		       t.status_update_date::text,
-// 		       to_char(NOW()-t.status_update_date,'DD"d" HH24"h"')
-// 		FROM trouble_tickets t
-// 		LEFT JOIN employee_office_info e ON e.employee_id=t.employee_id
-// 		LEFT JOIN fault_types f ON f.id=t.client_fault_type
-// 		WHERE t.id=$1 AND t.active=TRUE`, c.Param("id")).
-// 		Scan(&r.ID, &r.TTNo, &r.EmpID, &r.EmpName, &r.Dept,
-// 			&r.Phone, &r.Email, &r.Client, &r.FaultType, &r.FaultName,
-// 			&r.Reason, &r.Status, &r.CreatedAt, &r.Age)
-// 	if err != nil { response.NotFound(c, "ticket not found"); return }
-// 	response.OK(c, r)
-// }
-
-// func (h *TicketHandler) Create(c *gin.Context) {
-// 	empID := c.GetString("employee_id")
-// 	var req struct {
-// 		ReasonOfProblem string  `json:"reason_of_problem" binding:"required"`
-// 		ClientName      string  `json:"client_name"`
-// 		Department      *string `json:"department"`
-// 		Phone           *string `json:"phone"`
-// 		Email           *string `json:"email"`
-// 		FaultType       *int    `json:"fault_type"`
-// 	}
-// 	if err := c.ShouldBindJSON(&req); err != nil {
-// 		response.BadRequest(c, err.Error()); return
-// 	}
-// 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-// 	defer cancel()
-// 	tx, _ := h.db.Begin(ctx)
-// 	defer tx.Rollback(ctx)
-
-// 	var ttNo float64
-// 	tx.QueryRow(ctx, "SELECT COALESCE(MAX(tt_no),0)+1 FROM trouble_tickets FOR UPDATE").Scan(&ttNo)
-
-// 	var id int64
-// 	err := tx.QueryRow(ctx, `
-// 		INSERT INTO trouble_tickets
-// 		  (tt_no, employee_id, client_name, reason_of_problem,
-// 		   depertment, phone, email, client_fault_type, user, status_progess,
-// 		   device_requis_val, requis_by, requis_date, status_update_by, active)
-// 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1,0,$9,NOW(),$9,TRUE)
-// 		RETURNING id`,
-// 		ttNo, empID, req.ClientName, req.ReasonOfProblem,
-// 		req.Department, req.Phone, req.Email, req.FaultType, empID).Scan(&id)
-// 	if err != nil { response.ServerError(c, err); return }
-// 	tx.Commit(ctx)
-// 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": id, "tt_no": ttNo}})
-// }
-
-// func (h *TicketHandler) Update(c *gin.Context) {
-// 	empID := c.GetString("employee_id")
-// 	var req map[string]any
-// 	c.ShouldBindJSON(&req)
-// 	h.db.Exec(c.Request.Context(), `
-// 		UPDATE trouble_tickets SET
-// 		  client_name=COALESCE($1::text,client_name),
-// 		  reason_of_problem=COALESCE($2::text,reason_of_problem),
-// 		  depertment=COALESCE($3::text,depertment),
-// 		  phone=COALESCE($4::text,phone),
-// 		  status_update_by=$5, status_update_date=NOW()
-// 		WHERE id=$6 AND active=TRUE`,
-// 		req["client_name"], req["reason_of_problem"],
-// 		req["department"], req["phone"], empID, c.Param("id"))
-// 	response.OK(c, gin.H{"updated": true})
-// }
-
-// func (h *TicketHandler) Delete(c *gin.Context) {
-// 	empID := c.GetString("employee_id")
-// 	h.db.Exec(c.Request.Context(),
-// 		`UPDATE trouble_tickets SET active=FALSE, delete_by=$1, delete_at=NOW() WHERE id=$2`,
-// 		empID, c.Param("id"))
-// 	response.NoContent(c)
-// }
-
-// func (h *TicketHandler) Close(c *gin.Context) {
-// 	empID := c.GetString("employee_id")
-// 	var req struct{ ClosingDescription string `json:"closing_description"` }
-// 	c.ShouldBindJSON(&req)
-// 	h.db.Exec(c.Request.Context(), `
-// 		UPDATE trouble_tickets SET
-// 		  status_progess=3, close_ticket_by=$1,
-// 		  ticket_close_date=NOW(), closing_description=$2,
-// 		  status_update_by=$1, status_update_date=NOW()
-// 		WHERE id=$3 AND active=TRUE`,
-// 		empID, req.ClosingDescription, c.Param("id"))
-// 	response.OK(c, gin.H{"closed": true})
-// }
-
-// func (h *TicketHandler) UpdateStatus(c *gin.Context) {
-// 	empID := c.GetString("employee_id")
-// 	var req struct{ Status int `json:"status" binding:"required"` }
-// 	if err := c.ShouldBindJSON(&req); err != nil { response.BadRequest(c, err.Error()); return }
-// 	h.db.Exec(c.Request.Context(), `
-// 		UPDATE trouble_tickets SET status_progess=$1, status_update_by=$2, status_update_date=NOW()
-// 		WHERE id=$3 AND active=TRUE`, req.Status, empID, c.Param("id"))
-// 	response.OK(c, gin.H{"updated": true})
-// }
-
-// func (h *TicketHandler) GetUpdates(c *gin.Context) {
-
-// 	rows, err := h.db.Query(
-// 		c.Request.Context(),
-// 		`
-// 		SELECT
-
-// 			u.id,
-// 			u.tt_no,
-
-// 			u.tt_note,
-
-// 			u.fault_update_date_time,
-
-// 			u.logical_team,
-
-// 			u.logical_team_person,
-
-// 			assigned.full_name AS assigned_name,
-
-// 			u.department,
-
-// 			u.user AS updated_by_id,
-
-// 			updater.full_name AS updated_by_name,
-
-// 			t.status_progess,
-
-// 			u.file_link,
-
-// 			u.date
-
-// 		FROM tbl_tt_update u
-
-// 		LEFT JOIN users updater
-
-// 		ON updater.employee_id = u.user
-
-// 		LEFT JOIN users assigned
-
-// 		ON assigned.employee_id = u.logical_team_person
-
-// 		LEFT JOIN trouble_tickets t
-
-// 		ON t.tt_no = u.tt_no
-
-// 		WHERE t.id = $1
-
-// 		ORDER BY u.id DESC
-// 		`,
-// 		c.Param("id"),
-// 	)
-
-// 	if err != nil {
-
-// 		response.ServerError(c, err)
-
-// 		return
-// 	}
-
-// 	defer rows.Close()
-
-// 	type Update struct {
-
-// 		ID int64 `json:"id"`
-
-// 		TTNo float64 `json:"tt_no"`
-
-// 		Note *string `json:"tt_note"`
-
-// 		UpdateDate *string `json:"update_date"`
-
-// 		LogicalTeam *string `json:"logical_team"`
-
-// 		AssignedID *string `json:"assigned_id"`
-
-// 		AssignedName *string `json:"assigned_name"`
-
-// 		Department *string `json:"department"`
-
-// 		UpdatedByID *string `json:"updated_by_id"`
-
-// 		UpdatedByName *string `json:"updated_by_name"`
-
-// 		Status int `json:"status"`
-
-// 		FileLink *string `json:"file_link"`
-
-// 		Date *string `json:"date"`
-
-// 	}
-
-// 	var updates []Update
-
-// 	for rows.Next(){
-
-// 		var u Update
-
-// 		err := rows.Scan(
-
-// 			&u.ID,
-
-// 			&u.TTNo,
-
-// 			&u.Note,
-
-// 			&u.UpdateDate,
-
-// 			&u.LogicalTeam,
-
-// 			&u.AssignedID,
-
-// 			&u.AssignedName,
-
-// 			&u.Department,
-
-// 			&u.UpdatedByID,
-
-// 			&u.UpdatedByName,
-
-// 			&u.Status,
-
-// 			&u.FileLink,
-
-// 			&u.Date,
-
-// 		)
-
-// 		if err != nil {
-
-// 			response.ServerError(c,err)
-
-// 			return
-// 		}
-
-// 		updates = append(
-// 			updates,
-// 			u,
-// 		)
-
-// 	}
-
-// 	if updates == nil {
-
-// 		updates=[]Update{}
-
-// 	}
-
-// 	response.OK(c,updates)
-
-// }
-
-// func (h *TicketHandler) AddUpdate(c *gin.Context) {
-// 	empID := c.GetString("employee_id")
-// 	var req struct {
-// 		Note      string  `json:"tt_note" binding:"required"`
-// 		ForwardTo *string `json:"forwarded_to"`
-// 		FromZone  *string `json:"from_zone"`
-// 		ToZone    *string `json:"to_zone"`
-// 		LogTeam   *string `json:"logical_team"`
-// 		Dept      *string `json:"department"`
-// 		FileLink  *string `json:"file_link"`
-// 	}
-// 	if err := c.ShouldBindJSON(&req); err != nil { response.BadRequest(c, err.Error()); return }
-// 	var ttNo float64
-// 	h.db.QueryRow(c.Request.Context(), "SELECT tt_no FROM trouble_tickets WHERE id=$1", c.Param("id")).Scan(&ttNo)
-// 	var uid int64
-// 	h.db.QueryRow(c.Request.Context(), `
-// 		INSERT INTO tbl_tt_update
-// 		  (tt_no, client_name, client_scr_id, fault_start_date_time,
-// 		   fault_update_date_time, fault_registered_at_cc, fault_update_at_cc,
-// 		   client_fault_type, tt_note, date, from_zone, to_zone,
-// 		   logical_team, department, file_link, user, client_fault_forward_to)
-// 		VALUES ($1,'',0,NOW(),NOW(),'','',0,$2,NOW(),$3,$4,$5,$6,$7,$8,$9)
-// 		RETURNING id`,
-// 		ttNo, req.Note, req.FromZone, req.ToZone, req.LogTeam,
-// 		req.Dept, req.FileLink, empID, req.ForwardTo).Scan(&uid)
-// 	h.db.Exec(c.Request.Context(),
-// 		`UPDATE trouble_tickets SET status_progess=GREATEST(status_progess,2),
-// 		 status_update_by=$1, status_update_date=NOW() WHERE id=$2`, empID, c.Param("id"))
-// 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": uid}})
-// }
-
-//backend/internal/handler/ticket.go
+// backend/internal/handler/ticket.go
 
 package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -431,7 +14,15 @@ import (
 	"itm-api/pkg/response"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const (
+	maxBulkTickets       = 10
+	defaultCompanyName   = "Fiber@Home Global Ltd"
+	ttNumberAdvisoryLock = int64(29585)
 )
 
 type TicketHandler struct {
@@ -448,88 +39,197 @@ func NewTicketHandler(db *pgxpool.Pool) *TicketHandler {
    ROUTES
 ============================================================ */
 
-func (h *TicketHandler) Register(
-	rg *gin.RouterGroup,
-) {
+func (h *TicketHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/tickets")
 
-	/*
-		IMPORTANT:
+	// Static route must be registered before /:id.
+	g.GET("/fault-types", h.FaultTypes)
 
-		/fault-types MUST be registered before /:id.
-	*/
-	g.GET(
-		"/fault-types",
-		h.FaultTypes,
-	)
+	g.GET("", h.List)
 
-	g.GET(
-		"",
-		h.List,
-	)
+	g.POST("", h.Create)
+	g.POST("/bulk", h.CreateBulk)
 
-	g.GET(
-		"/:id",
-		h.Get,
-	)
+	g.GET("/:id", h.Get)
 
-	g.POST(
-		"",
-		h.Create,
-	)
+	g.PUT("/:id", h.Update)
 
-	g.PUT(
-		"/:id",
-		h.Update,
-	)
+	g.DELETE("/:id", h.Delete)
 
-	g.DELETE(
-		"/:id",
-		h.Delete,
-	)
+	g.PATCH("/:id/close", h.Close)
+	g.PATCH("/:id/status", h.UpdateStatus)
 
-	g.PATCH(
-		"/:id/close",
-		h.Close,
-	)
-
-	g.PATCH(
-		"/:id/status",
-		h.UpdateStatus,
-	)
-
-	g.GET(
-		"/:id/updates",
-		h.GetUpdates,
-	)
-
-	g.POST(
-		"/:id/updates",
-		h.AddUpdate,
-	)
+	g.GET("/:id/updates", h.GetUpdates)
+	g.POST("/:id/updates", h.AddUpdate)
 }
 
 /* ============================================================
-   FAULT TYPES
-
-   GET /api/v1/tickets/fault-types
+   INPUT TYPES
 ============================================================ */
 
-func (h *TicketHandler) FaultTypes(
-	c *gin.Context,
-) {
-	ctx := c.Request.Context()
+type ticketInput struct {
+	ReasonOfProblem string `json:"reason_of_problem"`
+	FaultType       int    `json:"fault_type"`
+}
+
+type employeeSnapshot struct {
+	ID          string
+	Name        string
+	Designation string
+	Department  string
+	Function    string
+	Phone       string
+	Email       string
+}
+
+/* ============================================================
+   EMPLOYEE
+============================================================ */
+
+func (h *TicketHandler) loadEmployeeSnapshot(
+	ctx context.Context,
+	employeeID string,
+) (employeeSnapshot, error) {
+
+	var employee employeeSnapshot
+
+	employee.ID = employeeID
+
+	err := h.db.QueryRow(
+		ctx,
+		`
+		SELECT
+			COALESCE(o.employee_name, ''),
+			COALESCE(o.designation, ''),
+			COALESCE(o.department_name, ''),
+			COALESCE(o.sub_function, ''),
+			COALESCE(
+				p.official_cell_no,
+				p.personal_cell_no,
+				''
+			),
+			COALESCE(
+				p.official_email,
+				p.email,
+				''
+			)
+		FROM public.employee_office_info AS o
+		LEFT JOIN public.employee_personal_info AS p
+			ON p.employee_id = o.employee_id
+		WHERE BTRIM(o.employee_id) = BTRIM($1)
+		LIMIT 1
+		`,
+		employeeID,
+	).Scan(
+		&employee.Name,
+		&employee.Designation,
+		&employee.Department,
+		&employee.Function,
+		&employee.Phone,
+		&employee.Email,
+	)
+
+	if err != nil {
+
+		if err == pgx.ErrNoRows {
+			/*
+				Authentication is already valid.
+
+				Keep employee ID and allow ticket creation
+				even when optional employee master data
+				is temporarily unavailable.
+			*/
+			return employee, nil
+		}
+
+		return employee, err
+	}
+
+	return employee, nil
+}
+
+/* ============================================================
+   FAULT TYPE
+   Source:
+   public.tt_faults
+
+   Actual fields:
+
+   id
+   fault_name
+   fault_register
+   fault_desc
+   date
+   status
+   edited_by
+   edited_at
+
+   IMPORTANT:
+   trouble_tickets does NOT contain fault_type_id.
+
+   We use tt_faults.id only to resolve the selected
+   fault and save fault_name into trouble_tickets.query_type.
+============================================================ */
+
+type faultSnapshot struct {
+	ID   int64
+	Name string
+}
+
+func (h *TicketHandler) getFault(
+	ctx context.Context,
+	tx pgx.Tx,
+	faultID int,
+) (faultSnapshot, error) {
+
+	var fault faultSnapshot
+
+	err := tx.QueryRow(
+		ctx,
+		`
+		SELECT
+			id,
+			COALESCE(fault_name, '')
+		FROM public.tt_faults
+		WHERE id = $1
+		  AND (
+				status IS NULL
+				OR status = 1
+		  )
+		`,
+		faultID,
+	).Scan(
+		&fault.ID,
+		&fault.Name,
+	)
+
+	return fault, err
+}
+
+/* ============================================================
+   FAULT TYPES API
+
+   GET /api/v1/tickets/fault-types
+
+   Reads directly from:
+
+   public.tt_faults
+============================================================ */
+
+func (h *TicketHandler) FaultTypes(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(
+		c.Request.Context(),
+		10*time.Second,
+	)
+	defer cancel()
 
 	type FaultType struct {
-		ID int `json:"id"`
-
-		FaultName string `json:"fault_name"`
-
-		FaultRegister *string `json:"fault_register"`
-
-		FaultDesc *string `json:"fault_desc"`
-
-		Status *int `json:"status"`
+		ID            int64  `json:"id"`
+		FaultName     string `json:"fault_name"`
+		FaultRegister string `json:"fault_register"`
+		FaultDesc     string `json:"fault_desc"`
+		Status        int    `json:"status"`
 	}
 
 	rows, err := h.db.Query(
@@ -537,25 +237,15 @@ func (h *TicketHandler) FaultTypes(
 		`
 		SELECT
 			id,
-			COALESCE(
-				fault_name,
-				''
-			) AS fault_name,
-
-			fault_register,
-
-			fault_desc,
-
-			status
-
-		FROM public.fault_types
-
-		WHERE
-			COALESCE(
-				status,
-				1
-			) = 1
-
+			COALESCE(fault_name, ''),
+			COALESCE(fault_register, ''),
+			COALESCE(fault_desc, ''),
+			COALESCE(status, 0)
+		FROM public.tt_faults
+		WHERE (
+			status IS NULL
+			OR status = 1
+		)
 		ORDER BY
 			fault_name ASC,
 			id ASC
@@ -563,10 +253,7 @@ func (h *TicketHandler) FaultTypes(
 	)
 
 	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
@@ -578,6 +265,7 @@ func (h *TicketHandler) FaultTypes(
 	)
 
 	for rows.Next() {
+
 		var item FaultType
 
 		if err := rows.Scan(
@@ -587,10 +275,8 @@ func (h *TicketHandler) FaultTypes(
 			&item.FaultDesc,
 			&item.Status,
 		); err != nil {
-			response.ServerError(
-				c,
-				err,
-			)
+
+			response.ServerError(c, err)
 			return
 		}
 
@@ -601,10 +287,7 @@ func (h *TicketHandler) FaultTypes(
 	}
 
 	if err := rows.Err(); err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
@@ -615,83 +298,221 @@ func (h *TicketHandler) FaultTypes(
 }
 
 /* ============================================================
+   TT NUMBER
+============================================================ */
+
+func nextTTNumber(
+	ctx context.Context,
+	tx pgx.Tx,
+) (string, error) {
+
+	var next int64
+
+	err := tx.QueryRow(
+		ctx,
+		`
+		SELECT
+			COALESCE(
+				MAX(
+					CASE
+						WHEN BTRIM(tt_no) ~ '^[0-9]+$'
+						THEN BTRIM(tt_no)::BIGINT
+					END
+				),
+				0
+			) + 1
+		FROM public.trouble_tickets
+		`,
+	).Scan(&next)
+
+	if err != nil {
+		return "", err
+	}
+
+	return strconv.FormatInt(
+		next,
+		10,
+	), nil
+}
+
+/* ============================================================
+   STATUS HELPERS
+============================================================ */
+
+func normalizeStatus(
+	value string,
+) (string, bool) {
+
+	switch strings.ToLower(
+		strings.TrimSpace(value),
+	) {
+
+	case "1", "not started", "not_started":
+		return "Not Started", true
+
+	case "2", "open":
+		return "Open", true
+
+	case "3", "in progress", "in_progress", "running":
+		return "In Progress", true
+
+	case "4", "closed":
+		return "Closed", true
+
+	default:
+		return "", false
+	}
+}
+
+func parseStatusValue(
+	raw any,
+) (string, bool) {
+
+	switch value := raw.(type) {
+
+	case string:
+		return normalizeStatus(value)
+
+	case float64:
+		return normalizeStatus(
+			strconv.FormatInt(
+				int64(value),
+				10,
+			),
+		)
+
+	case json.Number:
+		return normalizeStatus(
+			value.String(),
+		)
+
+	case int:
+		return normalizeStatus(
+			strconv.Itoa(value),
+		)
+
+	case int64:
+		return normalizeStatus(
+			strconv.FormatInt(
+				value,
+				10,
+			),
+		)
+
+	default:
+		return "", false
+	}
+}
+
+/* ============================================================
+   AUTH
+============================================================ */
+
+func currentEmployeeID(
+	c *gin.Context,
+) string {
+
+	return strings.TrimSpace(
+		c.GetString("employee_id"),
+	)
+}
+
+func requireEmployee(
+	c *gin.Context,
+) (string, bool) {
+
+	employeeID := currentEmployeeID(c)
+
+	if employeeID == "" {
+
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"success": false,
+				"error":   "authenticated employee id not found",
+			},
+		)
+
+		return "", false
+	}
+
+	return employeeID, true
+}
+
+/* ============================================================
    LIST
 ============================================================ */
 
 func (h *TicketHandler) List(
 	c *gin.Context,
 ) {
+
 	page, err := strconv.Atoi(
-		c.DefaultQuery(
-			"page",
-			"1",
-		),
+		c.DefaultQuery("page", "1"),
 	)
 
-	if err != nil ||
-		page < 1 {
+	if err != nil || page < 1 {
 		page = 1
 	}
 
-	ps, err := strconv.Atoi(
-		c.DefaultQuery(
-			"page_size",
-			"20",
-		),
+	pageSize, err := strconv.Atoi(
+		c.DefaultQuery("page_size", "20"),
 	)
 
-	if err != nil ||
-		ps < 1 {
-		ps = 20
+	if err != nil || pageSize < 1 {
+		pageSize = 20
 	}
 
-	if ps > 100 {
-		ps = 100
+	if pageSize > 100 {
+		pageSize = 100
 	}
 
-	offset :=
-		(page - 1) *
-			ps
+	offset := (page - 1) * pageSize
 
-	args := []any{}
+	args := make([]any, 0)
 
-	where :=
-		"WHERE t.active = TRUE"
+	where := "WHERE TRUE"
 
-	argNumber := 1
+	arg := 1
 
-	/* =====================================================
-	   STATUS
-	===================================================== */
+	/* --------------------------------------------------------
+	   STATUS FILTER
+	-------------------------------------------------------- */
 
-	if status :=
-		strings.TrimSpace(
-			c.Query("status"),
-		); status != "" {
+	if status := strings.TrimSpace(
+		c.Query("status"),
+	); status != "" && status != "all" {
+
+		normalized, ok := normalizeStatus(status)
+
+		if !ok {
+			response.BadRequest(
+				c,
+				"invalid ticket status",
+			)
+			return
+		}
 
 		args = append(
 			args,
-			status,
+			normalized,
 		)
 
 		where += fmt.Sprintf(
-			`
-			AND t.status_progess::text = $%d
-			`,
-			argNumber,
+			" AND t.status = $%d",
+			arg,
 		)
 
-		argNumber++
+		arg++
 	}
 
-	/* =====================================================
-	   EMPLOYEE
-	===================================================== */
+	/* --------------------------------------------------------
+	   EMPLOYEE FILTER
+	-------------------------------------------------------- */
 
-	if employeeID :=
-		strings.TrimSpace(
-			c.Query("emp_id"),
-		); employeeID != "" {
+	if employeeID := strings.TrimSpace(
+		c.Query("emp_id"),
+	); employeeID != "" {
 
 		args = append(
 			args,
@@ -699,28 +520,22 @@ func (h *TicketHandler) List(
 		)
 
 		where += fmt.Sprintf(
-			`
-			AND t.employee_id = $%d
-			`,
-			argNumber,
+			" AND BTRIM(t.employee_id) = BTRIM($%d)",
+			arg,
 		)
 
-		argNumber++
+		arg++
 	}
 
-	/* =====================================================
+	/* --------------------------------------------------------
 	   SEARCH
-	===================================================== */
+	-------------------------------------------------------- */
 
-	if search :=
-		strings.TrimSpace(
-			c.Query("search"),
-		); search != "" {
+	if search := strings.TrimSpace(
+		c.Query("search"),
+	); search != "" {
 
-		searchValue :=
-			"%" +
-				search +
-				"%"
+		searchValue := "%" + search + "%"
 
 		args = append(
 			args,
@@ -730,150 +545,92 @@ func (h *TicketHandler) List(
 		where += fmt.Sprintf(
 			`
 			AND (
-				COALESCE(
-					t.client_name,
-					''
-				) ILIKE $%d
-
-				OR COALESCE(
-					t.reason_of_problem,
-					''
-				) ILIKE $%d
-
-				OR t.tt_no::text ILIKE $%d
-
-				OR COALESCE(
-					t.employee_id,
-					''
-				) ILIKE $%d
+				COALESCE(t.company_name, '') ILIKE $%d
+				OR COALESCE(t.employee_name, '') ILIKE $%d
+				OR COALESCE(t.tt_no, '') ILIKE $%d
+				OR COALESCE(t.employee_id, '') ILIKE $%d
+				OR COALESCE(t.query_type, '') ILIKE $%d
+				OR COALESCE(t.description, '') ILIKE $%d
 			)
 			`,
-			argNumber,
-			argNumber,
-			argNumber,
-			argNumber,
+			arg,
+			arg,
+			arg,
+			arg,
+			arg,
+			arg,
 		)
 
-		argNumber++
+		arg++
 	}
 
-	/* =====================================================
-	   TOTAL
-	===================================================== */
+	/* --------------------------------------------------------
+	   COUNT
+	-------------------------------------------------------- */
 
 	var total int
-
-	countArgs :=
-		make(
-			[]any,
-			len(args),
-		)
-
-	copy(
-		countArgs,
-		args,
-	)
 
 	err = h.db.QueryRow(
 		c.Request.Context(),
 		`
-		SELECT
-			COUNT(*)
-		FROM trouble_tickets t
+		SELECT COUNT(*)
+		FROM public.trouble_tickets AS t
 		`+where,
-		countArgs...,
-	).Scan(
-		&total,
-	)
+		args...,
+	).Scan(&total)
 
 	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
-	/* =====================================================
-	   LIST QUERY
-	===================================================== */
-
 	args = append(
 		args,
-		ps,
+		pageSize,
 		offset,
 	)
 
 	query := fmt.Sprintf(
 		`
 		SELECT
-
 			t.id,
-
+			t.legacy_id,
 			t.tt_no,
-
-			t.employee_id,
-
-			COALESCE(
-				e.employee_name,
-				t.employee_id
-			) AS employee_name,
-
-			COALESCE(
-				t.depertment,
-				e.department_name
-			) AS department,
-
-			t.phone,
-
-			t.email,
-
-			t.client_name,
-
-			t.client_fault_type,
-
-			f.fault_name,
-
-			t.reason_of_problem,
-
-			t.fault_date_time,
-
-			t.status_progess,
-
-			t.attach_file,
-
-			t.user AS created_by,
-
-			t.status_update_date AS created_at,
-
-			to_char(
-				NOW() -
-				t.status_update_date,
-				'DD"d" HH24"h"'
-			) AS ticket_age
-
-		FROM trouble_tickets t
-
-		LEFT JOIN employee_office_info e
-			ON e.employee_id =
-				t.employee_id
-
-		LEFT JOIN fault_types f
-			ON f.id =
-				t.client_fault_type
-
+			COALESCE(t.employee_id, ''),
+			COALESCE(t.employee_name, ''),
+			COALESCE(t.designation, ''),
+			COALESCE(t.department, ''),
+			COALESCE(t.function_name, ''),
+			COALESCE(t.company_name, ''),
+			COALESCE(t.mobile_no, ''),
+			COALESCE(t.email, ''),
+			COALESCE(t.query_type, ''),
+			COALESCE(t.description, ''),
+			COALESCE(t.requested_by, ''),
+			COALESCE(t.assigned_id, ''),
+			COALESCE(t.assigned_name, ''),
+			t.status,
+			COALESCE(t.requisition_type, ''),
+			COALESCE(t.delivered_status, ''),
+			t.created_at::text,
+			t.closed_at::text,
+			t.closed_by,
+			t.closing_description,
+			t.source_status,
+			t.source_progress,
+			t.source_device_requisition,
+			t.legacy_data,
+			t.inserted_at::text,
+			t.updated_at::text
+		FROM public.trouble_tickets AS t
 		%s
-
-		ORDER BY
-			t.id DESC
-
+		ORDER BY t.id DESC
 		LIMIT $%d
-
 		OFFSET $%d
 		`,
 		where,
-		argNumber,
-		argNumber+1,
+		arg,
+		arg+1,
 	)
 
 	rows, err := h.db.Query(
@@ -883,83 +640,86 @@ func (h *TicketHandler) List(
 	)
 
 	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
 	defer rows.Close()
 
 	type Row struct {
-		ID int64 `json:"id"`
-
-		TTNo float64 `json:"tt_no"`
-
-		EmpID *string `json:"employee_id"`
-
-		EmpName *string `json:"employee_name"`
-
-		Dept *string `json:"department"`
-
-		Phone *string `json:"phone"`
-
-		Email *string `json:"email"`
-
-		Client *string `json:"client_name"`
-
-		FaultType *int `json:"fault_type"`
-
-		FaultName *string `json:"fault_type_name"`
-
-		Reason *string `json:"reason_of_problem"`
-
-		FaultDT *string `json:"fault_date_time"`
-
-		Status int `json:"status_progress"`
-
-		Attach *string `json:"attach_file"`
-
-		CreatedBy *string `json:"created_by"`
-
-		CreatedAt *string `json:"created_at"`
-
-		Age *string `json:"ticket_age"`
+		ID                 int64          `json:"id"`
+		LegacyID           *int64         `json:"legacy_id"`
+		TTNo               string         `json:"tt_no"`
+		EmployeeID         string         `json:"employee_id"`
+		EmployeeName       string         `json:"employee_name"`
+		Designation        string         `json:"designation"`
+		Department         string         `json:"department"`
+		FunctionName       string         `json:"function_name"`
+		CompanyName        string         `json:"company_name"`
+		MobileNo           string         `json:"mobile_no"`
+		Email              string         `json:"email"`
+		QueryType          string         `json:"query_type"`
+		Description        string         `json:"description"`
+		RequestedBy        string         `json:"requested_by"`
+		AssignedID         string         `json:"assigned_id"`
+		AssignedName       string         `json:"assigned_name"`
+		Status             string         `json:"status"`
+		RequisitionType    string         `json:"requisition_type"`
+		DeliveredStatus    string         `json:"delivered_status"`
+		CreatedAt          string         `json:"created_at"`
+		ClosedAt           *string        `json:"closed_at"`
+		ClosedBy           *string        `json:"closed_by"`
+		ClosingDescription *string        `json:"closing_description"`
+		SourceStatus       *int16         `json:"source_status"`
+		SourceProgress     *int16         `json:"source_progress"`
+		SourceDeviceRequis *int16         `json:"source_device_requisition"`
+		LegacyData         map[string]any `json:"legacy_data"`
+		InsertedAt         string         `json:"inserted_at"`
+		UpdatedAt          string         `json:"updated_at"`
 	}
 
-	result :=
-		make(
-			[]Row,
-			0,
-		)
+	result := make(
+		[]Row,
+		0,
+	)
 
 	for rows.Next() {
+
 		var row Row
 
 		if err := rows.Scan(
 			&row.ID,
+			&row.LegacyID,
 			&row.TTNo,
-			&row.EmpID,
-			&row.EmpName,
-			&row.Dept,
-			&row.Phone,
+			&row.EmployeeID,
+			&row.EmployeeName,
+			&row.Designation,
+			&row.Department,
+			&row.FunctionName,
+			&row.CompanyName,
+			&row.MobileNo,
 			&row.Email,
-			&row.Client,
-			&row.FaultType,
-			&row.FaultName,
-			&row.Reason,
-			&row.FaultDT,
+			&row.QueryType,
+			&row.Description,
+			&row.RequestedBy,
+			&row.AssignedID,
+			&row.AssignedName,
 			&row.Status,
-			&row.Attach,
-			&row.CreatedBy,
+			&row.RequisitionType,
+			&row.DeliveredStatus,
 			&row.CreatedAt,
-			&row.Age,
+			&row.ClosedAt,
+			&row.ClosedBy,
+			&row.ClosingDescription,
+			&row.SourceStatus,
+			&row.SourceProgress,
+			&row.SourceDeviceRequis,
+			&row.LegacyData,
+			&row.InsertedAt,
+			&row.UpdatedAt,
 		); err != nil {
-			response.ServerError(
-				c,
-				err,
-			)
+
+			response.ServerError(c, err)
 			return
 		}
 
@@ -970,10 +730,7 @@ func (h *TicketHandler) List(
 	}
 
 	if err := rows.Err(); err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
@@ -982,189 +739,173 @@ func (h *TicketHandler) List(
 		result,
 		total,
 		page,
-		ps,
+		pageSize,
 	)
 }
 
 /* ============================================================
-   GET
+   GET SINGLE TT
 ============================================================ */
 
 func (h *TicketHandler) Get(
 	c *gin.Context,
 ) {
-	type Row struct {
-		ID int64 `json:"id"`
 
-		TTNo float64 `json:"tt_no"`
-
-		EmpID *string `json:"employee_id"`
-
-		EmpName *string `json:"employee_name"`
-
-		Dept *string `json:"department"`
-
-		Phone *string `json:"phone"`
-
-		Email *string `json:"email"`
-
-		Client *string `json:"client_name"`
-
-		FaultType *int `json:"fault_type"`
-
-		FaultName *string `json:"fault_type_name"`
-
-		Reason *string `json:"reason_of_problem"`
-
-		Status int `json:"status_progress"`
-
-		CreatedAt *string `json:"created_at"`
-
-		Age *string `json:"ticket_age"`
+	type TicketResponse struct {
+		ID                 int64          `json:"id"`
+		LegacyID           *int64         `json:"legacy_id"`
+		TTNo               string         `json:"tt_no"`
+		EmployeeID         string         `json:"employee_id"`
+		EmployeeName       string         `json:"employee_name"`
+		Designation        string         `json:"designation"`
+		Department         string         `json:"department"`
+		FunctionName       string         `json:"function_name"`
+		CompanyName        string         `json:"company_name"`
+		MobileNo           string         `json:"mobile_no"`
+		Email              string         `json:"email"`
+		QueryType          string         `json:"query_type"`
+		Description        string         `json:"description"`
+		RequestedBy        string         `json:"requested_by"`
+		AssignedID         string         `json:"assigned_id"`
+		AssignedName       string         `json:"assigned_name"`
+		Status             string         `json:"status"`
+		RequisitionType    string         `json:"requisition_type"`
+		DeliveredStatus    string         `json:"delivered_status"`
+		CreatedAt          string         `json:"created_at"`
+		ClosedAt           *string        `json:"closed_at"`
+		ClosedBy           *string        `json:"closed_by"`
+		ClosingDescription *string        `json:"closing_description"`
+		SourceStatus       *int16         `json:"source_status"`
+		SourceProgress     *int16         `json:"source_progress"`
+		SourceDeviceRequis *int16         `json:"source_device_requisition"`
+		LegacyData         map[string]any `json:"legacy_data"`
+		InsertedAt         string         `json:"inserted_at"`
+		UpdatedAt          string         `json:"updated_at"`
 	}
 
-	var row Row
+	var ticket TicketResponse
 
 	err := h.db.QueryRow(
 		c.Request.Context(),
 		`
 		SELECT
-
-			t.id,
-
-			t.tt_no,
-
-			t.employee_id,
-
-			COALESCE(
-				e.employee_name,
-				t.employee_id
-			),
-
-			COALESCE(
-				t.depertment,
-				e.department_name
-			),
-
-			t.phone,
-
-			t.email,
-
-			t.client_name,
-
-			t.client_fault_type,
-
-			f.fault_name,
-
-			t.reason_of_problem,
-
-			t.status_progess,
-
-			t.status_update_date::text,
-
-			to_char(
-				NOW() -
-				t.status_update_date,
-				'DD"d" HH24"h"'
-			)
-
-		FROM trouble_tickets t
-
-		LEFT JOIN employee_office_info e
-			ON e.employee_id =
-				t.employee_id
-
-		LEFT JOIN fault_types f
-			ON f.id =
-				t.client_fault_type
-
-		WHERE
-			t.id = $1
-
-			AND t.active = TRUE
+			id,
+			legacy_id,
+			tt_no,
+			COALESCE(employee_id, ''),
+			COALESCE(employee_name, ''),
+			COALESCE(designation, ''),
+			COALESCE(department, ''),
+			COALESCE(function_name, ''),
+			COALESCE(company_name, ''),
+			COALESCE(mobile_no, ''),
+			COALESCE(email, ''),
+			COALESCE(query_type, ''),
+			COALESCE(description, ''),
+			COALESCE(requested_by, ''),
+			COALESCE(assigned_id, ''),
+			COALESCE(assigned_name, ''),
+			status,
+			COALESCE(requisition_type, ''),
+			COALESCE(delivered_status, ''),
+			created_at::text,
+			closed_at::text,
+			closed_by,
+			closing_description,
+			source_status,
+			source_progress,
+			source_device_requisition,
+			legacy_data,
+			inserted_at::text,
+			updated_at::text
+		FROM public.trouble_tickets
+		WHERE id = $1
 		`,
 		c.Param("id"),
 	).Scan(
-		&row.ID,
-		&row.TTNo,
-		&row.EmpID,
-		&row.EmpName,
-		&row.Dept,
-		&row.Phone,
-		&row.Email,
-		&row.Client,
-		&row.FaultType,
-		&row.FaultName,
-		&row.Reason,
-		&row.Status,
-		&row.CreatedAt,
-		&row.Age,
+		&ticket.ID,
+		&ticket.LegacyID,
+		&ticket.TTNo,
+		&ticket.EmployeeID,
+		&ticket.EmployeeName,
+		&ticket.Designation,
+		&ticket.Department,
+		&ticket.FunctionName,
+		&ticket.CompanyName,
+		&ticket.MobileNo,
+		&ticket.Email,
+		&ticket.QueryType,
+		&ticket.Description,
+		&ticket.RequestedBy,
+		&ticket.AssignedID,
+		&ticket.AssignedName,
+		&ticket.Status,
+		&ticket.RequisitionType,
+		&ticket.DeliveredStatus,
+		&ticket.CreatedAt,
+		&ticket.ClosedAt,
+		&ticket.ClosedBy,
+		&ticket.ClosingDescription,
+		&ticket.SourceStatus,
+		&ticket.SourceProgress,
+		&ticket.SourceDeviceRequis,
+		&ticket.LegacyData,
+		&ticket.InsertedAt,
+		&ticket.UpdatedAt,
 	)
 
 	if err != nil {
-		response.NotFound(
-			c,
-			"ticket not found",
-		)
+
+		if err == pgx.ErrNoRows {
+			response.NotFound(
+				c,
+				"ticket not found",
+			)
+			return
+		}
+
+		response.ServerError(c, err)
 		return
 	}
 
 	response.OK(
 		c,
-		row,
+		ticket,
 	)
 }
 
 /* ============================================================
-   CREATE
+   CREATE SINGLE
+
+   POST /api/v1/tickets
+
+   IMPORTANT:
+   Creation does NOT create history.
+
+   Flow:
+
+   frontend fault_type
+          ↓
+   public.tt_faults
+          ↓
+   fault_name
+          ↓
+   trouble_tickets.query_type
 ============================================================ */
 
 func (h *TicketHandler) Create(
 	c *gin.Context,
 ) {
-	/*
-		IMPORTANT:
 
-		Do NOT accept employee_id from
-		the frontend.
+	employeeID, ok := requireEmployee(c)
 
-		The authenticated middleware supplies it.
-	*/
-	employeeID :=
-		strings.TrimSpace(
-			c.GetString(
-				"employee_id",
-			),
-		)
-
-	if employeeID == "" {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"success": false,
-				"error":   "authenticated employee id not found",
-			},
-		)
+	if !ok {
 		return
 	}
 
-	var req struct {
-		ReasonOfProblem string `json:"reason_of_problem" binding:"required"`
+	var req ticketInput
 
-		ClientName string `json:"client_name"`
-
-		Department *string `json:"department"`
-
-		Phone *string `json:"phone"`
-
-		Email *string `json:"email"`
-
-		FaultType *int `json:"fault_type"`
-	}
-
-	if err := c.ShouldBindJSON(
-		&req,
-	); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(
 			c,
 			err.Error(),
@@ -1177,177 +918,166 @@ func (h *TicketHandler) Create(
 			req.ReasonOfProblem,
 		)
 
-	if req.ReasonOfProblem == "" {
+	if err := validateTicketInput(req); err != nil {
 		response.BadRequest(
 			c,
-			"reason_of_problem is required",
+			err.Error(),
 		)
 		return
 	}
 
-	ctx, cancel :=
-		context.WithTimeout(
-			c.Request.Context(),
-			10*time.Second,
-		)
-
+	ctx, cancel := context.WithTimeout(
+		c.Request.Context(),
+		20*time.Second,
+	)
 	defer cancel()
 
-	tx, err :=
-		h.db.Begin(ctx)
+	tx, err := h.db.Begin(ctx)
 
 	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
 	defer tx.Rollback(ctx)
 
-	/* =====================================================
-	   TT NUMBER
-	===================================================== */
-
-	var ttNo float64
-
-	err = tx.QueryRow(
+	/*
+		Prevent concurrent requests from generating
+		the same TT number.
+	*/
+	if _, err := tx.Exec(
 		ctx,
-		`
-		SELECT
-			COALESCE(
-				MAX(tt_no),
-				0
-			) + 1
+		`SELECT pg_advisory_xact_lock($1)`,
+		ttNumberAdvisoryLock,
+	); err != nil {
 
-		FROM trouble_tickets
-
-		FOR UPDATE
-		`,
-	).Scan(
-		&ttNo,
-	)
-
-	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
-	/* =====================================================
-	   CREATE TICKET
-	===================================================== */
+	employee, err := h.loadEmployeeSnapshot(
+		ctx,
+		employeeID,
+	)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	/*
+		Resolve selected fault from public.tt_faults.
+	*/
+	fault, err := h.getFault(
+		ctx,
+		tx,
+		req.FaultType,
+	)
+
+	if err != nil {
+
+		if err == pgx.ErrNoRows {
+			response.BadRequest(
+				c,
+				"selected fault type is not available",
+			)
+			return
+		}
+
+		response.ServerError(c, err)
+		return
+	}
+
+	ttNo, err := nextTTNumber(
+		ctx,
+		tx,
+	)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 
 	var id int64
 
+	/*
+		IMPORTANT:
+
+		There is NO fault_type_id column in
+		trouble_tickets.
+
+		Therefore:
+
+		fault.ID   -> only used to validate selection
+		fault.Name -> saved as query_type
+	*/
+
 	err = tx.QueryRow(
 		ctx,
 		`
-		INSERT INTO trouble_tickets (
-
+		INSERT INTO public.trouble_tickets (
 			tt_no,
-
 			employee_id,
-
-			client_name,
-
-			reason_of_problem,
-
-			depertment,
-
-			phone,
-
+			employee_name,
+			designation,
+			department,
+			function_name,
+			company_name,
+			mobile_no,
 			email,
-
-			client_fault_type,
-
-			user,
-
-			status_progess,
-
-			device_requis_val,
-
-			requis_by,
-
-			requis_date,
-
-			status_update_by,
-
-			status_update_date,
-
-			active
-
+			query_type,
+			description,
+			requested_by,
+			status,
+			created_at,
+			updated_at
 		)
-
 		VALUES (
-
 			$1,
-
 			$2,
-
 			$3,
-
 			$4,
-
 			$5,
-
 			$6,
-
 			$7,
-
 			$8,
-
 			$9,
-
-			1,
-
-			0,
-
-			$9,
-
+			$10,
+			$11,
+			$12,
+			'Open',
 			NOW(),
-
-			$9,
-
-			NOW(),
-
-			TRUE
-
+			NOW()
 		)
-
 		RETURNING id
 		`,
 		ttNo,
-		employeeID,
-		req.ClientName,
+		employee.ID,
+		employee.Name,
+		employee.Designation,
+		employee.Department,
+		employee.Function,
+		defaultCompanyName,
+		employee.Phone,
+		employee.Email,
+		fault.Name,
 		req.ReasonOfProblem,
-		req.Department,
-		req.Phone,
-		req.Email,
-		req.FaultType,
-		employeeID,
-	).Scan(
-		&id,
-	)
+		employee.Name,
+	).Scan(&id)
 
 	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
-	if err := tx.Commit(
-		ctx,
-	); err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+	/*
+		NO HISTORY INSERT HERE.
+
+		Creation history is intentionally not generated.
+	*/
+
+	if err := tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
 		return
 	}
 
@@ -1355,14 +1085,330 @@ func (h *TicketHandler) Create(
 		http.StatusCreated,
 		gin.H{
 			"success": true,
-
 			"data": gin.H{
-				"id": id,
-
+				"id":    id,
 				"tt_no": ttNo,
 			},
 		},
 	)
+}
+
+/* ============================================================
+   CREATE BULK
+
+   POST /api/v1/tickets/bulk
+
+   Maximum:
+   10 tickets.
+
+   Entire operation is atomic.
+
+   If ticket #3 fails:
+   ticket #1 and #2 are also rolled back.
+
+   NO creation history is inserted.
+============================================================ */
+
+func (h *TicketHandler) CreateBulk(
+	c *gin.Context,
+) {
+
+	employeeID, ok := requireEmployee(c)
+
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Tickets []ticketInput `json:"tickets"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(
+			c,
+			err.Error(),
+		)
+		return
+	}
+
+	if len(req.Tickets) < 1 {
+		response.BadRequest(
+			c,
+			"at least one ticket is required",
+		)
+		return
+	}
+
+	if len(req.Tickets) > maxBulkTickets {
+		response.BadRequest(
+			c,
+			"maximum 10 trouble tickets can be created at once",
+		)
+		return
+	}
+
+	/*
+		Validate every ticket before opening the transaction.
+	*/
+	for i := range req.Tickets {
+
+		req.Tickets[i].ReasonOfProblem =
+			strings.TrimSpace(
+				req.Tickets[i].ReasonOfProblem,
+			)
+
+		if err := validateTicketInput(
+			req.Tickets[i],
+		); err != nil {
+
+			response.BadRequest(
+				c,
+				fmt.Sprintf(
+					"ticket #%d: %s",
+					i+1,
+					err.Error(),
+				),
+			)
+
+			return
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(
+		c.Request.Context(),
+		30*time.Second,
+	)
+	defer cancel()
+
+	tx, err := h.db.Begin(ctx)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	defer tx.Rollback(ctx)
+
+	/*
+		Serialize TT number generation.
+	*/
+	if _, err := tx.Exec(
+		ctx,
+		`SELECT pg_advisory_xact_lock($1)`,
+		ttNumberAdvisoryLock,
+	); err != nil {
+
+		response.ServerError(c, err)
+		return
+	}
+
+	employee, err := h.loadEmployeeSnapshot(
+		ctx,
+		employeeID,
+	)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	type CreatedTicket struct {
+		ID   int64  `json:"id"`
+		TTNo string `json:"tt_no"`
+	}
+
+	created := make(
+		[]CreatedTicket,
+		0,
+		len(req.Tickets),
+	)
+
+	for i := range req.Tickets {
+
+		item := req.Tickets[i]
+
+		/*
+			Resolve fault from public.tt_faults.
+		*/
+		fault, err := h.getFault(
+			ctx,
+			tx,
+			item.FaultType,
+		)
+
+		if err != nil {
+
+			if err == pgx.ErrNoRows {
+
+				response.BadRequest(
+					c,
+					fmt.Sprintf(
+						"ticket #%d: selected fault type is not available",
+						i+1,
+					),
+				)
+
+				return
+			}
+
+			response.ServerError(c, err)
+			return
+		}
+
+		ttNo, err := nextTTNumber(
+			ctx,
+			tx,
+		)
+
+		if err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		var id int64
+
+		/*
+			IMPORTANT:
+
+			Do NOT insert fault_type_id.
+
+			Actual trouble_tickets schema stores the
+			selected fault name in query_type.
+		*/
+		err = tx.QueryRow(
+			ctx,
+			`
+			INSERT INTO public.trouble_tickets (
+				tt_no,
+				employee_id,
+				employee_name,
+				designation,
+				department,
+				function_name,
+				company_name,
+				mobile_no,
+				email,
+				query_type,
+				description,
+				requested_by,
+				status,
+				created_at,
+				updated_at
+			)
+			VALUES (
+				$1,
+				$2,
+				$3,
+				$4,
+				$5,
+				$6,
+				$7,
+				$8,
+				$9,
+				$10,
+				$11,
+				$12,
+				'Open',
+				NOW(),
+				NOW()
+			)
+			RETURNING id
+			`,
+			ttNo,
+			employee.ID,
+			employee.Name,
+			employee.Designation,
+			employee.Department,
+			employee.Function,
+			defaultCompanyName,
+			employee.Phone,
+			employee.Email,
+			fault.Name,
+			item.ReasonOfProblem,
+			employee.Name,
+		).Scan(&id)
+
+		if err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		/*
+			NO history record during creation.
+		*/
+
+		created = append(
+			created,
+			CreatedTicket{
+				ID:   id,
+				TTNo: ttNo,
+			},
+		)
+	}
+
+	/*
+		Commit all tickets together.
+	*/
+	if err := tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	c.JSON(
+		http.StatusCreated,
+		gin.H{
+			"success": true,
+			"data": gin.H{
+				"created": created,
+				"count":   len(created),
+			},
+		},
+	)
+}
+
+/* ============================================================
+   VALIDATION
+============================================================ */
+
+func validateTicketInput(
+	req ticketInput,
+) error {
+
+	if strings.TrimSpace(
+		req.ReasonOfProblem,
+	) == "" {
+
+		return fmt.Errorf(
+			"reason_of_problem is required",
+		)
+	}
+
+	if len([]rune(
+		req.ReasonOfProblem,
+	)) < 5 {
+
+		return fmt.Errorf(
+			"reason_of_problem must contain at least 5 characters",
+		)
+	}
+
+	if len([]rune(
+		req.ReasonOfProblem,
+	)) > 5000 {
+
+		return fmt.Errorf(
+			"reason_of_problem cannot exceed 5000 characters",
+		)
+	}
+
+	if req.FaultType <= 0 {
+
+		return fmt.Errorf(
+			"fault_type is required",
+		)
+	}
+
+	return nil
 }
 
 /* ============================================================
@@ -1372,16 +1418,22 @@ func (h *TicketHandler) Create(
 func (h *TicketHandler) Update(
 	c *gin.Context,
 ) {
-	employeeID :=
-		c.GetString(
-			"employee_id",
-		)
 
-	var req map[string]any
+	employeeID, ok := requireEmployee(c)
 
-	if err := c.ShouldBindJSON(
-		&req,
-	); err != nil {
+	if !ok {
+		return
+	}
+
+	var req struct {
+		ReasonOfProblem *string `json:"reason_of_problem"`
+		FaultType       *int    `json:"fault_type"`
+		Department      *string `json:"department"`
+		Status          any     `json:"status"`
+		Note            *string `json:"note"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(
 			c,
 			err.Error(),
@@ -1389,62 +1441,397 @@ func (h *TicketHandler) Update(
 		return
 	}
 
-	_, err :=
-		h.db.Exec(
-			c.Request.Context(),
-			`
-			UPDATE trouble_tickets
+	ctx, cancel := context.WithTimeout(
+		c.Request.Context(),
+		20*time.Second,
+	)
+	defer cancel()
 
-			SET
-
-				client_name =
-					COALESCE(
-						$1::text,
-						client_name
-					),
-
-				reason_of_problem =
-					COALESCE(
-						$2::text,
-						reason_of_problem
-					),
-
-				depertment =
-					COALESCE(
-						$3::text,
-						depertment
-					),
-
-				phone =
-					COALESCE(
-						$4::text,
-						phone
-					),
-
-				status_update_by =
-					$5,
-
-				status_update_date =
-					NOW()
-
-			WHERE
-				id = $6
-
-				AND active = TRUE
-			`,
-			req["client_name"],
-			req["reason_of_problem"],
-			req["department"],
-			req["phone"],
-			employeeID,
-			c.Param("id"),
-		)
+	tx, err := h.db.Begin(ctx)
 
 	if err != nil {
-		response.ServerError(
-			c,
-			err,
+		response.ServerError(c, err)
+		return
+	}
+
+	defer tx.Rollback(ctx)
+
+	var (
+		currentStatus  string
+		oldDescription string
+		oldDepartment  string
+	)
+
+	err = tx.QueryRow(
+		ctx,
+		`
+		SELECT
+			status,
+			COALESCE(description, ''),
+			COALESCE(department, '')
+		FROM public.trouble_tickets
+		WHERE id = $1
+		`,
+		c.Param("id"),
+	).Scan(
+		&currentStatus,
+		&oldDescription,
+		&oldDepartment,
+	)
+
+	if err != nil {
+
+		if err == pgx.ErrNoRows {
+			response.NotFound(
+				c,
+				"ticket not found",
+			)
+			return
+		}
+
+		response.ServerError(c, err)
+		return
+	}
+
+	setParts := make(
+		[]string,
+		0,
+	)
+
+	args := make(
+		[]any,
+		0,
+	)
+
+	arg := 1
+
+	var (
+		newDescription *string
+		newDepartment  *string
+		newQueryType   *string
+		newStatus      string
+		statusChanged  bool
+	)
+
+	/* --------------------------------------------------------
+	   DESCRIPTION
+	-------------------------------------------------------- */
+
+	if req.ReasonOfProblem != nil {
+
+		value := strings.TrimSpace(
+			*req.ReasonOfProblem,
 		)
+
+		if value == "" {
+
+			response.BadRequest(
+				c,
+				"reason_of_problem cannot be empty",
+			)
+			return
+		}
+
+		if len([]rune(value)) > 5000 {
+
+			response.BadRequest(
+				c,
+				"reason_of_problem cannot exceed 5000 characters",
+			)
+			return
+		}
+
+		newDescription = &value
+
+		setParts = append(
+			setParts,
+			fmt.Sprintf(
+				"description = $%d",
+				arg,
+			),
+		)
+
+		args = append(
+			args,
+			value,
+		)
+
+		arg++
+	}
+
+	/* --------------------------------------------------------
+	   DEPARTMENT
+	-------------------------------------------------------- */
+
+	if req.Department != nil {
+
+		value := strings.TrimSpace(
+			*req.Department,
+		)
+
+		newDepartment = &value
+
+		setParts = append(
+			setParts,
+			fmt.Sprintf(
+				"department = $%d",
+				arg,
+			),
+		)
+
+		args = append(
+			args,
+			value,
+		)
+
+		arg++
+	}
+
+	/* --------------------------------------------------------
+	   FAULT TYPE
+
+	   Resolve through public.tt_faults.
+
+	   Save fault_name into query_type.
+	-------------------------------------------------------- */
+
+	if req.FaultType != nil {
+
+		fault, faultErr := h.getFault(
+			ctx,
+			tx,
+			*req.FaultType,
+		)
+
+		if faultErr != nil {
+
+			if faultErr == pgx.ErrNoRows {
+
+				response.BadRequest(
+					c,
+					"selected fault type is not available",
+				)
+
+				return
+			}
+
+			response.ServerError(
+				c,
+				faultErr,
+			)
+
+			return
+		}
+
+		setParts = append(
+			setParts,
+			fmt.Sprintf(
+				"query_type = $%d",
+				arg,
+			),
+		)
+
+		args = append(
+			args,
+			fault.Name,
+		)
+
+		newQueryType = &fault.Name
+
+		arg++
+	}
+
+	/* --------------------------------------------------------
+	   STATUS
+	-------------------------------------------------------- */
+
+	if req.Status != nil {
+
+		status, valid := parseStatusValue(
+			req.Status,
+		)
+
+		if !valid {
+
+			response.BadRequest(
+				c,
+				"invalid ticket status",
+			)
+
+			return
+		}
+
+		newStatus = status
+
+		if status != currentStatus {
+
+			statusChanged = true
+
+			setParts = append(
+				setParts,
+				fmt.Sprintf(
+					"status = $%d",
+					arg,
+				),
+			)
+
+			args = append(
+				args,
+				status,
+			)
+
+			arg++
+		}
+	}
+
+	if len(setParts) == 0 {
+
+		response.BadRequest(
+			c,
+			"no ticket fields were supplied for update",
+		)
+
+		return
+	}
+
+	setParts = append(
+		setParts,
+		"updated_at = NOW()",
+	)
+
+	args = append(
+		args,
+		c.Param("id"),
+	)
+
+	query := `
+		UPDATE public.trouble_tickets
+		SET ` +
+		strings.Join(
+			setParts,
+			", ",
+		) +
+		fmt.Sprintf(
+			`
+			WHERE id = $%d
+			`,
+			arg,
+		)
+
+	result, err := tx.Exec(
+		ctx,
+		query,
+		args...,
+	)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	if result.RowsAffected() == 0 {
+
+		response.NotFound(
+			c,
+			"ticket not found",
+		)
+
+		return
+	}
+
+	/* --------------------------------------------------------
+	   HISTORY
+
+	   History is generated ONLY during update.
+	-------------------------------------------------------- */
+
+	historyNote := ""
+
+	if newDescription != nil &&
+		*newDescription != oldDescription {
+
+		historyNote =
+			"Ticket description updated."
+	}
+
+	if newDepartment != nil &&
+		*newDepartment != oldDepartment {
+
+		if historyNote != "" {
+			historyNote += " "
+		}
+
+		historyNote +=
+			"Department updated."
+	}
+
+	if newQueryType != nil {
+
+		if historyNote != "" {
+			historyNote += " "
+		}
+
+		historyNote +=
+			"Fault type updated."
+	}
+
+	if req.Note != nil &&
+		strings.TrimSpace(*req.Note) != "" {
+
+		historyNote =
+			strings.TrimSpace(*req.Note)
+	}
+
+	eventType := "comment"
+
+	historyCurrentStatus :=
+		currentStatus
+
+	if statusChanged {
+
+		eventType = "status_change"
+
+		historyCurrentStatus =
+			newStatus
+
+		if historyNote == "" {
+
+			historyNote =
+				fmt.Sprintf(
+					"Status changed to %s.",
+					newStatus,
+				)
+		}
+	}
+
+	if historyNote != "" {
+
+		if err := insertHistory(
+			ctx,
+			tx,
+			parseInt64Param(
+				c.Param("id"),
+			),
+			eventType,
+			currentStatus,
+			historyCurrentStatus,
+			historyNote,
+			employeeID,
+			newDepartmentValue(
+				newDepartment,
+				oldDepartment,
+			),
+			"",
+			"",
+		); err != nil {
+
+			response.ServerError(c, err)
+			return
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
 		return
 	}
 
@@ -1456,6 +1843,18 @@ func (h *TicketHandler) Update(
 	)
 }
 
+func newDepartmentValue(
+	value *string,
+	fallback string,
+) string {
+
+	if value != nil {
+		return *value
+	}
+
+	return fallback
+}
+
 /* ============================================================
    DELETE
 ============================================================ */
@@ -1463,37 +1862,32 @@ func (h *TicketHandler) Update(
 func (h *TicketHandler) Delete(
 	c *gin.Context,
 ) {
-	employeeID :=
-		c.GetString(
-			"employee_id",
-		)
 
-	_, err :=
-		h.db.Exec(
-			c.Request.Context(),
-			`
-			UPDATE trouble_tickets
+	if _, ok := requireEmployee(c); !ok {
+		return
+	}
 
-			SET
-
-				active = FALSE,
-
-				delete_by = $1,
-
-				delete_at = NOW()
-
-			WHERE
-				id = $2
-			`,
-			employeeID,
-			c.Param("id"),
-		)
+	result, err := h.db.Exec(
+		c.Request.Context(),
+		`
+		DELETE FROM public.trouble_tickets
+		WHERE id = $1
+		`,
+		c.Param("id"),
+	)
 
 	if err != nil {
-		response.ServerError(
+		response.ServerError(c, err)
+		return
+	}
+
+	if result.RowsAffected() == 0 {
+
+		response.NotFound(
 			c,
-			err,
+			"ticket not found",
 		)
+
 		return
 	}
 
@@ -1507,18 +1901,18 @@ func (h *TicketHandler) Delete(
 func (h *TicketHandler) Close(
 	c *gin.Context,
 ) {
-	employeeID :=
-		c.GetString(
-			"employee_id",
-		)
+
+	employeeID, ok := requireEmployee(c)
+
+	if !ok {
+		return
+	}
 
 	var req struct {
 		ClosingDescription string `json:"closing_description"`
 	}
 
-	if err := c.ShouldBindJSON(
-		&req,
-	); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(
 			c,
 			err.Error(),
@@ -1526,41 +1920,116 @@ func (h *TicketHandler) Close(
 		return
 	}
 
-	_, err :=
-		h.db.Exec(
-			c.Request.Context(),
-			`
-			UPDATE trouble_tickets
-
-			SET
-
-				status_progess = 3,
-
-				close_ticket_by = $1,
-
-				ticket_close_date = NOW(),
-
-				closing_description = $2,
-
-				status_update_by = $1,
-
-				status_update_date = NOW()
-
-			WHERE
-				id = $3
-
-				AND active = TRUE
-			`,
-			employeeID,
+	req.ClosingDescription =
+		strings.TrimSpace(
 			req.ClosingDescription,
-			c.Param("id"),
 		)
+
+	ctx, cancel := context.WithTimeout(
+		c.Request.Context(),
+		20*time.Second,
+	)
+	defer cancel()
+
+	tx, err := h.db.Begin(ctx)
 
 	if err != nil {
-		response.ServerError(
+		response.ServerError(c, err)
+		return
+	}
+
+	defer tx.Rollback(ctx)
+
+	var previousStatus string
+
+	err = tx.QueryRow(
+		ctx,
+		`
+		SELECT status
+		FROM public.trouble_tickets
+		WHERE id = $1
+		`,
+		c.Param("id"),
+	).Scan(
+		&previousStatus,
+	)
+
+	if err != nil {
+
+		if err == pgx.ErrNoRows {
+
+			response.NotFound(
+				c,
+				"ticket not found",
+			)
+
+			return
+		}
+
+		response.ServerError(c, err)
+		return
+	}
+
+	result, err := tx.Exec(
+		ctx,
+		`
+		UPDATE public.trouble_tickets
+		SET
+			status = 'Closed',
+			closed_at = NOW(),
+			closed_by = $1,
+			closing_description = $2,
+			updated_at = NOW()
+		WHERE id = $3
+		`,
+		employeeID,
+		req.ClosingDescription,
+		c.Param("id"),
+	)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	if result.RowsAffected() == 0 {
+
+		response.NotFound(
 			c,
-			err,
+			"ticket not found",
 		)
+
+		return
+	}
+
+	note := "Ticket closed."
+
+	if req.ClosingDescription != "" {
+		note = req.ClosingDescription
+	}
+
+	if err := insertHistory(
+		ctx,
+		tx,
+		parseInt64Param(
+			c.Param("id"),
+		),
+		"closed",
+		previousStatus,
+		"Closed",
+		note,
+		employeeID,
+		"",
+		"",
+		"",
+	); err != nil {
+
+		response.ServerError(c, err)
+		return
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
 		return
 	}
 
@@ -1579,18 +2048,18 @@ func (h *TicketHandler) Close(
 func (h *TicketHandler) UpdateStatus(
 	c *gin.Context,
 ) {
-	employeeID :=
-		c.GetString(
-			"employee_id",
-		)
 
-	var req struct {
-		Status int `json:"status" binding:"required"`
+	employeeID, ok := requireEmployee(c)
+
+	if !ok {
+		return
 	}
 
-	if err := c.ShouldBindJSON(
-		&req,
-	); err != nil {
+	var req struct {
+		Status any `json:"status"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(
 			c,
 			err.Error(),
@@ -1598,35 +2067,157 @@ func (h *TicketHandler) UpdateStatus(
 		return
 	}
 
-	_, err :=
-		h.db.Exec(
-			c.Request.Context(),
+	status, valid := parseStatusValue(
+		req.Status,
+	)
+
+	if !valid {
+
+		response.BadRequest(
+			c,
+			"status must be 1, 2, 3, 4 or a valid status name",
+		)
+
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(
+		c.Request.Context(),
+		20*time.Second,
+	)
+	defer cancel()
+
+	tx, err := h.db.Begin(ctx)
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	defer tx.Rollback(ctx)
+
+	var previousStatus string
+
+	err = tx.QueryRow(
+		ctx,
+		`
+		SELECT status
+		FROM public.trouble_tickets
+		WHERE id = $1
+		`,
+		c.Param("id"),
+	).Scan(
+		&previousStatus,
+	)
+
+	if err != nil {
+
+		if err == pgx.ErrNoRows {
+
+			response.NotFound(
+				c,
+				"ticket not found",
+			)
+
+			return
+		}
+
+		response.ServerError(c, err)
+		return
+	}
+
+	var result pgconn.CommandTag
+
+	if status == "Closed" {
+
+		result, err = tx.Exec(
+			ctx,
 			`
-			UPDATE trouble_tickets
-
+			UPDATE public.trouble_tickets
 			SET
-
-				status_progess = $1,
-
-				status_update_by = $2,
-
-				status_update_date = NOW()
-
-			WHERE
-				id = $3
-
-				AND active = TRUE
+				status = $1,
+				closed_at = COALESCE(
+					closed_at,
+					NOW()
+				),
+				closed_by = $2,
+				updated_at = NOW()
+			WHERE id = $3
 			`,
-			req.Status,
+			status,
 			employeeID,
 			c.Param("id"),
 		)
 
-	if err != nil {
-		response.ServerError(
-			c,
-			err,
+	} else {
+
+		result, err = tx.Exec(
+			ctx,
+			`
+			UPDATE public.trouble_tickets
+			SET
+				status = $1,
+				updated_at = NOW()
+			WHERE id = $2
+			`,
+			status,
+			c.Param("id"),
 		)
+	}
+
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	if result.RowsAffected() == 0 {
+
+		response.NotFound(
+			c,
+			"ticket not found",
+		)
+
+		return
+	}
+
+	/* --------------------------------------------------------
+	   HISTORY ONLY IF STATUS ACTUALLY CHANGED
+	-------------------------------------------------------- */
+
+	if previousStatus != status {
+
+		eventType := "status_change"
+
+		if status == "Closed" {
+			eventType = "closed"
+		}
+
+		if err := insertHistory(
+			ctx,
+			tx,
+			parseInt64Param(
+				c.Param("id"),
+			),
+			eventType,
+			previousStatus,
+			status,
+			fmt.Sprintf(
+				"Status changed to %s.",
+				status,
+			),
+			employeeID,
+			"",
+			"",
+			"",
+		); err != nil {
+
+			response.ServerError(c, err)
+			return
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
 		return
 	}
 
@@ -1634,183 +2225,132 @@ func (h *TicketHandler) UpdateStatus(
 		c,
 		gin.H{
 			"updated": true,
+			"status":  status,
 		},
 	)
 }
 
 /* ============================================================
-   GET UPDATES
+   HISTORY
 ============================================================ */
 
 func (h *TicketHandler) GetUpdates(
 	c *gin.Context,
 ) {
-	rows, err :=
-		h.db.Query(
-			c.Request.Context(),
-			`
-			SELECT
 
-				u.id,
+	ticketID := parseInt64Param(
+		c.Param("id"),
+	)
 
-				u.tt_no,
-
-				u.tt_note,
-
-				u.fault_update_date_time,
-
-				u.client_fault_forward_to,
-
-				u.forward_parson,
-
-				u.from_zone,
-
-				u.to_zone,
-
-				u.logical_team,
-
-				u.department,
-
-				u.file_link,
-
-				u.user,
-
-				u.date
-
-			FROM tbl_tt_update u
-
-			JOIN trouble_tickets t
-				ON t.tt_no = u.tt_no
-
-			WHERE
-				t.id = $1
-
-			ORDER BY
-				u.id DESC
-			`,
-			c.Param("id"),
-		)
+	rows, err := h.db.Query(
+		c.Request.Context(),
+		`
+		SELECT
+			h.id,
+			h.ticket_id,
+			h.current_status,
+			h.note,
+			h.changed_by,
+			h.department,
+			h.attachment_url,
+			h.created_at::text
+		FROM public.trouble_ticket_history AS h
+		WHERE h.ticket_id = $1
+		ORDER BY
+			h.created_at ASC,
+			h.id ASC
+		`,
+		ticketID,
+	)
 
 	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
 	defer rows.Close()
 
-	type Update struct {
-		ID int64 `json:"id"`
-
-		TTNo float64 `json:"tt_no"`
-
-		Note *string `json:"tt_note"`
-
-		UpdateDT *string `json:"fault_update_date_time"`
-
-		ForwardTo *string `json:"forwarded_to"`
-
-		ForwardPerson *string `json:"forward_person"`
-
-		FromZone *string `json:"from_zone"`
-
-		ToZone *string `json:"to_zone"`
-
-		LogicalTeam *string `json:"logical_team"`
-
-		Dept *string `json:"department"`
-
-		FileLink *string `json:"file_link"`
-
-		User *string `json:"created_by"`
-
-		Date *string `json:"date"`
-	}
-
-	updates :=
-		make(
-			[]Update,
-			0,
-		)
+	items := make(
+		[]map[string]any,
+		0,
+	)
 
 	for rows.Next() {
-		var item Update
+
+		var (
+			id            int64
+			ticketIDValue int64
+			status        *string
+			note          *string
+			changedBy     *string
+			department    *string
+			attachmentURL *string
+			createdAt     string
+		)
 
 		if err := rows.Scan(
-			&item.ID,
-			&item.TTNo,
-			&item.Note,
-			&item.UpdateDT,
-			&item.ForwardTo,
-			&item.ForwardPerson,
-			&item.FromZone,
-			&item.ToZone,
-			&item.LogicalTeam,
-			&item.Dept,
-			&item.FileLink,
-			&item.User,
-			&item.Date,
+			&id,
+			&ticketIDValue,
+			&status,
+			&note,
+			&changedBy,
+			&department,
+			&attachmentURL,
+			&createdAt,
 		); err != nil {
-			response.ServerError(
-				c,
-				err,
-			)
+
+			response.ServerError(c, err)
 			return
 		}
 
-		updates = append(
-			updates,
-			item,
+		items = append(
+			items,
+			map[string]any{
+				"id":             id,
+				"ticket_id":      ticketIDValue,
+				"status":         status,
+				"note":           note,
+				"updated_by":     changedBy,
+				"department":     department,
+				"attachment_url": attachmentURL,
+				"created_at":     createdAt,
+			},
 		)
 	}
 
 	if err := rows.Err(); err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
 	response.OK(
 		c,
-		updates,
+		items,
 	)
 }
 
 /* ============================================================
-   ADD UPDATE
+   ADD HISTORY UPDATE
 ============================================================ */
 
 func (h *TicketHandler) AddUpdate(
 	c *gin.Context,
 ) {
-	employeeID :=
-		c.GetString(
-			"employee_id",
-		)
 
-	var req struct {
-		Note string `json:"tt_note" binding:"required"`
+	employeeID, ok := requireEmployee(c)
 
-		ForwardTo *string `json:"forwarded_to"`
-
-		FromZone *string `json:"from_zone"`
-
-		ToZone *string `json:"to_zone"`
-
-		LogTeam *string `json:"logical_team"`
-
-		Dept *string `json:"department"`
-
-		FileLink *string `json:"file_link"`
+	if !ok {
+		return
 	}
 
-	if err := c.ShouldBindJSON(
-		&req,
-	); err != nil {
+	var req struct {
+		Note          string  `json:"note"`
+		LegacyNote    string  `json:"tt_note"`
+		Department    *string `json:"department"`
+		AttachmentURL *string `json:"attachment_url"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(
 			c,
 			err.Error(),
@@ -1818,189 +2358,147 @@ func (h *TicketHandler) AddUpdate(
 		return
 	}
 
-	req.Note =
-		strings.TrimSpace(
-			req.Note,
-		)
+	note := strings.TrimSpace(
+		req.Note,
+	)
 
-	if req.Note == "" {
+	if note == "" {
+
+		note = strings.TrimSpace(
+			req.LegacyNote,
+		)
+	}
+
+	if note == "" {
+
 		response.BadRequest(
 			c,
-			"tt_note is required",
+			"note is required",
 		)
+
 		return
 	}
 
-	var ttNo float64
-
-	err := h.db.QueryRow(
+	ctx, cancel := context.WithTimeout(
 		c.Request.Context(),
-		`
-		SELECT
-			tt_no
+		20*time.Second,
+	)
+	defer cancel()
 
-		FROM trouble_tickets
+	tx, err := h.db.Begin(ctx)
 
-		WHERE
-			id = $1
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
 
-			AND active = TRUE
-		`,
+	defer tx.Rollback(ctx)
+
+	ticketID := parseInt64Param(
 		c.Param("id"),
+	)
+
+	var currentStatus string
+
+	err = tx.QueryRow(
+		ctx,
+		`
+		SELECT status
+		FROM public.trouble_tickets
+		WHERE id = $1
+		`,
+		ticketID,
 	).Scan(
-		&ttNo,
+		&currentStatus,
 	)
 
 	if err != nil {
-		response.NotFound(
-			c,
-			"ticket not found",
-		)
+
+		if err == pgx.ErrNoRows {
+
+			response.NotFound(
+				c,
+				"ticket not found",
+			)
+
+			return
+		}
+
+		response.ServerError(c, err)
 		return
 	}
 
 	var updateID int64
 
-	err = h.db.QueryRow(
-		c.Request.Context(),
+	err = tx.QueryRow(
+		ctx,
 		`
-		INSERT INTO tbl_tt_update (
-
-			tt_no,
-
-			client_name,
-
-			client_scr_id,
-
-			fault_start_date_time,
-
-			fault_update_date_time,
-
-			fault_registered_at_cc,
-
-			fault_update_at_cc,
-
-			client_fault_type,
-
-			tt_note,
-
-			date,
-
-			from_zone,
-
-			to_zone,
-
-			logical_team,
-
+		INSERT INTO public.trouble_ticket_history (
+			ticket_id,
+			event_type,
+			previous_status,
+			current_status,
+			note,
 			department,
-
-			file_link,
-
-			user,
-
-			client_fault_forward_to
-
+			attachment_url,
+			changed_by,
+			created_at
 		)
-
 		VALUES (
-
 			$1,
-
-			'',
-
-			0,
-
-			NOW(),
-
-			NOW(),
-
-			'',
-
-			'',
-
-			0,
-
+			'comment',
 			$2,
-
-			NOW(),
-
+			$2,
 			$3,
-
 			$4,
-
 			$5,
-
 			$6,
-
-			$7,
-
-			$8,
-
-			$9
-
+			NOW()
 		)
-
 		RETURNING id
 		`,
-		ttNo,
-		req.Note,
-		req.FromZone,
-		req.ToZone,
-		req.LogTeam,
-		req.Dept,
-		req.FileLink,
+		ticketID,
+		currentStatus,
+		note,
+		req.Department,
+		req.AttachmentURL,
 		employeeID,
-		req.ForwardTo,
 	).Scan(
 		&updateID,
 	)
 
 	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		response.ServerError(c, err)
 		return
 	}
 
 	/*
-		When an update is added, the ticket moves
-		at least to In Progress.
+		If work starts on an Open ticket,
+		move it to In Progress.
 	*/
-	_, err =
-		h.db.Exec(
-			c.Request.Context(),
+	if currentStatus == "Not Started" ||
+		currentStatus == "Open" {
+
+		_, err = tx.Exec(
+			ctx,
 			`
-			UPDATE trouble_tickets
-
+			UPDATE public.trouble_tickets
 			SET
-
-				status_progess =
-					GREATEST(
-						status_progess,
-						2
-					),
-
-				status_update_by =
-					$1,
-
-				status_update_date =
-					NOW()
-
-			WHERE
-				id = $2
-
-				AND active = TRUE
+				status = 'In Progress',
+				updated_at = NOW()
+			WHERE id = $1
 			`,
-			employeeID,
-			c.Param("id"),
+			ticketID,
 		)
 
-	if err != nil {
-		response.ServerError(
-			c,
-			err,
-		)
+		if err != nil {
+			response.ServerError(c, err)
+			return
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
 		return
 	}
 
@@ -2008,10 +2506,110 @@ func (h *TicketHandler) AddUpdate(
 		http.StatusCreated,
 		gin.H{
 			"success": true,
-
 			"data": gin.H{
 				"id": updateID,
 			},
 		},
 	)
+}
+
+/* ============================================================
+   HISTORY INSERT HELPER
+============================================================ */
+
+func insertHistory(
+	ctx context.Context,
+	tx pgx.Tx,
+	ticketID int64,
+	eventType string,
+	previousStatus string,
+	currentStatus string,
+	note string,
+	changedBy string,
+	department string,
+	assignedTo string,
+	attachmentURL string,
+) error {
+
+	var previous any
+
+	if strings.TrimSpace(
+		previousStatus,
+	) != "" {
+
+		previous =
+			previousStatus
+	}
+
+	var current any
+
+	if strings.TrimSpace(
+		currentStatus,
+	) != "" {
+
+		current =
+			currentStatus
+	}
+
+	_, err := tx.Exec(
+		ctx,
+		`
+		INSERT INTO public.trouble_ticket_history (
+			ticket_id,
+			event_type,
+			previous_status,
+			current_status,
+			note,
+			assigned_to,
+			department,
+			attachment_url,
+			changed_by,
+			created_at
+		)
+		VALUES (
+			$1,
+			$2,
+			$3,
+			$4,
+			$5,
+			NULLIF($6, ''),
+			NULLIF($7, ''),
+			NULLIF($8, ''),
+			NULLIF($9, ''),
+			NOW()
+		)
+		`,
+		ticketID,
+		eventType,
+		previous,
+		current,
+		strings.TrimSpace(note),
+		strings.TrimSpace(assignedTo),
+		strings.TrimSpace(department),
+		strings.TrimSpace(attachmentURL),
+		strings.TrimSpace(changedBy),
+	)
+
+	return err
+}
+
+/* ============================================================
+   ID PARAMETER
+============================================================ */
+
+func parseInt64Param(
+	value string,
+) int64 {
+
+	id, err := strconv.ParseInt(
+		strings.TrimSpace(value),
+		10,
+		64,
+	)
+
+	if err != nil {
+		return 0
+	}
+
+	return id
 }
