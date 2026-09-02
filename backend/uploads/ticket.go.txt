@@ -10,9 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"mime/multipart"
-	"os"
-	"path/filepath"
 
 	"itm-api/pkg/response"
 
@@ -1111,49 +1108,14 @@ func (h *TicketHandler) Create(
 
    NO creation history is inserted.
 ============================================================ */
-//3rd step To create multiple tickets at once, we will use the CreateBulk function. This function will read a JSON array of tickets from the request body, validate each ticket, and then insert them into the database in a single transaction. If any ticket fails validation or insertion, the entire operation will be rolled back.
 
-func (h *TicketHandler) CreateBulk(c *gin.Context) {
+func (h *TicketHandler) CreateBulk(
+	c *gin.Context,
+) {
+
 	employeeID, ok := requireEmployee(c)
+
 	if !ok {
-		return
-	}
-
-	/*
-		========================================================
-		READ MULTIPART FORM
-		========================================================
-
-		Frontend sends:
-
-		tickets = {
-			"tickets": [
-				{
-					"reason_of_problem": "...",
-					"fault_type": 1
-				},
-				{
-					"reason_of_problem": "...",
-					"fault_type": 2
-				}
-			]
-		}
-
-		Files:
-
-		ticket_0_file
-		ticket_1_file
-		ticket_2_file
-		...
-	*/
-
-	ticketsJSON := c.PostForm("tickets")
-
-	if strings.TrimSpace(ticketsJSON) == "" {
-		response.BadRequest(
-			c,
-			"tickets field is required",
-		)
 		return
 	}
 
@@ -1161,13 +1123,10 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 		Tickets []ticketInput `json:"tickets"`
 	}
 
-	if err := json.Unmarshal(
-		[]byte(ticketsJSON),
-		&req,
-	); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(
 			c,
-			"invalid tickets JSON",
+			err.Error(),
 		)
 		return
 	}
@@ -1189,12 +1148,10 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 	}
 
 	/*
-		========================================================
-		VALIDATE TICKETS
-		========================================================
+		Validate every ticket before opening the transaction.
 	*/
-
 	for i := range req.Tickets {
+
 		req.Tickets[i].ReasonOfProblem =
 			strings.TrimSpace(
 				req.Tickets[i].ReasonOfProblem,
@@ -1203,6 +1160,7 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 		if err := validateTicketInput(
 			req.Tickets[i],
 		); err != nil {
+
 			response.BadRequest(
 				c,
 				fmt.Sprintf(
@@ -1211,72 +1169,10 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 					err.Error(),
 				),
 			)
+
 			return
 		}
 	}
-
-	/*
-		========================================================
-		READ ONE FILE PER TT
-		========================================================
-	*/
-
-	// type UploadedFile struct {
-	// 	Header *multipart.FileHeader
-	// }
-
-	files := make(
-		[]*multipart.FileHeader,
-		len(req.Tickets),
-	)
-
-	for i := range req.Tickets {
-
-		fieldName := fmt.Sprintf(
-			"ticket_%d_file",
-			i,
-		)
-
-		header, err := c.FormFile(
-			fieldName,
-		)
-
-		if err != nil {
-
-			/*
-				No file is allowed.
-
-				This is NOT an error.
-
-				Example:
-
-				TT #1 → file
-				TT #2 → no file
-				TT #3 → file
-			*/
-			files[i] = nil
-			continue
-		}
-
-		if header.Size > 5*1024*1024 {
-			response.BadRequest(
-				c,
-				fmt.Sprintf(
-					"ticket #%d attachment must be 5 MB or smaller",
-					i+1,
-				),
-			)
-			return
-		}
-
-		files[i] = header
-	}
-
-	/*
-		========================================================
-		DATABASE TRANSACTION
-		========================================================
-	*/
 
 	ctx, cancel := context.WithTimeout(
 		c.Request.Context(),
@@ -1285,6 +1181,7 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 	defer cancel()
 
 	tx, err := h.db.Begin(ctx)
+
 	if err != nil {
 		response.ServerError(c, err)
 		return
@@ -1293,14 +1190,14 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 	defer tx.Rollback(ctx)
 
 	/*
-		Prevent duplicate TT numbers.
+		Serialize TT number generation.
 	*/
-
 	if _, err := tx.Exec(
 		ctx,
 		`SELECT pg_advisory_xact_lock($1)`,
 		ttNumberAdvisoryLock,
 	); err != nil {
+
 		response.ServerError(c, err)
 		return
 	}
@@ -1309,15 +1206,15 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 		ctx,
 		employeeID,
 	)
+
 	if err != nil {
 		response.ServerError(c, err)
 		return
 	}
 
 	type CreatedTicket struct {
-		ID           int64  `json:"id"`
-		TTNo         string `json:"tt_no"`
-		AttachedFile string `json:"attached_file,omitempty"`
+		ID   int64  `json:"id"`
+		TTNo string `json:"tt_no"`
 	}
 
 	created := make(
@@ -1326,16 +1223,13 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 		len(req.Tickets),
 	)
 
-	/*
-		========================================================
-		CREATE EACH TT
-		========================================================
-	*/
-
 	for i := range req.Tickets {
 
 		item := req.Tickets[i]
 
+		/*
+			Resolve fault from public.tt_faults.
+		*/
 		fault, err := h.getFault(
 			ctx,
 			tx,
@@ -1345,6 +1239,7 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 		if err != nil {
 
 			if err == pgx.ErrNoRows {
+
 				response.BadRequest(
 					c,
 					fmt.Sprintf(
@@ -1352,6 +1247,7 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 						i+1,
 					),
 				)
+
 				return
 			}
 
@@ -1369,94 +1265,16 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 			return
 		}
 
-		/*
-			====================================================
-			FILE PATH
-			====================================================
-		*/
-
-		attachedFile := ""
-
-		if files[i] != nil {
-
-			header := files[i]
-
-			extension := filepath.Ext(
-				header.Filename,
-			)
-
-			/*
-				Generate unique filename.
-
-				Example:
-
-				20260902124530_12345.png
-			*/
-
-			filename := fmt.Sprintf(
-				"%d_%d%s",
-				time.Now().UnixNano(),
-				i+1,
-				extension,
-			)
-
-			relativePath := filepath.ToSlash(
-				filepath.Join(
-					"uploads",
-					"tt",
-					filename,
-				),
-			)
-
-			absolutePath := filepath.Join(
-				"uploads",
-				"tt",
-				filename,
-			)
-
-			/*
-				IMPORTANT:
-
-				If your backend is running from:
-
-				D:\ITM-Data\itm\backend
-
-				then:
-
-				uploads\tt
-
-				resolves to:
-
-				D:\ITM-Data\itm\backend\uploads\tt
-			*/
-
-			if err := os.MkdirAll(
-				filepath.Dir(absolutePath),
-				0755,
-			); err != nil {
-				response.ServerError(c, err)
-				return
-			}
-
-			if err := c.SaveUploadedFile(
-				header,
-				absolutePath,
-			); err != nil {
-				response.ServerError(c, err)
-				return
-			}
-
-			attachedFile = relativePath
-		}
-
-		/*
-			====================================================
-			INSERT TT
-			====================================================
-		*/
-
 		var id int64
 
+		/*
+			IMPORTANT:
+
+			Do NOT insert fault_type_id.
+
+			Actual trouble_tickets schema stores the
+			selected fault name in query_type.
+		*/
 		err = tx.QueryRow(
 			ctx,
 			`
@@ -1474,7 +1292,6 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 				description,
 				requested_by,
 				status,
-				attached_file,
 				created_at,
 				updated_at
 			)
@@ -1492,7 +1309,6 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 				$11,
 				$12,
 				'Open',
-				NULLIF($13, ''),
 				NOW(),
 				NOW()
 			)
@@ -1510,7 +1326,6 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 			fault.Name,
 			item.ReasonOfProblem,
 			employee.Name,
-			attachedFile,
 		).Scan(&id)
 
 		if err != nil {
@@ -1518,22 +1333,22 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 			return
 		}
 
+		/*
+			NO history record during creation.
+		*/
+
 		created = append(
 			created,
 			CreatedTicket{
-				ID:           id,
-				TTNo:         ttNo,
-				AttachedFile: attachedFile,
+				ID:   id,
+				TTNo: ttNo,
 			},
 		)
 	}
 
 	/*
-		========================================================
-		COMMIT
-		========================================================
+		Commit all tickets together.
 	*/
-
 	if err := tx.Commit(ctx); err != nil {
 		response.ServerError(c, err)
 		return
@@ -1550,6 +1365,7 @@ func (h *TicketHandler) CreateBulk(c *gin.Context) {
 		},
 	)
 }
+
 /* ============================================================
    VALIDATION
 ============================================================ */

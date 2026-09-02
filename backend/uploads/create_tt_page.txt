@@ -630,41 +630,17 @@ export default function CreateTTPage() {
              * One bulk request creates 1-10 tickets atomically.
              */
 
-            // const payload = tickets.map((ticket) => ({
-            //     reason_of_problem:
-            //         ticket.description.trim(),
+            const payload = tickets.map((ticket) => ({
+                reason_of_problem:
+                    ticket.description.trim(),
 
-            //     fault_type:
-            //         ticket.faultType!.id,
-            // }));
+                fault_type:
+                    ticket.faultType!.id,
+            }));
 
-            // const response =
-            //     await ticketApi.createBulk(
-            //         payload
-            //     );
-            
-            const payload =
-                tickets.map(
-                    (ticket) => ({
-                        reason_of_problem:
-                            ticket.description.trim(),
-
-                        fault_type:
-                            ticket.faultType!.id,
-                    })
-                );
-
-            const attachments =
-                tickets.map(
-                    (ticket) =>
-                        ticket.attachment
-                );
-
-                //1st argument = payload, 2nd argument = attachments
             const response =
                 await ticketApi.createBulk(
-                    payload,
-                    attachments
+                    payload
                 );
 
             const created =

@@ -94,120 +94,43 @@ export function clearAuth() {
    REQUEST
 ====================================================== */
 
-// async function request<T>(
-//     path: string,
-//     options: RequestInit = {}
-// ): Promise<T> {
-//     const token =
-//         getToken();
-
-//     const res =
-//         await fetch(
-//             `${BASE}${path}`,
-//             {
-//                 ...options,
-
-//                 cache:
-//                     "no-store",
-
-//                 headers: {
-//                     "Content-Type":
-//                         "application/json",
-
-//                     ...(token
-//                         ? {
-//                             Authorization:
-//                                 `Bearer ${token}`,
-//                         }
-//                         : {}),
-
-//                     ...(options.headers ??
-//                         {}),
-//                 },
-//             }
-//         );
-
-//     if (
-//         res.status ===
-//         401
-//     ) {
-//         clearAuth();
-
-//         throw new Error(
-//             "Session expired"
-//         );
-//     }
-
-//     const data =
-//         await res
-//             .json()
-//             .catch(
-//                 () =>
-//                     null
-//             );
-
-//     if (
-//         !res.ok ||
-//         data?.success ===
-//         false
-//     ) {
-//         throw new Error(
-//             data?.error ||
-//             data?.message ||
-//             `HTTP ${res.status}`
-//         );
-//     }
-
-//     return data as T;
-// }
-
-
 async function request<T>(
     path: string,
     options: RequestInit = {}
 ): Promise<T> {
-    const token = getToken();
+    const token =
+        getToken();
 
-    const isFormData =
-        typeof FormData !== "undefined" &&
-        options.body instanceof FormData;
+    const res =
+        await fetch(
+            `${BASE}${path}`,
+            {
+                ...options,
 
-    const headers = new Headers(
-        options.headers ?? {}
-    );
+                cache:
+                    "no-store",
 
-    /*
-     * IMPORTANT:
-     *
-     * Do NOT manually set Content-Type for FormData.
-     * The browser automatically generates:
-     *
-     * multipart/form-data; boundary=...
-     */
-    if (!isFormData) {
-        headers.set(
-            "Content-Type",
-            "application/json"
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    ...(token
+                        ? {
+                            Authorization:
+                                `Bearer ${token}`,
+                        }
+                        : {}),
+
+                    ...(options.headers ??
+                        {}),
+                },
+            }
         );
-    }
 
-    if (token) {
-        headers.set(
-            "Authorization",
-            `Bearer ${token}`
-        );
-    }
-
-    const res = await fetch(
-        `${BASE}${path}`,
-        {
-            ...options,
-            cache: "no-store",
-            headers,
-        }
-    );
-
-    if (res.status === 401) {
+    if (
+        res.status ===
+        401
+    ) {
         clearAuth();
 
         throw new Error(
@@ -218,11 +141,15 @@ async function request<T>(
     const data =
         await res
             .json()
-            .catch(() => null);
+            .catch(
+                () =>
+                    null
+            );
 
     if (
         !res.ok ||
-        data?.success === false
+        data?.success ===
+        false
     ) {
         throw new Error(
             data?.error ||
@@ -317,85 +244,13 @@ export type AuthPermission =
    GENERIC API METHODS
 ====================================================== */
 
-// export const api = {
-//     get: <T>(
-//         path: string
-//     ) =>
-//         request<T>(
-//             path
-//         ),
-
-//     post: <T>(
-//         path: string,
-//         body?: unknown
-//     ) =>
-//         request<T>(
-//             path,
-//             {
-//                 method:
-//                     "POST",
-
-//                 body:
-//                     JSON.stringify(
-//                         body ??
-//                         {}
-//                     ),
-//             }
-//         ),
-
-//     put: <T>(
-//         path: string,
-//         body?: unknown
-//     ) =>
-//         request<T>(
-//             path,
-//             {
-//                 method:
-//                     "PUT",
-
-//                 body:
-//                     JSON.stringify(
-//                         body ??
-//                         {}
-//                     ),
-//             }
-//         ),
-
-//     patch: <T>(
-//         path: string,
-//         body?: unknown
-//     ) =>
-//         request<T>(
-//             path,
-//             {
-//                 method:
-//                     "PATCH",
-
-//                 body:
-//                     JSON.stringify(
-//                         body ??
-//                         {}
-//                     ),
-//             }
-//         ),
-
-//     del: <T>(
-//         path: string
-//     ) =>
-//         request<T>(
-//             path,
-//             {
-//                 method:
-//                     "DELETE",
-//             }
-//         ),
-// };
-
-
-
 export const api = {
-    get: <T>(path: string) =>
-        request<T>(path),
+    get: <T>(
+        path: string
+    ) =>
+        request<T>(
+            path
+        ),
 
     post: <T>(
         path: string,
@@ -404,22 +259,14 @@ export const api = {
         request<T>(
             path,
             {
-                method: "POST",
-                body: JSON.stringify(
-                    body ?? {}
-                ),
-            }
-        ),
+                method:
+                    "POST",
 
-    postForm: <T>(
-        path: string,
-        body: FormData
-    ) =>
-        request<T>(
-            path,
-            {
-                method: "POST",
-                body,
+                body:
+                    JSON.stringify(
+                        body ??
+                        {}
+                    ),
             }
         ),
 
@@ -430,10 +277,14 @@ export const api = {
         request<T>(
             path,
             {
-                method: "PUT",
-                body: JSON.stringify(
-                    body ?? {}
-                ),
+                method:
+                    "PUT",
+
+                body:
+                    JSON.stringify(
+                        body ??
+                        {}
+                    ),
             }
         ),
 
@@ -444,21 +295,29 @@ export const api = {
         request<T>(
             path,
             {
-                method: "PATCH",
-                body: JSON.stringify(
-                    body ?? {}
-                ),
+                method:
+                    "PATCH",
+
+                body:
+                    JSON.stringify(
+                        body ??
+                        {}
+                    ),
             }
         ),
 
-    del: <T>(path: string) =>
+    del: <T>(
+        path: string
+    ) =>
         request<T>(
             path,
             {
-                method: "DELETE",
+                method:
+                    "DELETE",
             }
         ),
 };
+
 /* ======================================================
    QUERY HELPER
 ====================================================== */
@@ -1257,8 +1116,6 @@ export interface Ticket {
     requisition_type: string;
     delivered_status: string;
 
-    attached_file: string | null;
-
     created_at: string;
     closed_at: string | null;
 
@@ -1340,45 +1197,17 @@ export const ticketApi = {
             body
         ),
 
-
-
-    //2nd step attachment upload for bulk tickets
     createBulk: (
-        tickets: CreateTroubleTicketRequest[],
-        attachments: Array<File | null>
-    ) => {
-        const formData = new FormData();
-
-        // Ticket JSON
-        formData.append(
-            "tickets",
-            JSON.stringify({
-                tickets,
-            })
-        );
-
-        // One file belongs to one ticket
-        attachments.forEach(
-            (file, index) => {
-                if (!file) {
-                    return;
-                }
-
-                formData.append(
-                    `ticket_${index}_file`,
-                    file,
-                    file.name
-                );
-            }
-        );
-
-        return api.postForm<
+        tickets: CreateTroubleTicketRequest[]
+    ) =>
+        api.post<
             ApiOk<CreateTroubleTicketResponse>
         >(
             "/tickets/bulk",
-            formData
-        );
-    },
+            {
+                tickets,
+            }
+        ),
 
     update: (
         id: number,

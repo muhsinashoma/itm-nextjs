@@ -1,0 +1,314 @@
+
+
+3. New TT creation
+
+For newly created TT, the frontend currently has:
+
+File
+ ↓
+create_tt/page.tsx
+ ↓
+api.ts
+ ↓
+ticket.go
+ ↓
+trouble_tickets
+
+---------------------------------------------------------
+
+
+4. Recommended professional API design
+
+Because you support up to 10 TT at once, I recommend:
+
+POST /api/v1/tickets/bulk
+Content-Type: multipart/form-data
+
+--------------------------------------------------------
+
+
+5. ticket.go structure
+
+Your bulk handler should conceptually do:
+
+func CreateBulkTickets(c *gin.Context) {
+    // 1. Read multipart form
+    // 2. Read "tickets" JSON
+    // 3. Validate max 10
+    // 4. Start DB transaction
+    // 5. For each ticket:
+    //      - validate fault_type against public.tt_faults
+    //      - save attachment if supplied
+    //      - INSERT into trouble_tickets
+    //      - get generated id + tt_no
+    // 6. Commit transaction
+    // 7. Return created TT numbers
+}
+
+---------------------------------------------------
+
+6. Attachment filename
+
+Don't store the original filename directly as the path.
+
+For example, don't use:
+
+uploads/printer.png
+
+because two users could upload:
+
+printer.png
+
+Instead:
+
+uploads/20260901_153012_8f32_printer.png
+
+or preferably a UUID-based name:
+
+uploads/8f32a7c1-printer.png
+
+Database:
+
+attached_file
+--------------------------------
+uploads/8f32a7c1-printer.png
+
+This is much safer.
+
+----------------------------------------------------------
+
+“Preferably a UUID-based name” means:
+
+It is better/recommended to use a name generated from a UUID (Universally Unique Identifier).
+
+Example
+
+Instead of naming a file:
+
+profile.jpg
+
+you might use a UUID-based name:
+
+550e8400-e29b-41d4-a716-446655440000.jpg
+Why use a UUID-based name?
+Unique: Very unlikely to conflict with another file.
+Safer for uploads: Multiple users can upload files with the same original filename.
+Avoids overwriting: profile.jpg from one user won't accidentally replace another user's file.
+Good for databases/storage: The UUID can identify the file uniquely.
+
+So, if a requirement says “preferably a UUID-based name,” it means using a UUID for the filename is recommended, but it may not be strictly mandatory.
+
+------------------------------------------------------------------------
+
+For the new implementation, I recommend:
+
+api.ts
+   ↓
+create_tt/page.tsx
+   ↓
+FormData
+   ↓
+ticket.go
+   ↓
+trouble_tickets.attached_file
+
+-------------------------------------------------------------------------
+
+last tt_no
+
+
+TT #2026072729750
+Open
+Ticket Information & Employee Details
+
+
+Employee
+Name: Md. Limon Miah
+
+ID: 02-0278
+
+01712824551
+
+Department
+Department: Technology and Operations
+
+Function: IT
+
+Company: -
+
+Ticket Details
+Requisition Type
+
+-
+
+Query Type
+
+WIFI
+
+Assigned To
+
+-
+
+Assigned ID
+
+-
+
+TT Age
+
+36d 5h 42m
+
+Delivery Status
+
+-
+
+Created At
+
+2026-07-27 11:07:05+06
+
+Assignment Information
+Responsible Person: Not Assigned
+
+------------------------------------------------------
+
+17. Final architecture
+
+Your final implementation should be:
+
+                    CREATE TT
+                       │
+                       ▼
+             create_tt/page.tsx
+                       │
+              1–10 TicketDraft
+                       │
+              ┌────────┴────────┐
+              │                 │
+          description          File
+              │                 │
+              └────────┬────────┘
+                       ▼
+                    api.ts
+                       │
+                 FormData
+                       │
+                       ▼
+              POST /tickets/bulk
+                       │
+                       ▼
+                  ticket.go
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+      PostgreSQL                  Disk
+          │                         │
+          ▼                         ▼
+ trouble_tickets                uploads/
+          │
+          ├── TT #1 → attached_file = uploads/a.png
+          ├── TT #2 → attached_file = uploads/b.jpg
+          ├── TT #3 → attached_file = NULL
+          │
+          └── TT #10 → attached_file = uploads/j.png
+
+
+-----------------------------------------------------------------------------------
+
+What I would do next
+
+Do not change the database again. Your attached_file TEXT column is already present, as shown in your screenshot.
+
+The next implementation should be exactly these three code changes:
+
+frontend/lib/api.ts → change bulk create from JSON to FormData.
+frontend/app/dashboard/operations/create_tt/page.tsx → send each ticket.attachment as ticket_0_file, ticket_1_file, etc.
+backend/internal/handler/ticket.go → receive multipart files, save each file, insert its path into trouble_tickets.attached_file, and clean up files if the transaction rolls back.
+
+Then separately implement the legacy attach_file migration from tbl_trouble_input using legacy_id, followed by copying the physical files from the old uploads directory.
+
+Your existing frontend already has the correct one-file-per-ticket state and 5 MB validation, so we don't need to redesign that part.
+
+If you give me the current api.ts and the complete current ticket.go, I can rewrite those two files around this exact FormData + one-file-per-TT + atomic 1–10 TT implementation without changing your existing unrelated ticket APIs.
+
+--------------------------------------------------------------------\
+Yes. I understand the requirement now.
+
+I’ll keep the implementation to only:
+
+backend/
+└── uploads/
+    └── tt/
+
+No encryption/decryption, no extra upload folders, and no extra upload service.
+
+The attachment flow will be:
+
+Browser
+  ↓
+POST /tickets/bulk  (multipart/form-data)
+  ↓
+Go backend
+  ↓
+uploads/tt/
+  ├── 12345_image.jpg
+  ├── 12346_screenshot.png
+  └── ...
+  ↓
+trouble_tickets.attach_file
+
+Each TT can have one attachment, maximum 5 MB, and up to 10 TTs can still be submitted together. The existing TT creation logic and authenticated employee handling remain intact. Your current frontend already has the attachment UI; the missing part is sending the actual File instead of only JSON.
+
+I also checked the current API client: it currently always sets Content-Type: application/json, so it must be changed to allow FormData; otherwise the uploaded file will not reach Go correctly.
+
+Files to rewrite
+backend/internal/handler/ticket.go
+Multipart upload support
+uploads/tt only
+5 MB/file limit
+Safe filename
+Stores relative path in attach_file
+Deletes physical files if the DB transaction fails
+Bulk 1–10 TT support
+Existing ticket APIs preserved
+frontend/app/dashboard/operations/create_tt/page.tsx
+Keeps your current UI
+Sends actual selected files
+One file per TT
+Bulk submission remains atomic
+Attachment name shown before submit
+Reset/remove attachment works
+frontend/lib/api.ts
+FormData support added to the request client
+ticketApi.createBulk() sends multipart data
+Existing JSON APIs continue working normally
+
+The important correction is that the frontend must not do this for the bulk request:
+
+JSON.stringify(payload)
+
+Instead it needs:
+
+const formData = new FormData();
+
+formData.append(
+    "tickets",
+    JSON.stringify(ticketData)
+);
+
+formData.append(
+    "attachment_0",
+    tickets[0].attachment
+);
+
+and the backend reads:
+
+file, header, err := c.Request.FormFile("attachment_0")
+
+with the final physical location:
+
+uploads/tt/
+
+Your current uploaded frontend and backend files confirm that the existing bulk endpoint is JSON-only at the moment, which is why the selected File is currently never uploaded.
+
+I would not add another migration/table just for this, assuming your existing trouble_tickets.attach_file column is present, as it is in the current legacy ticket implementation.
+
+--------------------------------------------------------------
