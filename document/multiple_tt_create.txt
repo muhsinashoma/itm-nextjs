@@ -1,0 +1,46 @@
+
+https://chatgpt.com/g/g-p-6a5378cdfc588191b929a3b5ca9c1c9a-itm-nextjs/c/6a8a7c40-36f4-83e8-8a59-4ba8633d33b6
+
+date : 03 September, 2026
+
+
+Your final architecture
+Create TT page
+       │
+       ├── TT #1 + file1
+       ├── TT #2 + file2
+       ├── TT #3 + file3
+       │
+       ▼
+multipart/form-data
+       │
+       ▼
+ticket.go CreateBulk()
+       │
+       ├── Save file1 → uploads/tt/
+       ├── Save file2 → uploads/tt/
+       ├── Save file3 → uploads/tt/
+       │
+       ▼
+PostgreSQL
+       │
+       ├── TT #1 → attached_file = uploads/tt/file1
+       ├── TT #2 → attached_file = uploads/tt/file2
+       └── TT #3 → attached_file = uploads/tt/file3
+
+So one TT = one attachment, while 10 TT = up to 10 separate attachments.
+
+If the above PostgreSQL query now shows the paths correctly, the next step is to implement fetch/download/open attachment from the TT History / Assigned TT page, including handling the old migrated paths such as uploads/1784049751_Screenshot_2.png.
+
+
+SELECT
+    id,
+    tt_no,
+    employee_id,
+    employee_name,
+    attached_file
+FROM public.trouble_tickets
+WHERE attached_file IS NOT NULL
+  AND attached_file <> ''
+ORDER BY id DESC
+LIMIT 20;
