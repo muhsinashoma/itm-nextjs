@@ -3281,3 +3281,45 @@ export const downstreamDevicesApi = {
             )}`
         ),
 };
+
+
+/* ======================================================
+   DOWNSTREAM EMPLOYEES
+====================================================== */
+
+export type DownstreamEmployeeScope =
+    | "all"
+    | "direct"
+    | "indirect";
+
+export interface DownstreamEmployeeItem {
+    employee_id: string;
+    employee_name: string;
+    designation: string;
+    department: string;
+    work_field: string;
+    sub_function: string;
+    relationship: string;
+    tier_level: number;
+    device_count: number;
+}
+
+export interface DownstreamEmployeesParams {
+    page?: number;
+    limit?: number;
+    scope?: DownstreamEmployeeScope;
+    search?: string;
+}
+
+export const downstreamEmployeesApi = {
+    list: (
+        params?: DownstreamEmployeesParams
+    ) =>
+        api.get<
+            ApiPage<DownstreamEmployeeItem>
+        >(
+            `/user/downstream-employees${toQuery(
+                params
+            )}`
+        ),
+};
