@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS trouble_ticket_events;
