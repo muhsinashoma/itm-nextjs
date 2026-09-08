@@ -144,7 +144,6 @@ type DashboardHandler struct{ db *pgxpool.Pool }
 
 func NewDashboardHandler(db *pgxpool.Pool) *DashboardHandler { return &DashboardHandler{db: db} }
 
-
 func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/dashboard")
 
@@ -177,10 +176,15 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 		"/trouble-tickets",
 		h.TroubleTicketList,
 	)
-	
+
 	g.GET(
 		"/trouble-tickets/:id/details",
 		h.TroubleTicketDetails,
+	)
+
+	g.GET(
+		"/trouble-tickets/:id/events",
+		h.TroubleTicketEvents,
 	)
 
 	g.GET(
@@ -188,15 +192,11 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 		h.TroubleTicketITPersonnel,
 	)
 
-	 // Fault Types
-    // g.GET(
-    //     "/faults",
-    //     middleware.RequirePermission(
-    //         h.db,
-    //         "trouble_ticket.view",
-    //     ),
-    //     h.FaultList,
-    // )
+	g.POST(
+		"/trouble-tickets/:id/assignment",
+		middleware.RequirePermission(h.db, "TT_ASSIGN"),
+		h.AssignTroubleTicket,
+	)
 
 	/* ============================================================
 	   REQUISITION
@@ -1779,17 +1779,13 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 	)
 }
 
-
-
 func (h *DashboardHandler) TroubleTicketDetails(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
 	id := c.Param("id")
 
-
 	type Ticket struct {
-
 		ID int64 `json:"id"`
 
 		TTNo string `json:"tt_no"`
@@ -1817,11 +1813,7 @@ func (h *DashboardHandler) TroubleTicketDetails(c *gin.Context) {
 		AssignedName string `json:"assigned_name"`
 	}
 
-
-
 	var ticket Ticket
-
-
 
 	err := h.db.QueryRow(
 		ctx,
@@ -1907,7 +1899,6 @@ func (h *DashboardHandler) TroubleTicketDetails(c *gin.Context) {
 		&ticket.AssignedName,
 	)
 
-
 	if err != nil {
 
 		response.NotFound(
@@ -1918,10 +1909,7 @@ func (h *DashboardHandler) TroubleTicketDetails(c *gin.Context) {
 		return
 	}
 
-
-
 	type History struct {
-
 		ID int64 `json:"id"`
 
 		UserID string `json:"user_id"`
@@ -1939,13 +1927,9 @@ func (h *DashboardHandler) TroubleTicketDetails(c *gin.Context) {
 		Date string `json:"date"`
 	}
 
-
-
 	history := []History{}
 
-
-
-	rows,err := h.db.Query(
+	rows, err := h.db.Query(
 		ctx,
 		`
 
@@ -1998,25 +1982,18 @@ func (h *DashboardHandler) TroubleTicketDetails(c *gin.Context) {
 		id,
 	)
 
+	if err != nil {
 
-
-	if err!=nil{
-
-		response.ServerError(c,err)
+		response.ServerError(c, err)
 
 		return
 	}
 
-
 	defer rows.Close()
 
-
-
-	for rows.Next(){
-
+	for rows.Next() {
 
 		var h History
-
 
 		rows.Scan(
 
@@ -2035,30 +2012,26 @@ func (h *DashboardHandler) TroubleTicketDetails(c *gin.Context) {
 			&h.Note,
 
 			&h.Date,
-
 		)
 
-
-		history=append(
+		history = append(
 			history,
 			h,
 		)
 	}
 
-
-
 	response.OK(
 		c,
 		gin.H{
 
-			"ticket":ticket,
+			"ticket": ticket,
 
-			"history":history,
-
+			"history": history,
 		},
 	)
 
 }
+
 // ─── Claim ───────────────────────────────────────────────────────────────────
 
 type ClaimHandler struct{ db *pgxpool.Pool }
@@ -4862,4 +4835,3 @@ func (
 		result,
 	)
 }
-

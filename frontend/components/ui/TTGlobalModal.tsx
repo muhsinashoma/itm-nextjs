@@ -259,7 +259,10 @@ export function TTGlobalModal() {
                             </p>
                         </div>
                     </div>
+
                 </div>
+
+
 
                 {/* FOOTER */}
                 <div className="border-t px-5 py-4 flex items-center justify-end gap-2 bg-muted/20">

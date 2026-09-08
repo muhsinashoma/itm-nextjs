@@ -1,0 +1,131 @@
+Object.keys(localStorage)
+
+
+localStorage.getItem("itm_token")
+
+
+---------------------------------------------------------------------------------------------
+
+
+localStorage.getItem("itm_token")
+
+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjgzOSwiZW1wIjoiMDItMjAxNCIsInVuYW1lIjoibnVyLmhvc2VuIiwicm9sZSI6MSwicm9sZV9jb2RlIjoiSVRfQURNSU4iLCJpc3MiOiJpdG0tYXBpIiwiZXhwIjoxNzg4ODgyNDAzLCJuYmYiOjE3ODg4NTM2MDMsImlhdCI6MTc4ODg1MzYwM30.KUE54LnGuxRX01coPoJUjfUeAmJeayP-8QE5B6wuYQY'
+
+
+Your current api.ts already has the central request() function, which automatically adds the JWT from itm_token to requests.
+------------------------------------------------------------------------------------------
+
+
+https://chatgpt.com/g/g-p-6a5378cdfc588191b929a3b5ca9c1c9a/c/6a8fdf9d-618c-83ee-b461-0d4b28f9b9f8
+
+
+Yes. This confirms your backend is correctly configured for port 8080, and your frontend is configured for the same backend.
+
+Your setup is:
+
+Frontend
+http://localhost:5173
+
+        ↓
+
+Go Backend
+http://localhost:8080
+
+        ↓
+
+API
+http://localhost:8080/api/v1
+
+
+And your frontend currently has:
+
+NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+
+-----------------------------------------------------------------------------------------------
+
+/* ======================================================
+   AUTH HELPERS
+====================================================== */
+
+export function getToken():
+    | string
+    | null {
+    if (
+        typeof window ===
+        "undefined"
+    ) {
+        return null;
+    }
+
+    return localStorage.getItem(
+        "itm_token"
+    );
+}
+
+export function getUser():
+    | AuthMeData
+    | null {
+    if (
+        typeof window ===
+        "undefined"
+    ) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(
+            localStorage.getItem(
+                "itm_user"
+            ) ?? "null"
+        );
+    } catch {
+        return null;
+    }
+}
+
+
+/* ======================================================
+  Auth
+====================================================== */
+
+
+export function clearAuthStorage() {
+    if (
+        typeof window ===
+        "undefined"
+    ) {
+        return;
+    }
+
+    localStorage.removeItem(
+        "itm_token"
+    );
+
+    localStorage.removeItem(
+        "itm_user"
+    );
+}
+
+export function clearAuth() {
+    if (
+        typeof window ===
+        "undefined"
+    ) {
+        return;
+    }
+
+    clearAuthStorage();
+
+    /*
+     * Used for automatic logout such as HTTP 401.
+     *
+     * replace() is preferable to href because the user
+     * should not return to a protected page with Back.
+     */
+    window.location.replace(
+        "/auth"
+    );
+}
+
+
+---------------------------------------------------------------------------------
