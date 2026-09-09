@@ -1,25 +1,30 @@
 //itm/frontend/components/tt-columns.tsx
-
-
 "use client";
 
 import type { ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import {
+    Building2,
+    CalendarDays,
     CheckCircle,
     ChevronDown,
     ClipboardList,
     Clock,
     Eye,
+    FileText,
+    History,
     Loader2,
+    Mail,
     Pencil,
+    Phone,
     Trash2,
     UserCheck,
+    UserRound,
     XCircle,
 } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,8 +33,6 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
-    DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 
@@ -154,42 +157,119 @@ function formatDuration(
     return `${days}d ${hours}h ${minutes}m`;
 }
 
-function formatCreatedAt(
-    value: string
-): string {
-    if (!value) {
-        return "—";
-    }
-
-    const normalized = value
+function normalizeDateValue(value: unknown): string {
+    return String(value ?? "")
         .trim()
         .replace(" ", "T");
+}
 
-    const date = new Date(
-        normalized
-    );
+type CreatedAtParts = {
+    date: string;
+    time: string;
+    full: string;
+};
 
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-        return value;
+function formatCreatedAtParts(
+    value: string
+): CreatedAtParts {
+    const raw = String(value ?? "").trim();
+
+    if (!raw) {
+        return {
+            date: "—",
+            time: "",
+            full: "—",
+        };
     }
 
-    return new Intl.DateTimeFormat(
+    /*
+     * PostgreSQL commonly returns:
+     *
+     * 2026-09-08 16:18:03.071+06
+     *
+     * Convert the space separator to ISO's T separator.
+     * Keep the timezone information so the browser does not
+     * accidentally interpret the timestamp in a different zone.
+     */
+    const normalized = raw.includes("T")
+        ? raw
+        : raw.replace(" ", "T");
+
+    const parsed = new Date(normalized);
+
+    if (Number.isNaN(parsed.getTime())) {
+        /*
+         * Safe fallback for an unexpected timestamp format.
+         * If the raw value starts with YYYY-MM-DD HH:mm:ss,
+         * still present the two useful parts separately.
+         */
+        const match = raw.match(
+            /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/
+        );
+
+        if (match) {
+            return {
+                date: match[1],
+                time: match[2],
+                full: `${match[1]} ${match[2]}`,
+            };
+        }
+
+        return {
+            date: raw,
+            time: "",
+            full: raw,
+        };
+    }
+
+    const dateParts = new Intl.DateTimeFormat(
+        "en-CA",
+        {
+            timeZone: "Asia/Dhaka",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }
+    ).formatToParts(parsed);
+
+    const timeParts = new Intl.DateTimeFormat(
         "en-GB",
         {
-            day: "2-digit",
-            month: "short",
-            year: "2-digit",
+            timeZone: "Asia/Dhaka",
             hour: "2-digit",
             minute: "2-digit",
-            hour12: true,
-            timeZone: "Asia/Dhaka",
+            second: "2-digit",
+            hour12: false,
         }
-    ).format(date);
+    ).formatToParts(parsed);
+
+    const getPart = (
+        parts: Intl.DateTimeFormatPart[],
+        type: Intl.DateTimeFormatPartTypes
+    ) =>
+        parts.find(
+            (part) => part.type === type
+        )?.value ?? "";
+
+    const date =
+        `${getPart(dateParts, "year")}-${getPart(
+            dateParts,
+            "month"
+        )}-${getPart(dateParts, "day")}`;
+
+    const time =
+        `${getPart(timeParts, "hour")}:${getPart(
+            timeParts,
+            "minute"
+        )}:${getPart(timeParts, "second")}`;
+
+    return {
+        date,
+        time,
+        full: `${date} ${time}`,
+    };
 }
+
 
 /* ============================================================
    API ITEM -> SECTION
@@ -233,7 +313,7 @@ export function toSection(
 ============================================================ */
 
 const textClass =
-    "text-[10px] leading-[13px]";
+    "text-[9.5px] leading-[13px]";
 
 const badgeClass =
     "inline-flex h-[20px] items-center rounded-full px-1.5 py-0 text-[9px] font-medium leading-none whitespace-nowrap";
@@ -367,7 +447,227 @@ function deliveryConfig(
 }
 
 /* ============================================================
-   TT NUMBER CELL
+   HOVER DETAILS
+============================================================ */
+
+function HoverInfoRow({
+    icon,
+    label,
+    value,
+    mono = false,
+}: {
+    icon: ReactNode;
+    label: string;
+    value: unknown;
+    mono?: boolean;
+}) {
+    const display = textValue(value);
+
+    return (
+        <div className="grid grid-cols-[16px_78px_minmax(0,1fr)] items-start gap-2 py-1">
+            <span className="mt-0.5 text-muted-foreground">{icon}</span>
+            <span className="text-[9px] font-medium text-muted-foreground">
+                {label}
+            </span>
+            <span
+                title={display === "—" ? undefined : display}
+                className={`min-w-0 truncate text-[9px] font-semibold text-foreground ${mono ? "font-mono" : ""
+                    }`}
+            >
+                {display}
+            </span>
+        </div>
+    );
+}
+
+function TTHoverPreview({
+    section,
+    position,
+}: {
+    section: Section;
+    position: {
+        top: number;
+        left: number;
+    };
+}) {
+    const raw =
+        section as unknown as Record<string, unknown>;
+
+    const created = formatCreatedAtParts(
+        String(raw.created_at ?? "")
+    );
+
+    const assignedID =
+        textValue(raw.assigned_id);
+
+    const assignedName =
+        textValue(raw.assigned_name);
+
+    const status =
+        normalizeStatus(raw.status);
+
+    return (
+        <div
+            className="
+                pointer-events-none
+                fixed
+                z-[9999]
+                w-[390px]
+                -translate-y-1/2
+                overflow-hidden
+                rounded-xl
+                border
+                border-border/80
+                bg-background/98
+                p-3
+                text-left
+                shadow-2xl
+                ring-1
+                ring-black/5
+                animate-in
+                fade-in-0
+                zoom-in-95
+                duration-150
+            "
+            style={{
+                top: position.top,
+                left: position.left,
+            }}
+        >
+            <div className="mb-2.5 flex items-start justify-between gap-3 border-b border-border/70 pb-2.5">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-foreground">
+                            Trouble Ticket
+                        </span>
+                    </div>
+
+                    <p className="mt-1 truncate font-mono text-[11px] font-semibold text-primary">
+                        {textValue(raw.tt_no)}
+                    </p>
+                </div>
+
+                <Badge
+                    variant="outline"
+                    className={`
+                        ${badgeClass}
+                        ${status === "Closed"
+                            ? statusConfig.Closed.className
+                            : statusConfig.Open.className
+                        }
+                    `}
+                >
+                    {status === "Closed"
+                        ? statusConfig.Closed.icon
+                        : statusConfig.Open.icon}
+                    {status}
+                </Badge>
+            </div>
+
+            <div className="space-y-0.5">
+                <HoverInfoRow
+                    icon={
+                        <UserRound className="h-3 w-3" />
+                    }
+                    label="Employee"
+                    value={
+                        textValue(
+                            raw.employee_name
+                        ) === "—"
+                            ? raw.employee_id
+                            : `${textValue(
+                                raw.employee_name
+                            )} (${textValue(
+                                raw.employee_id
+                            )})`
+                    }
+                />
+
+                <HoverInfoRow
+                    icon={
+                        <UserCheck className="h-3 w-3" />
+                    }
+                    label="Assigned"
+                    value={
+                        assignedID === "—"
+                            ? "Not assigned"
+                            : `${assignedName !== "—"
+                                ? `${assignedName} `
+                                : ""
+                            }(${assignedID})`
+                    }
+                    mono
+                />
+
+                <HoverInfoRow
+                    icon={
+                        <FileText className="h-3 w-3" />
+                    }
+                    label="Query"
+                    value={raw.query_type}
+                />
+
+                <HoverInfoRow
+                    icon={
+                        <Clock className="h-3 w-3" />
+                    }
+                    label="Age"
+                    value={raw.tt_age}
+                />
+
+                <HoverInfoRow
+                    icon={
+                        <Building2 className="h-3 w-3" />
+                    }
+                    label="Department"
+                    value={
+                        raw.dept_name ??
+                        raw.department
+                    }
+                />
+
+                <HoverInfoRow
+                    icon={
+                        <Phone className="h-3 w-3" />
+                    }
+                    label="Mobile"
+                    value={raw.mobile_no}
+                    mono
+                />
+
+                <HoverInfoRow
+                    icon={
+                        <Mail className="h-3 w-3" />
+                    }
+                    label="Email"
+                    value={raw.email}
+                />
+
+                <HoverInfoRow
+                    icon={
+                        <CalendarDays className="h-3 w-3" />
+                    }
+                    label="Created"
+                    value={`${created.date} ${created.time}`}
+                    mono
+                />
+
+
+            </div>
+
+            <div className="mt-2.5 flex items-center gap-1.5 border-t border-border/70 pt-2 text-[8px] text-muted-foreground">
+                <History className="h-3 w-3 shrink-0" />
+                <span>
+                    Hover row for preview • Click TT No or Action for full details
+                </span>
+            </div>
+        </div>
+    );
+}
+
+/* ============================================================
+   TT NUMBER CELL + ROW HOVER
 ============================================================ */
 
 function TTNoCell({
@@ -378,41 +678,165 @@ function TTNoCell({
     const { openModal } =
         useTTModal();
 
+    const hostRef =
+        useRef<HTMLDivElement | null>(null);
+
+    const [hovered, setHovered] =
+        useState(false);
+
+    const [hoverPosition, setHoverPosition] =
+        useState({
+            top: 0,
+            left: 0,
+        });
+
+    useEffect(() => {
+        const host =
+            hostRef.current;
+
+        const row =
+            host?.closest("tr") as
+            | HTMLTableRowElement
+            | null;
+
+        if (!row) {
+            return;
+        }
+
+        const updatePosition = () => {
+            const rect =
+                row.getBoundingClientRect();
+
+            const previewWidth = 390;
+            const viewportPadding = 16;
+
+            // Keep the hover preview centered in the viewport so it never
+            // gets pushed to the far left/right of the table.
+            const left = Math.max(
+                viewportPadding,
+                Math.min(
+                    (window.innerWidth - previewWidth) / 2,
+                    window.innerWidth - previewWidth - viewportPadding
+                )
+            );
+
+            // The preview component uses -translate-y-1/2, so positioning
+            // it at the viewport center keeps it visually balanced.
+            const top = window.innerHeight / 2;
+
+            setHoverPosition({
+                top,
+                left,
+            });
+        };
+
+        const handleEnter = () => {
+            updatePosition();
+            setHovered(true);
+        };
+
+        const handleLeave = () => {
+            setHovered(false);
+        };
+
+        row.addEventListener(
+            "mouseenter",
+            handleEnter
+        );
+
+        row.addEventListener(
+            "mouseleave",
+            handleLeave
+        );
+
+        window.addEventListener(
+            "resize",
+            updatePosition
+        );
+
+        window.addEventListener(
+            "scroll",
+            updatePosition,
+            true
+        );
+
+        return () => {
+            row.removeEventListener(
+                "mouseenter",
+                handleEnter
+            );
+
+            row.removeEventListener(
+                "mouseleave",
+                handleLeave
+            );
+
+            window.removeEventListener(
+                "resize",
+                updatePosition
+            );
+
+            window.removeEventListener(
+                "scroll",
+                updatePosition,
+                true
+            );
+        };
+    }, []);
+
     return (
-        <button
-            type="button"
-            onClick={() =>
-                openModal(section)
-            }
-            title={textValue(
-                section.tt_no
-            )}
-            className="
-                inline-flex
-                h-[22px]
-                min-w-[118px]
-                items-center
-                justify-center
-                rounded-md
-                border
-                border-border
-                bg-muted/40
-                px-1.5
-                font-mono
-                text-[9.5px]
-                font-semibold
-                tracking-[-0.15px]
-                text-foreground
-                transition-colors
-                hover:border-primary/40
-                hover:bg-primary/5
-                hover:text-primary
-            "
+        <div
+            ref={hostRef}
+            className="relative inline-flex"
         >
-            {textValue(
-                section.tt_no
+            <button
+                type="button"
+                onClick={() =>
+                    openModal(section)
+                }
+                title={textValue(
+                    section.tt_no
+                )}
+                className="
+                    inline-flex
+                    h-[22px]
+                    min-w-0
+                    w-full
+                    max-w-[118px]
+                    items-center
+                    justify-center
+                    rounded-md
+                    border
+                    border-border
+                    bg-muted/40
+                    px-1.5
+                    font-mono
+                    text-[9.5px]
+                    font-semibold
+                    tracking-[-0.15px]
+                    text-foreground
+                    transition-all
+                    hover:border-primary/40
+                    hover:bg-primary/5
+                    hover:text-primary
+                    hover:shadow-sm
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-primary/20
+                "
+            >
+                {textValue(
+                    section.tt_no
+                )}
+            </button>
+
+            {hovered && (
+                <TTHoverPreview
+                    section={section}
+                    position={hoverPosition}
+                />
             )}
-        </button>
+        </div>
     );
 }
 
@@ -757,7 +1181,7 @@ function AssignmentDialog({
             }
         >
             <DialogContent>
-                <DialogHeader>
+                <div className="mb-4">
                     <DialogTitle className="text-sm">
                         {currentAssignedID
                             ? "Reassign Trouble Ticket"
@@ -768,7 +1192,7 @@ function AssignmentDialog({
                         Assign this Trouble Ticket
                         to an active IT Personnel.
                     </DialogDescription>
-                </DialogHeader>
+                </div>
 
                 <div className="space-y-4 py-4">
 
@@ -995,7 +1419,7 @@ function AssignmentDialog({
                    FOOTER
                 ====================================================== */}
 
-                <DialogFooter>
+                <div className="mt-5 flex items-center justify-end gap-2">
                     <Button
                         type="button"
                         variant="outline"
@@ -1045,7 +1469,7 @@ function AssignmentDialog({
                             </>
                         )}
                     </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );
@@ -1091,14 +1515,22 @@ function ActionCell({
                         variant="outline"
                         size="sm"
                         className="
-                            h-6
+                            h-7
+                            min-w-0
+                            w-full
+                            max-w-[64px]
                             gap-1
+                            rounded-md
+                            border-primary/70
+                            bg-background
                             px-2
                             text-[9px]
-                            font-medium
-                            border-primary/70
+                            font-semibold
                             text-primary
+                            shadow-sm
+                            hover:border-primary
                             hover:bg-primary/5
+                            hover:shadow
                         "
                     >
                         Action
@@ -1243,6 +1675,12 @@ function ActionCell({
 export function createTTColumns(
     permissions: TTActionPermissions
 ): ColumnDef<Section>[] {
+    /*
+     * Column widths are intentionally not hard-coded here.
+     * The shared DataTable controls responsive widths so the
+     * Created and Action columns remain visible without
+     * horizontal overflow.
+     */
     return [
         /* ========================================================
            SL
@@ -1250,10 +1688,6 @@ export function createTTColumns(
 
         {
             id: "serial",
-
-            size: 48,
-            minSize: 48,
-            maxSize: 48,
 
             header: "SL",
 
@@ -1308,10 +1742,6 @@ export function createTTColumns(
 
             header: "TT No",
 
-            size: 128,
-            minSize: 128,
-            maxSize: 128,
-
             enableHiding: false,
 
             cell: ({ row }) => (
@@ -1332,10 +1762,6 @@ export function createTTColumns(
                 "employee_id",
 
             header: "Employee ID",
-
-            size: 82,
-            minSize: 82,
-            maxSize: 82,
 
             cell: ({ row }) => (
                 <CellText
@@ -1358,9 +1784,6 @@ export function createTTColumns(
         {
             accessorKey: "assigned_id",
             header: "Assigned ID",
-            size: 90,
-            minSize: 85,
-            maxSize: 105,
 
             cell: ({ row }) => {
                 const assignedId = String(
@@ -1499,10 +1922,6 @@ export function createTTColumns(
 
             header: "Emp Name",
 
-            size: 125,
-            minSize: 110,
-            maxSize: 150,
-
             cell: ({ row }) => (
                 <CellText
                     value={
@@ -1519,24 +1938,50 @@ export function createTTColumns(
         ======================================================== */
 
         {
-            accessorKey:
-                "query_type",
+            accessorKey: "query_type",
 
             header: "Query",
 
-            size: 170,
-            minSize: 140,
-            maxSize: 200,
+            size: 150,
+            minSize: 135,
+            maxSize: 160,
 
-            cell: ({ row }) => (
-                <CellText
-                    value={
-                        row.original
-                            .query_type
-                    }
-                    className="max-w-[165px]"
-                />
-            ),
+            cell: ({ row }) => {
+                const query = String(
+                    row.original.query_type ?? ""
+                ).trim();
+
+                return (
+                    <div
+                        className="
+                            w-full
+                            min-w-0
+                            overflow-hidden
+                            px-1
+                        "
+                        title={
+                            query
+                                ? query
+                                : undefined
+                        }
+                    >
+                        <span
+                            className="
+                                block
+                                max-w-full
+                                truncate
+                                whitespace-nowrap
+                                text-[9.5px]
+                                font-medium
+                                leading-[13px]
+                                text-foreground
+                            "
+                        >
+                            {query || "—"}
+                        </span>
+                    </div>
+                );
+            },
         },
 
         /* ========================================================
@@ -1547,10 +1992,6 @@ export function createTTColumns(
             accessorKey: "tt_age",
 
             header: "Age",
-
-            size: 75,
-            minSize: 70,
-            maxSize: 82,
 
             cell: ({ row }) => (
                 <span
@@ -1579,10 +2020,6 @@ export function createTTColumns(
 
             header: "Department",
 
-            size: 120,
-            minSize: 100,
-            maxSize: 150,
-
             cell: ({ row }) => (
                 <CellText
                     value={
@@ -1604,10 +2041,6 @@ export function createTTColumns(
 
             header: "Function",
 
-            size: 90,
-            minSize: 80,
-            maxSize: 110,
-
             cell: ({ row }) => (
                 <CellText
                     value={
@@ -1628,10 +2061,6 @@ export function createTTColumns(
                 "mobile_no",
 
             header: "Mobile",
-
-            size: 92,
-            minSize: 88,
-            maxSize: 100,
 
             cell: ({ row }) => (
                 <span
@@ -1658,10 +2087,6 @@ export function createTTColumns(
             accessorKey: "status",
 
             header: "Status",
-
-            size: 76,
-            minSize: 72,
-            maxSize: 82,
 
             enableHiding: false,
 
@@ -1703,10 +2128,6 @@ export function createTTColumns(
                 "requisition_type",
 
             header: "Requisition",
-
-            size: 116,
-            minSize: 108,
-            maxSize: 125,
 
             cell: ({ row }) => {
                 const value =
@@ -1773,10 +2194,6 @@ export function createTTColumns(
 
             header: "Delivery",
 
-            size: 92,
-            minSize: 88,
-            maxSize: 100,
-
             cell: ({ row }) => {
                 const value =
                     String(
@@ -1820,37 +2237,89 @@ export function createTTColumns(
         ======================================================== */
 
         {
-            accessorKey:
-                "created_at",
+            accessorKey: "created_at",
 
             header: "Created",
 
-            size: 108,
-            minSize: 100,
-            maxSize: 115,
+            enableSorting: true,
 
-            cell: ({ row }) => (
-                <span
-                    title={
-                        row.original
-                            .created_at
-                    }
-                    className="
-                        block
-                        max-w-[104px]
-                        truncate
-                        whitespace-nowrap
-                        text-[9px]
-                    "
-                >
-                    {formatCreatedAt(
-                        row.original
-                            .created_at
-                    )}
-                </span>
-            ),
+            /*
+             * The cell deliberately uses two rows:
+             *
+             * 2026-09-08
+             * 16:18:03
+             *
+             * This is easier to scan than a long single-line
+             * timestamp and avoids exposing milliseconds.
+             */
+            size: 112,
+            minSize: 112,
+            maxSize: 112,
+
+            cell: ({ row }) => {
+                const created =
+                    formatCreatedAtParts(
+                        String(
+                            row.original.created_at ??
+                            ""
+                        )
+                    );
+
+                return (
+                    <div
+                        title={created.full}
+                        className="
+                            flex
+                            w-[112px]
+                            min-w-[112px]
+                            max-w-[112px]
+                            shrink-0
+                            flex-col
+                            items-center
+                            justify-center
+                            overflow-hidden
+                            py-0.5
+                            leading-none
+                        "
+                    >
+                        <span
+                            className="
+                                block
+                                whitespace-nowrap
+                                font-mono
+                                text-[10px]
+                                font-semibold
+                                leading-[14px]
+                                tracking-normal
+                                tabular-nums
+                                text-foreground
+                            "
+                        >
+                            {created.date}
+                        </span>
+
+                        {created.time && (
+                            <span
+                                className="
+                                    mt-[2px]
+                                    block
+                                    whitespace-nowrap
+                                    font-mono
+                                    text-[9.5px]
+                                    font-medium
+                                    leading-[13px]
+                                    tracking-normal
+                                    tabular-nums
+                                    text-muted-foreground
+                                "
+                            >
+                                {created.time}
+                            </span>
+                        )}
+                    </div>
+                );
+            },
         },
-
         /* ========================================================
            ACTION
         ======================================================== */
@@ -1860,12 +2329,12 @@ export function createTTColumns(
 
             header: "Action",
 
-            size: 78,
-            minSize: 76,
-            maxSize: 82,
-
             enableHiding: false,
             enableSorting: false,
+
+            size: 82,
+            minSize: 82,
+            maxSize: 82,
 
             cell: ({ row }) => (
                 <ActionCell
