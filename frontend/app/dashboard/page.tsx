@@ -2674,3 +2674,2596 @@ export default function DashboardPage() {
         </div>
     );
 }
+
+
+
+
+// // frontend/app/dashboard/page.tsx
+
+
+
+// "use client";
+
+// import * as React from "react";
+// import * as XLSX from "xlsx";
+
+// import {
+//     ColumnDef,
+//     ColumnFiltersState,
+//     flexRender,
+//     getCoreRowModel,
+//     getFilteredRowModel,
+//     getPaginationRowModel,
+//     getSortedRowModel,
+//     SortingState,
+//     useReactTable,
+//     VisibilityState,
+// } from "@tanstack/react-table";
+
+// import {
+//     Table,
+//     TableBody,
+//     TableCell,
+//     TableHead,
+//     TableHeader,
+//     TableRow,
+// } from "@/components/ui/table";
+
+// import { Input } from "@/components/ui/input";
+// import { Button } from "@/components/ui/button";
+// import { Badge } from "@/components/ui/badge";
+
+// import {
+//     DropdownMenu,
+//     DropdownMenuCheckboxItem,
+//     DropdownMenuContent,
+//     DropdownMenuLabel,
+//     DropdownMenuSeparator,
+//     DropdownMenuTrigger,
+// } from "@/components/ui/dropdown-menu";
+
+// import {
+//     Building2,
+//     CalendarDays,
+//     Clock3,
+//     Download,
+//     Eye,
+//     EyeOff,
+//     FileText,
+//     Filter,
+//     PackageCheck,
+//     Search,
+//     Smartphone,
+//     SlidersHorizontal,
+//     UserCheck,
+//     UserRound,
+//     X,
+// } from "lucide-react";
+
+// /* ============================================================
+//    TYPES
+// ============================================================ */
+
+// export type DataTableServerFilters = {
+//     fromDate: string;
+//     toDate: string;
+//     employeeId: string;
+//     status: string;
+//     itPersonal: string;
+// };
+
+// export type DataTableOption = {
+//     value: string;
+//     label: string;
+// };
+
+// interface DataTableProps<TData, TValue> {
+//     columns: ColumnDef<TData, TValue>[];
+//     data: TData[];
+
+//     dateColumn?: string;
+
+//     compact?: boolean;
+
+//     serverSideDateFilter?: boolean;
+
+//     itPersonalOptions?: DataTableOption[];
+
+//     appliedServerFilters?: DataTableServerFilters;
+
+//     emptyMessage?: string;
+
+//     onApplyServerFilters?: (
+//         filters: DataTableServerFilters
+//     ) => void;
+// }
+
+// /* ============================================================
+//    DEFAULTS
+// ============================================================ */
+
+// const EMPTY_SERVER_FILTERS: DataTableServerFilters = {
+//     fromDate: "",
+//     toDate: "",
+//     employeeId: "",
+//     status: "",
+//     itPersonal: "",
+// };
+
+// const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
+//     mrnNumber: false,
+//     prNumber: false,
+//     department: false,
+//     designation: false,
+//     brand: false,
+//     deviceType: false,
+//     vendor: false,
+//     assignedBy: false,
+//     assignedDate: false,
+//     returnedDate: false,
+//     transferredDate: false,
+//     purchaseDate: false,
+//     warranty: false,
+//     deviceAge: false,
+//     userUsageDuration: false,
+//     remarks: false,
+
+//     dept_name: false,
+//     employee_name: false,
+//     func_name: false,
+//     mobile_no: false,
+
+//     postingArea: false,
+//     postingDistrict: false,
+//     personalMobile: false,
+//     officeMobile: false,
+// };
+
+// /* ============================================================
+//    HELPERS
+// ============================================================ */
+
+// function normalizeValue(value: unknown): string {
+//     if (
+//         value === null ||
+//         value === undefined
+//     ) {
+//         return "";
+//     }
+
+//     if (
+//         typeof value === "object"
+//     ) {
+//         try {
+//             return JSON.stringify(value).toLowerCase();
+//         } catch {
+//             return String(value).toLowerCase();
+//         }
+//     }
+
+//     return String(value).toLowerCase();
+// }
+
+// /* ============================================================
+//    DATE NORMALIZATION
+// ============================================================ */
+
+// function normalizeDateOnly(
+//     value: unknown
+// ): string | null {
+//     if (
+//         value === null ||
+//         value === undefined
+//     ) {
+//         return null;
+//     }
+
+//     if (value instanceof Date) {
+//         if (
+//             Number.isNaN(
+//                 value.getTime()
+//             )
+//         ) {
+//             return null;
+//         }
+
+//         const year =
+//             value.getFullYear();
+
+//         const month =
+//             String(
+//                 value.getMonth() + 1
+//             ).padStart(2, "0");
+
+//         const day =
+//             String(
+//                 value.getDate()
+//             ).padStart(2, "0");
+
+//         return `${year}-${month}-${day}`;
+//     }
+
+//     const text =
+//         String(value).trim();
+
+//     if (!text) {
+//         return null;
+//     }
+
+//     const match =
+//         text.match(
+//             /(\d{4})-(\d{2})-(\d{2})/
+//         );
+
+//     if (match) {
+//         return (
+//             `${match[1]}-` +
+//             `${match[2]}-` +
+//             `${match[3]}`
+//         );
+//     }
+
+//     const parsed =
+//         new Date(text);
+
+//     if (
+//         Number.isNaN(
+//             parsed.getTime()
+//         )
+//     ) {
+//         return null;
+//     }
+
+//     const year =
+//         parsed.getFullYear();
+
+//     const month =
+//         String(
+//             parsed.getMonth() + 1
+//         ).padStart(2, "0");
+
+//     const day =
+//         String(
+//             parsed.getDate()
+//         ).padStart(2, "0");
+
+//     return `${year}-${month}-${day}`;
+// }
+
+// /* ============================================================
+//    CREATED DATE / TIME
+// ============================================================ */
+
+// function formatCreatedDateTime(
+//     value: unknown
+// ): {
+//     date: string;
+//     time: string;
+// } {
+//     if (
+//         value === null ||
+//         value === undefined ||
+//         String(value).trim() === ""
+//     ) {
+//         return {
+//             date: "—",
+//             time: "—",
+//         };
+//     }
+
+//     if (value instanceof Date) {
+//         if (
+//             Number.isNaN(
+//                 value.getTime()
+//             )
+//         ) {
+//             return {
+//                 date: "—",
+//                 time: "—",
+//             };
+//         }
+
+//         const date =
+//             [
+//                 value.getFullYear(),
+//                 String(
+//                     value.getMonth() + 1
+//                 ).padStart(2, "0"),
+//                 String(
+//                     value.getDate()
+//                 ).padStart(2, "0"),
+//             ].join("-");
+
+//         const time =
+//             [
+//                 String(
+//                     value.getHours()
+//                 ).padStart(2, "0"),
+//                 String(
+//                     value.getMinutes()
+//                 ).padStart(2, "0"),
+//                 String(
+//                     value.getSeconds()
+//                 ).padStart(2, "0"),
+//             ].join(":");
+
+//         return {
+//             date,
+//             time,
+//         };
+//     }
+
+//     const text =
+//         String(value).trim();
+
+//     /*
+//      * Preserve the timestamp returned by PostgreSQL.
+//      *
+//      * Example:
+//      *
+//      * 2026-09-08T16:18:03.071+06:00
+//      *
+//      * We intentionally extract the date/time directly
+//      * instead of converting through the browser timezone.
+//      */
+//     const match =
+//         text.match(
+//             /^(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2}:\d{2})/
+//         );
+
+//     if (match) {
+//         return {
+//             date: match[1],
+//             time: match[2],
+//         };
+//     }
+
+//     const parsed =
+//         new Date(text);
+
+//     if (
+//         Number.isNaN(
+//             parsed.getTime()
+//         )
+//     ) {
+//         return {
+//             date: text,
+//             time: "",
+//         };
+//     }
+
+//     const date =
+//         [
+//             parsed.getFullYear(),
+//             String(
+//                 parsed.getMonth() + 1
+//             ).padStart(2, "0"),
+//             String(
+//                 parsed.getDate()
+//             ).padStart(2, "0"),
+//         ].join("-");
+
+//     const time =
+//         [
+//             String(
+//                 parsed.getHours()
+//             ).padStart(2, "0"),
+//             String(
+//                 parsed.getMinutes()
+//             ).padStart(2, "0"),
+//             String(
+//                 parsed.getSeconds()
+//             ).padStart(2, "0"),
+//         ].join(":");
+
+//     return {
+//         date,
+//         time,
+//     };
+// }
+
+// /* ============================================================
+//    COLUMN DISPLAY NAME
+// ============================================================ */
+
+// function getColumnDisplayName(
+//     columnId: string
+// ): string {
+//     const names: Record<
+//         string,
+//         string
+//     > = {
+//         employeeId:
+//             "Employee ID",
+
+//         employee_id:
+//             "Employee ID",
+
+//         employee_name:
+//             "Employee Name",
+
+//         assigned_id:
+//             "Assigned ID",
+
+//         assigned_name:
+//             "Assigned",
+
+//         status:
+//             "Status",
+
+//         requisition_type:
+//             "Requisition",
+
+//         delivered_status:
+//             "Delivery",
+
+//         tt_no:
+//             "TT No",
+
+//         created_at:
+//             "Created",
+
+//         query_type:
+//             "Query",
+
+//         query:
+//             "Query",
+
+//         description:
+//             "Description",
+
+//         dept_name:
+//             "Department",
+
+//         department:
+//             "Department",
+
+//         func_name:
+//             "Function",
+
+//         function:
+//             "Function",
+
+//         mobile_no:
+//             "Mobile No",
+
+//         mobile:
+//             "Mobile",
+
+//         action:
+//             "Action",
+
+//         actions:
+//             "Action",
+
+//         age:
+//             "Age",
+
+//         tt_age:
+//             "Age",
+//     };
+
+//     return (
+//         names[columnId] ??
+//         columnId
+//     );
+// }
+
+// /* ============================================================
+//    RESPONSIVE COLUMN WIDTH
+// ============================================================ */
+
+// function getColumnWidth(
+//     columnId: string
+// ): string | undefined {
+//     const widths: Record<
+//         string,
+//         string
+//     > = {
+//         /*
+//          * TT TABLE
+//          *
+//          * The widths intentionally stay below
+//          * 100% so the table never creates an
+//          * unnecessary horizontal scrollbar.
+//          */
+
+//         sl: "5%",
+//         serial: "5%",
+//         index: "5%",
+
+//         tt_no: "11%",
+
+//         employee_id: "9%",
+//         employeeId: "9%",
+
+//         assigned_id: "9%",
+//         assigned_name: "10%",
+
+//         query_type: "16%",
+//         query: "16%",
+
+//         age: "7%",
+//         tt_age: "7%",
+
+//         status: "7%",
+
+//         requisition_type: "7%",
+
+//         delivered_status: "7%",
+
+//         created_at: "12%",
+
+//         action: "10%",
+//         actions: "10%",
+
+//         employee_name: "11%",
+//         dept_name: "10%",
+//         department: "10%",
+//         func_name: "10%",
+//         mobile_no: "10%",
+//     };
+
+//     return widths[columnId];
+// }
+
+// /* ============================================================
+//    GENERIC VALUE
+// ============================================================ */
+
+// function displayValue(
+//     value: unknown
+// ): string {
+//     if (
+//         value === null ||
+//         value === undefined ||
+//         String(value).trim() === ""
+//     ) {
+//         return "Not available";
+//     }
+
+//     if (
+//         typeof value === "object"
+//     ) {
+//         try {
+//             return JSON.stringify(
+//                 value
+//             );
+//         } catch {
+//             return String(value);
+//         }
+//     }
+
+//     return String(value);
+// }
+
+// /* ============================================================
+//    FIND VALUE BY POSSIBLE KEYS
+// ============================================================ */
+
+// function getRecordValue(
+//     record: Record<string, unknown>,
+//     keys: string[]
+// ): unknown {
+//     for (const key of keys) {
+//         if (
+//             record[key] !==
+//             undefined &&
+//             record[key] !== null &&
+//             String(
+//                 record[key]
+//             ).trim() !== ""
+//         ) {
+//             return record[key];
+//         }
+//     }
+
+//     return undefined;
+// }
+
+// /* ============================================================
+//    EXPORT VALUE
+// ============================================================ */
+
+// function exportCellValue(
+//     value: unknown
+// ): string | number {
+//     if (
+//         value === null ||
+//         value === undefined
+//     ) {
+//         return "";
+//     }
+
+//     if (
+//         typeof value ===
+//         "string" ||
+//         typeof value ===
+//         "number"
+//     ) {
+//         return value;
+//     }
+
+//     if (
+//         typeof value ===
+//         "boolean"
+//     ) {
+//         return value
+//             ? "Yes"
+//             : "No";
+//     }
+
+//     if (
+//         value instanceof Date
+//     ) {
+//         return value.toISOString();
+//     }
+
+//     if (
+//         typeof value === "object"
+//     ) {
+//         try {
+//             return JSON.stringify(
+//                 value
+//             );
+//         } catch {
+//             return String(value);
+//         }
+//     }
+
+//     return String(value);
+// }
+
+// /* ============================================================
+//    DATA TABLE
+// ============================================================ */
+
+// export function DataTable<
+//     TData,
+//     TValue
+// >({
+//     columns,
+//     data,
+//     dateColumn = "date",
+//     compact = false,
+//     serverSideDateFilter = false,
+//     itPersonalOptions = [],
+//     appliedServerFilters,
+//     emptyMessage =
+//     "No results found.",
+//     onApplyServerFilters,
+// }: DataTableProps<
+//     TData,
+//     TValue
+// >) {
+//     /* ========================================================
+//        TABLE STATE
+//     ======================================================== */
+
+//     const [
+//         sorting,
+//         setSorting,
+//     ] =
+//         React.useState<
+//             SortingState
+//         >([]);
+
+//     const [
+//         columnFilters,
+//         setColumnFilters,
+//     ] =
+//         React.useState<
+//             ColumnFiltersState
+//         >([]);
+
+//     const [
+//         columnVisibility,
+//         setColumnVisibility,
+//     ] =
+//         React.useState<
+//             VisibilityState
+//         >(
+//             DEFAULT_HIDDEN_COLUMNS
+//         );
+
+//     /* ========================================================
+//        SEARCH
+//     ======================================================== */
+
+//     const [
+//         searchInput,
+//         setSearchInput,
+//     ] =
+//         React.useState("");
+
+//     const deferredSearch =
+//         React.useDeferredValue(
+//             searchInput
+//         );
+
+//     /* ========================================================
+//        FILTER POPUP
+//     ======================================================== */
+
+//     const [
+//         filterOpen,
+//         setFilterOpen,
+//     ] =
+//         React.useState(false);
+
+//     /* ========================================================
+//        SERVER FILTER DRAFT
+//     ======================================================== */
+
+//     const [
+//         fromDate,
+//         setFromDate,
+//     ] =
+//         React.useState(
+//             appliedServerFilters
+//                 ?.fromDate ??
+//             ""
+//         );
+
+//     const [
+//         toDate,
+//         setToDate,
+//     ] =
+//         React.useState(
+//             appliedServerFilters
+//                 ?.toDate ??
+//             ""
+//         );
+
+//     const [
+//         employeeId,
+//         setEmployeeId,
+//     ] =
+//         React.useState(
+//             appliedServerFilters
+//                 ?.employeeId ??
+//             ""
+//         );
+
+//     const [
+//         status,
+//         setStatus,
+//     ] =
+//         React.useState(
+//             appliedServerFilters
+//                 ?.status ??
+//             ""
+//         );
+
+//     const [
+//         itPersonal,
+//         setItPersonal,
+//     ] =
+//         React.useState(
+//             appliedServerFilters
+//                 ?.itPersonal ??
+//             ""
+//         );
+
+//     /* ========================================================
+//        LOCAL APPLIED FILTERS
+//     ======================================================== */
+
+//     const [
+//         localAppliedFilters,
+//         setLocalAppliedFilters,
+//     ] =
+//         React.useState<
+//             DataTableServerFilters
+//         >(
+//             appliedServerFilters ??
+//             EMPTY_SERVER_FILTERS
+//         );
+
+//     const appliedFilters =
+//         appliedServerFilters ??
+//         localAppliedFilters;
+
+//     /* ========================================================
+//        SYNC PARENT FILTERS
+//     ======================================================== */
+
+//     React.useEffect(
+//         () => {
+//             if (
+//                 !appliedServerFilters
+//             ) {
+//                 return;
+//             }
+
+//             setFromDate(
+//                 appliedServerFilters
+//                     .fromDate
+//             );
+
+//             setToDate(
+//                 appliedServerFilters
+//                     .toDate
+//             );
+
+//             setEmployeeId(
+//                 appliedServerFilters
+//                     .employeeId
+//             );
+
+//             setStatus(
+//                 appliedServerFilters
+//                     .status
+//             );
+
+//             setItPersonal(
+//                 appliedServerFilters
+//                     .itPersonal
+//             );
+
+//             setLocalAppliedFilters(
+//                 appliedServerFilters
+//             );
+//         },
+//         [
+//             appliedServerFilters,
+//         ]
+//     );
+
+//     /* ========================================================
+//        LOCAL FILTERING
+//     ======================================================== */
+
+//     const filteredData =
+//         React.useMemo(
+//             () => {
+//                 const searchText =
+//                     deferredSearch
+//                         .trim()
+//                         .toLowerCase();
+
+//                 return data.filter(
+//                     (
+//                         row: TData
+//                     ) => {
+//                         const record =
+//                             row as Record<
+//                                 string,
+//                                 unknown
+//                             >;
+
+//                         const matchesSearch =
+//                             !searchText ||
+//                             Object.values(
+//                                 record
+//                             ).some(
+//                                 (
+//                                     value
+//                                 ) =>
+//                                     normalizeValue(
+//                                         value
+//                                     ).includes(
+//                                         searchText
+//                                     )
+//                             );
+
+//                         /*
+//                          * Server mode:
+//                          *
+//                          * PostgreSQL handles
+//                          * server filters.
+//                          */
+//                         if (
+//                             serverSideDateFilter
+//                         ) {
+//                             return matchesSearch;
+//                         }
+
+//                         let matchesDate =
+//                             true;
+
+//                         if (
+//                             fromDate ||
+//                             toDate
+//                         ) {
+//                             const rowDate =
+//                                 normalizeDateOnly(
+//                                     record[
+//                                     dateColumn
+//                                     ]
+//                                 );
+
+//                             if (!rowDate) {
+//                                 matchesDate =
+//                                     false;
+//                             } else {
+//                                 if (
+//                                     fromDate &&
+//                                     rowDate <
+//                                     fromDate
+//                                 ) {
+//                                     matchesDate =
+//                                         false;
+//                                 }
+
+//                                 if (
+//                                     toDate &&
+//                                     rowDate >
+//                                     toDate
+//                                 ) {
+//                                     matchesDate =
+//                                         false;
+//                                 }
+//                             }
+//                         }
+
+//                         return (
+//                             matchesSearch &&
+//                             matchesDate
+//                         );
+//                     }
+//                 );
+//             },
+//             [
+//                 data,
+//                 deferredSearch,
+//                 fromDate,
+//                 toDate,
+//                 dateColumn,
+//                 serverSideDateFilter,
+//             ]
+//         );
+
+//     /* ========================================================
+//        TANSTACK TABLE
+//     ======================================================== */
+
+//     const table =
+//         useReactTable({
+//             data: filteredData,
+//             columns,
+
+//             state: {
+//                 sorting,
+//                 columnFilters,
+//                 columnVisibility,
+//             },
+
+//             onSortingChange:
+//                 setSorting,
+
+//             onColumnFiltersChange:
+//                 setColumnFilters,
+
+//             onColumnVisibilityChange:
+//                 setColumnVisibility,
+
+//             getCoreRowModel:
+//                 getCoreRowModel(),
+
+//             getFilteredRowModel:
+//                 getFilteredRowModel(),
+
+//             getPaginationRowModel:
+//                 getPaginationRowModel(),
+
+//             getSortedRowModel:
+//                 getSortedRowModel(),
+//         });
+
+//     /* ========================================================
+//        RESET PAGE ON SEARCH / DATA CHANGE
+//     ======================================================== */
+
+//     React.useEffect(
+//         () => {
+//             table.setPageIndex(
+//                 0
+//             );
+//         },
+//         [
+//             deferredSearch,
+//             data,
+//             table,
+//         ]
+//     );
+
+//     /* ========================================================
+//        COLUMN REFERENCES
+//     ======================================================== */
+
+//     const statusColumn =
+//         table
+//             .getAllColumns()
+//             .find(
+//                 (
+//                     column
+//                 ) =>
+//                     column.id ===
+//                     "status"
+//             );
+
+//     /* ========================================================
+//        FILTER COUNTS
+//     ======================================================== */
+
+//     const serverActiveFiltersCount =
+//         (
+//             searchInput.trim()
+//                 ? 1
+//                 : 0
+//         ) +
+//         (
+//             appliedFilters.fromDate
+//                 ? 1
+//                 : 0
+//         ) +
+//         (
+//             appliedFilters.toDate
+//                 ? 1
+//                 : 0
+//         ) +
+//         (
+//             appliedFilters.employeeId
+//                 ? 1
+//                 : 0
+//         ) +
+//         (
+//             appliedFilters.itPersonal
+//                 ? 1
+//                 : 0
+//         ) +
+//         (
+//             appliedFilters.status
+//                 ? 1
+//                 : 0
+//         );
+
+//     const localActiveFiltersCount =
+//         (
+//             searchInput.trim()
+//                 ? 1
+//                 : 0
+//         ) +
+//         columnFilters.length +
+//         (
+//             fromDate ||
+//                 toDate
+//                 ? 1
+//                 : 0
+//         );
+
+//     const activeFiltersCount =
+//         serverSideDateFilter
+//             ? serverActiveFiltersCount
+//             : localActiveFiltersCount;
+
+//     /* ========================================================
+//        APPLY SERVER FILTERS
+//     ======================================================== */
+
+//     function updateAppliedFilters(
+//         next: DataTableServerFilters
+//     ) {
+//         setLocalAppliedFilters(
+//             next
+//         );
+
+//         onApplyServerFilters?.(
+//             next
+//         );
+
+//         table.setPageIndex(
+//             0
+//         );
+//     }
+
+//     function applyFilters() {
+//         if (
+//             !serverSideDateFilter
+//         ) {
+//             setFilterOpen(
+//                 false
+//             );
+
+//             return;
+//         }
+
+//         const next:
+//             DataTableServerFilters =
+//         {
+//             fromDate:
+//                 fromDate.trim(),
+
+//             toDate:
+//                 toDate.trim(),
+
+//             employeeId:
+//                 employeeId.trim(),
+
+//             status:
+//                 status.trim(),
+
+//             itPersonal:
+//                 itPersonal.trim(),
+//         };
+
+//         updateAppliedFilters(
+//             next
+//         );
+
+//         setFilterOpen(false);
+//     }
+
+//     /* ========================================================
+//        RESET FILTERS
+//     ======================================================== */
+
+//     function resetFilters() {
+//         setSearchInput("");
+
+//         setColumnFilters([]);
+
+//         setFromDate("");
+//         setToDate("");
+//         setEmployeeId("");
+//         setStatus("");
+//         setItPersonal("");
+
+//         const emptyFilters =
+//             EMPTY_SERVER_FILTERS;
+
+//         setLocalAppliedFilters(
+//             emptyFilters
+//         );
+
+//         if (
+//             serverSideDateFilter
+//         ) {
+//             onApplyServerFilters?.(
+//                 emptyFilters
+//             );
+//         }
+
+//         table.setPageIndex(
+//             0
+//         );
+
+//         setFilterOpen(false);
+//     }
+
+//     /* ========================================================
+//        EXCEL EXPORT
+//     ======================================================== */
+
+//     function exportToExcel() {
+//         const visibleColumns =
+//             table
+//                 .getVisibleLeafColumns()
+//                 .filter(
+//                     (
+//                         column
+//                     ) =>
+//                         column.id !==
+//                         "actions" &&
+//                         column.id !==
+//                         "action"
+//                 );
+
+//         const exportRows =
+//             filteredData.map(
+//                 (
+//                     row
+//                 ) => {
+//                     const record =
+//                         row as Record<
+//                             string,
+//                             unknown
+//                         >;
+
+//                     const output:
+//                         Record<
+//                             string,
+//                             string | number
+//                         > = {};
+
+//                     visibleColumns.forEach(
+//                         (
+//                             column
+//                         ) => {
+//                             const header =
+//                                 column
+//                                     .columnDef
+//                                     .header;
+
+//                             const label =
+//                                 typeof header ===
+//                                     "string"
+//                                     ? header
+//                                     : getColumnDisplayName(
+//                                         column.id
+//                                     );
+
+//                             output[
+//                                 label
+//                             ] =
+//                                 exportCellValue(
+//                                     record[
+//                                     column.id
+//                                     ]
+//                                 );
+//                         }
+//                     );
+
+//                     return output;
+//                 }
+//             );
+
+//         const worksheet =
+//             XLSX.utils.json_to_sheet(
+//                 exportRows
+//             );
+
+//         const workbook =
+//             XLSX.utils.book_new();
+
+//         XLSX.utils.book_append_sheet(
+//             workbook,
+//             worksheet,
+//             "Data"
+//         );
+
+//         XLSX.writeFile(
+//             workbook,
+//             "itm-data.xlsx"
+//         );
+//     }
+
+//     /* ========================================================
+//        VISIBLE COLUMN COUNT
+//     ======================================================== */
+
+//     const visibleColumnCount =
+//         Math.max(
+//             table
+//                 .getVisibleLeafColumns()
+//                 .length,
+//             1
+//         );
+
+//     /* ========================================================
+//        STYLES
+//     ======================================================== */
+
+//     const toolbarButtonClass =
+//         compact
+//             ? "h-8 px-2.5 text-[10px]"
+//             : "h-9 px-3 text-xs";
+
+//     const toolbarIconClass =
+//         compact
+//             ? "mr-1.5 h-3.5 w-3.5"
+//             : "mr-2 h-4 w-4";
+
+//     const searchHeight =
+//         compact
+//             ? "h-8"
+//             : "h-9";
+
+//     const searchText =
+//         compact
+//             ? "text-[10px]"
+//             : "text-xs";
+
+//     const badgeClass =
+//         compact
+//             ? "h-6 gap-1 px-2 text-[9px]"
+//             : "h-7 gap-1 px-2 text-[10px]";
+
+//     /* ========================================================
+//        RENDER
+//     ======================================================== */
+
+//     return (
+//         <div className="w-full min-w-0 space-y-2.5">
+
+//             {/* ==================================================
+//                 TOOLBAR
+//             ================================================== */}
+
+//             <div
+//                 className="
+//                     flex
+//                     w-full
+//                     min-w-0
+//                     items-center
+//                     gap-2
+//                 "
+//             >
+//                 {/* SEARCH */}
+
+//                 <div
+//                     className="
+//                         relative
+//                         min-w-0
+//                         flex-1
+//                     "
+//                 >
+//                     <Search
+//                         className="
+//                             pointer-events-none
+//                             absolute
+//                             left-2.5
+//                             top-1/2
+//                             h-3.5
+//                             w-3.5
+//                             -translate-y-1/2
+//                             text-muted-foreground
+//                         "
+//                     />
+
+//                     <Input
+//                         value={
+//                             searchInput
+//                         }
+//                         onChange={(
+//                             event
+//                         ) =>
+//                             setSearchInput(
+//                                 event
+//                                     .target
+//                                     .value
+//                             )
+//                         }
+//                         placeholder="Search TT, employee, query, status..."
+//                         className={`
+//                             w-full
+//                             ${searchHeight}
+//                             ${searchText}
+//                             pl-8
+//                             pr-8
+//                         `}
+//                     />
+
+//                     {searchInput && (
+//                         <button
+//                             type="button"
+//                             onClick={() =>
+//                                 setSearchInput(
+//                                     ""
+//                                 )
+//                             }
+//                             className="
+//                                 absolute
+//                                 right-2
+//                                 top-1/2
+//                                 flex
+//                                 h-5
+//                                 w-5
+//                                 -translate-y-1/2
+//                                 items-center
+//                                 justify-center
+//                                 rounded-full
+//                                 text-muted-foreground
+//                                 transition-colors
+//                                 hover:bg-muted
+//                                 hover:text-foreground
+//                             "
+//                             aria-label="Clear search"
+//                         >
+//                             <X className="h-3 w-3" />
+//                         </button>
+//                     )}
+//                 </div>
+
+//                 {/* FILTER */}
+
+//                 <DropdownMenu
+//                     open={
+//                         filterOpen
+//                     }
+//                     onOpenChange={
+//                         setFilterOpen
+//                     }
+//                 >
+//                     <DropdownMenuTrigger
+//                         asChild
+//                     >
+//                         <Button
+//                             type="button"
+//                             variant="outline"
+//                             className={`
+//                                 shrink-0
+//                                 border-emerald-300
+//                                 bg-emerald-50
+//                                 text-emerald-700
+//                                 hover:bg-emerald-100
+//                                 ${toolbarButtonClass}
+//                             `}
+//                         >
+//                             <Filter
+//                                 className={
+//                                     toolbarIconClass
+//                                 }
+//                             />
+
+//                             Filter
+
+//                             {activeFiltersCount >
+//                                 0 && (
+//                                     <span
+//                                         className="
+//                                         ml-1
+//                                         inline-flex
+//                                         h-4
+//                                         min-w-4
+//                                         items-center
+//                                         justify-center
+//                                         rounded-full
+//                                         bg-emerald-600
+//                                         px-1
+//                                         text-[8px]
+//                                         font-bold
+//                                         text-white
+//                                     "
+//                                     >
+//                                         {
+//                                             activeFiltersCount
+//                                         }
+//                                     </span>
+//                                 )}
+//                         </Button>
+//                     </DropdownMenuTrigger>
+
+//                     <DropdownMenuContent
+//                         align="start"
+//                         sideOffset={6}
+//                         className="
+//                             w-[310px]
+//                             max-w-[calc(100vw-24px)]
+//                             p-3
+//                         "
+//                     >
+//                         <DropdownMenuLabel
+//                             className="
+//                                 px-0
+//                                 pb-2
+//                                 text-xs
+//                                 font-semibold
+//                             "
+//                         >
+//                             Trouble Ticket Filters
+//                         </DropdownMenuLabel>
+
+//                         <DropdownMenuSeparator />
+
+//                         <div className="space-y-3 pt-3">
+
+//                             {/* DATE */}
+
+//                             <div
+//                                 className="
+//                                     grid
+//                                     grid-cols-2
+//                                     gap-2
+//                                 "
+//                             >
+//                                 <div className="space-y-1">
+//                                     <label
+//                                         className="
+//                                             text-[9px]
+//                                             font-semibold
+//                                             text-muted-foreground
+//                                         "
+//                                     >
+//                                         From Date
+//                                     </label>
+
+//                                     <Input
+//                                         type="date"
+//                                         value={
+//                                             fromDate
+//                                         }
+//                                         onChange={(
+//                                             event
+//                                         ) =>
+//                                             setFromDate(
+//                                                 event
+//                                                     .target
+//                                                     .value
+//                                             )
+//                                         }
+//                                         className="
+//                                             h-8
+//                                             text-[10px]
+//                                         "
+//                                     />
+//                                 </div>
+
+//                                 <div className="space-y-1">
+//                                     <label
+//                                         className="
+//                                             text-[9px]
+//                                             font-semibold
+//                                             text-muted-foreground
+//                                         "
+//                                     >
+//                                         To Date
+//                                     </label>
+
+//                                     <Input
+//                                         type="date"
+//                                         value={
+//                                             toDate
+//                                         }
+//                                         onChange={(
+//                                             event
+//                                         ) =>
+//                                             setToDate(
+//                                                 event
+//                                                     .target
+//                                                     .value
+//                                             )
+//                                         }
+//                                         className="
+//                                             h-8
+//                                             text-[10px]
+//                                         "
+//                                     />
+//                                 </div>
+//                             </div>
+
+//                             {/* EMPLOYEE */}
+
+//                             <div className="space-y-1">
+//                                 <label
+//                                     className="
+//                                         text-[9px]
+//                                         font-semibold
+//                                         text-muted-foreground
+//                                     "
+//                                 >
+//                                     Employee ID
+//                                 </label>
+
+//                                 <Input
+//                                     value={
+//                                         employeeId
+//                                     }
+//                                     onChange={(
+//                                         event
+//                                     ) =>
+//                                         setEmployeeId(
+//                                             event
+//                                                 .target
+//                                                 .value
+//                                         )
+//                                     }
+//                                     placeholder="e.g. 02-0407"
+//                                     className="
+//                                         h-8
+//                                         text-[10px]
+//                                     "
+//                                 />
+//                             </div>
+
+//                             {/* IT PERSONNEL */}
+
+//                             {itPersonalOptions.length >
+//                                 0 && (
+//                                     <div className="space-y-1">
+//                                         <label
+//                                             className="
+//                                             text-[9px]
+//                                             font-semibold
+//                                             text-muted-foreground
+//                                         "
+//                                         >
+//                                             Assigned IT Personnel
+//                                         </label>
+
+//                                         <select
+//                                             value={
+//                                                 itPersonal
+//                                             }
+//                                             onChange={(
+//                                                 event
+//                                             ) =>
+//                                                 setItPersonal(
+//                                                     event
+//                                                         .target
+//                                                         .value
+//                                                 )
+//                                             }
+//                                             className="
+//                                             h-8
+//                                             w-full
+//                                             rounded-md
+//                                             border
+//                                             border-input
+//                                             bg-background
+//                                             px-2
+//                                             text-[10px]
+//                                             outline-none
+//                                             focus:ring-2
+//                                             focus:ring-ring
+//                                         "
+//                                         >
+//                                             <option value="">
+//                                                 All IT Personnel
+//                                             </option>
+
+//                                             {itPersonalOptions.map(
+//                                                 (
+//                                                     option
+//                                                 ) => (
+//                                                     <option
+//                                                         key={
+//                                                             option.value
+//                                                         }
+//                                                         value={
+//                                                             option.value
+//                                                         }
+//                                                     >
+//                                                         {
+//                                                             option.label
+//                                                         }
+//                                                     </option>
+//                                                 )
+//                                             )}
+//                                         </select>
+//                                     </div>
+//                                 )}
+
+//                             {/* STATUS */}
+
+//                             {statusColumn && (
+//                                 <div className="space-y-1">
+//                                     <label
+//                                         className="
+//                                             text-[9px]
+//                                             font-semibold
+//                                             text-muted-foreground
+//                                         "
+//                                     >
+//                                         Status
+//                                     </label>
+
+//                                     <select
+//                                         value={
+//                                             status
+//                                         }
+//                                         onChange={(
+//                                             event
+//                                         ) =>
+//                                             setStatus(
+//                                                 event
+//                                                     .target
+//                                                     .value
+//                                             )
+//                                         }
+//                                         className="
+//                                             h-8
+//                                             w-full
+//                                             rounded-md
+//                                             border
+//                                             border-input
+//                                             bg-background
+//                                             px-2
+//                                             text-[10px]
+//                                             outline-none
+//                                             focus:ring-2
+//                                             focus:ring-ring
+//                                         "
+//                                     >
+//                                         <option value="">
+//                                             All Status
+//                                         </option>
+
+//                                         <option value="Open">
+//                                             Open
+//                                         </option>
+
+//                                         <option value="Closed">
+//                                             Closed
+//                                         </option>
+//                                     </select>
+//                                 </div>
+//                             )}
+
+//                             {/* BUTTONS */}
+
+//                             <div
+//                                 className="
+//                                     flex
+//                                     items-center
+//                                     justify-between
+//                                     gap-2
+//                                     border-t
+//                                     pt-3
+//                                 "
+//                             >
+//                                 <Button
+//                                     type="button"
+//                                     variant="ghost"
+//                                     onClick={
+//                                         resetFilters
+//                                     }
+//                                     className="
+//                                         h-8
+//                                         px-2
+//                                         text-[10px]
+//                                         text-destructive
+//                                         hover:bg-destructive/10
+//                                     "
+//                                 >
+//                                     <X className="mr-1 h-3 w-3" />
+
+//                                     Clear
+//                                 </Button>
+
+//                                 <Button
+//                                     type="button"
+//                                     onClick={
+//                                         applyFilters
+//                                     }
+//                                     className="
+//                                         h-8
+//                                         px-3
+//                                         text-[10px]
+//                                     "
+//                                 >
+//                                     Apply Filters
+//                                 </Button>
+//                             </div>
+//                         </div>
+//                     </DropdownMenuContent>
+//                 </DropdownMenu>
+
+//                 {/* RIGHT ACTIONS */}
+
+//                 <div
+//                     className="
+//                         ml-auto
+//                         flex
+//                         shrink-0
+//                         items-center
+//                         gap-1.5
+//                     "
+//                 >
+//                     {/* COLUMNS */}
+
+//                     <DropdownMenu>
+//                         <DropdownMenuTrigger
+//                             asChild
+//                         >
+//                             <Button
+//                                 type="button"
+//                                 variant="outline"
+//                                 className={
+//                                     toolbarButtonClass
+//                                 }
+//                             >
+//                                 <SlidersHorizontal
+//                                     className={
+//                                         toolbarIconClass
+//                                     }
+//                                 />
+
+//                                 Columns
+//                             </Button>
+//                         </DropdownMenuTrigger>
+
+//                         <DropdownMenuContent
+//                             align="end"
+//                             className="
+//                                 max-h-[420px]
+//                                 w-64
+//                                 overflow-y-auto
+//                             "
+//                         >
+//                             <DropdownMenuLabel
+//                                 className={
+//                                     compact
+//                                         ? "text-[10px]"
+//                                         : "text-xs"
+//                                 }
+//                             >
+//                                 Show / Hide Columns
+//                             </DropdownMenuLabel>
+
+//                             <DropdownMenuSeparator />
+
+//                             <div className="py-1">
+//                                 {table
+//                                     .getAllColumns()
+//                                     .filter(
+//                                         (
+//                                             column
+//                                         ) =>
+//                                             column.getCanHide()
+//                                     )
+//                                     .map(
+//                                         (
+//                                             column
+//                                         ) => {
+//                                             const header =
+//                                                 column
+//                                                     .columnDef
+//                                                     .header;
+
+//                                             const label =
+//                                                 typeof header ===
+//                                                     "string"
+//                                                     ? header
+//                                                     : getColumnDisplayName(
+//                                                         column.id
+//                                                     );
+
+//                                             const visible =
+//                                                 column.getIsVisible();
+
+//                                             return (
+//                                                 <DropdownMenuCheckboxItem
+//                                                     key={
+//                                                         column.id
+//                                                     }
+//                                                     checked={
+//                                                         visible
+//                                                     }
+//                                                     onCheckedChange={(
+//                                                         checked
+//                                                     ) =>
+//                                                         column.toggleVisibility(
+//                                                             Boolean(
+//                                                                 checked
+//                                                             )
+//                                                         )
+//                                                     }
+//                                                     className="text-[10px]"
+//                                                 >
+//                                                     <span className="mr-2">
+//                                                         {visible ? (
+//                                                             <Eye className="h-3.5 w-3.5" />
+//                                                         ) : (
+//                                                             <EyeOff className="h-3.5 w-3.5" />
+//                                                         )}
+//                                                     </span>
+
+//                                                     {
+//                                                         label
+//                                                     }
+//                                                 </DropdownMenuCheckboxItem>
+//                                             );
+//                                         }
+//                                     )}
+//                             </div>
+//                         </DropdownMenuContent>
+//                     </DropdownMenu>
+
+//                     {/* EXCEL */}
+
+//                     <Button
+//                         type="button"
+//                         variant="outline"
+//                         onClick={
+//                             exportToExcel
+//                         }
+//                         className={
+//                             toolbarButtonClass
+//                         }
+//                     >
+//                         <Download
+//                             className={
+//                                 toolbarIconClass
+//                             }
+//                         />
+
+//                         Excel
+//                     </Button>
+//                 </div>
+//             </div>
+
+//             {/* ==================================================
+//                 ACTIVE FILTERS
+//             ================================================== */}
+
+//             {activeFiltersCount >
+//                 0 && (
+//                     <div
+//                         className="
+//                         flex
+//                         min-w-0
+//                         flex-wrap
+//                         items-center
+//                         gap-1.5
+//                     "
+//                     >
+//                         {searchInput.trim() && (
+//                             <Badge
+//                                 variant="outline"
+//                                 className={
+//                                     badgeClass
+//                                 }
+//                             >
+//                                 <span className="font-semibold text-primary">
+//                                     Search:
+//                                 </span>
+
+//                                 <span
+//                                     className="
+//                                     max-w-[220px]
+//                                     truncate
+//                                     font-medium
+//                                 "
+//                                     title={
+//                                         searchInput
+//                                     }
+//                                 >
+//                                     {
+//                                         searchInput
+//                                     }
+//                                 </span>
+
+//                                 <button
+//                                     type="button"
+//                                     onClick={() =>
+//                                         setSearchInput(
+//                                             ""
+//                                         )
+//                                     }
+//                                     className="
+//                                     ml-0.5
+//                                     inline-flex
+//                                     h-4
+//                                     w-4
+//                                     items-center
+//                                     justify-center
+//                                     rounded-full
+//                                     text-muted-foreground
+//                                     hover:bg-destructive/10
+//                                     hover:text-destructive
+//                                 "
+//                                     aria-label="Clear search"
+//                                 >
+//                                     <X className="h-3 w-3" />
+//                                 </button>
+//                             </Badge>
+//                         )}
+
+//                         {serverSideDateFilter ? (
+//                             <>
+//                                 {appliedFilters.employeeId && (
+//                                     <Badge
+//                                         variant="outline"
+//                                         className={
+//                                             badgeClass
+//                                         }
+//                                     >
+//                                         <span className="font-semibold text-primary">
+//                                             Employee:
+//                                         </span>
+
+//                                         <span>
+//                                             {
+//                                                 appliedFilters.employeeId
+//                                             }
+//                                         </span>
+//                                     </Badge>
+//                                 )}
+
+//                                 {appliedFilters.itPersonal && (
+//                                     <Badge
+//                                         variant="outline"
+//                                         className={
+//                                             badgeClass
+//                                         }
+//                                     >
+//                                         <span className="font-semibold text-primary">
+//                                             Assigned:
+//                                         </span>
+
+//                                         <span>
+//                                             {
+//                                                 appliedFilters.itPersonal
+//                                             }
+//                                         </span>
+//                                     </Badge>
+//                                 )}
+
+//                                 {appliedFilters.status && (
+//                                     <Badge
+//                                         variant="outline"
+//                                         className={
+//                                             badgeClass
+//                                         }
+//                                     >
+//                                         <span className="font-semibold text-primary">
+//                                             Status:
+//                                         </span>
+
+//                                         <span>
+//                                             {
+//                                                 appliedFilters.status
+//                                             }
+//                                         </span>
+//                                     </Badge>
+//                                 )}
+
+//                                 {(
+//                                     appliedFilters.fromDate ||
+//                                     appliedFilters.toDate
+//                                 ) && (
+//                                         <Badge
+//                                             variant="outline"
+//                                             className={
+//                                                 badgeClass
+//                                             }
+//                                         >
+//                                             <span className="font-semibold text-primary">
+//                                                 Date:
+//                                             </span>
+
+//                                             <span>
+//                                                 {
+//                                                     appliedFilters.fromDate ||
+//                                                     "Start"
+//                                                 }
+
+//                                                 {" — "}
+
+//                                                 {
+//                                                     appliedFilters.toDate ||
+//                                                     "Now"
+//                                                 }
+//                                             </span>
+//                                         </Badge>
+//                                     )}
+//                             </>
+//                         ) : (
+//                             <>
+//                                 {columnFilters.map(
+//                                     (
+//                                         filter
+//                                     ) => (
+//                                         <Badge
+//                                             key={
+//                                                 filter.id
+//                                             }
+//                                             variant="outline"
+//                                             className={
+//                                                 badgeClass
+//                                             }
+//                                         >
+//                                             <span className="font-semibold text-primary">
+//                                                 {getColumnDisplayName(
+//                                                     filter.id
+//                                                 )}
+//                                                 :
+//                                             </span>
+
+//                                             <span>
+//                                                 {String(
+//                                                     filter.value
+//                                                 )}
+//                                             </span>
+
+//                                             <button
+//                                                 type="button"
+//                                                 onClick={() =>
+//                                                     setColumnFilters(
+//                                                         (
+//                                                             current
+//                                                         ) =>
+//                                                             current.filter(
+//                                                                 (
+//                                                                     item
+//                                                                 ) =>
+//                                                                     item.id !==
+//                                                                     filter.id
+//                                                             )
+//                                                     )
+//                                                 }
+//                                                 className="
+//                                                 ml-0.5
+//                                                 inline-flex
+//                                                 h-4
+//                                                 w-4
+//                                                 items-center
+//                                                 justify-center
+//                                                 rounded-full
+//                                                 text-muted-foreground
+//                                                 hover:bg-destructive/10
+//                                                 hover:text-destructive
+//                                             "
+//                                             >
+//                                                 <X className="h-3 w-3" />
+//                                             </button>
+//                                         </Badge>
+//                                     )
+//                                 )}
+
+//                                 {(
+//                                     fromDate ||
+//                                     toDate
+//                                 ) && (
+//                                         <Badge
+//                                             variant="outline"
+//                                             className={
+//                                                 badgeClass
+//                                             }
+//                                         >
+//                                             <span className="font-semibold text-primary">
+//                                                 Date:
+//                                             </span>
+
+//                                             <span>
+//                                                 {
+//                                                     fromDate ||
+//                                                     "Start"
+//                                                 }
+
+//                                                 {" — "}
+
+//                                                 {
+//                                                     toDate ||
+//                                                     "Now"
+//                                                 }
+//                                             </span>
+//                                         </Badge>
+//                                     )}
+//                             </>
+//                         )}
+
+//                         <Button
+//                             type="button"
+//                             variant="ghost"
+//                             size="sm"
+//                             onClick={
+//                                 resetFilters
+//                             }
+//                             className="
+//                             h-7
+//                             shrink-0
+//                             px-2.5
+//                             text-[10px]
+//                             font-semibold
+//                             text-destructive
+//                             hover:bg-destructive/10
+//                             hover:text-destructive
+//                         "
+//                         >
+//                             <X className="mr-1 h-3.5 w-3.5" />
+
+//                             Clear all
+//                         </Button>
+//                     </div>
+//                 )}
+
+//             {/* ==================================================
+//                 TABLE
+//             ================================================== */}
+
+//             <div
+//                 className={`
+//                     relative
+//                     w-full
+//                     min-w-0
+//                     overflow-hidden
+//                     border
+//                     border-border
+//                     bg-card
+
+//                     ${compact
+//                         ? "rounded-lg"
+//                         : "rounded-xl"
+//                     }
+//                 `}
+//             >
+//                 <Table
+//                     className={`
+//                         w-full
+//                         table-fixed
+//                         border-collapse
+//                         ${compact
+//                             ? "text-[9px]"
+//                             : "text-[10px]"
+//                         }
+//                     `}
+//                 >
+//                     <TableHeader>
+//                         {table
+//                             .getHeaderGroups()
+//                             .map(
+//                                 (
+//                                     headerGroup
+//                                 ) => (
+//                                     <TableRow
+//                                         key={
+//                                             headerGroup.id
+//                                         }
+//                                         className="
+//                                             hover:bg-transparent
+//                                         "
+//                                     >
+//                                         {headerGroup.headers.map(
+//                                             (
+//                                                 header
+//                                             ) => {
+//                                                 const width =
+//                                                     getColumnWidth(
+//                                                         header
+//                                                             .column
+//                                                             .id
+//                                                     );
+
+//                                                 return (
+//                                                     <TableHead
+//                                                         key={
+//                                                             header.id
+//                                                         }
+//                                                         className={`
+//                                                             overflow-hidden
+//                                                             border-b
+//                                                             bg-muted/60
+//                                                             text-center
+//                                                             font-semibold
+//                                                             uppercase
+//                                                             tracking-wide
+//                                                             text-muted-foreground
+
+//                                                             ${compact
+//                                                                 ? "h-8 px-1 py-1 text-[8px]"
+//                                                                 : "px-2 py-2 text-[9px]"
+//                                                             }
+//                                                         `}
+//                                                         style={{
+//                                                             width,
+//                                                         }}
+//                                                     >
+//                                                         {header.isPlaceholder
+//                                                             ? null
+//                                                             : flexRender(
+//                                                                 header
+//                                                                     .column
+//                                                                     .columnDef
+//                                                                     .header,
+//                                                                 header.getContext()
+//                                                             )}
+//                                                     </TableHead>
+//                                                 );
+//                                             }
+//                                         )}
+//                                     </TableRow>
+//                                 )
+//                             )}
+//                     </TableHeader>
+
+//                     <TableBody>
+//                         {table
+//                             .getRowModel()
+//                             .rows.length ? (
+//                             table
+//                                 .getRowModel()
+//                                 .rows
+//                                 .map(
+//                                     (
+//                                         row
+//                                     ) => {
+//                                         const record =
+//                                             row.original as Record<
+//                                                 string,
+//                                                 unknown
+//                                             >;
+
+//                                         return (
+//                                             <TableRow
+//                                                 key={
+//                                                     row.id
+//                                                 }
+//                                                 className={`
+//                                                     group
+//                                                     relative
+//                                                     border-b
+//                                                     border-border/70
+//                                                     transition-all
+//                                                     duration-200
+//                                                     ease-out
+
+//                                                     hover:bg-primary/[0.045]
+//                                                     hover:shadow-[inset_3px_0_0_hsl(var(--primary)/0.65)]
+//                                                     hover:relative
+//                                                     hover:z-10
+
+//                                                     ${compact
+//                                                         ? "h-8"
+//                                                         : ""
+//                                                     }
+//                                                 `}
+//                                             >
+//                                                 {row
+//                                                     .getVisibleCells()
+//                                                     .map(
+//                                                         (
+//                                                             cell
+//                                                         ) => {
+//                                                             const width =
+//                                                                 getColumnWidth(
+//                                                                     cell
+//                                                                         .column
+//                                                                         .id
+//                                                                 );
+
+//                                                             const columnId =
+//                                                                 cell
+//                                                                     .column
+//                                                                     .id;
+
+//                                                             const isAction =
+//                                                                 columnId ===
+//                                                                 "action" ||
+//                                                                 columnId ===
+//                                                                 "actions";
+
+//                                                             const isCreated =
+//                                                                 columnId ===
+//                                                                 "created_at";
+
+//                                                             const isQuery =
+//                                                                 columnId ===
+//                                                                 "query_type" ||
+//                                                                 columnId ===
+//                                                                 "query";
+
+//                                                             const rawValue =
+//                                                                 record[
+//                                                                 columnId
+//                                                                 ];
+
+//                                                             return (
+//                                                                 <TableCell
+//                                                                     key={
+//                                                                         cell.id
+//                                                                     }
+//                                                                     className={`
+//                                                                         overflow-hidden
+//                                                                         text-center
+//                                                                         align-middle
+
+//                                                                         ${compact
+//                                                                             ? "h-8 px-1 py-[3px] text-[9px]"
+//                                                                             : "px-2 py-2 text-[10px]"
+//                                                                         }
+
+//                                                                         ${columnId ===
+//                                                                             "tt_no"
+//                                                                             ? "font-semibold text-primary"
+//                                                                             : ""
+//                                                                         }
+
+//                                                                         ${isAction
+//                                                                             ? "relative z-30"
+//                                                                             : ""
+//                                                                         }
+//                                                                     `}
+//                                                                     style={{
+//                                                                         width,
+//                                                                     }}
+//                                                                 >
+//                                                                     <div
+//                                                                         className="
+//                                                                             min-w-0
+//                                                                             max-w-full
+//                                                                             overflow-hidden
+//                                                                         "
+//                                                                     >
+//                                                                         {isCreated ? (
+//                                                                             (() => {
+//                                                                                 const created =
+//                                                                                     formatCreatedDateTime(
+//                                                                                         rawValue
+//                                                                                     );
+
+//                                                                                 return (
+//                                                                                     <div
+//                                                                                         className="
+//                                                                                             flex
+//                                                                                             min-w-0
+//                                                                                             flex-col
+//                                                                                             items-center
+//                                                                                             justify-center
+//                                                                                             leading-tight
+//                                                                                         "
+//                                                                                         title={`${created.date} ${created.time}`}
+//                                                                                     >
+//                                                                                         <span
+//                                                                                             className="
+//                                                                                                 whitespace-nowrap
+//                                                                                                 font-medium
+//                                                                                                 text-foreground
+//                                                                                             "
+//                                                                                         >
+//                                                                                             {
+//                                                                                                 created.date
+//                                                                                             }
+//                                                                                         </span>
+
+//                                                                                         <span
+//                                                                                             className="
+//                                                                                                 mt-0.5
+//                                                                                                 whitespace-nowrap
+//                                                                                                 font-mono
+//                                                                                                 text-[10px]
+//                                                                                                 font-medium
+//                                                                                                 text-muted-foreground
+//                                                                                             "
+//                                                                                         >
+//                                                                                             {
+//                                                                                                 created.time
+//                                                                                             }
+//                                                                                         </span>
+//                                                                                     </div>
+//                                                                                 );
+//                                                                             })()
+//                                                                         ) : isQuery ? (
+//                                                                             <div
+//                                                                                 className="
+//                                                                                     mx-auto
+//                                                                                     min-w-0
+//                                                                                     max-w-full
+//                                                                                     truncate
+//                                                                                     px-1
+//                                                                                 "
+//                                                                                 title={
+//                                                                                     rawValue !==
+//                                                                                         null &&
+//                                                                                         rawValue !==
+//                                                                                         undefined
+//                                                                                         ? String(
+//                                                                                             rawValue
+//                                                                                         )
+//                                                                                         : undefined
+//                                                                                 }
+//                                                                             >
+//                                                                                 {flexRender(
+//                                                                                     cell
+//                                                                                         .column
+//                                                                                         .columnDef
+//                                                                                         .cell,
+//                                                                                     cell.getContext()
+//                                                                                 )}
+//                                                                             </div>
+//                                                                         ) : (
+//                                                                             flexRender(
+//                                                                                 cell
+//                                                                                     .column
+//                                                                                     .columnDef
+//                                                                                     .cell,
+//                                                                                 cell.getContext()
+//                                                                             )
+//                                                                         )}
+//                                                                     </div>
+//                                                                 </TableCell>
+//                                                             );
+//                                                         }
+//                                                     )}
+//                                             </TableRow>
+//                                         );
+//                                     }
+//                                 )
+//                         ) : (
+//                             <TableRow>
+//                                 <TableCell
+//                                     colSpan={
+//                                         visibleColumnCount
+//                                     }
+//                                     className={
+//                                         compact
+//                                             ? "h-24 text-center text-[10px] font-medium text-muted-foreground"
+//                                             : "h-32 text-center text-sm font-medium text-muted-foreground"
+//                                     }
+//                                 >
+//                                     {
+//                                         emptyMessage
+//                                     }
+//                                 </TableCell>
+//                             </TableRow>
+//                         )}
+//                     </TableBody>
+//                 </Table>
+
+//             </div>
+
+//             {/* ==================================================
+//                 PAGINATION
+//             ================================================== */}
+
+//             <div
+//                 className={`
+//                     flex
+//                     items-center
+//                     justify-between
+//                     gap-3
+
+//                     ${compact
+//                         ? "px-0.5"
+//                         : "px-1"
+//                     }
+//                 `}
+//             >
+//                 <p
+//                     className={
+//                         compact
+//                             ? "text-[10px] text-muted-foreground"
+//                             : "text-xs text-muted-foreground"
+//                     }
+//                 >
+//                     Page{" "}
+
+//                     <span className="font-medium text-foreground">
+//                         {table
+//                             .getState()
+//                             .pagination
+//                             .pageIndex +
+//                             1}
+//                     </span>
+
+//                     {" "}
+
+//                     of{" "}
+
+//                     <span className="font-medium text-foreground">
+//                         {Math.max(
+//                             table.getPageCount(),
+//                             1
+//                         )}
+//                     </span>
+//                 </p>
+
+//                 <div
+//                     className={
+//                         compact
+//                             ? "flex items-center gap-1.5"
+//                             : "flex items-center gap-2"
+//                     }
+//                 >
+//                     <Button
+//                         variant="outline"
+//                         size="sm"
+//                         onClick={() =>
+//                             table.previousPage()
+//                         }
+//                         disabled={
+//                             !table.getCanPreviousPage()
+//                         }
+//                         className={
+//                             compact
+//                                 ? "h-7 px-2.5 text-[10px]"
+//                                 : "h-8 text-xs"
+//                         }
+//                     >
+//                         Previous
+//                     </Button>
+
+//                     <Button
+//                         variant="outline"
+//                         size="sm"
+//                         onClick={() =>
+//                             table.nextPage()
+//                         }
+//                         disabled={
+//                             !table.getCanNextPage()
+//                         }
+//                         className={
+//                             compact
+//                                 ? "h-7 px-2.5 text-[10px]"
+//                                 : "h-8 text-xs"
+//                         }
+//                     >
+//                         Next
+//                     </Button>
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// }
