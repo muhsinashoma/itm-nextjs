@@ -1,0 +1,5 @@
+"id","code","name","description","legacy_user_type","hierarchy_level","is_system","active","created_at","updated_at"
+1,"ROOT","Root / Super Administrator","Full system access including Admin and User panels",0,100,True,True,"2026-08-16 15:38:55.310451+06","2026-08-16 15:38:55.310451+06"
+2,"IT_ADMIN","IT Administrator","IT administration, approval, delivery and user panel access",1,80,True,True,"2026-08-16 15:38:55.310451+06","2026-08-16 15:38:55.310451+06"
+3,"IT_PERSONNEL","IT Personnel","Operational IT access including requisition approval and delivery",2,50,True,True,"2026-08-16 15:38:55.310451+06","2026-08-16 15:38:55.310451+06"
+4,"GENERAL_USER","General User","Standard employee user panel access",3,10,True,True,"2026-08-16 15:38:55.310451+06","2026-08-16 15:38:55.310451+06"

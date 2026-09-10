@@ -315,6 +315,7 @@ export type AuthPermission =
     | "TT_VIEW"
     | "TT_ASSIGN"
     | "TT_REQUISITION"
+    | "TT_Close"
     | "TT_EDIT"
     | "TT_DELETE";
 
@@ -995,6 +996,56 @@ export const dashboardApi = {
             >(
                 "/dashboard/trouble-ticket-it-personnel"
             ),
+
+    raiseTroubleTicketRequisition: (
+        id: number,
+        body: {
+            category_id: number;
+            brand_id?: number | null;
+            model_id?: number | null;
+            device_serial?: string;
+            reason_details: string;
+        }
+    ) =>
+        api.post<
+            ApiOk<{
+                id: number;
+                trouble_ticket_id: number;
+                tt_no: string;
+                category: string;
+                brand: string;
+                model: string;
+                device_serial: string;
+                raised_by: string;
+                raised_by_name: string;
+                requisition_status: string;
+                delivery_status: string;
+            }>
+        >(
+            `/dashboard/trouble-tickets/${id}/requisition`,
+            body
+        ),
+
+    closeTroubleTicket: (
+        id: number,
+        closingDescription: string
+    ) =>
+        api.patch<
+            ApiOk<{
+                id: number;
+                tt_no: string;
+                status: string;
+                closed_at: string;
+                closed_by: string;
+                closed_by_name: string;
+                closing_description: string;
+            }>
+        >(
+            `/dashboard/trouble-tickets/${id}/close`,
+            {
+                closing_description: closingDescription,
+            }
+        ),
 
 
     /* ======================================================
