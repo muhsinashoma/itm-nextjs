@@ -5,6 +5,7 @@
 import {
     Suspense,
     useEffect,
+    useMemo,
     useState,
 } from "react";
 
@@ -27,7 +28,8 @@ import {
 
 
 import {
-    columns,
+    createTTColumns,
+    mapTTPermissions,
     toSection,
 } from "@/components/tt-columns";
 
@@ -50,9 +52,6 @@ import {
     type TroubleTicketScope,
 
     type TroubleTicketStatus,
-
-    type TroubleTicketDetail,
-
 } from "@/lib/api";
 
 
@@ -241,6 +240,73 @@ function TroubleTicketListContent() {
         SCOPE_CONFIG[scope];
 
 
+    /* ==================================================
+       AUTHORIZED ACTION COLUMNS
+    ================================================== */
+
+    const [
+        permissions,
+        setPermissions
+    ] =
+        useState<string[]>([]);
+
+
+    useEffect(() => {
+        try {
+            const raw =
+                window.localStorage.getItem(
+                    "itm_user"
+                );
+
+            if (!raw) {
+                setPermissions([]);
+                return;
+            }
+
+            const user =
+                JSON.parse(raw) as {
+                    permissions?: unknown;
+                };
+
+            setPermissions(
+                Array.isArray(user.permissions)
+                    ? user.permissions.filter(
+                        (item): item is string =>
+                            typeof item === "string"
+                    )
+                    : []
+            );
+        } catch (reason) {
+            console.error(
+                "Unable to load TT permissions:",
+                reason
+            );
+
+            setPermissions([]);
+        }
+    }, []);
+
+
+    const actionPermissions =
+        useMemo(
+            () =>
+                mapTTPermissions(
+                    permissions
+                ),
+            [permissions]
+        );
+
+
+    const columns =
+        useMemo(
+            () =>
+                createTTColumns(
+                    actionPermissions
+                ),
+            [actionPermissions]
+        );
+
+
 
     const [
         rows,
@@ -272,68 +338,6 @@ function TroubleTicketListContent() {
     ] =
         useState("");
 
-
-
-    /*
-        TT DETAILS
-    */
-
-
-    const [
-        selectedTT,
-        setSelectedTT
-    ] =
-        useState<
-            TroubleTicketDetail | null
-        >(null);
-
-
-
-    const [
-        showTTModal,
-        setShowTTModal
-    ] =
-        useState(false);
-
-
-
-    const openTTDetails =
-        async (
-            id: number
-        ) => {
-
-
-            try {
-
-
-                const response =
-                    await dashboardApi
-                        .troubleTicketDetails(id);
-
-
-
-                setSelectedTT(
-                    response.data
-                );
-
-
-
-                setShowTTModal(
-                    true
-                );
-
-
-            }
-            catch (error) {
-
-                console.error(
-                    "TT details error",
-                    error
-                );
-
-            }
-
-        };
 
 
 

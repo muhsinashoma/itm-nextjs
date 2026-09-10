@@ -1,6 +1,6 @@
 
 
-// //frontend/components/TTTable.tsx
+//frontend/components/TTTable.tsx
 
 
 "use client";
@@ -49,6 +49,7 @@ const TT_PERMISSIONS = {
     VIEW: "TT_VIEW",
     ASSIGN: "TT_ASSIGN",
     REQUISITION: "TT_REQUISITION",
+    CLOSE: "TT_Close",
     EDIT: "TT_EDIT",
     DELETE: "TT_DELETE",
 } as const;
@@ -111,7 +112,11 @@ function hasPermission(
     permissions: string[],
     permission: string
 ): boolean {
-    return permissions.includes(permission);
+    const expected = permission.trim().toUpperCase();
+
+    return permissions.some(
+        (item) => item.trim().toUpperCase() === expected
+    );
 }
 
 /* ============================================================
@@ -135,6 +140,11 @@ function buildTTActionPermissions(
         canRequisition: hasPermission(
             permissions,
             TT_PERMISSIONS.REQUISITION
+        ),
+
+        canClose: hasPermission(
+            permissions,
+            TT_PERMISSIONS.CLOSE
         ),
 
         canEdit: hasPermission(
