@@ -1,3 +1,4 @@
+//frontend/app/dashboard/urgent/create/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -17,8 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+    dashboardApi,
+    type TroubleTicketITPersonnel,
+} from "@/lib/api";
+import {
     urgentTaskApi,
-    type ActiveEmployeeOption,
     type UrgentTaskPriority,
     type UrgentTaskStatus,
 } from "@/lib/urgent-task-api";
@@ -33,7 +37,6 @@ const priorities: UrgentTaskPriority[] = [
 const statuses: UrgentTaskStatus[] = [
     "Pending",
     "In Progress",
-    "Completed",
 ];
 
 function currentLocalDate(): string {
@@ -47,8 +50,9 @@ function currentLocalDate(): string {
 export default function CreateUrgentTask() {
     const router = useRouter();
 
-    const [employees, setEmployees] = useState<ActiveEmployeeOption[]>([]);
+    const [employees, setEmployees] = useState<TroubleTicketITPersonnel[]>([]);
     const [loadingEmployees, setLoadingEmployees] = useState(true);
+    const [employeeLoadError, setEmployeeLoadError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -73,13 +77,31 @@ export default function CreateUrgentTask() {
         async function loadEmployees() {
             try {
                 setLoadingEmployees(true);
-                const response = await urgentTaskApi.employees();
+                setEmployeeLoadError("");
+
+                const response =
+                    await dashboardApi.troubleTicketITPersonnel();
+
                 if (!mounted) return;
-                setEmployees(response.data ?? []);
+
+                const people =
+                    (response.data ?? []).filter(
+                        (person) =>
+                            String(person.employee_id ?? "").trim() !== "" &&
+                            String(person.employee_name ?? "").trim() !== ""
+                    );
+
+                setEmployees(people);
+
+                if (people.length === 0) {
+                    setEmployeeLoadError(
+                        "No active IT personnel are currently available for assignment."
+                    );
+                }
             } catch (reason) {
                 if (!mounted) return;
                 setEmployees([]);
-                setError(
+                setEmployeeLoadError(
                     reason instanceof Error
                         ? reason.message
                         : "Unable to load active IT personnel."
@@ -260,8 +282,11 @@ export default function CreateUrgentTask() {
                                             <option value="">
                                                 {loadingEmployees
                                                     ? "Loading active IT personnel..."
-                                                    : "Select active IT personnel"}
+                                                    : employees.length > 0
+                                                        ? "Select active IT personnel"
+                                                        : "No active IT personnel available"}
                                             </option>
+
                                             {employees.map((employee) => (
                                                 <option
                                                     key={employee.employee_id}
@@ -271,9 +296,31 @@ export default function CreateUrgentTask() {
                                                 </option>
                                             ))}
                                         </select>
-                                        <p className="text-[10px] text-muted-foreground">
-                                            Only active IT personnel are available for assignment.
-                                        </p>
+
+                                        {employeeLoadError ? (
+                                            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-800">
+                                                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                                <div>
+                                                    <p className="font-semibold">
+                                                        IT personnel could not be loaded
+                                                    </p>
+                                                    <p className="mt-0.5 leading-4">
+                                                        {employeeLoadError}
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        className="mt-1.5 font-semibold text-amber-900 underline underline-offset-2"
+                                                        onClick={() => window.location.reload()}
+                                                    >
+                                                        Retry loading personnel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Only active IT personnel are available for assignment.
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">

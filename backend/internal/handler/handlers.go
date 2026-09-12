@@ -5355,31 +5355,64 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	)
 
 //Urgent Task List
+	// g.GET(
+	// 	"/urgent-tasks",
+	// 	h.UrgentTaskList,
+	//   )
+
+	// g.GET(
+	// 	"/urgent-tasks/sidebar",
+	// 	h.UrgentTaskSidebar,
+	// )
+
+	// g.POST(
+	// 	"/urgent-tasks",
+	// 	h.CreateUrgentTask,
+	// )
+
+	// g.PUT(
+	// 	"/urgent-tasks/:id",
+	// 	h.UpdateUrgentTask,
+	// )
+
+	// g.DELETE(
+	// 	"/urgent-tasks/:id",
+	// 	h.DeleteUrgentTask,
+	// )
+
+//Urgent Task List
 	g.GET(
-		"/urgent-tasks",
-		h.UrgentTaskList,
-	  )
+    "/urgent-tasks",
+    h.UrgentTaskList,
+)
 
-	g.GET(
-		"/urgent-tasks/sidebar",
-		h.UrgentTaskSidebar,
-	)
+g.GET(
+    "/urgent-tasks/sidebar",
+    h.UrgentTaskSidebar,
+)
 
-	g.POST(
-		"/urgent-tasks",
-		h.CreateUrgentTask,
-	)
+g.POST(
+    "/urgent-tasks",
+    h.CreateUrgentTask,
+)
 
-	g.PUT(
-		"/urgent-tasks/:id",
-		h.UpdateUrgentTask,
-	)
+// IMPORTANT:
+// Replace the old `h.UpdateUrgentTask` route handler with the secure
+// IT-Administrator-only handler below.
+g.PUT(
+    "/urgent-tasks/:id",
+    h.UpdateUrgentTaskAdmin,
+)
 
-	g.DELETE(
-		"/urgent-tasks/:id",
-		h.DeleteUrgentTask,
-	)
+g.PATCH(
+    "/urgent-tasks/:id/complete",
+    h.CompleteUrgentTask,
+)
 
+g.DELETE(
+    "/urgent-tasks/:id",
+    h.DeleteUrgentTask,
+)
 
 // Database-backed notifications.
 	g.GET(
