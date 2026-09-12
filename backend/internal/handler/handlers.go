@@ -5381,6 +5381,23 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 	)
 
 
+// Database-backed notifications.
+	g.GET(
+		"/notifications",
+		h.NotificationList,
+	)
+
+	g.PATCH(
+		"/notifications/read-all",
+		h.MarkAllNotificationsRead,
+	)
+
+	g.PATCH(
+		"/notifications/:id/read",
+		h.MarkNotificationRead,
+	)
+
+
 	g.POST(
 		"/trouble-tickets/:id/assignment",
 		middleware.RequirePermission(h.db, "TT_ASSIGN"),
