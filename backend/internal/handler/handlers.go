@@ -5354,6 +5354,33 @@ func (h *DashboardHandler) Register(rg *gin.RouterGroup) {
 		h.TroubleTicketITPersonnel,
 	)
 
+//Urgent Task List
+	g.GET(
+		"/urgent-tasks",
+		h.UrgentTaskList,
+	  )
+
+	g.GET(
+		"/urgent-tasks/sidebar",
+		h.UrgentTaskSidebar,
+	)
+
+	g.POST(
+		"/urgent-tasks",
+		h.CreateUrgentTask,
+	)
+
+	g.PUT(
+		"/urgent-tasks/:id",
+		h.UpdateUrgentTask,
+	)
+
+	g.DELETE(
+		"/urgent-tasks/:id",
+		h.DeleteUrgentTask,
+	)
+
+
 	g.POST(
 		"/trouble-tickets/:id/assignment",
 		middleware.RequirePermission(h.db, "TT_ASSIGN"),
