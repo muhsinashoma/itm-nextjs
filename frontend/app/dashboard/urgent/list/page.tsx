@@ -1,315 +1,564 @@
-// app/dashboard/urgent/list/page.tsx
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+    AlertTriangle,
+    CheckCircle2,
+    ChevronDown,
+    Clock,
+    Eye,
+    FileSpreadsheet,
+    FileText,
+    ListTodo,
+    Loader2,
+    Plus,
+    Search,
+    Trash2,
+    UserRound,
+    X,
+    Zap,
+} from "lucide-react";
+
 import { Input } from "@/components/ui/input";
-import { Package, Pencil, Trash2, ChevronDown, AlertTriangle, CheckCircle2, Clock, Zap, Search, FileSpreadsheet, FileText, ListTodo, X } from "lucide-react";
+import {
+    urgentTaskApi,
+    type UrgentTask,
+    type UrgentTaskPriority,
+    type UrgentTaskStatus,
+} from "@/lib/urgent-task-api";
 
-interface UrgentTask {
-    id: number;
-    reference: string;
-    employee: string;
-    description: string;
-    task: string;
-    status: string;
-    priority: string;
-    submittedDate: string;
-}
-
-const tasks: UrgentTask[] = [
-    { id: 1, reference: "UT-1001", employee: "Alice Johnson", description: "Server Shiffing", task: "Server Shiffing", status: "Pending", priority: "High", submittedDate: "2026-02-01" },
-    { id: 2, reference: "UT-1002", employee: "Bob Smith", description: "Server Shiffing Gulshan Zone", task: "Server Shiffing Gulshan Zone", status: "Inprogress", priority: "High", submittedDate: "2026-02-02" },
-    { id: 3, reference: "UT-1003", employee: "Charlie Brown", description: "Door Server Replacement", task: "Door Server Replacement", status: "Completed", priority: "Medium", submittedDate: "2026-02-03" },
-    { id: 4, reference: "UT-1004", employee: "Dana White", description: "Device Shiffing for Hitech", task: "Device Shiffing for Hitech", status: "Pending", priority: "Low", submittedDate: "2026-02-04" },
-    { id: 5, reference: "UT-1005", employee: "Evan Lee", description: "Office Shifting", task: "Office Shifting", status: "Inprogress", priority: "Critical", submittedDate: "2026-02-05" },
-];
-
-const statusConfig: Record<string, { color: string; bg: string; activeBg: string; icon: React.ReactNode }> = {
-    Pending: { color: "text-amber-700", bg: "bg-amber-50 border-amber-200", activeBg: "bg-amber-500 text-white border-amber-500", icon: <Clock size={10} /> },
-    Inprogress: { color: "text-blue-700", bg: "bg-blue-50 border-blue-200", activeBg: "bg-blue-500 text-white border-blue-500", icon: <Zap size={10} /> },
-    Completed: { color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", activeBg: "bg-emerald-500 text-white border-emerald-500", icon: <CheckCircle2 size={10} /> },
+const statusConfig: Record<
+    UrgentTaskStatus,
+    { color: string; bg: string; activeBg: string; icon: React.ReactNode }
+> = {
+    Pending: {
+        color: "text-amber-700",
+        bg: "bg-amber-50 border-amber-200",
+        activeBg: "bg-amber-500 text-white border-amber-500",
+        icon: <Clock size={10} />,
+    },
+    "In Progress": {
+        color: "text-blue-700",
+        bg: "bg-blue-50 border-blue-200",
+        activeBg: "bg-blue-500 text-white border-blue-500",
+        icon: <Zap size={10} />,
+    },
+    Completed: {
+        color: "text-emerald-700",
+        bg: "bg-emerald-50 border-emerald-200",
+        activeBg: "bg-emerald-500 text-white border-emerald-500",
+        icon: <CheckCircle2 size={10} />,
+    },
 };
 
-const priorityConfig: Record<string, { color: string; bg: string; activeBg: string; dot: string }> = {
-    Critical: { color: "text-red-700", bg: "bg-red-50 border-red-200", activeBg: "bg-red-500 text-white border-red-500", dot: "bg-red-500" },
-    High: { color: "text-orange-700", bg: "bg-orange-50 border-orange-200", activeBg: "bg-orange-500 text-white border-orange-500", dot: "bg-orange-500" },
-    Medium: { color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200", activeBg: "bg-yellow-500 text-white border-yellow-500", dot: "bg-yellow-500" },
-    Low: { color: "text-green-700", bg: "bg-green-50 border-green-200", activeBg: "bg-green-500 text-white border-green-500", dot: "bg-green-500" },
+const priorityConfig: Record<
+    UrgentTaskPriority,
+    { color: string; bg: string; activeBg: string; dot: string }
+> = {
+    Critical: {
+        color: "text-red-700",
+        bg: "bg-red-50 border-red-200",
+        activeBg: "bg-red-500 text-white border-red-500",
+        dot: "bg-red-500",
+    },
+    High: {
+        color: "text-orange-700",
+        bg: "bg-orange-50 border-orange-200",
+        activeBg: "bg-orange-500 text-white border-orange-500",
+        dot: "bg-orange-500",
+    },
+    Medium: {
+        color: "text-yellow-700",
+        bg: "bg-yellow-50 border-yellow-200",
+        activeBg: "bg-yellow-500 text-white border-yellow-500",
+        dot: "bg-yellow-500",
+    },
+    Low: {
+        color: "text-green-700",
+        bg: "bg-green-50 border-green-200",
+        activeBg: "bg-green-500 text-white border-green-500",
+        dot: "bg-green-500",
+    },
 };
 
 function Avatar({ name }: { name: string }) {
-    const initials = name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
-    const colors = ["bg-violet-100 text-violet-700", "bg-blue-100 text-blue-700", "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700"];
+    const initials = name
+        .split(" ")
+        .map((part) => part[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase();
+
     return (
-        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold shrink-0 ${colors[name.charCodeAt(0) % colors.length]}`}>
-            {initials}
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-[10px] font-bold text-blue-700">
+            {initials || "?"}
         </span>
     );
 }
 
+function formatDate(value: string) {
+    if (!value) return "—";
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    }).format(date);
+}
+
 function exportToCSV(data: UrgentTask[]) {
-    const headers = ["SL", "Reference", "Employee", "Task", "Description", "Submitted Date", "Status", "Priority"];
-    const rows = data.map((t, i) => [i + 1, t.reference, t.employee, t.task, t.description, t.submittedDate, t.status, t.priority]);
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const headers = [
+        "SL",
+        "Reference",
+        "Title",
+        "Assigned To",
+        "Generated By",
+        "Due Date",
+        "Status",
+        "Priority",
+        "Description",
+    ];
+
+    const rows = data.map((task, index) => [
+        index + 1,
+        task.reference,
+        task.title,
+        `${task.assigned_to_name} (${task.assigned_to})`,
+        `${task.generated_by_name} (${task.generated_by})`,
+        task.due_date,
+        task.status,
+        task.priority,
+        task.description,
+    ]);
+
+    const csv = [headers, ...rows]
+        .map((row) =>
+            row
+                .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+                .join(",")
+        )
+        .join("\n");
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `urgent-tasks-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `urgent-tasks-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
     URL.revokeObjectURL(url);
 }
 
 function exportToPDF(data: UrgentTask[]) {
-    const rows = data.map((t, i) => `<tr><td>${i + 1}</td><td>${t.reference}</td><td>${t.employee}</td><td>${t.task}</td><td>${t.submittedDate}</td><td>${t.status}</td><td>${t.priority}</td></tr>`).join("");
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Urgent Tasks Report</title>
-    <style>body{font-family:Arial,sans-serif;font-size:11px;padding:24px;color:#111}h2{font-size:16px;margin-bottom:4px}p.sub{color:#666;font-size:10px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#f1f5f9;text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0}td{padding:7px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top}tr:nth-child(even) td{background:#f8fafc}.footer{margin-top:20px;font-size:10px;color:#999;text-align:right}</style>
-    </head><body><h2>Urgent Tasks Report</h2><p class="sub">Generated: ${new Date().toLocaleString()} · Total: ${data.length} tasks</p>
-    <table><thead><tr><th>#</th><th>Reference</th><th>Employee</th><th>Task</th><th>Date</th><th>Status</th><th>Priority</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="footer">Fiber@Home Ltd. · ITM Portal</div></body></html>`;
+    const rows = data
+        .map(
+            (task, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${task.reference}</td>
+                    <td>${task.title}</td>
+                    <td>${task.assigned_to_name}</td>
+                    <td>${task.generated_by_name}</td>
+                    <td>${task.due_date}</td>
+                    <td>${task.status}</td>
+                    <td>${task.priority}</td>
+                </tr>`
+        )
+        .join("");
+
+    const html = `<!DOCTYPE html>
+    <html><head><meta charset="utf-8"/><title>Urgent Tasks Report</title>
+    <style>
+    body{font-family:Arial,sans-serif;font-size:11px;padding:24px;color:#111}
+    h2{font-size:16px;margin-bottom:4px}.sub{color:#666;font-size:10px;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse}th{background:#f1f5f9;text-align:left;padding:8px;font-size:9px;text-transform:uppercase;border-bottom:2px solid #e2e8f0}
+    td{padding:7px 8px;border-bottom:1px solid #e2e8f0;vertical-align:top}tr:nth-child(even) td{background:#f8fafc}
+    </style></head><body>
+    <h2>Urgent Tasks Report</h2><p class="sub">Generated ${new Date().toLocaleString()} · ${data.length} tasks</p>
+    <table><thead><tr><th>#</th><th>Reference</th><th>Task</th><th>Assigned</th><th>Generated By</th><th>Due</th><th>Status</th><th>Priority</th></tr></thead><tbody>${rows}</tbody></table>
+    </body></html>`;
+
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const win = window.open(url, "_blank");
-    win?.addEventListener("load", () => { win.print(); URL.revokeObjectURL(url); });
+    win?.addEventListener("load", () => {
+        win.print();
+        URL.revokeObjectURL(url);
+    });
 }
 
 export default function UrgentTaskPage() {
+    const router = useRouter();
+    const [tasks, setTasks] = useState<UrgentTask[]>([]);
+    const [total, setTotal] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
     const [search, setSearch] = useState("");
-    const [activeStatus, setActiveStatus] = useState<string | null>(null);
-    const [activePriority, setActivePriority] = useState<string | null>(null);
+    const [activeStatus, setActiveStatus] = useState<UrgentTaskStatus | null>(null);
+    const [activePriority, setActivePriority] = useState<UrgentTaskPriority | null>(null);
+    const [selected, setSelected] = useState<UrgentTask | null>(null);
 
-    // Apply all filters together
-    const filtered = tasks.filter(item => {
-        const matchSearch =
-            !search ||
-            item.reference.toLowerCase().includes(search.toLowerCase()) ||
-            item.employee.toLowerCase().includes(search.toLowerCase()) ||
-            item.task.toLowerCase().includes(search.toLowerCase());
-        const matchStatus = !activeStatus || item.status === activeStatus;
-        const matchPriority = !activePriority || item.priority === activePriority;
-        return matchSearch && matchStatus && matchPriority;
-    });
+    async function loadTasks() {
+        try {
+            setLoading(true);
+            setError("");
+            const response = await urgentTaskApi.list({
+                page: 1,
+                limit: 200,
+            });
+            setTasks(response.data ?? []);
+            setTotal(Number(response.total ?? response.data?.length ?? 0));
+        } catch (reason) {
+            setTasks([]);
+            setTotal(0);
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to load urgent tasks."
+            );
+        } finally {
+            setLoading(false);
+        }
+    }
 
-    const clearFilters = () => { setSearch(""); setActiveStatus(null); setActivePriority(null); };
-    const hasFilters = search || activeStatus || activePriority;
+    useEffect(() => {
+        void loadTasks();
+    }, []);
 
-    const handleView = (item: UrgentTask) => console.log("View", item);
-    const handleEdit = (item: UrgentTask) => console.log("Edit", item);
-    const handleDelete = (id: number) => console.log("Delete", id);
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return tasks.filter((item) => {
+            const matchSearch =
+                !q ||
+                item.reference.toLowerCase().includes(q) ||
+                item.title.toLowerCase().includes(q) ||
+                item.description.toLowerCase().includes(q) ||
+                item.assigned_to.toLowerCase().includes(q) ||
+                item.assigned_to_name.toLowerCase().includes(q) ||
+                item.generated_by_name.toLowerCase().includes(q);
+
+            const matchStatus = !activeStatus || item.status === activeStatus;
+            const matchPriority = !activePriority || item.priority === activePriority;
+            return matchSearch && matchStatus && matchPriority;
+        });
+    }, [tasks, search, activeStatus, activePriority]);
+
+    const counts = useMemo(
+        () => ({
+            total: tasks.length,
+            pending: tasks.filter((task) => task.status === "Pending").length,
+            inProgress: tasks.filter((task) => task.status === "In Progress").length,
+            completed: tasks.filter((task) => task.status === "Completed").length,
+        }),
+        [tasks]
+    );
+
+    async function handleDelete(id: number) {
+        if (!window.confirm("Delete this urgent task? This action soft-deletes the record for auditability.")) {
+            return;
+        }
+        try {
+            await urgentTaskApi.remove(id);
+            await loadTasks();
+        } catch (reason) {
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to delete urgent task."
+            );
+        }
+    }
+
+    function clearFilters() {
+        setSearch("");
+        setActiveStatus(null);
+        setActivePriority(null);
+    }
+
+    const hasFilters = Boolean(search || activeStatus || activePriority);
 
     return (
-        <div className="p-4 sm:p-6 space-y-4">
-
-            {/* Header */}
-            <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="space-y-4 p-4 sm:p-6">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-                            <ListTodo className="w-5 h-5 text-blue-600" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50">
+                            <ListTodo className="h-5 w-5 text-red-600" />
                         </div>
                         <div>
                             <h1 className="text-sm font-bold text-foreground">Urgent Tasks</h1>
-                            <p className="text-xs text-muted-foreground mt-0.5">Monitor and manage all critical operations</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                Live operational tasks from PostgreSQL with authenticated creator audit data.
+                            </p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => exportToCSV(filtered)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition">
+
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => router.push("/dashboard/urgent/create")}
+                            className="flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                        >
+                            <Plus size={13} /> New Task
+                        </button>
+                        <button
+                            onClick={() => exportToCSV(filtered)}
+                            className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100"
+                        >
                             <FileSpreadsheet size={13} /> Excel
                         </button>
-                        <button onClick={() => exportToPDF(filtered)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg transition">
+                        <button
+                            onClick={() => exportToPDF(filtered)}
+                            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+                        >
                             <FileText size={13} /> PDF
                         </button>
                     </div>
                 </div>
 
-                {/* Stat cards — clickable status filter */}
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {[
-                        { label: "Total Tasks", value: tasks.length, color: "text-foreground", bg: "bg-muted border-border", status: null },
-                        { label: "Pending", value: tasks.filter(t => t.status === "Pending").length, color: "text-amber-700", bg: "bg-amber-50 border-amber-100", status: "Pending" },
-                        { label: "In Progress", value: tasks.filter(t => t.status === "Inprogress").length, color: "text-blue-700", bg: "bg-blue-50 border-blue-100", status: "Inprogress" },
-                        { label: "Completed", value: tasks.filter(t => t.status === "Completed").length, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-100", status: "Completed" },
-                    ].map(s => (
+                        { label: "Total Tasks", value: counts.total, status: null, bg: "bg-muted border-border", color: "text-foreground" },
+                        { label: "Pending", value: counts.pending, status: "Pending" as UrgentTaskStatus, bg: "bg-amber-50 border-amber-100", color: "text-amber-700" },
+                        { label: "In Progress", value: counts.inProgress, status: "In Progress" as UrgentTaskStatus, bg: "bg-blue-50 border-blue-100", color: "text-blue-700" },
+                        { label: "Completed", value: counts.completed, status: "Completed" as UrgentTaskStatus, bg: "bg-emerald-50 border-emerald-100", color: "text-emerald-700" },
+                    ].map((item) => (
                         <button
-                            key={s.label}
-                            onClick={() => setActiveStatus(activeStatus === s.status ? null : s.status)}
-                            className={`rounded-xl border px-4 py-3 text-left transition ring-2 ${activeStatus === s.status && s.status !== null
-                                    ? "ring-primary"
-                                    : "ring-transparent"
-                                } ${s.bg} hover:opacity-80`}
+                            key={item.label}
+                            onClick={() =>
+                                setActiveStatus(
+                                    item.status && activeStatus === item.status
+                                        ? null
+                                        : item.status
+                                )
+                            }
+                            className={`rounded-xl border px-4 py-3 text-left transition hover:opacity-85 ${item.bg} ${
+                                item.status && activeStatus === item.status
+                                    ? "ring-2 ring-primary"
+                                    : "ring-2 ring-transparent"
+                            }`}
                         >
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{s.label}</p>
-                            <p className={`text-xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                {item.label}
+                            </p>
+                            <p className={`mt-0.5 text-xl font-bold ${item.color}`}>
+                                {item.value}
+                            </p>
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Priority filter bar — clickable */}
-            <div className="bg-card border border-border rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">Priority</p>
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+                <p className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Priority
+                </p>
                 <div className="flex flex-wrap gap-2">
-                    {Object.entries(priorityConfig).map(([level, cfg]) => {
-                        const isActive = activePriority === level;
+                    {(Object.keys(priorityConfig) as UrgentTaskPriority[]).map((level) => {
+                        const cfg = priorityConfig[level];
+                        const active = activePriority === level;
                         return (
                             <button
                                 key={level}
-                                onClick={() => setActivePriority(isActive ? null : level)}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition ${isActive ? cfg.activeBg : `${cfg.bg} ${cfg.color}`
-                                    }`}
+                                onClick={() => setActivePriority(active ? null : level)}
+                                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
+                                    active ? cfg.activeBg : `${cfg.bg} ${cfg.color}`
+                                }`}
                             >
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? "bg-white/80" : cfg.dot}`} />
+                                <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-white/80" : cfg.dot}`} />
                                 {level}
-                                <span className={isActive ? "opacity-70" : "opacity-50"}>
-                                    {tasks.filter(t => t.priority === level).length}
+                                <span className={active ? "opacity-70" : "opacity-50"}>
+                                    {tasks.filter((task) => task.priority === level).length}
                                 </span>
                             </button>
                         );
                     })}
                 </div>
-                {tasks.filter(t => t.priority === "Critical").length > 0 && (
-                    <span className="ml-auto flex items-center gap-1 text-[11px] text-red-600 font-semibold">
-                        <AlertTriangle size={11} /> {tasks.filter(t => t.priority === "Critical").length} Critical
+                {tasks.some((task) => task.priority === "Critical" && task.status !== "Completed") && (
+                    <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-red-600">
+                        <AlertTriangle size={11} />
+                        {tasks.filter((task) => task.priority === "Critical" && task.status !== "Completed").length} active critical
                     </span>
                 )}
             </div>
 
-            {/* Table */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-border gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
                         <p className="text-[11px] text-muted-foreground">
-                            Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {tasks.length} tasks
+                            Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {total} tasks
                         </p>
-                        {/* Active filter pills */}
-                        {activeStatus && (
-                            <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded-full border border-primary/20">
-                                {activeStatus}
-                                <button onClick={() => setActiveStatus(null)}><X size={10} /></button>
-                            </span>
-                        )}
-                        {activePriority && (
-                            <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded-full border border-primary/20">
-                                {activePriority}
-                                <button onClick={() => setActivePriority(null)}><X size={10} /></button>
-                            </span>
-                        )}
+                        {activeStatus && <FilterPill label={activeStatus} onClear={() => setActiveStatus(null)} />}
+                        {activePriority && <FilterPill label={activePriority} onClear={() => setActivePriority(null)} />}
                         {hasFilters && (
-                            <button onClick={clearFilters} className="text-[10px] text-muted-foreground hover:text-foreground underline">
+                            <button onClick={clearFilters} className="text-[10px] text-muted-foreground underline hover:text-foreground">
                                 Clear all
                             </button>
                         )}
                     </div>
+
                     <div className="relative">
-                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <Search size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <Input
-                            placeholder="Search reference, person, task..."
+                            placeholder="Search reference, employee, creator, task..."
                             value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            className="pl-7 h-7 w-52 text-xs"
+                            onChange={(event) => setSearch(event.target.value)}
+                            className="h-8 w-72 pl-7 text-xs"
                         />
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px]">
-                        <thead className="bg-muted/50 border-b border-border">
-                            <tr>
-                                {["#", "Reference", "Person", "Task", "Date", "Status", "Priority", "Actions"].map(col => (
-                                    <th key={col} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                                        {col}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/50">
-                            {filtered.map((item, i) => (
-                                <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                                    <td className="px-3 py-2.5 text-[11px] text-muted-foreground">{i + 1}</td>
-                                    <td className="px-3 py-2.5">
-                                        <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                                            {item.reference}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-2.5">
-                                        <div className="flex items-center gap-2">
-                                            <Avatar name={item.employee} />
-                                            <span className="text-[11px] text-foreground font-medium whitespace-nowrap">{item.employee}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-2.5 max-w-[160px]">
-                                        <p className="text-[11px] text-foreground font-medium truncate" title={item.task}>{item.task}</p>
-                                        <p className="text-[10px] text-muted-foreground truncate" title={item.description}>{item.description}</p>
-                                    </td>
-                                    <td className="px-3 py-2.5 text-[11px] text-muted-foreground whitespace-nowrap">{item.submittedDate}</td>
-                                    <td className="px-3 py-2.5"><StatusBadge status={item.status} /></td>
-                                    <td className="px-3 py-2.5"><PriorityBadge priority={item.priority} /></td>
-                                    <td className="px-3 py-2.5">
-                                        <ActionsDropdown item={item} onView={handleView} onEdit={handleEdit} onDelete={handleDelete} />
-                                    </td>
-                                </tr>
-                            ))}
-                            {filtered.length === 0 && (
+                {loading ? (
+                    <div className="flex min-h-[260px] items-center justify-center gap-2 text-xs text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading urgent tasks...
+                    </div>
+                ) : error ? (
+                    <div className="flex min-h-[260px] flex-col items-center justify-center gap-2 p-6 text-center text-xs text-red-600">
+                        <AlertTriangle className="h-6 w-6" />
+                        <p>{error}</p>
+                        <button onClick={() => void loadTasks()} className="rounded-md border px-3 py-1 text-[11px] font-semibold">
+                            Retry
+                        </button>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[1050px]">
+                            <thead className="border-b border-border bg-muted/50">
                                 <tr>
-                                    <td colSpan={8} className="py-10 text-center">
-                                        <p className="text-xs text-muted-foreground">No tasks match your filters.</p>
-                                        {hasFilters && (
-                                            <button onClick={clearFilters} className="mt-2 text-xs text-primary hover:underline">
-                                                Clear filters
-                                            </button>
-                                        )}
-                                    </td>
+                                    {["#", "Reference", "Task", "Assigned To", "Generated By", "Due Date", "Status", "Priority", "Actions"].map((column) => (
+                                        <th key={column} className="whitespace-nowrap px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {column}
+                                        </th>
+                                    ))}
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y divide-border/50">
+                                {filtered.map((item, index) => (
+                                    <tr key={item.id} className="transition-colors hover:bg-muted/30">
+                                        <td className="px-3 py-2.5 text-[11px] text-muted-foreground">{index + 1}</td>
+                                        <td className="px-3 py-2.5">
+                                            <span className="rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-blue-700">
+                                                {item.reference}
+                                            </span>
+                                        </td>
+                                        <td className="max-w-[260px] px-3 py-2.5">
+                                            <p className="truncate text-[11px] font-semibold text-foreground" title={item.title}>{item.title}</p>
+                                            <p className="mt-0.5 truncate text-[10px] text-muted-foreground" title={item.description}>{item.description || "No description"}</p>
+                                        </td>
+                                        <td className="px-3 py-2.5">
+                                            <PersonCell id={item.assigned_to} name={item.assigned_to_name} />
+                                        </td>
+                                        <td className="px-3 py-2.5">
+                                            <PersonCell id={item.generated_by} name={item.generated_by_name} creator />
+                                        </td>
+                                        <td className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">{formatDate(item.due_date)}</td>
+                                        <td className="px-3 py-2.5"><StatusBadge status={item.status} /></td>
+                                        <td className="px-3 py-2.5"><PriorityBadge priority={item.priority} /></td>
+                                        <td className="px-3 py-2.5">
+                                            <ActionsDropdown
+                                                item={item}
+                                                onView={() => setSelected(item)}
+                                                onDelete={() => void handleDelete(item.id)}
+                                            />
+                                        </td>
+                                    </tr>
+                                ))}
+                                {filtered.length === 0 && (
+                                    <tr>
+                                        <td colSpan={9} className="py-12 text-center text-xs text-muted-foreground">
+                                            No urgent tasks match the current filters.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {selected && (
+                <TaskDetails task={selected} onClose={() => setSelected(null)} />
+            )}
+        </div>
+    );
+}
+
+function FilterPill({ label, onClear }: { label: string; onClear: () => void }) {
+    return (
+        <span className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            {label}
+            <button type="button" onClick={onClear}><X size={10} /></button>
+        </span>
+    );
+}
+
+function PersonCell({ id, name, creator = false }: { id: string; name: string; creator?: boolean }) {
+    return (
+        <div className="flex min-w-[150px] items-center gap-2">
+            {creator ? (
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-violet-100 bg-violet-50 text-violet-700">
+                    <UserRound size={12} />
+                </span>
+            ) : (
+                <Avatar name={name} />
+            )}
+            <div className="min-w-0">
+                <p className="max-w-[145px] truncate text-[10.5px] font-semibold text-foreground" title={name}>{name}</p>
+                <p className="font-mono text-[9px] text-muted-foreground">{id}</p>
             </div>
         </div>
     );
 }
 
-function StatusBadge({ status }: { status: string }) {
-    const cfg = statusConfig[status] || { color: "text-muted-foreground", bg: "bg-muted border-border", icon: null };
+function StatusBadge({ status }: { status: UrgentTaskStatus }) {
+    const cfg = statusConfig[status];
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full font-semibold border whitespace-nowrap ${cfg.bg} ${cfg.color}`}>
+        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cfg.bg} ${cfg.color}`}>
             {cfg.icon} {status}
         </span>
     );
 }
 
-function PriorityBadge({ priority }: { priority: string }) {
-    const cfg = priorityConfig[priority] || { color: "text-muted-foreground", bg: "bg-muted border-border", dot: "bg-border" };
+function PriorityBadge({ priority }: { priority: UrgentTaskPriority }) {
+    const cfg = priorityConfig[priority];
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] rounded-full font-semibold border whitespace-nowrap ${cfg.bg} ${cfg.color}`}>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cfg.bg} ${cfg.color}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
             {priority}
         </span>
     );
 }
 
-function ActionsDropdown({ item, onView, onEdit, onDelete }: {
-    item: UrgentTask; onView: (i: UrgentTask) => void; onEdit: (i: UrgentTask) => void; onDelete: (id: number) => void;
+function ActionsDropdown({ item, onView, onDelete }: {
+    item: UrgentTask;
+    onView: () => void;
+    onDelete: () => void;
 }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
-        const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-        document.addEventListener("mousedown", h);
-        return () => document.removeEventListener("mousedown", h);
+        const handler = (event: MouseEvent) => {
+            if (ref.current && !ref.current.contains(event.target as Node)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
     }, []);
+
     return (
         <div ref={ref} className="relative inline-block">
-            <button onClick={() => setOpen(!open)} className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium bg-muted hover:bg-border rounded-lg border border-border transition text-foreground">
+            <button
+                onClick={() => setOpen(!open)}
+                className="flex items-center gap-1 rounded-lg border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-border"
+            >
                 Actions <ChevronDown size={11} />
             </button>
             {open && (
-                <div className="absolute right-0 mt-1 w-36 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden py-1">
-                    <DropItem icon={<Package size={12} />} label="View" color="text-blue-600" onClick={() => { onView(item); setOpen(false); }} />
-                    <DropItem icon={<Pencil size={12} />} label="Edit" color="text-amber-600" onClick={() => { onEdit(item); setOpen(false); }} />
-                    <DropItem icon={<Trash2 size={12} />} label="Delete" color="text-red-600" onClick={() => { onDelete(item.id); setOpen(false); }} />
+                <div className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
+                    <DropItem icon={<Eye size={12} />} label="View" color="text-blue-600" onClick={() => { onView(); setOpen(false); }} />
+                    <DropItem icon={<Trash2 size={12} />} label="Delete" color="text-red-600" onClick={() => { onDelete(); setOpen(false); }} />
                 </div>
             )}
         </div>
@@ -318,8 +567,45 @@ function ActionsDropdown({ item, onView, onEdit, onDelete }: {
 
 function DropItem({ icon, label, color, onClick }: { icon: React.ReactNode; label: string; color: string; onClick: () => void }) {
     return (
-        <button onClick={onClick} className={`flex items-center gap-2 w-full px-3 py-1.5 text-[11px] font-medium ${color} hover:bg-muted transition`}>
+        <button onClick={onClick} className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] font-medium transition hover:bg-muted ${color}`}>
             {icon} {label}
         </button>
+    );
+}
+
+function TaskDetails({ task, onClose }: { task: UrgentTask; onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4" onMouseDown={onClose}>
+            <div className="w-full max-w-xl rounded-2xl border border-border bg-card shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+                <div className="flex items-start justify-between border-b border-border p-5">
+                    <div>
+                        <p className="font-mono text-[10px] font-semibold text-blue-600">{task.reference}</p>
+                        <h2 className="mt-1 text-base font-semibold text-foreground">{task.title}</h2>
+                    </div>
+                    <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"><X size={16} /></button>
+                </div>
+                <div className="space-y-4 p-5">
+                    <div className="grid grid-cols-2 gap-3">
+                        <Detail label="Assigned To" value={`${task.assigned_to_name} (${task.assigned_to})`} />
+                        <Detail label="Generated By" value={`${task.generated_by_name} (${task.generated_by})`} />
+                        <Detail label="Due Date" value={formatDate(task.due_date)} />
+                        <Detail label="Status / Priority" value={`${task.status} · ${task.priority}`} />
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Description</p>
+                        <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-foreground">{task.description || "No description provided."}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-xl border border-border bg-muted/25 p-3">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+            <p className="mt-1 text-[11px] font-semibold text-foreground">{value}</p>
+        </div>
     );
 }
