@@ -1,3 +1,4 @@
+//frontend/app/dashboard/urgent/list/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +14,8 @@ import {
     ListTodo,
     Loader2,
     Plus,
+    Pencil,
+    Save,
     Search,
     Trash2,
     UserRound,
@@ -21,6 +24,12 @@ import {
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import {
+    authApi,
+    dashboardApi,
+    type AuthMeData,
+    type TroubleTicketITPersonnel,
+} from "@/lib/api";
 import {
     urgentTaskApi,
     type UrgentTask,
@@ -198,6 +207,18 @@ export default function UrgentTaskPage() {
     const [activeStatus, setActiveStatus] = useState<UrgentTaskStatus | null>(null);
     const [activePriority, setActivePriority] = useState<UrgentTaskPriority | null>(null);
     const [selected, setSelected] = useState<UrgentTask | null>(null);
+    const [authUser, setAuthUser] = useState<AuthMeData | null>(null);
+    const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
+    const [editingTask, setEditingTask] = useState<UrgentTask | null>(null);
+    const [pendingCompleteTask, setPendingCompleteTask] = useState<UrgentTask | null>(null);
+    const [pendingDeleteTask, setPendingDeleteTask] = useState<UrgentTask | null>(null);
+    const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
+    const [itPersonnel, setITPersonnel] = useState<TroubleTicketITPersonnel[]>([]);
+
+    const canCompleteUrgentTask =
+        String(authUser?.role_code ?? "")
+            .trim()
+            .toUpperCase() === "IT_ADMIN";
 
     async function loadTasks() {
         try {
@@ -221,6 +242,50 @@ export default function UrgentTaskPage() {
             setLoading(false);
         }
     }
+
+    useEffect(() => {
+        let active = true;
+
+        async function loadActionContext() {
+            try {
+                const [
+                    authResponse,
+                    personnelResponse,
+                ] = await Promise.all([
+                    authApi.me(),
+                    dashboardApi.troubleTicketITPersonnel(),
+                ]);
+
+                if (!active) {
+                    return;
+                }
+
+                setAuthUser(
+                    authResponse.data ?? null
+                );
+
+                setITPersonnel(
+                    personnelResponse.data ?? []
+                );
+            } catch (reason) {
+                console.error(
+                    "Unable to load urgent-task action context:",
+                    reason
+                );
+
+                if (active) {
+                    setAuthUser(null);
+                    setITPersonnel([]);
+                }
+            }
+        }
+
+        void loadActionContext();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     useEffect(() => {
         void loadTasks();
@@ -254,19 +319,65 @@ export default function UrgentTaskPage() {
         [tasks]
     );
 
-    async function handleDelete(id: number) {
-        if (!window.confirm("Delete this urgent task? This action soft-deletes the record for auditability.")) {
+    async function handleCompleteConfirmed() {
+        const task = pendingCompleteTask;
+
+        if (!task) {
             return;
         }
+
+        if (!canCompleteUrgentTask) {
+            setError(
+                "Only an IT Administrator can complete an urgent task."
+            );
+            setPendingCompleteTask(null);
+            return;
+        }
+
         try {
-            await urgentTaskApi.remove(id);
+            setCompletingTaskId(task.id);
+            setError("");
+
+            await urgentTaskApi.complete(task.id);
             await loadTasks();
+
+            if (selected?.id === task.id) {
+                setSelected(null);
+            }
+
+            setPendingCompleteTask(null);
+        } catch (reason) {
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to complete urgent task."
+            );
+        } finally {
+            setCompletingTaskId(null);
+        }
+    }
+
+    async function handleDeleteConfirmed() {
+        const task = pendingDeleteTask;
+
+        if (!task) {
+            return;
+        }
+
+        try {
+            setDeletingTaskId(task.id);
+            setError("");
+            await urgentTaskApi.remove(task.id);
+            await loadTasks();
+            setPendingDeleteTask(null);
         } catch (reason) {
             setError(
                 reason instanceof Error
                     ? reason.message
                     : "Unable to delete urgent task."
             );
+        } finally {
+            setDeletingTaskId(null);
         }
     }
 
@@ -332,11 +443,10 @@ export default function UrgentTaskPage() {
                                         : item.status
                                 )
                             }
-                            className={`rounded-xl border px-4 py-3 text-left transition hover:opacity-85 ${item.bg} ${
-                                item.status && activeStatus === item.status
-                                    ? "ring-2 ring-primary"
-                                    : "ring-2 ring-transparent"
-                            }`}
+                            className={`rounded-xl border px-4 py-3 text-left transition hover:opacity-85 ${item.bg} ${item.status && activeStatus === item.status
+                                ? "ring-2 ring-primary"
+                                : "ring-2 ring-transparent"
+                                }`}
                         >
                             <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                                 {item.label}
@@ -361,9 +471,8 @@ export default function UrgentTaskPage() {
                             <button
                                 key={level}
                                 onClick={() => setActivePriority(active ? null : level)}
-                                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
-                                    active ? cfg.activeBg : `${cfg.bg} ${cfg.color}`
-                                }`}
+                                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${active ? cfg.activeBg : `${cfg.bg} ${cfg.color}`
+                                    }`}
                             >
                                 <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-white/80" : cfg.dot}`} />
                                 {level}
@@ -457,8 +566,20 @@ export default function UrgentTaskPage() {
                                         <td className="px-3 py-2.5">
                                             <ActionsDropdown
                                                 item={item}
+                                                canManage={canCompleteUrgentTask}
+                                                completing={
+                                                    completingTaskId === item.id
+                                                }
                                                 onView={() => setSelected(item)}
-                                                onDelete={() => void handleDelete(item.id)}
+                                                onUpdate={() =>
+                                                    setEditingTask(item)
+                                                }
+                                                onComplete={() =>
+                                                    setPendingCompleteTask(item)
+                                                }
+                                                onDelete={() =>
+                                                    setPendingDeleteTask(item)
+                                                }
                                             />
                                         </td>
                                     </tr>
@@ -477,7 +598,80 @@ export default function UrgentTaskPage() {
             </div>
 
             {selected && (
-                <TaskDetails task={selected} onClose={() => setSelected(null)} />
+                <TaskDetails
+                    task={selected}
+                    onClose={() =>
+                        setSelected(null)
+                    }
+                />
+            )}
+
+            {editingTask && (
+                <UpdateTaskDialog
+                    task={editingTask}
+                    personnel={itPersonnel}
+                    onClose={() =>
+                        setEditingTask(null)
+                    }
+                    onUpdated={async () => {
+                        setEditingTask(null);
+                        await loadTasks();
+                    }}
+                />
+            )}
+
+            {pendingCompleteTask && (
+                <ConfirmActionDialog
+                    tone="success"
+                    title="Complete urgent task?"
+                    description={
+                        <>
+                            You are about to mark
+                            <span className="mx-1 font-mono font-semibold text-foreground">
+                                {pendingCompleteTask.reference}
+                            </span>
+                            as completed. The authenticated IT Administrator will be recorded in the audit fields.
+                        </>
+                    }
+                    confirmLabel="Mark as Completed"
+                    busyLabel="Completing..."
+                    busy={
+                        completingTaskId === pendingCompleteTask.id
+                    }
+                    onCancel={() =>
+                        setPendingCompleteTask(null)
+                    }
+                    onConfirm={() =>
+                        void handleCompleteConfirmed()
+                    }
+                />
+            )}
+
+            {pendingDeleteTask && (
+                <ConfirmActionDialog
+                    tone="danger"
+                    title="Delete urgent task?"
+                    description={
+                        <>
+                            This will soft-delete
+                            <span className="mx-1 font-mono font-semibold text-foreground">
+                                {pendingDeleteTask.reference}
+                            </span>
+                            while preserving the record for auditability.
+                        </>
+                    }
+                    confirmLabel="Delete Task"
+                    busyLabel="Deleting..."
+                    busy={
+                        deletingTaskId === pendingDeleteTask.id
+                    }
+                    onCancel={() =>
+                        setPendingDeleteTask(null)
+                    }
+                    onConfirm={() =>
+                        void handleDeleteConfirmed()
+                    }
+                />
             )}
         </div>
     );
@@ -529,49 +723,736 @@ function PriorityBadge({ priority }: { priority: UrgentTaskPriority }) {
     );
 }
 
-function ActionsDropdown({ item, onView, onDelete }: {
+function ActionsDropdown({
+    item,
+    canManage,
+    completing,
+    onView,
+    onUpdate,
+    onComplete,
+    onDelete,
+}: {
     item: UrgentTask;
+    canManage: boolean;
+    completing: boolean;
     onView: () => void;
+    onUpdate: () => void;
+    onComplete: () => void;
     onDelete: () => void;
 }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const [open, setOpen] =
+        useState(false);
+
+    const ref =
+        useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const handler = (event: MouseEvent) => {
-            if (ref.current && !ref.current.contains(event.target as Node)) {
+        const handler = (
+            event: MouseEvent
+        ) => {
+            if (
+                ref.current &&
+                !ref.current.contains(
+                    event.target as Node
+                )
+            ) {
                 setOpen(false);
             }
         };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
+
+        document.addEventListener(
+            "mousedown",
+            handler
+        );
+
+        return () =>
+            document.removeEventListener(
+                "mousedown",
+                handler
+            );
     }, []);
 
+    const isCompleted =
+        item.status === "Completed";
+
     return (
-        <div ref={ref} className="relative inline-block">
+        <div
+            ref={ref}
+            className="relative inline-block"
+        >
             <button
-                onClick={() => setOpen(!open)}
+                type="button"
+                onClick={() =>
+                    setOpen(!open)
+                }
                 className="flex items-center gap-1 rounded-lg border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-border"
             >
-                Actions <ChevronDown size={11} />
+                Actions
+                <ChevronDown size={11} />
             </button>
+
             {open && (
-                <div className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
-                    <DropItem icon={<Eye size={12} />} label="View" color="text-blue-600" onClick={() => { onView(); setOpen(false); }} />
-                    <DropItem icon={<Trash2 size={12} />} label="Delete" color="text-red-600" onClick={() => { onDelete(); setOpen(false); }} />
+                <div className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
+                    <DropItem
+                        icon={<Eye size={12} />}
+                        label="View"
+                        color="text-blue-600"
+                        onClick={() => {
+                            onView();
+                            setOpen(false);
+                        }}
+                    />
+
+                    {canManage &&
+                        !isCompleted && (
+                            <DropItem
+                                icon={
+                                    <Pencil
+                                        size={12}
+                                    />
+                                }
+                                label="Update"
+                                color="text-violet-700"
+                                onClick={() => {
+                                    onUpdate();
+                                    setOpen(false);
+                                }}
+                            />
+                        )}
+
+                    {canManage &&
+                        !isCompleted && (
+                            <DropItem
+                                icon={
+                                    completing ? (
+                                        <Loader2
+                                            size={12}
+                                            className="animate-spin"
+                                        />
+                                    ) : (
+                                        <CheckCircle2
+                                            size={12}
+                                        />
+                                    )
+                                }
+                                label={
+                                    completing
+                                        ? "Completing..."
+                                        : "Completed"
+                                }
+                                color="text-emerald-700"
+                                disabled={
+                                    completing
+                                }
+                                onClick={() => {
+                                    if (
+                                        completing
+                                    ) {
+                                        return;
+                                    }
+
+                                    onComplete();
+                                    setOpen(false);
+                                }}
+                            />
+                        )}
+
+                    <DropItem
+                        icon={
+                            <Trash2
+                                size={12}
+                            />
+                        }
+                        label="Delete"
+                        color="text-red-600"
+                        onClick={() => {
+                            onDelete();
+                            setOpen(false);
+                        }}
+                    />
                 </div>
             )}
         </div>
     );
 }
 
-function DropItem({ icon, label, color, onClick }: { icon: React.ReactNode; label: string; color: string; onClick: () => void }) {
+function DropItem({
+    icon,
+    label,
+    color,
+    disabled = false,
+    onClick,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    color: string;
+    disabled?: boolean;
+    onClick: () => void;
+}) {
     return (
-        <button onClick={onClick} className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] font-medium transition hover:bg-muted ${color}`}>
-            {icon} {label}
+        <button
+            type="button"
+            disabled={disabled}
+            onClick={onClick}
+            className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 ${color}`}
+        >
+            {icon}
+            {label}
         </button>
     );
 }
+function ConfirmActionDialog({
+    tone,
+    title,
+    description,
+    confirmLabel,
+    busyLabel,
+    busy,
+    onCancel,
+    onConfirm,
+}: {
+    tone: "success" | "danger";
+    title: string;
+    description: React.ReactNode;
+    confirmLabel: string;
+    busyLabel: string;
+    busy: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+}) {
+    const success = tone === "success";
+
+    return (
+        <div
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]"
+            onMouseDown={() => {
+                if (!busy) {
+                    onCancel();
+                }
+            }}
+        >
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="urgent-action-dialog-title"
+                className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+                onMouseDown={(event) => event.stopPropagation()}
+            >
+                <div className="flex items-start gap-3 px-5 pt-5">
+                    <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${success
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-red-200 bg-red-50 text-red-700"
+                            }`}
+                    >
+                        {success ? (
+                            <CheckCircle2 className="h-5 w-5" />
+                        ) : (
+                            <AlertTriangle className="h-5 w-5" />
+                        )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                        <h2
+                            id="urgent-action-dialog-title"
+                            className="text-sm font-semibold text-foreground"
+                        >
+                            {title}
+                        </h2>
+
+                        <div className="mt-1.5 text-[11px] leading-5 text-muted-foreground">
+                            {description}
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={onCancel}
+                        className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        aria-label="Close confirmation dialog"
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
+
+                <div className="mx-5 mt-4 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-[10px] leading-4 text-muted-foreground">
+                    {success
+                        ? "Completion is an auditable workflow transition. completed_at and completed_by are recorded by the backend."
+                        : "Deletion uses soft-delete semantics so historical audit information is preserved."}
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2 border-t border-border bg-muted/15 px-5 py-3">
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={onCancel}
+                        className="h-8 rounded-lg border border-border bg-background px-3 text-[10px] font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={onConfirm}
+                        className={`inline-flex h-8 min-w-[132px] items-center justify-center gap-1.5 rounded-lg px-3 text-[10px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${success
+                                ? "bg-emerald-600 hover:bg-emerald-700"
+                                : "bg-red-600 hover:bg-red-700"
+                            }`}
+                    >
+                        {busy && (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        )}
+                        {busy ? busyLabel : confirmLabel}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function UpdateTaskDialog({
+    task,
+    personnel,
+    onClose,
+    onUpdated,
+}: {
+    task: UrgentTask;
+    personnel:
+    TroubleTicketITPersonnel[];
+    onClose: () => void;
+    onUpdated: () => Promise<void>;
+}) {
+    const [form, setForm] = useState({
+        title: task.title,
+        description:
+            task.description ?? "",
+        priority:
+            task.priority,
+        status:
+            task.status === "Completed"
+                ? ("In Progress" as UrgentTaskStatus)
+                : task.status,
+        dueDate:
+            task.due_date,
+        assignedTo:
+            task.assigned_to,
+    });
+
+    const [saving, setSaving] =
+        useState(false);
+
+    const [formError, setFormError] =
+        useState("");
+
+    async function handleSubmit(
+        event:
+            React.FormEvent<HTMLFormElement>
+    ) {
+        event.preventDefault();
+
+        const title =
+            form.title.trim();
+
+        if (
+            title.length < 3 ||
+            title.length > 180
+        ) {
+            setFormError(
+                "Task title must be between 3 and 180 characters."
+            );
+            return;
+        }
+
+        if (!form.assignedTo) {
+            setFormError(
+                "Assigned To is required."
+            );
+            return;
+        }
+
+        if (!form.dueDate) {
+            setFormError(
+                "Due Date is required."
+            );
+            return;
+        }
+
+        try {
+            setSaving(true);
+            setFormError("");
+
+            await urgentTaskApi.update(
+                task.id,
+                {
+                    title,
+                    description:
+                        form.description.trim(),
+                    priority:
+                        form.priority,
+                    status:
+                        form.status,
+                    due_date:
+                        form.dueDate,
+                    assigned_to:
+                        form.assignedTo,
+                }
+            );
+
+            await onUpdated();
+        } catch (reason) {
+            setFormError(
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to update urgent task."
+            );
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <div
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-4"
+            onMouseDown={() => {
+                if (!saving) {
+                    onClose();
+                }
+            }}
+        >
+            <form
+                onSubmit={handleSubmit}
+                className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+                onMouseDown={(event) =>
+                    event.stopPropagation()
+                }
+            >
+                <div className="flex items-start justify-between border-b border-border px-5 py-4">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-violet-100 bg-violet-50 text-violet-700">
+                                <Pencil
+                                    size={14}
+                                />
+                            </span>
+
+                            <div>
+                                <p className="font-mono text-[10px] font-semibold text-blue-600">
+                                    {task.reference}
+                                </p>
+
+                                <h2 className="text-sm font-semibold text-foreground">
+                                    Update Urgent Task
+                                </h2>
+                            </div>
+                        </div>
+
+                        <p className="mt-2 text-[10px] text-muted-foreground">
+                            Update operational details. Completion remains a separate auditable action.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        disabled={saving}
+                        onClick={onClose}
+                        className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        aria-label="Close update dialog"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+
+                <div className="grid gap-4 p-5 md:grid-cols-2">
+                    <div className="space-y-4 md:col-span-2">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Task Title *
+                            </label>
+
+                            <Input
+                                value={
+                                    form.title
+                                }
+                                maxLength={180}
+                                onChange={(
+                                    event
+                                ) =>
+                                    setForm(
+                                        (
+                                            previous
+                                        ) => ({
+                                            ...previous,
+                                            title:
+                                                event
+                                                    .target
+                                                    .value,
+                                        })
+                                    )
+                                }
+                                className="h-9 text-xs"
+                            />
+
+                            <div className="text-right text-[9px] text-muted-foreground">
+                                {
+                                    form.title
+                                        .length
+                                }
+                                /180
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Description
+                            </label>
+
+                            <textarea
+                                value={
+                                    form.description
+                                }
+                                maxLength={5000}
+                                rows={4}
+                                onChange={(
+                                    event
+                                ) =>
+                                    setForm(
+                                        (
+                                            previous
+                                        ) => ({
+                                            ...previous,
+                                            description:
+                                                event
+                                                    .target
+                                                    .value,
+                                        })
+                                    )
+                                }
+                                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                                placeholder="Describe the work, dependency or operational context..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Assigned To *
+                        </label>
+
+                        <select
+                            value={
+                                form.assignedTo
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                setForm(
+                                    (
+                                        previous
+                                    ) => ({
+                                        ...previous,
+                                        assignedTo:
+                                            event
+                                                .target
+                                                .value,
+                                    })
+                                )
+                            }
+                            className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                        >
+                            <option value="">
+                                Select active IT personnel
+                            </option>
+
+                            {personnel.map(
+                                (
+                                    person
+                                ) => (
+                                    <option
+                                        key={
+                                            person.employee_id
+                                        }
+                                        value={
+                                            person.employee_id
+                                        }
+                                    >
+                                        {
+                                            person.employee_name
+                                        }{" "}
+                                        (
+                                        {
+                                            person.employee_id
+                                        }
+                                        )
+                                    </option>
+                                )
+                            )}
+                        </select>
+
+                        <p className="text-[9px] text-muted-foreground">
+                            Only active IT personnel are available.
+                        </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Due Date *
+                        </label>
+
+                        <Input
+                            type="date"
+                            value={
+                                form.dueDate
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                setForm(
+                                    (
+                                        previous
+                                    ) => ({
+                                        ...previous,
+                                        dueDate:
+                                            event
+                                                .target
+                                                .value,
+                                    })
+                                )
+                            }
+                            className="h-9 text-xs"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Priority
+                        </label>
+
+                        <select
+                            value={
+                                form.priority
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                setForm(
+                                    (
+                                        previous
+                                    ) => ({
+                                        ...previous,
+                                        priority:
+                                            event
+                                                .target
+                                                .value as UrgentTaskPriority,
+                                    })
+                                )
+                            }
+                            className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                        >
+                            <option value="Critical">
+                                Critical
+                            </option>
+                            <option value="High">
+                                High
+                            </option>
+                            <option value="Medium">
+                                Medium
+                            </option>
+                            <option value="Low">
+                                Low
+                            </option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Status
+                        </label>
+
+                        <select
+                            value={
+                                form.status
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                setForm(
+                                    (
+                                        previous
+                                    ) => ({
+                                        ...previous,
+                                        status:
+                                            event
+                                                .target
+                                                .value as UrgentTaskStatus,
+                                    })
+                                )
+                            }
+                            className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                        >
+                            <option value="Pending">
+                                Pending
+                            </option>
+                            <option value="In Progress">
+                                In Progress
+                            </option>
+                        </select>
+
+                        <p className="text-[9px] text-muted-foreground">
+                            Use the separate Completed action to close the task.
+                        </p>
+                    </div>
+
+                    {formError && (
+                        <div className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] text-red-700">
+                            <div className="flex items-start gap-2">
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                <span>
+                                    {formError}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/20 px-5 py-3">
+                    <p className="text-[9px] text-muted-foreground">
+                        Update is restricted to IT Administrator and is enforced by the backend.
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            disabled={saving}
+                            onClick={onClose}
+                            className="h-8 rounded-lg border border-border bg-background px-3 text-[10px] font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-600 bg-violet-600 px-3 text-[10px] font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {saving ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                                <Save className="h-3 w-3" />
+                            )}
+
+                            {saving
+                                ? "Saving..."
+                                : "Save Changes"}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    );
+}
+
 
 function TaskDetails({ task, onClose }: { task: UrgentTask; onClose: () => void }) {
     return (
