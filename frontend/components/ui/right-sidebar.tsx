@@ -2,13 +2,13 @@
 // frontend/components/ui/right-sidebar.tsx
 "use client";
 
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, LucideCalendar, Loader2, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, Building2, CheckCircle2, Clock3, LucideCalendar, Loader2, Plus, Zap } from "lucide-react";
 import { Calendar } from "./calendar";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { Section, toSection } from "@/components/tt-columns";
-import { dashboardApi } from "@/lib/api";
+import { dashboardApi, type TroubleTicketITPersonnel } from "@/lib/api";
 import TTTable from "../TTTable";
 import { X } from "lucide-react";
 import { typography } from "@/components/ui/typography";
@@ -53,6 +53,7 @@ export function RightSidebar() {
     const [urgentTasksError, setUrgentTasksError] = useState("");
 
     const [sections, setSections] = useState<Section[]>([]);
+    const [activeITPersonnel, setActiveITPersonnel] = useState<TroubleTicketITPersonnel[]>([]);
     const [todayTTLoading, setTodayTTLoading] = useState(true);
 
     useEffect(() => {
@@ -80,7 +81,7 @@ export function RightSidebar() {
                 setUrgentTasksLoading(true);
                 setUrgentTasksError("");
 
-                const response = await urgentTaskApi.sidebar(5);
+                const response = await urgentTaskApi.sidebar(3);
 
                 if (!mounted) return;
 
@@ -121,16 +122,28 @@ export function RightSidebar() {
             try {
                 setTodayTTLoading(true);
 
-                const response = await dashboardApi.troubleTickets({
-                    page: 1,
-                    limit: 1000,
-                    scope: "opened_today",
-                    status: "all",
-                });
+                const [
+                    ticketResponse,
+                    itPersonnelResponse,
+                ] = await Promise.all([
+                    dashboardApi.troubleTickets({
+                        page: 1,
+                        limit: 1000,
+                        scope: "opened_today",
+                        status: "all",
+                    }),
+                    dashboardApi.troubleTicketITPersonnel(),
+                ]);
 
                 if (!mounted) return;
 
-                setSections((response.data ?? []).map(toSection));
+                setSections(
+                    (ticketResponse.data ?? []).map(toSection)
+                );
+
+                setActiveITPersonnel(
+                    itPersonnelResponse.data ?? []
+                );
             } catch (reason) {
                 console.error("Unable to load right-sidebar TT data:", reason);
                 if (mounted) setSections([]);
@@ -165,20 +178,100 @@ export function RightSidebar() {
         "bg-indigo-100 text-indigo-700",
     ];
 
-    const creatorCountMap: Record<string, number> = {};
+    const activeITByEmployeeID =
+        new Map(
+            activeITPersonnel.map(
+                (person) => [
+                    String(
+                        person.employee_id ??
+                        ""
+                    ).trim(),
+                    String(
+                        person.employee_name ??
+                        ""
+                    ).trim(),
+                ]
+            )
+        );
+
+    const creatorCountMap =
+        new Map<
+            string,
+            {
+                employeeId: string;
+                name: string;
+                count: number;
+            }
+        >();
+
     sections.forEach((item) => {
-        const name = String(item.employee_name ?? "").trim();
-        if (!name) return;
-        creatorCountMap[name] = (creatorCountMap[name] ?? 0) + 1;
+        const employeeId =
+            String(
+                item.employee_id ??
+                ""
+            ).trim();
+
+        if (
+            !employeeId ||
+            !activeITByEmployeeID.has(
+                employeeId
+            )
+        ) {
+            return;
+        }
+
+        const name =
+            activeITByEmployeeID.get(
+                employeeId
+            ) ||
+            String(
+                item.employee_name ??
+                ""
+            ).trim() ||
+            employeeId;
+
+        const current =
+            creatorCountMap.get(
+                employeeId
+            );
+
+        creatorCountMap.set(
+            employeeId,
+            {
+                employeeId,
+                name,
+                count:
+                    (current?.count ?? 0) +
+                    1,
+            }
+        );
     });
 
-    const ttCreatorsToday = Object.entries(creatorCountMap)
-        .map(([name, count], index) => ({
-            name,
-            count,
-            color: creatorColorClasses[index % creatorColorClasses.length],
-        }))
-        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const ttCreatorsToday =
+        Array.from(
+            creatorCountMap.values()
+        )
+            .map(
+                (
+                    creator,
+                    index
+                ) => ({
+                    ...creator,
+                    color:
+                        creatorColorClasses[
+                        index %
+                        creatorColorClasses.length
+                        ],
+                })
+            )
+            .sort(
+                (a, b) =>
+                    b.count -
+                    a.count ||
+                    a.name.localeCompare(
+                        b.name
+                    )
+            );
 
     const departmentColorClasses = [
         "bg-blue-100 text-blue-800",
@@ -240,8 +333,13 @@ export function RightSidebar() {
 
     return (
         <aside
-            className="h-full w-full p-3 flex flex-col gap-3 overflow-y-auto overflow-x-hidden transition-colors duration-300"
-            style={{ backgroundColor: "var(--dashboard-bg)", color: "var(--foreground)" }}
+            className="h-full min-h-0 w-full flex flex-col gap-3.5 overflow-y-auto overflow-x-hidden px-3 pt-3 pb-12 transition-colors duration-300 overscroll-contain"
+            style={{
+                backgroundColor: "var(--dashboard-bg)",
+                color: "var(--foreground)",
+                scrollbarGutter: "stable",
+                WebkitOverflowScrolling: "touch",
+            }}
         >
             {/* Calendar Header */}
             <div
@@ -282,21 +380,70 @@ export function RightSidebar() {
             )}
 
             {/* Urgent Tasks */}
-            <div
-                className="border rounded-xl shadow-sm overflow-hidden w-full transition-colors duration-300"
-                style={cardStyle}
+            <section
+                className="
+                    w-full
+                    overflow-visible
+                    rounded-xl
+                    border
+                    border-border
+                    bg-card
+                    shadow-sm
+                    transition-colors
+                    duration-300
+                "
             >
-                <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border bg-muted/20">
-                    <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg border border-red-100 bg-red-50 flex items-center justify-center">
-                            <Zap className="w-3.5 h-3.5 text-red-600" />
+                <div
+                    className="
+                        flex
+                        items-center
+                        justify-between
+                        gap-3
+                        border-b
+                        border-border
+                        bg-muted/20
+                        px-3
+                        py-2.5
+                    "
+                >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <div
+                            className="
+                                flex
+                                h-8
+                                w-8
+                                shrink-0
+                                items-center
+                                justify-center
+                                rounded-lg
+                                border
+                                border-red-100
+                                bg-red-50
+                            "
+                        >
+                            <Zap className="h-3.5 w-3.5 text-red-600" />
                         </div>
 
-                        <div>
-                            <h4 className={`${typography.label} text-foreground`}>
+                        <div className="min-w-0">
+                            <h4
+                                className="
+                                    truncate
+                                    text-[11px]
+                                    font-semibold
+                                    text-foreground
+                                "
+                            >
                                 Urgent Tasks
                             </h4>
-                            <p className="text-[9px] text-muted-foreground">
+
+                            <p
+                                className="
+                                    mt-0.5
+                                    truncate
+                                    text-[9px]
+                                    text-muted-foreground
+                                "
+                            >
                                 Live operational priorities
                             </p>
                         </div>
@@ -304,88 +451,235 @@ export function RightSidebar() {
 
                     <button
                         type="button"
-                        onClick={() => router.push("/dashboard/urgent/list")}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline"
+                        onClick={() =>
+                            router.push(
+                                "/dashboard/urgent/create"
+                            )
+                        }
+                        className="
+                            inline-flex
+                            h-7
+                            shrink-0
+                            items-center
+                            gap-1
+                            whitespace-nowrap
+                            rounded-md
+                            border
+                            border-primary/20
+                            bg-primary/5
+                            px-2
+                            text-[9px]
+                            font-semibold
+                            text-primary
+                            transition
+                            hover:border-primary/30
+                            hover:bg-primary/10
+                            focus-visible:outline-none
+                            focus-visible:ring-2
+                            focus-visible:ring-primary/20
+                        "
+                        title="Create a new urgent task"
                     >
-                        View all
-                        <ArrowRight className="w-3 h-3" />
+                        <Plus className="h-3 w-3" />
+                        Add Task
                     </button>
                 </div>
 
-                <div className="p-2.5">
+                <div className="min-w-0 overflow-visible px-2.5 pt-2 pb-2.5">
                     {urgentTasksLoading ? (
-                        <div className="flex items-center justify-center gap-2 py-7 text-[10px] text-muted-foreground">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <div
+                            className="
+                                flex
+                                items-center
+                                justify-center
+                                gap-2
+                                py-6
+                                text-[10px]
+                                text-muted-foreground
+                            "
+                        >
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             Loading urgent tasks...
                         </div>
                     ) : urgentTasksError ? (
-                        <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-[10px] leading-4 text-red-700">
+                        <div
+                            className="
+                                rounded-lg
+                                border
+                                border-red-200
+                                bg-red-50
+                                p-2.5
+                                text-[10px]
+                                leading-4
+                                text-red-700
+                            "
+                        >
                             <div className="flex items-start gap-2">
-                                <AlertTriangle className="mt-0.5 w-3.5 h-3.5 shrink-0" />
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                 <span>{urgentTasksError}</span>
                             </div>
                         </div>
                     ) : urgentTasks.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-6 text-center">
-                            <CheckCircle2 className="mx-auto mb-1.5 w-4 h-4 text-emerald-600" />
+                        <div
+                            className="
+                                rounded-lg
+                                border
+                                border-dashed
+                                border-border
+                                bg-muted/15
+                                px-3
+                                py-5
+                                text-center
+                            "
+                        >
+                            <CheckCircle2 className="mx-auto mb-1.5 h-4 w-4 text-emerald-600" />
+
                             <p className="text-[10px] font-semibold text-foreground">
                                 No active urgent tasks
                             </p>
+
                             <p className="mt-0.5 text-[9px] text-muted-foreground">
                                 Pending and in-progress tasks will appear here.
                             </p>
                         </div>
                     ) : (
-                        <div className="space-y-2">
-                            {urgentTasks.map((task) => {
-                                const priorityClass =
-                                    task.priority === "Critical"
-                                        ? "border-red-200 bg-red-50 text-red-700"
-                                        : task.priority === "High"
-                                            ? "border-orange-200 bg-orange-50 text-orange-700"
-                                            : task.priority === "Medium"
-                                                ? "border-amber-200 bg-amber-50 text-amber-700"
-                                                : "border-emerald-200 bg-emerald-50 text-emerald-700";
+                        <div className="divide-y divide-border/70">
+                            {urgentTasks
+                                .slice(0, 2)
+                                .map((task) => {
+                                    const priorityClass =
+                                        task.priority ===
+                                            "Critical"
+                                            ? "bg-red-50 text-red-700 border-red-200"
+                                            : task.priority ===
+                                                "High"
+                                                ? "bg-orange-50 text-orange-700 border-orange-200"
+                                                : task.priority ===
+                                                    "Medium"
+                                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                    : "bg-emerald-50 text-emerald-700 border-emerald-200";
 
-                                const dueDate = new Date(`${task.due_date}T00:00:00`);
-                                const dueLabel = Number.isNaN(dueDate.getTime())
-                                    ? task.due_date
-                                    : dueDate.toLocaleDateString("en-GB", {
-                                        day: "2-digit",
-                                        month: "short",
-                                    });
+                                    const accentClass =
+                                        task.priority ===
+                                            "Critical"
+                                            ? "bg-red-500"
+                                            : task.priority ===
+                                                "High"
+                                                ? "bg-orange-500"
+                                                : task.priority ===
+                                                    "Medium"
+                                                    ? "bg-amber-500"
+                                                    : "bg-emerald-500";
 
-                                return (
-                                    <button
-                                        key={task.id}
-                                        type="button"
-                                        onClick={() =>
-                                            router.push("/dashboard/urgent/list")
-                                        }
-                                        className="group w-full rounded-lg border border-border bg-background p-2.5 text-left transition-all hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm"
-                                    >
-                                        <div className="flex items-start justify-between gap-2">
+                                    const dueDate =
+                                        new Date(
+                                            `${task.due_date}T00:00:00`
+                                        );
+
+                                    const dueLabel =
+                                        Number.isNaN(
+                                            dueDate.getTime()
+                                        )
+                                            ? task.due_date
+                                            : dueDate.toLocaleDateString(
+                                                "en-GB",
+                                                {
+                                                    day: "2-digit",
+                                                    month: "short",
+                                                }
+                                            );
+
+                                    return (
+                                        <button
+                                            key={task.id}
+                                            type="button"
+                                            onClick={() =>
+                                                router.push(
+                                                    "/dashboard/urgent/list"
+                                                )
+                                            }
+                                            className="
+                                                group
+                                                relative
+                                                flex
+                                                w-full
+                                                items-start
+                                                gap-2.5
+                                                px-1
+                                                py-2.5
+                                                text-left
+                                                transition
+                                                hover:bg-muted/25
+                                                focus-visible:outline-none
+                                                focus-visible:ring-2
+                                                focus-visible:ring-primary/20
+                                            "
+                                        >
+                                            <span
+                                                className={`
+                                                    mt-0.5
+                                                    h-9
+                                                    w-1
+                                                    shrink-0
+                                                    rounded-full
+                                                    ${accentClass}
+                                                `}
+                                            />
+
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="font-mono text-[8.5px] font-semibold text-blue-600">
+                                                    <span
+                                                        className="
+                                                            truncate
+                                                            font-mono
+                                                            text-[8.5px]
+                                                            font-semibold
+                                                            text-blue-600
+                                                        "
+                                                    >
                                                         {task.reference}
                                                     </span>
 
                                                     <span
-                                                        className={`rounded-full border px-1.5 py-0.5 text-[8px] font-semibold ${priorityClass}`}
+                                                        className={`
+                                                            shrink-0
+                                                            rounded-full
+                                                            border
+                                                            px-1.5
+                                                            py-0.5
+                                                            text-[8px]
+                                                            font-semibold
+                                                            ${priorityClass}
+                                                        `}
                                                     >
                                                         {task.priority}
                                                     </span>
                                                 </div>
 
                                                 <p
-                                                    className="mt-1 truncate text-[10.5px] font-semibold text-foreground"
+                                                    className="
+                                                        mt-1
+                                                        truncate
+                                                        text-[10.5px]
+                                                        font-semibold
+                                                        text-foreground
+                                                    "
                                                     title={task.title}
                                                 >
                                                     {task.title}
                                                 </p>
 
-                                                <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
+                                                <div
+                                                    className="
+                                                        mt-1
+                                                        flex
+                                                        items-center
+                                                        justify-between
+                                                        gap-2
+                                                        text-[9px]
+                                                        text-muted-foreground
+                                                    "
+                                                >
                                                     <span
                                                         className="truncate"
                                                         title={`${task.assigned_to_name} (${task.assigned_to})`}
@@ -393,45 +687,136 @@ export function RightSidebar() {
                                                         {task.assigned_to_name}
                                                     </span>
 
-                                                    <span className="inline-flex shrink-0 items-center gap-1">
-                                                        <Clock3 className="w-3 h-3" />
+                                                    <span
+                                                        className="
+                                                            inline-flex
+                                                            shrink-0
+                                                            items-center
+                                                            gap-1
+                                                        "
+                                                    >
+                                                        <Clock3 className="h-3 w-3" />
                                                         {dueLabel}
                                                     </span>
                                                 </div>
                                             </div>
 
-                                            <ArrowRight className="mt-1 w-3 h-3 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
-                                        </div>
-                                    </button>
-                                );
-                            })}
-
-                            <button
-                                type="button"
-                                onClick={() => router.push("/dashboard/urgent/create")}
-                                className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/30 bg-primary/5 px-2 py-2 text-[10px] font-semibold text-primary transition hover:bg-primary/10"
-                            >
-                                <Zap className="w-3 h-3" />
-                                Create urgent task
-                            </button>
+                                            <ArrowRight
+                                                className="
+                                                    mt-3
+                                                    h-3
+                                                    w-3
+                                                    shrink-0
+                                                    text-muted-foreground
+                                                    opacity-0
+                                                    transition
+                                                    group-hover:opacity-100
+                                                "
+                                            />
+                                        </button>
+                                    );
+                                })}
                         </div>
                     )}
+
+
                 </div>
-            </div>
+                <div
+                    className="
+                        flex
+                        w-full
+                        items-center
+                        justify-between
+                        gap-2
+                        border-t
+                        border-border
+                        bg-muted/30
+                        px-3
+                        py-2
+                    "
+                >
+                    <button
+                        type="button"
+                        onClick={() =>
+                            router.push(
+                                "/dashboard/urgent/list"
+                            )
+                        }
+                        className="
+                            inline-flex
+                            items-center
+                            gap-1
+                            whitespace-nowrap
+                            rounded-md
+                            px-1
+                            py-1
+                            text-[10px]
+                            font-semibold
+                            text-foreground/80
+                            transition
+                            hover:text-primary
+                            focus-visible:outline-none
+                            focus-visible:ring-2
+                            focus-visible:ring-primary/20
+                        "
+                        title="View all urgent tasks"
+                    >
+                        View Task List
+                        <ArrowRight className="h-3 w-3 shrink-0" />
+                    </button>
+
+                    {urgentTasks.length > 2 && (
+                        <button
+                            type="button"
+                            onClick={() =>
+                                router.push(
+                                    "/dashboard/urgent/list"
+                                )
+                            }
+                            className="
+                                inline-flex
+                                min-w-9
+                                shrink-0
+                                items-center
+                                justify-center
+                                whitespace-nowrap
+                                rounded-full
+                                border
+                                border-primary/25
+                                bg-primary/10
+                                px-2
+                                py-1
+                                text-[9px]
+                                font-bold
+                                text-primary
+                                transition
+                                hover:border-primary/40
+                                hover:bg-primary/15
+                                focus-visible:outline-none
+                                focus-visible:ring-2
+                                focus-visible:ring-primary/20
+                            "
+                            title="More urgent tasks are available"
+                        >
+                            2+
+                        </button>
+                    )}
+                </div>
+            </section>
 
 
             {/* Company TT Cards */}
-            <div
-                className="border rounded-lg shadow-sm p-3 flex flex-col gap-2 w-full transition-colors duration-300"
+            {/* <div
+                className="w-full overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-colors duration-300"
                 style={cardStyle}
-            >
+            > */}
                 {/* Title */}
-                <h4 className={`${typography.label} text-primary mb-1 border-b border-primary pb-0.5`}>
+                {/* <h4 className={`${typography.label} text-primary mb-1 border-b border-primary pb-0.5`}>
                     Company TT Today {todayTTLoading ? "…" : ""}
-                </h4>
+                </h4> */}
 
                 {/* Grid Content (UNCHANGED DESIGN) */}
-                <div className="grid grid-cols-2 gap-2">
+                {/* <div className="grid grid-cols-2 gap-2">
                     {companyCounts
                         .filter((item) => item.company && item.company.trim() !== "")
                         .map((item, index) => (
@@ -443,14 +828,14 @@ export function RightSidebar() {
                                 }}
                                 className="flex items-center justify-between p-2 rounded-lg border cursor-pointer hover:bg-muted transition-colors duration-300"
                                 style={cardStyle}
-                            >
+                            > */}
                                 {/* Company Name */}
-                                <span className="text-xs font-medium truncate">
+                                {/* <span className="text-xs font-medium truncate">
                                     {item.company}
-                                </span>
+                                </span> */}
 
                                 {/* Count Badge */}
-                                <span
+                                {/* <span
                                     className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.color}`}
                                 >
                                     {item.count}
@@ -458,55 +843,295 @@ export function RightSidebar() {
                             </div>
                         ))}
                 </div>
-            </div>
+            </div> */}
 
 
             {/* Department TT */}
-            <div
-                className="border rounded-lg shadow-sm p-3 flex flex-col gap-2 w-full transition-colors duration-300"
-                style={cardStyle}
+            <section
+                className="
+                    w-full
+                    overflow-visible
+                    rounded-xl
+                    border
+                    border-border
+                    bg-card
+                    shadow-sm
+                    transition-colors
+                    duration-300
+                "
             >
-                <h4
-                    className={`${typography.label} text-primary mb-1 border-b border-primary pb-0.5`}
+                <div
+                    className="
+                        flex
+                        items-center
+                        justify-between
+                        border-b
+                        border-border
+                        bg-muted/15
+                        px-3
+                        py-2.5
+                    "
                 >
-                    Departmental TT Today
-                </h4>
+                    <div className="flex min-w-0 items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5 shrink-0 text-primary" />
 
-                <div className="flex flex-wrap gap-2">
-                    {ttDepartmentToday.slice(0, 4).map((dept, idx) => (
-                        <button
-                            key={idx}
-                            // onClick={() => {
-                            //     setSelectedDept(dept);
-                            //     setShowDeptDrawer(true);
-                            // }}
+                        <div className="min-w-0">
+                            <h4
+                                className="
+                                    truncate
+                                    text-[10.5px]
+                                    font-semibold
+                                    text-foreground
+                                "
+                            >
+                                Departmental TT Today
+                            </h4>
 
-                            onClick={() => {
-                                setDeptFilter([dept.dept]);   // only one dept
-                                setSelectedDept(dept);
-                                setShowDeptDrawer(true);
-                            }}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 transition-all hover:scale-[1.03] ${dept.color}`}
+                            <p className="mt-0.5 text-[8.5px] text-muted-foreground">
+                                Top departments by tickets opened today
+                            </p>
+                        </div>
+                    </div>
+
+                    {!todayTTLoading && (
+                        <span
+                            className="
+                                shrink-0
+                                rounded-full
+                                border
+                                border-border
+                                bg-background
+                                px-2
+                                py-0.5
+                                text-[8.5px]
+                                font-semibold
+                                text-muted-foreground
+                            "
                         >
-                            <span>{dept.dept}</span>
-                            <span className="font-bold">{dept.count}</span>
-                        </button>
-                    ))}
-
-
-                    {ttDepartmentToday.length > 4 && (
-                        <button
-                            onClick={() => {
-                                setDeptFilter(ttDepartmentToday.map(d => d.dept)); // ALL departments
-                                setShowDeptDrawer(true);
-                            }}
-                            className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold hover:bg-muted-foreground hover:text-muted transition-all"
-                        >
-                            +{ttDepartmentToday.length - 4}
-                        </button>
+                            {ttDepartmentToday.length}
+                        </span>
                     )}
                 </div>
-            </div>
+
+                <div className="min-w-0 overflow-visible px-2.5 pt-2 pb-2.5">
+                    {todayTTLoading ? (
+                        <div
+                            className="
+                                flex
+                                items-center
+                                justify-center
+                                gap-2
+                                py-4
+                                text-[9.5px]
+                                text-muted-foreground
+                            "
+                        >
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Loading departments...
+                        </div>
+                    ) : ttDepartmentToday.length === 0 ? (
+                        <div
+                            className="
+                                rounded-lg
+                                border
+                                border-dashed
+                                border-border
+                                px-3
+                                py-4
+                                text-center
+                                text-[9.5px]
+                                text-muted-foreground
+                            "
+                        >
+                            No department tickets opened today.
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-border/60">
+                            {ttDepartmentToday
+                                .slice(0, 3)
+                                .map(
+                                    (
+                                        dept,
+                                        index
+                                    ) => (
+                                        <button
+                                            key={dept.dept}
+                                            type="button"
+                                            onClick={() => {
+                                                setDeptFilter([
+                                                    dept.dept,
+                                                ]);
+                                                setSelectedDept(
+                                                    dept
+                                                );
+                                                setShowDeptDrawer(
+                                                    true
+                                                );
+                                            }}
+                                            className="
+                                                group
+                                                flex
+                                                w-full
+                                                items-center
+                                                gap-2.5
+                                                px-1
+                                                py-2
+                                                text-left
+                                                transition
+                                                hover:bg-muted/25
+                                                focus-visible:outline-none
+                                                focus-visible:ring-2
+                                                focus-visible:ring-primary/20
+                                            "
+                                        >
+                                            <div
+                                                className="
+                                                    flex
+                                                    h-6
+                                                    w-6
+                                                    shrink-0
+                                                    items-center
+                                                    justify-center
+                                                    rounded-md
+                                                    border
+                                                    border-border
+                                                    bg-muted/40
+                                                    text-[9px]
+                                                    font-bold
+                                                    text-muted-foreground
+                                                "
+                                            >
+                                                {index + 1}
+                                            </div>
+
+                                            <span
+                                                className="
+                                                    min-w-0
+                                                    flex-1
+                                                    truncate
+                                                    text-[10px]
+                                                    font-medium
+                                                    text-foreground
+                                                "
+                                                title={
+                                                    dept.dept
+                                                }
+                                            >
+                                                {dept.dept}
+                                            </span>
+
+                                            <span
+                                                className="
+                                                    inline-flex
+                                                    min-w-6
+                                                    shrink-0
+                                                    items-center
+                                                    justify-center
+                                                    rounded-full
+                                                    bg-primary/8
+                                                    px-2
+                                                    py-0.5
+                                                    text-[9px]
+                                                    font-bold
+                                                    tabular-nums
+                                                    text-primary
+                                                "
+                                            >
+                                                {dept.count}
+                                            </span>
+
+                                            <ArrowRight
+                                                className="
+                                                    h-3
+                                                    w-3
+                                                    shrink-0
+                                                    text-muted-foreground
+                                                    opacity-0
+                                                    transition
+                                                    group-hover:opacity-100
+                                                "
+                                            />
+                                        </button>
+                                    )
+                                )}
+                        </div>
+                    )}
+
+
+                </div>
+                {ttDepartmentToday.length > 3 && (
+                    <div
+                        className="
+                            flex
+                            w-full
+                            items-center
+                            justify-between
+                            gap-2
+                            border-t
+                            border-border
+                            bg-muted/30
+                            px-3
+                            py-2
+                        "
+                    >
+                        <span
+                            className="
+                                min-w-0
+                                truncate
+                                whitespace-nowrap
+                                text-[10px]
+                                font-semibold
+                                text-foreground/75
+                            "
+                            title="More departments available"
+                        >
+                            More departments available
+                        </span>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setDeptFilter(
+                                    ttDepartmentToday.map(
+                                        (department) =>
+                                            department.dept
+                                    )
+                                );
+                                setSelectedDept(null);
+                                setShowDeptDrawer(true);
+                            }}
+                            className="
+                                inline-flex
+                                min-w-10
+                                shrink-0
+                                items-center
+                                justify-center
+                                gap-1
+                                whitespace-nowrap
+                                rounded-full
+                                border
+                                border-primary/25
+                                bg-primary/10
+                                px-2
+                                py-1
+                                text-[9px]
+                                font-bold
+                                text-primary
+                                transition
+                                hover:border-primary/40
+                                hover:bg-primary/15
+                                focus-visible:outline-none
+                                focus-visible:ring-2
+                                focus-visible:ring-primary/20
+                            "
+                            title="View all departments"
+                        >
+                            3+
+                            <ArrowRight className="h-2.5 w-2.5 shrink-0" />
+                        </button>
+                    </div>
+                )}
+            </section>
 
 
             {/* TT Creators from IT Side */}
@@ -521,7 +1146,7 @@ export function RightSidebar() {
                 </h4>
 
                 <div className="space-y-2">
-                    {ttCreatorsToday.slice(0, 4).map((creator, index) => {
+                    {ttCreatorsToday.slice(0, 3).map((creator, index) => {
                         const initials = creator.name
                             .split(" ")
                             .slice(0, 2)
@@ -571,7 +1196,7 @@ export function RightSidebar() {
                         );
                     })}
 
-                    {ttCreatorsToday.length > 4 && (
+                    {ttCreatorsToday.length > 3 && (
                         <button
                             className="text-sm text-muted-foreground pl-10 hover:underline"
                             //onClick={() => setShowCreatorDrawer(true)}
@@ -581,7 +1206,7 @@ export function RightSidebar() {
                                 setShowCreatorDrawer(true);
                             }}
                         >
-                            +{ttCreatorsToday.length - 4} more
+                            3+
                         </button>
                     )}
                 </div>
