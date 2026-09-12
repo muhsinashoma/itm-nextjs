@@ -1,5 +1,5 @@
 
-// frontend/components/ui/header.tsx
+// // frontend/components/ui/header.tsx
 
 
 "use client";
@@ -15,10 +15,14 @@ import {
 
 import {
     Bell,
+    BellRing,
+    CheckCircle2,
     ChevronDown,
     Menu,
     PanelRightOpen,
     Search,
+    X,
+    Zap,
 } from "lucide-react";
 
 import {
@@ -85,6 +89,187 @@ type HeaderNavItem = {
     label: string;
     href: string;
 };
+
+/* ======================================================
+   NOTIFICATION SOUND
+====================================================== */
+
+let notificationAudioContext:
+    AudioContext | null = null;
+
+function getNotificationAudioContext() {
+    if (typeof window === "undefined") {
+        return null;
+    }
+
+    const AudioContextClass =
+        window.AudioContext ??
+        (
+            window as typeof window & {
+                webkitAudioContext?: typeof AudioContext;
+            }
+        ).webkitAudioContext;
+
+    if (!AudioContextClass) {
+        return null;
+    }
+
+    if (!notificationAudioContext) {
+        notificationAudioContext =
+            new AudioContextClass();
+    }
+
+    return notificationAudioContext;
+}
+
+async function unlockNotificationAudio() {
+    const context =
+        getNotificationAudioContext();
+
+    if (
+        !context ||
+        context.state === "running"
+    ) {
+        return;
+    }
+
+    try {
+        await context.resume();
+    } catch {
+        // Browser autoplay policy can keep audio suspended.
+    }
+}
+
+async function playNotificationTone() {
+    const context =
+        getNotificationAudioContext();
+
+    if (!context) {
+        return;
+    }
+
+    try {
+        if (
+            context.state ===
+            "suspended"
+        ) {
+            await context.resume();
+        }
+
+        if (
+            context.state !==
+            "running"
+        ) {
+            return;
+        }
+
+        const now =
+            context.currentTime;
+
+        const master =
+            context.createGain();
+
+        master.gain.setValueAtTime(
+            0.0001,
+            now
+        );
+
+        master.gain.exponentialRampToValueAtTime(
+            0.18,
+            now + 0.018
+        );
+
+        master.gain.exponentialRampToValueAtTime(
+            0.0001,
+            now + 0.82
+        );
+
+        master.connect(
+            context.destination
+        );
+
+        const notes = [
+            {
+                frequency: 659.25,
+                start: 0,
+                duration: 0.34,
+                volume: 0.34,
+            },
+            {
+                frequency: 987.77,
+                start: 0.18,
+                duration: 0.48,
+                volume: 0.26,
+            },
+        ];
+
+        notes.forEach(
+            (note) => {
+                const oscillator =
+                    context.createOscillator();
+
+                const gain =
+                    context.createGain();
+
+                oscillator.type =
+                    "sine";
+
+                oscillator.frequency.setValueAtTime(
+                    note.frequency,
+                    now +
+                    note.start
+                );
+
+                gain.gain.setValueAtTime(
+                    0.0001,
+                    now +
+                    note.start
+                );
+
+                gain.gain.exponentialRampToValueAtTime(
+                    note.volume,
+                    now +
+                    note.start +
+                    0.015
+                );
+
+                gain.gain.exponentialRampToValueAtTime(
+                    0.0001,
+                    now +
+                    note.start +
+                    note.duration
+                );
+
+                oscillator.connect(
+                    gain
+                );
+
+                gain.connect(
+                    master
+                );
+
+                oscillator.start(
+                    now +
+                    note.start
+                );
+
+                oscillator.stop(
+                    now +
+                    note.start +
+                    note.duration +
+                    0.03
+                );
+            }
+        );
+    } catch (
+    reason
+    ) {
+        console.debug(
+            "Notification sound unavailable:",
+            reason
+        );
+    }
+}
 
 /* ======================================================
    HEADER
@@ -237,23 +422,32 @@ export const Header =
             ] =
                 React.useState(false);
 
+            const notificationInitializedRef =
+                React.useRef(false);
+
+            const seenNotificationIDsRef =
+                React.useRef<
+                    Set<number>
+                >(
+                    new Set()
+                );
+
             const loadNotifications =
                 React.useCallback(
                     async () => {
                         try {
-                            setNotificationsLoading(
-                                true
-                            );
-
                             const response =
                                 await notificationApi.list(
                                     20
                                 );
 
-                            setNotifications(
+                            const items =
                                 response.data
                                     ?.items ??
-                                []
+                                [];
+
+                            setNotifications(
+                                items
                             );
 
                             setUnreadCount(
@@ -263,6 +457,64 @@ export const Header =
                                     0
                                 )
                             );
+
+                            /*
+                             * Initial load seeds IDs only.
+                             * Existing unread notifications do not replay sound.
+                             */
+                            if (
+                                !notificationInitializedRef
+                                    .current
+                            ) {
+                                items.forEach(
+                                    (
+                                        item
+                                    ) => {
+                                        seenNotificationIDsRef
+                                            .current
+                                            .add(
+                                                item.id
+                                            );
+                                    }
+                                );
+
+                                notificationInitializedRef.current =
+                                    true;
+
+                                return;
+                            }
+
+                            const hasNewUnread =
+                                items.some(
+                                    (
+                                        item
+                                    ) =>
+                                        !item.read_at &&
+                                        !seenNotificationIDsRef
+                                            .current
+                                            .has(
+                                                item.id
+                                            )
+                                );
+
+                            items.forEach(
+                                (
+                                    item
+                                ) => {
+                                    seenNotificationIDsRef
+                                        .current
+                                        .add(
+                                            item.id
+                                        );
+                                }
+                            );
+
+                            if (
+                                hasNewUnread
+                            ) {
+                                await unlockNotificationAudio();
+                                await playNotificationTone();
+                            }
                         } catch (
                         reason
                         ) {
@@ -281,23 +533,116 @@ export const Header =
 
             React.useEffect(
                 () => {
+                    let timer:
+                        number | null =
+                        null;
+
+                    const schedule =
+                        () => {
+                            if (
+                                timer !== null
+                            ) {
+                                window.clearInterval(
+                                    timer
+                                );
+                            }
+
+                            /*
+                             * Near-real-time delivery while the app is open.
+                             * Hidden tabs use a slower interval to reduce load.
+                             */
+                            const interval =
+                                document.hidden
+                                    ? 5_000
+                                    : 350;
+
+                            timer =
+                                window.setInterval(
+                                    () =>
+                                        void loadNotifications(),
+                                    interval
+                                );
+                        };
+
+                    const handleVisibilityChange =
+                        () => {
+                            if (
+                                !document.hidden
+                            ) {
+                                void loadNotifications();
+                            }
+
+                            schedule();
+                        };
+
                     void loadNotifications();
+                    schedule();
 
-                    const timer =
-                        window.setInterval(
-                            () =>
-                                void loadNotifications(),
-                            30_000
-                        );
+                    document.addEventListener(
+                        "visibilitychange",
+                        handleVisibilityChange
+                    );
 
-                    return () =>
-                        window.clearInterval(
-                            timer
+                    return () => {
+                        if (
+                            timer !== null
+                        ) {
+                            window.clearInterval(
+                                timer
+                            );
+                        }
+
+                        document.removeEventListener(
+                            "visibilitychange",
+                            handleVisibilityChange
                         );
+                    };
                 },
                 [
                     loadNotifications,
                 ]
+            );
+
+
+            React.useEffect(
+                () => {
+                    const unlock = () => {
+                        void unlockNotificationAudio();
+                    };
+
+                    window.addEventListener(
+                        "pointerdown",
+                        unlock,
+                        {
+                            once: true,
+                            capture: true,
+                        }
+                    );
+
+                    window.addEventListener(
+                        "keydown",
+                        unlock,
+                        {
+                            once: true,
+                            capture: true,
+                        }
+                    );
+
+                    return () => {
+                        window.removeEventListener(
+                            "pointerdown",
+                            unlock,
+                            true
+                        );
+
+                        window.removeEventListener(
+                            "keydown",
+                            unlock,
+                            true
+                        );
+                    };
+                },
+                []
             );
 
             async function handleMarkAllNotificationsRead() {
@@ -751,15 +1096,31 @@ export const Header =
                                     className="relative h-8 w-8"
                                     aria-label="Notifications"
                                 >
-                                    <Bell className="h-4 w-4" />
+                                    <Bell
+                                        className={cn(
+                                            "h-4 w-4 transition",
+                                            unreadCount > 0 &&
+                                            "text-primary"
+                                        )}
+                                    />
 
                                     {unreadCount >
                                         0 && (
-                                            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-                                                {
-                                                    unreadCount
-                                                }
-                                            </span>
+                                            <>
+                                                <span
+                                                    className="absolute right-0 top-0 h-2.5 w-2.5 animate-ping rounded-full bg-red-400 opacity-40"
+                                                    aria-hidden="true"
+                                                />
+
+                                                <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-card bg-red-500 px-1 text-[8px] font-bold leading-none text-white shadow-sm">
+                                                    {
+                                                        unreadCount >
+                                                            99
+                                                            ? "99+"
+                                                            : unreadCount
+                                                    }
+                                                </span>
+                                            </>
                                         )}
                                 </Button>
                             </DropdownMenuTrigger>
@@ -1055,6 +1416,7 @@ export const Header =
                             </div>
                         </div>
                     )}
+
                 </header>
             );
         }
@@ -1112,3 +1474,7 @@ function getAvatarText(
     ][0] ?? ""
         }`.toUpperCase();
 }
+
+
+
+
