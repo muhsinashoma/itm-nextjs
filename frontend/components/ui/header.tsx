@@ -1,5 +1,1485 @@
 
-// // frontend/components/ui/header.tsx
+// // // // frontend/components/ui/header.tsx
+
+
+// "use client";
+
+// import * as React from "react";
+
+// import Link from "next/link";
+
+// import {
+//     usePathname,
+//     useRouter,
+// } from "next/navigation";
+
+// import {
+//     Bell,
+//     BellRing,
+//     CheckCircle2,
+//     ChevronDown,
+//     Menu,
+//     PanelRightOpen,
+//     Search,
+//     X,
+//     Zap,
+// } from "lucide-react";
+
+// import {
+//     cn,
+// } from "@/lib/utils";
+
+// import {
+//     Input,
+// } from "@/components/ui/input";
+
+// import {
+//     Avatar,
+//     AvatarFallback,
+// } from "@/components/ui/avatar";
+
+// import {
+//     Button,
+// } from "@/components/ui/button";
+
+// import {
+//     ThemeDropdown,
+// } from "@/components/theme-dropdown";
+
+// import {
+//     useDrawer,
+// } from "@/context/DrawerContext";
+
+// import {
+//     clearAuthStorage,
+//     type AuthMeData,
+// } from "@/lib/api";
+
+// import {
+//     notificationApi,
+//     notificationTimeLabel,
+//     type AppNotification,
+// } from "@/lib/notification-api";
+
+// import {
+//     DropdownMenu,
+//     DropdownMenuContent,
+//     DropdownMenuItem,
+//     DropdownMenuTrigger,
+// } from "@/components/ui/dropdown-menu";
+
+// /* ======================================================
+//    TYPES
+// ====================================================== */
+
+// export interface HeaderProps
+//     extends React.HTMLAttributes<HTMLElement> {
+//     title?: string;
+
+//     onMenuClick?: () => void;
+
+//     onMobileNavClick?: () => void;
+
+//     authUser: AuthMeData;
+
+//     useUserShell: boolean;
+// }
+
+// type HeaderNavItem = {
+//     label: string;
+//     href: string;
+// };
+
+// /* ======================================================
+//    NOTIFICATION SOUND
+// ====================================================== */
+
+// let notificationAudioContext:
+//     AudioContext | null = null;
+
+// function getNotificationAudioContext() {
+//     if (typeof window === "undefined") {
+//         return null;
+//     }
+
+//     const AudioContextClass =
+//         window.AudioContext ??
+//         (
+//             window as typeof window & {
+//                 webkitAudioContext?: typeof AudioContext;
+//             }
+//         ).webkitAudioContext;
+
+//     if (!AudioContextClass) {
+//         return null;
+//     }
+
+//     if (!notificationAudioContext) {
+//         notificationAudioContext =
+//             new AudioContextClass();
+//     }
+
+//     return notificationAudioContext;
+// }
+
+// async function unlockNotificationAudio() {
+//     const context =
+//         getNotificationAudioContext();
+
+//     if (
+//         !context ||
+//         context.state === "running"
+//     ) {
+//         return;
+//     }
+
+//     try {
+//         await context.resume();
+//     } catch {
+//         // Browser autoplay policy can keep audio suspended.
+//     }
+// }
+
+// async function playNotificationTone() {
+//     const context =
+//         getNotificationAudioContext();
+
+//     if (!context) {
+//         return;
+//     }
+
+//     try {
+//         if (
+//             context.state ===
+//             "suspended"
+//         ) {
+//             await context.resume();
+//         }
+
+//         if (
+//             context.state !==
+//             "running"
+//         ) {
+//             return;
+//         }
+
+//         const now =
+//             context.currentTime;
+
+//         const master =
+//             context.createGain();
+
+//         master.gain.setValueAtTime(
+//             0.0001,
+//             now
+//         );
+
+//         master.gain.exponentialRampToValueAtTime(
+//             0.18,
+//             now + 0.018
+//         );
+
+//         master.gain.exponentialRampToValueAtTime(
+//             0.0001,
+//             now + 0.82
+//         );
+
+//         master.connect(
+//             context.destination
+//         );
+
+//         const notes = [
+//             {
+//                 frequency: 659.25,
+//                 start: 0,
+//                 duration: 0.34,
+//                 volume: 0.34,
+//             },
+//             {
+//                 frequency: 987.77,
+//                 start: 0.18,
+//                 duration: 0.48,
+//                 volume: 0.26,
+//             },
+//         ];
+
+//         notes.forEach(
+//             (note) => {
+//                 const oscillator =
+//                     context.createOscillator();
+
+//                 const gain =
+//                     context.createGain();
+
+//                 oscillator.type =
+//                     "sine";
+
+//                 oscillator.frequency.setValueAtTime(
+//                     note.frequency,
+//                     now +
+//                     note.start
+//                 );
+
+//                 gain.gain.setValueAtTime(
+//                     0.0001,
+//                     now +
+//                     note.start
+//                 );
+
+//                 gain.gain.exponentialRampToValueAtTime(
+//                     note.volume,
+//                     now +
+//                     note.start +
+//                     0.015
+//                 );
+
+//                 gain.gain.exponentialRampToValueAtTime(
+//                     0.0001,
+//                     now +
+//                     note.start +
+//                     note.duration
+//                 );
+
+//                 oscillator.connect(
+//                     gain
+//                 );
+
+//                 gain.connect(
+//                     master
+//                 );
+
+//                 oscillator.start(
+//                     now +
+//                     note.start
+//                 );
+
+//                 oscillator.stop(
+//                     now +
+//                     note.start +
+//                     note.duration +
+//                     0.03
+//                 );
+//             }
+//         );
+//     } catch (
+//     reason
+//     ) {
+//         console.debug(
+//             "Notification sound unavailable:",
+//             reason
+//         );
+//     }
+// }
+
+// /* ======================================================
+//    HEADER
+// ====================================================== */
+
+// export const Header =
+//     React.forwardRef<
+//         HTMLElement,
+//         HeaderProps
+//     >(
+//         (
+//             props,
+//             ref
+//         ) => {
+//             const {
+//                 className,
+//                 onMenuClick,
+//                 onMobileNavClick,
+//                 authUser,
+//                 useUserShell,
+//                 ...rest
+//             } =
+//                 props;
+
+//             const {
+//                 toggle,
+//             } =
+//                 useDrawer();
+
+//             const pathname =
+//                 usePathname();
+
+//             const router =
+//                 useRouter();
+
+//             /* ======================================================
+//                CURRENT AUTH USER
+//             ====================================================== */
+
+//             const userName =
+//                 authUser.full_name ||
+//                 authUser.username ||
+//                 authUser.employee_id;
+
+//             const userEmail =
+//                 authUser.email ||
+//                 authUser.employee_id;
+
+//             const avatarText =
+//                 getAvatarText(
+//                     userName
+//                 );
+
+//             /* ======================================================
+//                RBAC PERMISSIONS
+//             ====================================================== */
+
+//             const permissions =
+//                 React.useMemo(
+//                     () =>
+//                         new Set(
+//                             authUser.permissions ??
+//                             []
+//                         ),
+//                     [
+//                         authUser.permissions,
+//                     ]
+//                 );
+
+//             /*
+//              * Access to the employee / User Panel.
+//              */
+//             const canOpenUserPanel =
+//                 permissions.has(
+//                     "panel.user.access"
+//                 );
+
+//             /*
+//              * Access to Role & Permission Management.
+//              */
+//             const canManageRoles =
+//                 permissions.has(
+//                     "roles.manage"
+//                 );
+
+//             /*
+//              * Admin panel permission.
+//              *
+//              * Useful for future guards / dropdowns.
+//              */
+//             const canOpenAdminPanel =
+//                 permissions.has(
+//                     "panel.admin.access"
+//                 );
+
+//             /* ======================================================
+//                LOGOUT
+//             ====================================================== */
+
+//             function handleLogout() {
+//                 clearAuthStorage();
+
+//                 router.replace(
+//                     "/auth"
+//                 );
+//             }
+
+//             /* ======================================================
+//                UI STATE
+//             ====================================================== */
+
+//             const [
+//                 activeMenu,
+//                 setActiveMenu,
+//             ] =
+//                 React.useState<
+//                     | "notif"
+//                     | "user"
+//                     | "theme"
+//                     | null
+//                 >(
+//                     null
+//                 );
+
+//             const [
+//                 searchOpen,
+//                 setSearchOpen,
+//             ] =
+//                 React.useState(
+//                     false
+//                 );
+
+//             const [
+//                 notifications,
+//                 setNotifications,
+//             ] =
+//                 React.useState<
+//                     AppNotification[]
+//                 >([]);
+
+//             const [
+//                 unreadCount,
+//                 setUnreadCount,
+//             ] =
+//                 React.useState(0);
+
+//             const [
+//                 notificationsLoading,
+//                 setNotificationsLoading,
+//             ] =
+//                 React.useState(false);
+
+//             const notificationInitializedRef =
+//                 React.useRef(false);
+
+//             const seenNotificationIDsRef =
+//                 React.useRef<
+//                     Set<number>
+//                 >(
+//                     new Set()
+//                 );
+
+//             const loadNotifications =
+//                 React.useCallback(
+//                     async () => {
+//                         try {
+//                             const response =
+//                                 await notificationApi.list(
+//                                     20
+//                                 );
+
+//                             const items =
+//                                 response.data
+//                                     ?.items ??
+//                                 [];
+
+//                             setNotifications(
+//                                 items
+//                             );
+
+//                             setUnreadCount(
+//                                 Number(
+//                                     response.data
+//                                         ?.unread_count ??
+//                                     0
+//                                 )
+//                             );
+
+//                             /*
+//                              * Initial load seeds IDs only.
+//                              * Existing unread notifications do not replay sound.
+//                              */
+//                             if (
+//                                 !notificationInitializedRef
+//                                     .current
+//                             ) {
+//                                 items.forEach(
+//                                     (
+//                                         item
+//                                     ) => {
+//                                         seenNotificationIDsRef
+//                                             .current
+//                                             .add(
+//                                                 item.id
+//                                             );
+//                                     }
+//                                 );
+
+//                                 notificationInitializedRef.current =
+//                                     true;
+
+//                                 return;
+//                             }
+
+//                             const hasNewUnread =
+//                                 items.some(
+//                                     (
+//                                         item
+//                                     ) =>
+//                                         !item.read_at &&
+//                                         !seenNotificationIDsRef
+//                                             .current
+//                                             .has(
+//                                                 item.id
+//                                             )
+//                                 );
+
+//                             items.forEach(
+//                                 (
+//                                     item
+//                                 ) => {
+//                                     seenNotificationIDsRef
+//                                         .current
+//                                         .add(
+//                                             item.id
+//                                         );
+//                                 }
+//                             );
+
+//                             if (
+//                                 hasNewUnread
+//                             ) {
+//                                 await unlockNotificationAudio();
+//                                 await playNotificationTone();
+//                             }
+//                         } catch (
+//                         reason
+//                         ) {
+//                             console.error(
+//                                 "Unable to load notifications:",
+//                                 reason
+//                             );
+//                         } finally {
+//                             setNotificationsLoading(
+//                                 false
+//                             );
+//                         }
+//                     },
+//                     []
+//                 );
+
+//             React.useEffect(
+//                 () => {
+//                     let timer:
+//                         number | null =
+//                         null;
+
+//                     const schedule =
+//                         () => {
+//                             if (
+//                                 timer !== null
+//                             ) {
+//                                 window.clearInterval(
+//                                     timer
+//                                 );
+//                             }
+
+//                             /*
+//                              * Near-real-time delivery while the app is open.
+//                              * Hidden tabs use a slower interval to reduce load.
+//                              */
+//                             const interval =
+//                                 document.hidden
+//                                     ? 5_000
+//                                     : 350;
+
+//                             timer =
+//                                 window.setInterval(
+//                                     () =>
+//                                         void loadNotifications(),
+//                                     interval
+//                                 );
+//                         };
+
+//                     const handleVisibilityChange =
+//                         () => {
+//                             if (
+//                                 !document.hidden
+//                             ) {
+//                                 void loadNotifications();
+//                             }
+
+//                             schedule();
+//                         };
+
+//                     void loadNotifications();
+//                     schedule();
+
+//                     document.addEventListener(
+//                         "visibilitychange",
+//                         handleVisibilityChange
+//                     );
+
+//                     return () => {
+//                         if (
+//                             timer !== null
+//                         ) {
+//                             window.clearInterval(
+//                                 timer
+//                             );
+//                         }
+
+//                         document.removeEventListener(
+//                             "visibilitychange",
+//                             handleVisibilityChange
+//                         );
+//                     };
+//                 },
+//                 [
+//                     loadNotifications,
+//                 ]
+//             );
+
+
+//             React.useEffect(
+//                 () => {
+//                     const unlock = () => {
+//                         void unlockNotificationAudio();
+//                     };
+
+//                     window.addEventListener(
+//                         "pointerdown",
+//                         unlock,
+//                         {
+//                             once: true,
+//                             capture: true,
+//                         }
+//                     );
+
+//                     window.addEventListener(
+//                         "keydown",
+//                         unlock,
+//                         {
+//                             once: true,
+//                             capture: true,
+//                         }
+//                     );
+
+//                     return () => {
+//                         window.removeEventListener(
+//                             "pointerdown",
+//                             unlock,
+//                             true
+//                         );
+
+//                         window.removeEventListener(
+//                             "keydown",
+//                             unlock,
+//                             true
+//                         );
+//                     };
+//                 },
+//                 []
+//             );
+
+//             async function handleMarkAllNotificationsRead() {
+//                 try {
+//                     await notificationApi.markAllRead();
+
+//                     setNotifications(
+//                         (previous) =>
+//                             previous.map(
+//                                 (notification) => ({
+//                                     ...notification,
+//                                     read_at:
+//                                         notification.read_at ??
+//                                         new Date().toISOString(),
+//                                 })
+//                             )
+//                     );
+
+//                     setUnreadCount(0);
+//                 } catch (
+//                 reason
+//                 ) {
+//                     console.error(
+//                         "Unable to mark notifications as read:",
+//                         reason
+//                     );
+//                 }
+//             }
+
+//             async function handleNotificationClick(
+//                 notification:
+//                     AppNotification
+//             ) {
+//                 try {
+//                     if (
+//                         !notification.read_at
+//                     ) {
+//                         await notificationApi.markRead(
+//                             notification.id
+//                         );
+
+//                         setNotifications(
+//                             (previous) =>
+//                                 previous.map(
+//                                     (item) =>
+//                                         item.id ===
+//                                             notification.id
+//                                             ? {
+//                                                 ...item,
+//                                                 read_at:
+//                                                     new Date().toISOString(),
+//                                             }
+//                                             : item
+//                                 )
+//                         );
+
+//                         setUnreadCount(
+//                             (value) =>
+//                                 Math.max(
+//                                     0,
+//                                     value - 1
+//                                 )
+//                         );
+//                     }
+//                 } catch (
+//                 reason
+//                 ) {
+//                     console.error(
+//                         "Unable to mark notification as read:",
+//                         reason
+//                     );
+//                 } finally {
+//                     setActiveMenu(
+//                         null
+//                     );
+
+//                     if (
+//                         notification.action_url
+//                     ) {
+//                         router.push(
+//                             notification.action_url
+//                         );
+//                     }
+//                 }
+//             }
+
+//             /* ======================================================
+//                HEADER NAVIGATION
+
+//                USER PANEL
+//                --------------------------------
+//                Dashboard
+//                Create TT
+
+//                ADMIN PANEL
+//                --------------------------------
+//                Dashboard
+//                Assigned TT
+//                Create TT
+//                User Panel     permission based
+//                Role Access    permission based
+
+//                Logout is rendered separately after nav items.
+//             ====================================================== */
+
+//             const navItems =
+//                 React.useMemo<
+//                     HeaderNavItem[]
+//                 >(
+//                     () => {
+//                         /* ==========================================
+//                            USER PANEL
+
+//                            IMPORTANT:
+//                            Admin Panel and Role Access do NOT appear
+//                            here even when ROOT is browsing User Panel.
+//                         ========================================== */
+
+//                         if (
+//                             useUserShell
+//                         ) {
+//                             return [
+//                                 {
+//                                     label:
+//                                         "Dashboard",
+//                                     href:
+//                                         "/dashboard/user",
+//                                 },
+//                                 {
+//                                     label:
+//                                         "Create TT",
+//                                     href:
+//                                         "/dashboard/operations/create_tt",
+//                                 },
+//                             ];
+//                         }
+
+//                         /* ==========================================
+//                            ADMIN / STAFF PANEL
+//                         ========================================== */
+
+//                         const items:
+//                             HeaderNavItem[] =
+//                             [
+//                                 {
+//                                     label:
+//                                         "Dashboard",
+//                                     href:
+//                                         "/dashboard",
+//                                 },
+//                                 {
+//                                     label:
+//                                         "Assigned TT",
+//                                     href:
+//                                         "/dashboard/operations/assigned-tt",
+//                                 },
+//                                 {
+//                                     label:
+//                                         "Create TT",
+//                                     href:
+//                                         "/dashboard/operations/create_tt",
+//                                 },
+//                             ];
+
+//                         /* ==========================================
+//                            USER PANEL ACCESS
+
+//                            Normally ROOT when panel.user.access
+//                            has been granted.
+//                         ========================================== */
+
+//                         if (
+//                             canOpenUserPanel
+//                         ) {
+//                             items.push(
+//                                 {
+//                                     label:
+//                                         "User Panel",
+//                                     href:
+//                                         "/dashboard/user",
+//                                 }
+//                             );
+//                         }
+
+//                         /* ==========================================
+//                            ROLE ACCESS
+
+//                            Only accounts with roles.manage.
+//                         ========================================== */
+
+//                         if (
+//                             canManageRoles
+//                         ) {
+//                             items.push(
+//                                 {
+//                                     label:
+//                                         "Role Access",
+//                                     href:
+//                                         "/dashboard/admin/role-access",
+//                                 }
+//                             );
+//                         }
+
+//                         return items;
+//                     },
+//                     [
+//                         useUserShell,
+//                         canOpenUserPanel,
+//                         canManageRoles,
+//                     ]
+//                 );
+
+//             /* ======================================================
+//                ACTIVE NAVIGATION
+//             ====================================================== */
+
+//             function isNavActive(
+//                 item:
+//                     HeaderNavItem
+//             ) {
+//                 /*
+//                  * Admin dashboard.
+//                  */
+//                 if (
+//                     item.href ===
+//                     "/dashboard"
+//                 ) {
+//                     return (
+//                         pathname ===
+//                         "/dashboard"
+//                     );
+//                 }
+
+//                 /*
+//                  * User Panel dashboard.
+//                  */
+//                 if (
+//                     item.href ===
+//                     "/dashboard/user"
+//                 ) {
+//                     return (
+//                         pathname ===
+//                         "/dashboard/user" ||
+//                         pathname.startsWith(
+//                             "/dashboard/user/"
+//                         )
+//                     );
+//                 }
+
+//                 /*
+//                  * Other routes.
+//                  */
+//                 return (
+//                     pathname ===
+//                     item.href ||
+//                     pathname.startsWith(
+//                         `${item.href}/`
+//                     )
+//                 );
+//             }
+
+//             /* ======================================================
+//                RENDER
+//             ====================================================== */
+
+//             return (
+//                 <header
+//                     ref={
+//                         ref
+//                     }
+//                     className={cn(
+//                         "sticky top-0 z-50 flex h-14 items-center justify-between gap-2 border-b border-border bg-card/95 px-3 text-foreground backdrop-blur-sm sm:px-5",
+//                         className
+//                     )}
+//                     {...rest}
+//                 >
+//                     {/* ==================================================
+//                         LEFT SECTION
+//                     ================================================== */}
+
+//                     <div className="flex min-w-0 items-center gap-1 sm:gap-3">
+//                         {/* ==============================================
+//                             MOBILE NAV BUTTON
+//                         ============================================== */}
+
+//                         <Button
+//                             variant="ghost"
+//                             size="icon"
+//                             className="h-8 w-8 shrink-0 md:hidden"
+//                             onClick={
+//                                 onMobileNavClick
+//                             }
+//                             aria-label="Open navigation"
+//                         >
+//                             <Menu className="h-4 w-4" />
+//                         </Button>
+
+//                         <span className="text-sm font-semibold text-foreground md:hidden">
+//                             ITM
+//                         </span>
+
+//                         {/* ==============================================
+//                             DESKTOP NAV
+//                         ============================================== */}
+
+//                         <nav className="hidden items-center gap-1 md:flex">
+//                             {navItems.map(
+//                                 (
+//                                     item
+//                                 ) => {
+//                                     const active =
+//                                         isNavActive(
+//                                             item
+//                                         );
+
+//                                     return (
+//                                         <Link
+//                                             key={`${item.label}-${item.href}`}
+//                                             href={
+//                                                 item.href
+//                                             }
+//                                             className={cn(
+//                                                 "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+
+//                                                 active
+//                                                     ? "bg-primary/10 font-semibold text-primary"
+//                                                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
+//                                             )}
+//                                         >
+//                                             {
+//                                                 item.label
+//                                             }
+//                                         </Link>
+//                                     );
+//                                 }
+//                             )}
+//                         </nav>
+
+//                         {/* ==============================================
+//                             LOGOUT
+
+//                             Always appears last in the top navigation.
+//                         ============================================== */}
+
+//                         <button
+//                             type="button"
+//                             onClick={
+//                                 handleLogout
+//                             }
+//                             className="px-2 text-xs font-medium text-red-600 transition-colors hover:text-red-700"
+//                         >
+//                             Logout
+//                         </button>
+//                     </div>
+
+//                     {/* ==================================================
+//                         RIGHT SECTION
+//                     ================================================== */}
+
+//                     <div className="flex shrink-0 items-center gap-1">
+//                         {/* ==============================================
+//                             DESKTOP SEARCH
+//                         ============================================== */}
+
+//                         <div className="relative hidden sm:block">
+//                             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+
+//                             <Input
+//                                 placeholder="Search..."
+//                                 className="h-8 w-36 border-0 bg-muted pl-8 text-xs focus-visible:ring-1 lg:w-48"
+//                                 type="search"
+//                             />
+//                         </div>
+
+//                         {/* ==============================================
+//                             MOBILE SEARCH BUTTON
+//                         ============================================== */}
+
+//                         <Button
+//                             variant="ghost"
+//                             size="icon"
+//                             className="h-8 w-8 sm:hidden"
+//                             onClick={() =>
+//                                 setSearchOpen(
+//                                     (
+//                                         current
+//                                     ) =>
+//                                         !current
+//                                 )
+//                             }
+//                             aria-label="Search"
+//                         >
+//                             <Search className="h-4 w-4" />
+//                         </Button>
+
+//                         {/* ==============================================
+//                             RIGHT DRAWER
+//                         ============================================== */}
+
+//                         <Button
+//                             variant="ghost"
+//                             size="icon"
+//                             className="hidden h-8 w-8 lg:flex"
+//                             onClick={
+//                                 onMenuClick ??
+//                                 toggle
+//                             }
+//                             aria-label="Toggle right panel"
+//                         >
+//                             <PanelRightOpen className="h-4 w-4" />
+//                         </Button>
+
+//                         {/* ==============================================
+//                             THEME
+//                         ============================================== */}
+
+//                         <ThemeDropdown
+//                             activeMenu={
+//                                 activeMenu
+//                             }
+//                             setActiveMenu={
+//                                 setActiveMenu
+//                             }
+//                         />
+
+//                         {/* ==================================================
+//                             NOTIFICATIONS
+//                         ================================================== */}
+
+//                         <DropdownMenu
+//                             open={
+//                                 activeMenu ===
+//                                 "notif"
+//                             }
+//                             onOpenChange={(
+//                                 open
+//                             ) =>
+//                                 setActiveMenu(
+//                                     open
+//                                         ? "notif"
+//                                         : null
+//                                 )
+//                             }
+//                         >
+//                             <DropdownMenuTrigger
+//                                 asChild
+//                             >
+//                                 <Button
+//                                     variant="ghost"
+//                                     size="icon"
+//                                     className="relative h-8 w-8"
+//                                     aria-label="Notifications"
+//                                 >
+//                                     <Bell
+//                                         className={cn(
+//                                             "h-4 w-4 transition",
+//                                             unreadCount > 0 &&
+//                                             "text-primary"
+//                                         )}
+//                                     />
+
+//                                     {unreadCount >
+//                                         0 && (
+//                                             <>
+//                                                 <span
+//                                                     className="absolute right-0 top-0 h-2.5 w-2.5 animate-ping rounded-full bg-red-400 opacity-40"
+//                                                     aria-hidden="true"
+//                                                 />
+
+//                                                 <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-card bg-red-500 px-1 text-[8px] font-bold leading-none text-white shadow-sm">
+//                                                     {
+//                                                         unreadCount >
+//                                                             99
+//                                                             ? "99+"
+//                                                             : unreadCount
+//                                                     }
+//                                                 </span>
+//                                             </>
+//                                         )}
+//                                 </Button>
+//                             </DropdownMenuTrigger>
+
+//                             <DropdownMenuContent
+//                                 align="end"
+//                                 sideOffset={
+//                                     8
+//                                 }
+//                                 className="w-72 max-w-[90vw] overflow-hidden rounded-xl border border-border bg-popover p-0 shadow-lg"
+//                             >
+//                                 {/* HEADER */}
+
+//                                 <div className="flex items-center justify-between border-b border-border px-4 py-3">
+//                                     <span className="text-sm font-semibold text-foreground">
+//                                         Notifications
+//                                     </span>
+
+//                                     <button
+//                                         type="button"
+//                                         className="text-xs font-normal text-primary hover:underline"
+//                                         onClick={() =>
+//                                             void handleMarkAllNotificationsRead()
+//                                         }
+//                                     >
+//                                         Mark all read
+//                                     </button>
+//                                 </div>
+
+//                                 {/* ITEMS */}
+
+//                                 <ul className="max-h-72 divide-y divide-border overflow-y-auto">
+//                                     {notificationsLoading &&
+//                                         notifications.length ===
+//                                         0 ? (
+//                                         <li className="px-4 py-6 text-center text-xs text-muted-foreground">
+//                                             Loading notifications...
+//                                         </li>
+//                                     ) : notifications.length ===
+//                                         0 ? (
+//                                         <li className="px-4 py-6 text-center">
+//                                             <p className="text-xs font-medium text-foreground">
+//                                                 No notifications
+//                                             </p>
+//                                             <p className="mt-1 text-[10px] text-muted-foreground">
+//                                                 New assignments will appear here.
+//                                             </p>
+//                                         </li>
+//                                     ) : (
+//                                         notifications.map(
+//                                             (
+//                                                 notification
+//                                             ) => (
+//                                                 <li
+//                                                     key={
+//                                                         notification.id
+//                                                     }
+//                                                     className={cn(
+//                                                         "cursor-pointer px-4 py-3 transition-colors hover:bg-muted",
+//                                                         notification.read_at &&
+//                                                         "opacity-60"
+//                                                     )}
+//                                                     onClick={() =>
+//                                                         void handleNotificationClick(
+//                                                             notification
+//                                                         )
+//                                                     }
+//                                                 >
+//                                                     <div className="flex items-start gap-2.5">
+//                                                         {!notification.read_at && (
+//                                                             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+//                                                         )}
+
+//                                                         <div
+//                                                             className={
+//                                                                 notification.read_at
+//                                                                     ? "pl-4"
+//                                                                     : ""
+//                                                             }
+//                                                         >
+//                                                             <p className="text-sm font-medium text-foreground">
+//                                                                 {
+//                                                                     notification.title
+//                                                                 }
+//                                                             </p>
+
+//                                                             {notification.message && (
+//                                                                 <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+//                                                                     {
+//                                                                         notification.message
+//                                                                     }
+//                                                                 </p>
+//                                                             )}
+
+//                                                             <p className="mt-1 text-[10px] text-muted-foreground">
+//                                                                 {
+//                                                                     notificationTimeLabel(
+//                                                                         notification.created_at
+//                                                                     )
+//                                                                 }
+//                                                             </p>
+//                                                         </div>
+//                                                     </div>
+//                                                 </li>
+//                                             )
+//                                         )
+//                                     )}
+//                                 </ul>
+//                             </DropdownMenuContent>
+//                         </DropdownMenu>
+
+//                         {/* ==================================================
+//                             USER ACCOUNT MENU
+//                         ================================================== */}
+
+//                         <DropdownMenu
+//                             open={
+//                                 activeMenu ===
+//                                 "user"
+//                             }
+//                             onOpenChange={(
+//                                 open
+//                             ) =>
+//                                 setActiveMenu(
+//                                     open
+//                                         ? "user"
+//                                         : null
+//                                 )
+//                             }
+//                         >
+//                             <DropdownMenuTrigger
+//                                 asChild
+//                             >
+//                                 <button
+//                                     type="button"
+//                                     className="flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 transition-all hover:bg-muted"
+//                                 >
+//                                     <Avatar className="h-7 w-7">
+//                                         <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+//                                             {
+//                                                 avatarText
+//                                             }
+//                                         </AvatarFallback>
+//                                     </Avatar>
+
+//                                     <ChevronDown className="hidden h-3 w-3 text-muted-foreground sm:block" />
+//                                 </button>
+//                             </DropdownMenuTrigger>
+
+//                             <DropdownMenuContent
+//                                 align="end"
+//                                 sideOffset={
+//                                     8
+//                                 }
+//                                 className="w-64 max-w-[90vw] overflow-hidden rounded-xl border border-border bg-popover p-0 shadow-lg"
+//                             >
+//                                 {/* ==========================================
+//                                     CURRENT USER INFORMATION
+//                                 ========================================== */}
+
+//                                 <div className="border-b border-border px-4 py-3">
+//                                     <p className="truncate text-sm font-semibold text-foreground">
+//                                         {
+//                                             userName
+//                                         }
+//                                     </p>
+
+//                                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
+//                                         {
+//                                             userEmail
+//                                         }
+//                                     </p>
+
+//                                     <div className="mt-2 flex flex-wrap gap-1">
+//                                         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+//                                             {
+//                                                 authUser.role_name ||
+//                                                 authUser.role_code
+//                                             }
+//                                         </span>
+
+//                                         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+//                                             {
+//                                                 authUser.employee_id
+//                                             }
+//                                         </span>
+//                                     </div>
+//                                 </div>
+
+//                                 {/* ==========================================
+//                                     USER PANEL DROPDOWN
+
+//                                     Keep the User Panel simple.
+//                                 ========================================== */}
+
+//                                 {useUserShell ? (
+//                                     <>
+//                                         {permissions.has(
+//                                             "dashboard.self.access"
+//                                         ) && (
+//                                                 <DropdownMenuItem
+//                                                     className="m-1 cursor-pointer rounded-lg"
+//                                                     onSelect={() =>
+//                                                         router.push(
+//                                                             "/dashboard/user"
+//                                                         )
+//                                                     }
+//                                                 >
+//                                                     My Dashboard
+//                                                 </DropdownMenuItem>
+//                                             )}
+//                                     </>
+//                                 ) : (
+//                                     <>
+//                                         {/* ==================================
+//                                             ADMIN PANEL DROPDOWN
+//                                         ================================== */}
+
+//                                         {canOpenUserPanel && (
+//                                             <DropdownMenuItem
+//                                                 className="m-1 cursor-pointer rounded-lg"
+//                                                 onSelect={() =>
+//                                                     router.push(
+//                                                         "/dashboard/user"
+//                                                     )
+//                                                 }
+//                                             >
+//                                                 User Panel
+//                                             </DropdownMenuItem>
+//                                         )}
+
+//                                         {canManageRoles && (
+//                                             <DropdownMenuItem
+//                                                 className="m-1 cursor-pointer rounded-lg"
+//                                                 onSelect={() =>
+//                                                     router.push(
+//                                                         "/dashboard/admin/role-access"
+//                                                     )
+//                                                 }
+//                                             >
+//                                                 Role Access
+//                                             </DropdownMenuItem>
+//                                         )}
+
+//                                         {canOpenAdminPanel && (
+//                                             <DropdownMenuItem
+//                                                 className="m-1 cursor-pointer rounded-lg"
+//                                                 onSelect={() =>
+//                                                     router.push(
+//                                                         "/dashboard"
+//                                                     )
+//                                                 }
+//                                             >
+//                                                 Admin Dashboard
+//                                             </DropdownMenuItem>
+//                                         )}
+//                                     </>
+//                                 )}
+
+//                                 {/* ==========================================
+//                                     LOGOUT
+
+//                                     Always last.
+//                                 ========================================== */}
+
+//                                 <DropdownMenuItem
+//                                     onSelect={
+//                                         handleLogout
+//                                     }
+//                                     className="m-1 cursor-pointer rounded-lg text-red-600 focus:text-red-600"
+//                                 >
+//                                     Logout
+//                                 </DropdownMenuItem>
+//                             </DropdownMenuContent>
+//                         </DropdownMenu>
+//                     </div>
+
+//                     {/* ==================================================
+//                         MOBILE SEARCH PANEL
+//                     ================================================== */}
+
+//                     {searchOpen && (
+//                         <div className="absolute left-0 right-0 top-14 border-b border-border bg-card p-3 shadow-sm sm:hidden">
+//                             <div className="relative">
+//                                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+//                                 <Input
+//                                     autoFocus
+//                                     type="search"
+//                                     placeholder="Search..."
+//                                     className="h-9 w-full bg-muted pl-9 text-xs"
+//                                 />
+//                             </div>
+//                         </div>
+//                     )}
+
+//                 </header>
+//             );
+//         }
+//     );
+
+// Header.displayName =
+//     "Header";
+
+// /* ======================================================
+//    AVATAR TEXT
+// ====================================================== */
+
+// function getAvatarText(
+//     value:
+//         | string
+//         | undefined
+//         | null
+// ): string {
+//     const name =
+//         (
+//             value ??
+//             ""
+//         ).trim();
+
+//     if (
+//         !name
+//     ) {
+//         return "U";
+//     }
+
+//     const words =
+//         name
+//             .split(
+//                 /\s+/
+//             )
+//             .filter(
+//                 Boolean
+//             );
+
+//     if (
+//         words.length ===
+//         1
+//     ) {
+//         return words[0]
+//             .slice(
+//                 0,
+//                 2
+//             )
+//             .toUpperCase();
+//     }
+
+//     return `${words[0][0] ?? ""}${words[
+//         words.length -
+//         1
+//     ][0] ?? ""
+//         }`.toUpperCase();
+// }
+
+
+
+
+
+// // // frontend/components/ui/header.tsx
 
 
 "use client";
@@ -166,6 +1646,34 @@ async function playNotificationTone() {
         const now =
             context.currentTime;
 
+        const compressor =
+            context.createDynamicsCompressor();
+
+        compressor.threshold.setValueAtTime(
+            -18,
+            now
+        );
+
+        compressor.knee.setValueAtTime(
+            12,
+            now
+        );
+
+        compressor.ratio.setValueAtTime(
+            4,
+            now
+        );
+
+        compressor.attack.setValueAtTime(
+            0.003,
+            now
+        );
+
+        compressor.release.setValueAtTime(
+            0.18,
+            now
+        );
+
         const master =
             context.createGain();
 
@@ -175,31 +1683,44 @@ async function playNotificationTone() {
         );
 
         master.gain.exponentialRampToValueAtTime(
-            0.18,
-            now + 0.018
+            0.48,
+            now + 0.015
         );
 
         master.gain.exponentialRampToValueAtTime(
             0.0001,
-            now + 0.82
+            now + 0.95
         );
 
         master.connect(
+            compressor
+        );
+
+        compressor.connect(
             context.destination
         );
 
         const notes = [
             {
                 frequency: 659.25,
-                start: 0,
-                duration: 0.34,
-                volume: 0.34,
+                start: 0.00,
+                duration: 0.28,
+                volume: 0.62,
+                type: "triangle" as OscillatorType,
             },
             {
-                frequency: 987.77,
-                start: 0.18,
-                duration: 0.48,
-                volume: 0.26,
+                frequency: 880.00,
+                start: 0.15,
+                duration: 0.36,
+                volume: 0.50,
+                type: "sine" as OscillatorType,
+            },
+            {
+                frequency: 1046.50,
+                start: 0.33,
+                duration: 0.42,
+                volume: 0.42,
+                type: "sine" as OscillatorType,
             },
         ];
 
@@ -212,25 +1733,23 @@ async function playNotificationTone() {
                     context.createGain();
 
                 oscillator.type =
-                    "sine";
+                    note.type;
 
                 oscillator.frequency.setValueAtTime(
                     note.frequency,
-                    now +
-                    note.start
+                    now + note.start
                 );
 
                 gain.gain.setValueAtTime(
                     0.0001,
-                    now +
-                    note.start
+                    now + note.start
                 );
 
                 gain.gain.exponentialRampToValueAtTime(
                     note.volume,
                     now +
                     note.start +
-                    0.015
+                    0.012
                 );
 
                 gain.gain.exponentialRampToValueAtTime(
@@ -249,8 +1768,7 @@ async function playNotificationTone() {
                 );
 
                 oscillator.start(
-                    now +
-                    note.start
+                    now + note.start
                 );
 
                 oscillator.stop(
@@ -422,6 +1940,14 @@ export const Header =
             ] =
                 React.useState(false);
 
+            const [
+                notificationToast,
+                setNotificationToast,
+            ] =
+                React.useState<
+                    AppNotification | null
+                >(null);
+
             const notificationInitializedRef =
                 React.useRef(false);
 
@@ -484,8 +2010,8 @@ export const Header =
                                 return;
                             }
 
-                            const hasNewUnread =
-                                items.some(
+                            const newUnread =
+                                items.filter(
                                     (
                                         item
                                     ) =>
@@ -510,8 +2036,16 @@ export const Header =
                             );
 
                             if (
-                                hasNewUnread
+                                newUnread.length >
+                                0
                             ) {
+                                const newestUnread =
+                                    newUnread[0];
+
+                                setNotificationToast(
+                                    newestUnread
+                                );
+
                                 await unlockNotificationAudio();
                                 await playNotificationTone();
                             }
@@ -645,6 +2179,34 @@ export const Header =
                 []
             );
 
+            React.useEffect(
+                () => {
+                    if (
+                        !notificationToast
+                    ) {
+                        return;
+                    }
+
+                    const timer =
+                        window.setTimeout(
+                            () => {
+                                setNotificationToast(
+                                    null
+                                );
+                            },
+                            2_000
+                        );
+
+                    return () =>
+                        window.clearTimeout(
+                            timer
+                        );
+                },
+                [
+                    notificationToast,
+                ]
+            );
+
             async function handleMarkAllNotificationsRead() {
                 try {
                     await notificationApi.markAllRead();
@@ -676,6 +2238,15 @@ export const Header =
                 notification:
                     AppNotification
             ) {
+                if (
+                    notificationToast?.id ===
+                    notification.id
+                ) {
+                    setNotificationToast(
+                        null
+                    );
+                }
+
                 try {
                     if (
                         !notification.read_at
@@ -1417,6 +2988,118 @@ export const Header =
                         </div>
                     )}
 
+
+                    {/* ==================================================
+                        LIVE NOTIFICATION PREVIEW
+                        Auto hides after 2 seconds.
+                    ================================================== */}
+
+                    {notificationToast && (
+                        <div
+                            className="
+                                fixed
+                                right-4
+                                top-16
+                                z-[150]
+                                w-[min(390px,calc(100vw-2rem))]
+                                overflow-hidden
+                                rounded-2xl
+                                border
+                                border-border
+                                bg-card
+                                shadow-2xl
+                                animate-in
+                                fade-in-0
+                                slide-in-from-top-2
+                                duration-200
+                            "
+                            role="status"
+                            aria-live="polite"
+                        >
+                            <div className="h-1 bg-gradient-to-r from-red-500 via-orange-500 to-amber-400" />
+
+                            <div className="flex items-start gap-3 p-4">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 shadow-sm">
+                                    <Zap className="h-4 w-4" />
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-red-600">
+                                                New notification
+                                            </p>
+
+                                            <p className="mt-0.5 truncate text-[13px] font-semibold text-foreground">
+                                                {
+                                                    notificationToast.title
+                                                }
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setNotificationToast(
+                                                    null
+                                                )
+                                            }
+                                            className="rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                            aria-label="Dismiss notification"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+
+                                    {notificationToast.message && (
+                                        <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">
+                                            {
+                                                notificationToast.message
+                                            }
+                                        </p>
+                                    )}
+
+                                    <div className="mt-2.5 flex items-center justify-between gap-3">
+                                        <span className="text-[9px] font-medium text-muted-foreground">
+                                            {
+                                                notificationTimeLabel(
+                                                    notificationToast.created_at
+                                                )
+                                            }
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleNotificationClick(
+                                                    notificationToast
+                                                )
+                                            }
+                                            className="inline-flex h-7 items-center rounded-lg bg-primary px-2.5 text-[9px] font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+                                        >
+                                            View
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="h-0.5 overflow-hidden bg-muted">
+                                <div className="h-full w-full origin-left animate-[notificationShrink_2s_linear_forwards] bg-primary/70" />
+                            </div>
+                        </div>
+                    )}
+
+                    <style>{`
+                        @keyframes notificationShrink {
+                            from {
+                                transform: scaleX(1);
+                            }
+
+                            to {
+                                transform: scaleX(0);
+                            }
+                        }
+                    `}</style>
                 </header>
             );
         }
