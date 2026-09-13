@@ -1,3 +1,4 @@
+//Delete Button and Dialog is keeping  hidden. next requirement is to show delete button and dialog for IT Admin only.
 
 //frontend/app/dashboard/urgent/list/page.tsx
 "use client";
@@ -649,11 +650,11 @@ export default function UrgentTaskPage() {
                     title="Complete urgent task?"
                     description={
                         <>
-                            You are about to mark
+                            Are you sure you want to mark
                             <span className="mx-1 font-mono font-semibold text-foreground">
                                 {pendingCompleteTask.reference}
                             </span>
-                            as completed. The authenticated IT Administrator will be recorded in the audit fields.
+                            as completed?
                         </>
                     }
                     confirmLabel="Mark as Completed"
@@ -670,17 +671,19 @@ export default function UrgentTaskPage() {
                 />
             )}
 
-            {pendingDeleteTask && (
+
+            {/* Delete Confirmation Dialog */}
+            {/* {pendingDeleteTask && (
                 <ConfirmActionDialog
                     tone="danger"
                     title="Delete urgent task?"
                     description={
                         <>
-                            This will soft-delete
+                            Are you sure you want to delete
                             <span className="mx-1 font-mono font-semibold text-foreground">
                                 {pendingDeleteTask.reference}
                             </span>
-                            while preserving the record for auditability.
+                            ?
                         </>
                     }
                     confirmLabel="Delete Task"
@@ -695,7 +698,7 @@ export default function UrgentTaskPage() {
                         void handleDeleteConfirmed()
                     }
                 />
-            )}
+            )} */}
         </div>
     );
 }
@@ -887,7 +890,7 @@ function ActionsDropdown({
                             />
                         )}
 
-                    {!isCompleted && (
+                    {/* {!isCompleted && (
                         <DropItem
                             icon={
                                 <Trash2
@@ -901,7 +904,7 @@ function ActionsDropdown({
                                 setOpen(false);
                             }}
                         />
-                    )}
+                    )} */}
                 </div>
             )}
         </div>
@@ -1008,11 +1011,7 @@ function ConfirmActionDialog({
                     </button>
                 </div>
 
-                <div className="mx-5 mt-4 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-[10px] leading-4 text-muted-foreground">
-                    {success
-                        ? "Completion is an auditable workflow transition. completed_at and completed_by are recorded by the backend."
-                        : "Deletion uses soft-delete semantics so historical audit information is preserved."}
-                </div>
+
 
                 <div className="mt-5 flex items-center justify-end gap-2 border-t border-border bg-muted/15 px-5 py-3">
                     <button
