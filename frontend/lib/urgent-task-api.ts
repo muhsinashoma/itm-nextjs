@@ -1,3 +1,4 @@
+// //frotend/list/urgent-task-api.ts
 // import {
 //     api,
 //     getUser,
@@ -57,49 +58,89 @@
 //     department?: string | null;
 // }
 
-// function queryString(params?: Record<string, unknown>) {
-//     if (!params) return "";
+// /**
+//  * Builds a query string from any typed object.
+//  *
+//  * Important:
+//  * Do not type this parameter as Record<string, unknown>.
+//  * A normal TypeScript interface such as UrgentTaskListParams does not
+//  * automatically provide a string index signature, so passing it to a
+//  * Record<string, unknown> parameter causes TS2345.
+//  */
+// function queryString<T extends object>(
+//     params?: T
+// ): string {
+//     if (!params) {
+//         return "";
+//     }
 
 //     const query = new URLSearchParams();
 
-//     Object.entries(params).forEach(([key, value]) => {
-//         if (
-//             value !== undefined &&
-//             value !== null &&
-//             String(value).trim() !== ""
-//         ) {
-//             query.set(key, String(value));
+//     Object.entries(params).forEach(
+//         ([key, value]) => {
+//             if (
+//                 value !== undefined &&
+//                 value !== null &&
+//                 String(value).trim() !== ""
+//             ) {
+//                 query.set(
+//                     key,
+//                     String(value)
+//                 );
+//             }
 //         }
-//     });
+//     );
 
 //     const result = query.toString();
-//     return result ? `?${result}` : "";
+
+//     return result
+//         ? `?${result}`
+//         : "";
 // }
 
 // export const urgentTaskApi = {
-//     list: (params?: UrgentTaskListParams) =>
+//     list: (
+//         params?: UrgentTaskListParams
+//     ) =>
 //         api.get<ApiPage<UrgentTask>>(
-//             `/dashboard/urgent-tasks${queryString(params)}`
+//             `/dashboard/urgent-tasks${queryString(
+//                 params
+//             )}`
 //         ),
 
-//     sidebar: (limit = 5) =>
+//     sidebar: (
+//         limit = 5
+//     ) =>
 //         api.get<ApiOk<UrgentTask[]>>(
-//             `/dashboard/urgent-tasks/sidebar?limit=${limit}`
+//             `/dashboard/urgent-tasks/sidebar?limit=${encodeURIComponent(
+//                 String(limit)
+//             )}`
 //         ),
 
-//     create: (body: UrgentTaskCreateInput) =>
+//     create: (
+//         body: UrgentTaskCreateInput
+//     ) =>
 //         api.post<ApiOk<UrgentTask>>(
 //             "/dashboard/urgent-tasks",
 //             body
 //         ),
 
-//     update: (id: number, body: UrgentTaskCreateInput) =>
-//         api.put<ApiOk<{ updated: boolean }>>(
+//     update: (
+//         id: number,
+//         body: UrgentTaskCreateInput
+//     ) =>
+//         api.put<
+//             ApiOk<{
+//                 updated: boolean;
+//             }>
+//         >(
 //             `/dashboard/urgent-tasks/${id}`,
 //             body
 //         ),
 
-//     complete: (id: number) =>
+//     complete: (
+//         id: number
+//     ) =>
 //         api.patch<
 //             ApiOk<{
 //                 id: number;
@@ -113,20 +154,27 @@
 //             {}
 //         ),
 
-//     remove: (id: number) =>
-//         api.del<void>(`/dashboard/urgent-tasks/${id}`),
+//     remove: (
+//         id: number
+//     ) =>
+//         api.del<void>(
+//             `/dashboard/urgent-tasks/${id}`
+//         ),
 
 //     employees: () =>
-//         api.get<ApiPage<ActiveEmployeeOption>>(
+//         api.get<
+//             ApiPage<ActiveEmployeeOption>
+//         >(
 //             "/employees?page=1&page_size=200&active=Active"
 //         ),
 
-//     currentUser: () => getUser(),
+//     currentUser: () =>
+//         getUser(),
 // };
 
 
 
-
+// // frontend/lib/urgent-task-api.ts
 
 import {
     api,
@@ -187,15 +235,6 @@ export interface ActiveEmployeeOption {
     department?: string | null;
 }
 
-/**
- * Builds a query string from any typed object.
- *
- * Important:
- * Do not type this parameter as Record<string, unknown>.
- * A normal TypeScript interface such as UrgentTaskListParams does not
- * automatically provide a string index signature, so passing it to a
- * Record<string, unknown> parameter causes TS2345.
- */
 function queryString<T extends object>(
     params?: T
 ): string {
@@ -203,9 +242,12 @@ function queryString<T extends object>(
         return "";
     }
 
-    const query = new URLSearchParams();
+    const query =
+        new URLSearchParams();
 
-    Object.entries(params).forEach(
+    Object.entries(
+        params
+    ).forEach(
         ([key, value]) => {
             if (
                 value !== undefined &&
@@ -220,36 +262,87 @@ function queryString<T extends object>(
         }
     );
 
-    const result = query.toString();
+    const result =
+        query.toString();
 
     return result
         ? `?${result}`
         : "";
 }
 
-export const urgentTaskApi = {
-    list: (
-        params?: UrgentTaskListParams
-    ) =>
-        api.get<ApiPage<UrgentTask>>(
-            `/dashboard/urgent-tasks${queryString(
-                params
-            )}`
-        ),
+/**
+ * Always return urgent tasks newest first.
+ *
+ * The backend should also use:
+ *
+ *     ORDER BY id DESC
+ *
+ * This client-side ordering provides a defensive guarantee so the UI remains
+ * newest-first even if the API response is not ordered correctly.
+ */
+function newestFirst(
+    items: UrgentTask[]
+): UrgentTask[] {
+    return [
+        ...items,
+    ].sort(
+        (a, b) =>
+            Number(b.id) -
+            Number(a.id)
+    );
+}
 
-    sidebar: (
+export const urgentTaskApi = {
+    list: async (
+        params?: UrgentTaskListParams
+    ): Promise<
+        ApiPage<UrgentTask>
+    > => {
+        const response =
+            await api.get<
+                ApiPage<UrgentTask>
+            >(
+                `/dashboard/urgent-tasks${queryString(
+                    params
+                )}`
+            );
+
+        return {
+            ...response,
+            data: newestFirst(
+                response.data ?? []
+            ),
+        };
+    },
+
+    sidebar: async (
         limit = 5
-    ) =>
-        api.get<ApiOk<UrgentTask[]>>(
-            `/dashboard/urgent-tasks/sidebar?limit=${encodeURIComponent(
-                String(limit)
-            )}`
-        ),
+    ): Promise<
+        ApiOk<UrgentTask[]>
+    > => {
+        const response =
+            await api.get<
+                ApiOk<UrgentTask[]>
+            >(
+                `/dashboard/urgent-tasks/sidebar?limit=${encodeURIComponent(
+                    String(limit)
+                )}`
+            );
+
+        return {
+            ...response,
+            data: newestFirst(
+                response.data ?? []
+            ),
+        };
+    },
 
     create: (
         body: UrgentTaskCreateInput
     ) =>
-        api.post<ApiOk<UrgentTask>>(
+        api.post<
+            ApiOk<UrgentTask>
+        >(
             "/dashboard/urgent-tasks",
             body
         ),
@@ -300,3 +393,4 @@ export const urgentTaskApi = {
     currentUser: () =>
         getUser(),
 };
+
