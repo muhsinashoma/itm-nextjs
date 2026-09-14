@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-img-element */
-//frontend/app/dashboard/device-clearance/create/page.tsx
 "use client";
 
 import {
@@ -14,14 +13,13 @@ import {
     BriefcaseBusiness,
     CalendarDays,
     CheckCircle2,
-    CreditCard,
     ChevronDown,
     HardDrive,
+    KeyRound,
     Laptop,
     Loader2,
     Network,
     PackageOpen,
-    Phone,
     Printer,
     Search,
     ShieldCheck,
@@ -38,10 +36,6 @@ import {
 import {
     Button,
 } from "@/components/ui/button";
-
-import {
-    Checkbox,
-} from "@/components/ui/checkbox";
 
 import {
     Input,
@@ -72,60 +66,56 @@ type EmployeeSearchRaw = {
     employee_name?: string;
 
     designation?:
-    | string
-    | null;
+        | string
+        | null;
 
     department?:
-    | string
-    | null;
+        | string
+        | null;
 
     department_name?:
-    | string
-    | null;
+        | string
+        | null;
 
     work_field?:
-    | string
-    | null;
+        | string
+        | null;
 
     personal_cell?:
-    | string
-    | null;
+        | string
+        | null;
 
     official_cell?:
-    | string
-    | null;
+        | string
+        | null;
 
     email?:
-    | string
-    | null;
+        | string
+        | null;
 
     official_email?:
-    | string
-    | null;
+        | string
+        | null;
 
     picture?:
-    | string
-    | null;
+        | string
+        | null;
 
     active?:
-    | string
-    | null;
-
-    joining_date?:
-    | string
-    | null;
+        | string
+        | null;
 
     // Legacy Go response support.
     EmpID?: string;
     Name?: string;
 
     Desig?:
-    | string
-    | null;
+        | string
+        | null;
 
     Dept?:
-    | string
-    | null;
+        | string
+        | null;
 };
 
 type EmployeeOption = {
@@ -138,7 +128,6 @@ type EmployeeOption = {
     email: string;
     picture: string;
     active: string;
-    joining_date: string;
 };
 
 type ITEmployeeRaw = {
@@ -146,16 +135,16 @@ type ITEmployeeRaw = {
     employee_name: string;
 
     designation?:
-    | string
-    | null;
+        | string
+        | null;
 
     department?:
-    | string
-    | null;
+        | string
+        | null;
 
     picture?:
-    | string
-    | null;
+        | string
+        | null;
 };
 
 type ITEmployeeOption = {
@@ -171,72 +160,58 @@ type EmployeeDetailsRaw = {
     employee_name?: string;
 
     designation?:
-    | string
-    | null;
+        | string
+        | null;
 
     department?:
-    | string
-    | null;
+        | string
+        | null;
 
     department_name?:
-    | string
-    | null;
+        | string
+        | null;
 
     work_field?:
-    | string
-    | null;
+        | string
+        | null;
 
     personal_cell?:
-    | string
-    | null;
+        | string
+        | null;
 
     official_cell?:
-    | string
-    | null;
+        | string
+        | null;
 
     email?:
-    | string
-    | null;
+        | string
+        | null;
 
     official_email?:
-    | string
-    | null;
+        | string
+        | null;
 
     picture?:
-    | string
-    | null;
-
-    joining_date?:
-    | string
-    | null;
-};
-
-type JoiningRequirements = {
-    device: boolean;
-    vpn: boolean;
-    ip_phone: boolean;
-    printer: boolean;
-    endpoint_security: boolean;
-    card_access: boolean;
+        | string
+        | null;
 };
 
 type CreateRequestResult = {
     id: number;
 
     reference_no?:
-    | string
-    | null;
+        | string
+        | null;
 
     status?:
-    | string
-    | null;
+        | string
+        | null;
 };
 
 type LifecycleFormState = {
     request_type: RequestType;
 
     effective_date: string;
-    joining_date: string;
 
     employee_id: string;
     employee_name: string;
@@ -262,9 +237,6 @@ const EMPTY_FORM: LifecycleFormState = {
         "Joining",
 
     effective_date:
-        "",
-
-    joining_date:
         "",
 
     employee_id:
@@ -301,15 +273,6 @@ const EMPTY_FORM: LifecycleFormState = {
         "",
 };
 
-const EMPTY_JOINING_REQUIREMENTS: JoiningRequirements = {
-    device: false,
-    vpn: false,
-    ip_phone: false,
-    printer: false,
-    endpoint_security: false,
-    card_access: false,
-};
-
 /*
  * This reproduces the legacy PHP HRIS image URL:
  *
@@ -327,67 +290,67 @@ const REQUEST_TYPES: Array<{
     label: string;
     description: string;
 }> = [
-        {
-            value:
-                "Joining",
+    {
+        value:
+            "Joining",
 
-            label:
-                "Joining",
+        label:
+            "Joining",
 
-            description:
-                "Prepare IT access, device and standard services for a new employee.",
-        },
-        {
-            value:
-                "Resignation",
+        description:
+            "Prepare IT access, device and standard services for a new employee.",
+    },
+    {
+        value:
+            "Resignation",
 
-            label:
-                "Resignation",
+        label:
+            "Resignation",
 
-            description:
-                "Recover assets and revoke IT access for a resigning employee.",
-        },
-        {
-            value:
-                "Retirement",
+        description:
+            "Recover assets and revoke IT access for a resigning employee.",
+    },
+    {
+        value:
+            "Retirement",
 
-            label:
-                "Retirement",
+        label:
+            "Retirement",
 
-            description:
-                "Complete IT exit activities for a retiring employee.",
-        },
-        {
-            value:
-                "Contract End",
+        description:
+            "Complete IT exit activities for a retiring employee.",
+    },
+    {
+        value:
+            "Contract End",
 
-            label:
-                "Contract End",
+        label:
+            "Contract End",
 
-            description:
-                "Close IT access and recover assigned assets when a contract ends.",
-        },
-        {
-            value:
-                "Termination",
+        description:
+            "Close IT access and recover assigned assets when a contract ends.",
+    },
+    {
+        value:
+            "Termination",
 
-            label:
-                "Termination",
+        label:
+            "Termination",
 
-            description:
-                "Complete controlled IT offboarding for a terminated employee.",
-        },
-        {
-            value:
-                "Other",
+        description:
+            "Complete controlled IT offboarding for a terminated employee.",
+    },
+    {
+        value:
+            "Other",
 
-            label:
-                "Other",
+        label:
+            "Other",
 
-            description:
-                "Create another employee IT lifecycle request.",
-        },
-    ];
+        description:
+            "Create another employee IT lifecycle request.",
+    },
+];
 
 /* ============================================================
    HELPERS
@@ -399,7 +362,7 @@ function readApiData<T>(
     if (
         response &&
         typeof response ===
-        "object" &&
+            "object" &&
         "data" in response
     ) {
         const first =
@@ -412,7 +375,7 @@ function readApiData<T>(
         if (
             first &&
             typeof first ===
-            "object" &&
+                "object" &&
             "data" in first
         ) {
             return (
@@ -492,26 +455,26 @@ function normalizeEmployee(
         employee_id:
             text(
                 employee.employee_id ??
-                employee.EmpID
+                    employee.EmpID
             ),
 
         employee_name:
             text(
                 employee.employee_name ??
-                employee.Name
+                    employee.Name
             ),
 
         designation:
             text(
                 employee.designation ??
-                employee.Desig
+                    employee.Desig
             ),
 
         department:
             text(
                 employee.department ??
-                employee.department_name ??
-                employee.Dept
+                    employee.department_name ??
+                    employee.Dept
             ),
 
         work_field:
@@ -522,13 +485,13 @@ function normalizeEmployee(
         phone:
             text(
                 employee.official_cell ??
-                employee.personal_cell
+                    employee.personal_cell
             ),
 
         email:
             text(
                 employee.official_email ??
-                employee.email
+                    employee.email
             ),
 
         picture:
@@ -539,11 +502,6 @@ function normalizeEmployee(
         active:
             text(
                 employee.active
-            ),
-
-        joining_date:
-            text(
-                employee.joining_date
             ),
     };
 }
@@ -643,14 +601,6 @@ export default function DeviceLifecycleCreatePage() {
     ] =
         useState<LifecycleFormState>(
             EMPTY_FORM
-        );
-
-    const [
-        joiningRequirements,
-        setJoiningRequirements,
-    ] =
-        useState<JoiningRequirements>(
-            EMPTY_JOINING_REQUIREMENTS
         );
 
     const [
@@ -842,12 +792,12 @@ export default function DeviceLifecycleCreatePage() {
                                 ) =>
                                     Boolean(
                                         employee.employee_id &&
-                                        employee.employee_name
+                                            employee.employee_name
                                     )
                             )
                     );
                 } catch (
-                reason
+                    reason
                 ) {
                     console.error(
                         "Unable to load IT personnel:",
@@ -887,7 +837,7 @@ export default function DeviceLifecycleCreatePage() {
             if (
                 form.employee_id &&
                 query ===
-                form.employee_name
+                    form.employee_name
             ) {
                 setEmployeeResults(
                     []
@@ -958,7 +908,7 @@ export default function DeviceLifecycleCreatePage() {
                                         ) =>
                                             Boolean(
                                                 employee.employee_id &&
-                                                employee.employee_name
+                                                    employee.employee_name
                                             )
                                     );
 
@@ -970,7 +920,7 @@ export default function DeviceLifecycleCreatePage() {
                                 true
                             );
                         } catch (
-                        reason
+                            reason
                         ) {
                             console.error(
                                 "Employee search failed:",
@@ -1081,11 +1031,11 @@ export default function DeviceLifecycleCreatePage() {
             ? "Joining Date"
             : form.request_type ===
                 "Contract End"
-                ? "Contract End Date"
-                : form.request_type ===
-                    "Retirement"
-                    ? "Retirement Date"
-                    : "Last Working Date";
+            ? "Contract End Date"
+            : form.request_type ===
+                "Retirement"
+            ? "Retirement Date"
+            : "Last Working Date";
 
     const pageTitle =
         isJoining
@@ -1097,32 +1047,17 @@ export default function DeviceLifecycleCreatePage() {
             ? "Create & Assign Joining Task"
             : "Create & Assign Clearance";
 
-    const joiningSelectedCount =
-        Object.values(
-            joiningRequirements
-        ).filter(
-            Boolean
-        ).length;
-
     const isFormValid =
         Boolean(
             form.request_type &&
-            (
-                isJoining
-                    ? form.joining_date
-                    : form.effective_date
-            ) &&
-            form.employee_id &&
-            form.employee_name &&
-            form.assigned_to &&
-            form.assigned_to_name
+                form.effective_date &&
+                form.employee_id &&
+                form.employee_name &&
+                form.assigned_to &&
+                form.assigned_to_name
         ) &&
         form.employee_id !==
-        form.assigned_to &&
-        (
-            !isJoining ||
-            joiningSelectedCount > 0
-        );
+            form.assigned_to;
 
     /* ========================================================
        EMPLOYEE SELECTION
@@ -1168,7 +1103,7 @@ export default function DeviceLifecycleCreatePage() {
                 devices
             );
         } catch (
-        reason
+            reason
         ) {
             console.error(
                 "Unable to load assigned devices:",
@@ -1224,9 +1159,6 @@ export default function DeviceLifecycleCreatePage() {
 
                 employee_picture:
                     employee.picture,
-
-                joining_date:
-                    employee.joining_date,
             })
         );
 
@@ -1302,7 +1234,7 @@ export default function DeviceLifecycleCreatePage() {
                         department:
                             text(
                                 details.department ??
-                                details.department_name
+                                    details.department_name
                             ) ||
                             previous.department,
 
@@ -1315,14 +1247,14 @@ export default function DeviceLifecycleCreatePage() {
                         phone:
                             text(
                                 details.official_cell ??
-                                details.personal_cell
+                                    details.personal_cell
                             ) ||
                             previous.phone,
 
                         email:
                             text(
                                 details.official_email ??
-                                details.email
+                                    details.email
                             ) ||
                             previous.email,
 
@@ -1331,17 +1263,11 @@ export default function DeviceLifecycleCreatePage() {
                                 details.picture
                             ) ||
                             previous.employee_picture,
-
-                        joining_date:
-                            text(
-                                details.joining_date
-                            ) ||
-                            previous.joining_date,
                     };
                 }
             );
         } catch (
-        reason
+            reason
         ) {
             console.error(
                 "Unable to load employee details:",
@@ -1401,9 +1327,6 @@ export default function DeviceLifecycleCreatePage() {
                     "",
 
                 employee_picture:
-                    "",
-
-                joining_date:
                     "",
             })
         );
@@ -1494,34 +1417,10 @@ export default function DeviceLifecycleCreatePage() {
         }
 
         if (
-            isJoining &&
-            !form.joining_date
-        ) {
-            setError(
-                "Joining date is missing in HRIS / employee office information."
-            );
-
-            return;
-        }
-
-        if (
-            !isJoining &&
             !form.effective_date
         ) {
             setError(
                 `Please select the ${dateLabel.toLowerCase()}.`
-            );
-
-            return;
-        }
-
-        if (
-            isJoining &&
-            joiningSelectedCount ===
-            0
-        ) {
-            setError(
-                "Select at least one Joining IT Preparation item."
             );
 
             return;
@@ -1579,9 +1478,7 @@ export default function DeviceLifecycleCreatePage() {
                             form.request_type,
 
                         effective_date:
-                            isJoining
-                                ? ""
-                                : form.effective_date,
+                            form.effective_date,
 
                         employee_id:
                             form.employee_id,
@@ -1589,43 +1486,15 @@ export default function DeviceLifecycleCreatePage() {
                         assigned_to:
                             form.assigned_to,
 
-                        // Exit date only. Joining date is fetched server-side
-                        // from employee_office_info.joining_date.
+                        // Existing backend compatibility.
                         resignation_date:
-                            isJoining
-                                ? ""
-                                : form.effective_date,
+                            form.effective_date,
 
                         separation_mode:
                             form.request_type,
 
                         remarks:
                             form.remarks.trim(),
-
-                        // Joining scope selected by the request creator.
-                        joining_device_required:
-                            isJoining &&
-                            joiningRequirements.device,
-
-                        joining_vpn_required:
-                            isJoining &&
-                            joiningRequirements.vpn,
-
-                        joining_ip_phone_required:
-                            isJoining &&
-                            joiningRequirements.ip_phone,
-
-                        joining_printer_required:
-                            isJoining &&
-                            joiningRequirements.printer,
-
-                        joining_endpoint_security_required:
-                            isJoining &&
-                            joiningRequirements.endpoint_security,
-
-                        joining_card_access_required:
-                            isJoining &&
-                            joiningRequirements.card_access,
 
                         /*
                          * The creation screen no longer performs
@@ -1674,7 +1543,7 @@ export default function DeviceLifecycleCreatePage() {
                 "/dashboard/device-clearance/clearance-list"
             );
         } catch (
-        reason
+            reason
         ) {
             setError(
                 reason instanceof
@@ -1721,9 +1590,10 @@ export default function DeviceLifecycleCreatePage() {
                             py-1.5
                             text-xs
                             font-semibold
-                            ${isFormValid
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-amber-200 bg-amber-50 text-amber-700"
+                            ${
+                                isFormValid
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-amber-200 bg-amber-50 text-amber-700"
                             }
                         `}
                     >
@@ -1756,7 +1626,7 @@ export default function DeviceLifecycleCreatePage() {
                         </h2>
 
                         <p className="mt-1 text-xs text-muted-foreground">
-                            Joining date comes from HRIS automatically. Exit dates are entered only when required.
+                            Select the employee lifecycle event and the date when IT action is required.
                         </p>
                     </div>
 
@@ -1784,7 +1654,7 @@ export default function DeviceLifecycleCreatePage() {
                                                     event
                                                         .target
                                                         .value as
-                                                    RequestType,
+                                                        RequestType,
                                             })
                                         )
                                     }
@@ -1844,49 +1714,30 @@ export default function DeviceLifecycleCreatePage() {
                                         "
                                     />
 
-                                    {isJoining ? (
-                                        <Input
-                                            type="date"
-                                            value={
-                                                form.joining_date
-                                            }
-                                            readOnly
-                                            placeholder="Select employee first"
-                                            className="h-11 cursor-default bg-muted/35 pl-9"
-                                            title="Joining date is loaded from employee_office_info"
-                                        />
-                                    ) : (
-                                        <Input
-                                            type="date"
-                                            value={
-                                                form.effective_date
-                                            }
-                                            className="h-11 pl-9"
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                setForm(
-                                                    (
-                                                        previous
-                                                    ) => ({
-                                                        ...previous,
+                                    <Input
+                                        type="date"
+                                        value={
+                                            form.effective_date
+                                        }
+                                        className="h-11 pl-9"
+                                        onChange={(
+                                            event
+                                        ) =>
+                                            setForm(
+                                                (
+                                                    previous
+                                                ) => ({
+                                                    ...previous,
 
-                                                        effective_date:
-                                                            event
-                                                                .target
-                                                                .value,
-                                                    })
-                                                )
-                                            }
-                                        />
-                                    )}
+                                                    effective_date:
+                                                        event
+                                                            .target
+                                                            .value,
+                                                })
+                                            )
+                                        }
+                                    />
                                 </div>
-
-                                {isJoining && (
-                                    <p className="mt-1.5 text-[10px] text-muted-foreground">
-                                        Auto-filled from HRIS employee office information.
-                                    </p>
-                                )}
                             </div>
                         </div>
 
@@ -1895,9 +1746,10 @@ export default function DeviceLifecycleCreatePage() {
                                 rounded-xl
                                 border
                                 p-4
-                                ${isJoining
-                                    ? "border-blue-200 bg-blue-50/70"
-                                    : "border-amber-200 bg-amber-50/70"
+                                ${
+                                    isJoining
+                                        ? "border-blue-200 bg-blue-50/70"
+                                        : "border-amber-200 bg-amber-50/70"
                                 }
                             `}
                         >
@@ -1911,9 +1763,10 @@ export default function DeviceLifecycleCreatePage() {
                                         items-center
                                         justify-center
                                         rounded-xl
-                                        ${isJoining
-                                            ? "bg-blue-100 text-blue-700"
-                                            : "bg-amber-100 text-amber-700"
+                                        ${
+                                            isJoining
+                                                ? "bg-blue-100 text-blue-700"
+                                                : "bg-amber-100 text-amber-700"
                                         }
                                     `}
                                 >
@@ -2036,7 +1889,7 @@ export default function DeviceLifecycleCreatePage() {
                                                 if (
                                                     form.employee_id &&
                                                     value !==
-                                                    form.employee_name
+                                                        form.employee_name
                                                 ) {
                                                     clearEmployee();
 
@@ -2106,7 +1959,7 @@ export default function DeviceLifecycleCreatePage() {
                                             employeeQuery
                                                 .trim()
                                                 .length >=
-                                            2 && (
+                                                2 && (
                                                 <div
                                                     className="
                                                         absolute
@@ -2124,14 +1977,14 @@ export default function DeviceLifecycleCreatePage() {
                                                     "
                                                 >
                                                     {employeeSearching &&
-                                                        employeeResults.length ===
+                                                    employeeResults.length ===
                                                         0 ? (
                                                         <div className="flex items-center justify-center gap-2 px-4 py-8 text-sm text-muted-foreground">
                                                             <Loader2 className="h-4 w-4 animate-spin" />
                                                             Searching employees...
                                                         </div>
                                                     ) : employeeResults.length >
-                                                        0 ? (
+                                                      0 ? (
                                                         <div className="divide-y divide-border">
                                                             {employeeResults.map(
                                                                 (
@@ -2271,181 +2124,63 @@ export default function DeviceLifecycleCreatePage() {
 
                 {isJoining ? (
                     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-                        <div className="flex flex-col gap-2 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h2 className="text-sm font-semibold text-foreground">
-                                    Joining IT Preparation
-                                </h2>
+                        <div className="border-b border-border px-5 py-4">
+                            <h2 className="text-sm font-semibold text-foreground">
+                                Joining IT Preparation
+                            </h2>
 
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Select the IT activities required for this employee. Only selected items will be assigned to the responsible IT person.
-                                </p>
-                            </div>
-
-                            <span
-                                className={`
-                                    inline-flex
-                                    w-fit
-                                    rounded-full
-                                    border
-                                    px-2.5
-                                    py-1
-                                    text-[11px]
-                                    font-semibold
-                                    ${
-                                        joiningSelectedCount > 0
-                                            ? "border-blue-200 bg-blue-50 text-blue-700"
-                                            : "border-amber-200 bg-amber-50 text-amber-700"
-                                    }
-                                `}
-                            >
-                                {joiningSelectedCount}/6 selected
-                            </span>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                The assigned IT employee will complete these setup activities after the task is created.
+                            </p>
                         </div>
 
                         <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
                             <PreparationCard
-                                checked={
-                                    joiningRequirements.device
-                                }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            device:
-                                                checked,
-                                        })
-                                    )
-                                }
                                 icon={
-                                    <Laptop className="h-5 w-5" />
+                                    <KeyRound className="h-5 w-5" />
                                 }
-                                title="Device Assigned"
-                                description="Assign and configure the approved laptop, desktop or other required IT equipment."
+                                title="Account & Access"
+                                description="Prepare corporate account, email and standard access."
                             />
 
                             <PreparationCard
-                                checked={
-                                    joiningRequirements.vpn
+                                icon={
+                                    <Laptop className="h-5 w-5" />
                                 }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            vpn:
-                                                checked,
-                                        })
-                                    )
-                                }
+                                title="Device Provisioning"
+                                description="Allocate and configure the required workstation or laptop."
+                            />
+
+                            <PreparationCard
                                 icon={
                                     <Network className="h-5 w-5" />
                                 }
                                 title="VPN Access"
-                                description="Enable the required VPN profile and approved remote-access permissions."
+                                description="Enable the required VPN profile and remote-access permissions for the employee."
                             />
 
                             <PreparationCard
-                                checked={
-                                    joiningRequirements.ip_phone
-                                }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            ip_phone:
-                                                checked,
-                                        })
-                                    )
-                                }
-                                icon={
-                                    <Phone className="h-5 w-5" />
-                                }
-                                title="IP Phone"
-                                description="Create or activate the employee IP phone extension and voice service."
-                            />
-
-                            <PreparationCard
-                                checked={
-                                    joiningRequirements.printer
-                                }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            printer:
-                                                checked,
-                                        })
-                                    )
-                                }
                                 icon={
                                     <Printer className="h-5 w-5" />
                                 }
                                 title="Printer Access"
-                                description="Grant approved printer and print-server access for the employee role."
+                                description="Grant approved printer and print-server access based on the employee role."
                             />
 
                             <PreparationCard
-                                checked={
-                                    joiningRequirements.endpoint_security
+                                icon={
+                                    <Network className="h-5 w-5" />
                                 }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            endpoint_security:
-                                                checked,
-                                        })
-                                    )
-                                }
+                                title="Network Services"
+                                description="Configure the employee network profile, IP phone and standard connectivity services."
+                            />
+
+                            <PreparationCard
                                 icon={
                                     <ShieldCheck className="h-5 w-5" />
                                 }
-                                title="Endpoint Security"
-                                description="Install and activate Panda / endpoint security with the standard policy."
-                            />
-
-                            <PreparationCard
-                                checked={
-                                    joiningRequirements.card_access
-                                }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            card_access:
-                                                checked,
-                                        })
-                                    )
-                                }
-                                icon={
-                                    <CreditCard className="h-5 w-5" />
-                                }
-                                title="Card Access"
-                                description="Activate the employee physical access card and approved office access."
+                                title="Security Baseline"
+                                description="Apply endpoint security and standard IT security controls."
                             />
                         </div>
                     </section>
@@ -2468,7 +2203,7 @@ export default function DeviceLifecycleCreatePage() {
                                     <span className="inline-flex w-fit rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
                                         {assignedDevices.length}{" "}
                                         {assignedDevices.length ===
-                                            1
+                                        1
                                             ? "device"
                                             : "devices"}
                                     </span>
@@ -2511,7 +2246,7 @@ export default function DeviceLifecycleCreatePage() {
                                     </Button>
                                 </div>
                             ) : assignedDevices.length ===
-                                0 ? (
+                              0 ? (
                                 <div className="flex min-h-[120px] flex-col items-center justify-center rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-4 text-center">
                                     <PackageOpen className="h-8 w-8 text-emerald-600/70" />
 
@@ -2704,7 +2439,7 @@ export default function DeviceLifecycleCreatePage() {
                                             "
                                         >
                                             {filteredITPersonnel.length >
-                                                0 ? (
+                                            0 ? (
                                                 <div className="divide-y divide-border">
                                                     {filteredITPersonnel.map(
                                                         (
@@ -2771,8 +2506,8 @@ export default function DeviceLifecycleCreatePage() {
                                                                             {isSameEmployee
                                                                                 ? "Cannot assign the same employee"
                                                                                 : employee.department ||
-                                                                                employee.designation ||
-                                                                                "IT"}
+                                                                                  employee.designation ||
+                                                                                  "IT"}
                                                                         </p>
 
                                                                         {employee.designation &&
@@ -2950,9 +2685,10 @@ export default function DeviceLifecycleCreatePage() {
                         px-4
                         py-3
                         text-sm
-                        ${isJoining
-                            ? "border-blue-200 bg-blue-50 text-blue-800"
-                            : "border-amber-200 bg-amber-50 text-amber-800"
+                        ${
+                            isJoining
+                                ? "border-blue-200 bg-blue-50 text-blue-800"
+                                : "border-amber-200 bg-amber-50 text-amber-800"
                         }
                     `}
                 >
@@ -3017,10 +2753,10 @@ function FieldLabel({
     required = false,
 }: {
     children:
-    React.ReactNode;
+        React.ReactNode;
 
     required?:
-    boolean;
+        boolean;
 }) {
     return (
         <label className="mb-1.5 block text-xs font-semibold text-foreground">
@@ -3040,10 +2776,10 @@ function ReadOnlyField({
     value,
 }: {
     label:
-    string;
+        string;
 
     value:
-    string;
+        string;
 }) {
     return (
         <div>
@@ -3064,20 +2800,10 @@ function ReadOnlyField({
 }
 
 function PreparationCard({
-    checked,
-    onCheckedChange,
     icon,
     title,
     description,
 }: {
-    checked:
-        boolean;
-
-    onCheckedChange:
-        (
-            checked: boolean
-        ) => void;
-
     icon:
         React.ReactNode;
 
@@ -3088,80 +2814,19 @@ function PreparationCard({
         string;
 }) {
     return (
-        <label
-            className={`
-                group
-                flex
-                cursor-pointer
-                items-start
-                gap-3
-                rounded-xl
-                border
-                p-4
-                transition-all
-                ${
-                    checked
-                        ? "border-primary/40 bg-primary/[0.04] shadow-sm ring-1 ring-primary/10"
-                        : "border-border bg-background hover:border-primary/20 hover:bg-muted/20"
-                }
-            `}
-        >
-            <Checkbox
-                checked={
-                    checked
-                }
-                onCheckedChange={(
-                    value
-                ) =>
-                    onCheckedChange(
-                        value ===
-                            true
-                    )
-                }
-                aria-label={
-                    title
-                }
-                className="mt-2 h-5 w-5 shrink-0"
-            />
-
-            <div
-                className={`
-                    flex
-                    h-10
-                    w-10
-                    shrink-0
-                    items-center
-                    justify-center
-                    rounded-xl
-                    transition-colors
-                    ${
-                        checked
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-primary/10 text-primary"
-                    }
-                `}
-            >
+        <div className="rounded-xl border border-border bg-background p-4 transition-colors hover:bg-muted/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 {icon}
             </div>
 
-            <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">
-                        {title}
-                    </p>
+            <p className="mt-3 text-sm font-semibold text-foreground">
+                {title}
+            </p>
 
-                    {checked && (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                            Required
-                        </span>
-                    )}
-                </div>
-
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {description}
-                </p>
-            </div>
-        </label>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {description}
+            </p>
+        </div>
     );
 }
 
@@ -3170,10 +2835,10 @@ function EmptyState({
     description,
 }: {
     title:
-    string;
+        string;
 
     description:
-    string;
+        string;
 }) {
     return (
         <div className="flex min-h-[120px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/15 px-4 text-center">
@@ -3194,7 +2859,7 @@ function DeviceTable({
     devices,
 }: {
     devices:
-    Device[];
+        Device[];
 }) {
     return (
         <div className="overflow-hidden rounded-xl border border-border">
@@ -3317,7 +2982,7 @@ function DeviceHead({
     children,
 }: {
     children:
-    React.ReactNode;
+        React.ReactNode;
 }) {
     return (
         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -3330,9 +2995,9 @@ function DeviceStatusBadge({
     status,
 }: {
     status:
-    | string
-    | null
-    | undefined;
+        | string
+        | null
+        | undefined;
 }) {
     const value =
         text(
@@ -3346,22 +3011,22 @@ function DeviceStatusBadge({
     const classes =
         key ===
             "assigned" ||
-            key ===
+        key ===
             "1"
             ? "border-blue-200 bg-blue-50 text-blue-700"
             : key ===
-                "returned" ||
-                key ===
-                "4"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : key ===
-                    "transferred" ||
-                    key ===
-                    "transfer" ||
-                    key ===
-                    "3"
-                    ? "border-amber-200 bg-amber-50 text-amber-700"
-                    : "border-border bg-muted/40 text-muted-foreground";
+                  "returned" ||
+              key ===
+                  "4"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : key ===
+                  "transferred" ||
+              key ===
+                  "transfer" ||
+              key ===
+                  "3"
+            ? "border-amber-200 bg-amber-50 text-amber-700"
+            : "border-border bg-muted/40 text-muted-foreground";
 
     return (
         <span
@@ -3387,13 +3052,13 @@ function EmployeeAvatar({
     large = false,
 }: {
     name:
-    string;
+        string;
 
     picture:
-    string;
+        string;
 
     large?:
-    boolean;
+        boolean;
 }) {
     const [
         imageFailed,

@@ -14,14 +14,13 @@ import {
     BriefcaseBusiness,
     CalendarDays,
     CheckCircle2,
-    CreditCard,
     ChevronDown,
     HardDrive,
+    KeyRound,
     Laptop,
     Loader2,
     Network,
     PackageOpen,
-    Phone,
     Printer,
     Search,
     ShieldCheck,
@@ -38,10 +37,6 @@ import {
 import {
     Button,
 } from "@/components/ui/button";
-
-import {
-    Checkbox,
-} from "@/components/ui/checkbox";
 
 import {
     Input,
@@ -111,10 +106,6 @@ type EmployeeSearchRaw = {
     | string
     | null;
 
-    joining_date?:
-    | string
-    | null;
-
     // Legacy Go response support.
     EmpID?: string;
     Name?: string;
@@ -138,7 +129,6 @@ type EmployeeOption = {
     email: string;
     picture: string;
     active: string;
-    joining_date: string;
 };
 
 type ITEmployeeRaw = {
@@ -205,19 +195,6 @@ type EmployeeDetailsRaw = {
     picture?:
     | string
     | null;
-
-    joining_date?:
-    | string
-    | null;
-};
-
-type JoiningRequirements = {
-    device: boolean;
-    vpn: boolean;
-    ip_phone: boolean;
-    printer: boolean;
-    endpoint_security: boolean;
-    card_access: boolean;
 };
 
 type CreateRequestResult = {
@@ -236,7 +213,6 @@ type LifecycleFormState = {
     request_type: RequestType;
 
     effective_date: string;
-    joining_date: string;
 
     employee_id: string;
     employee_name: string;
@@ -262,9 +238,6 @@ const EMPTY_FORM: LifecycleFormState = {
         "Joining",
 
     effective_date:
-        "",
-
-    joining_date:
         "",
 
     employee_id:
@@ -299,15 +272,6 @@ const EMPTY_FORM: LifecycleFormState = {
 
     remarks:
         "",
-};
-
-const EMPTY_JOINING_REQUIREMENTS: JoiningRequirements = {
-    device: false,
-    vpn: false,
-    ip_phone: false,
-    printer: false,
-    endpoint_security: false,
-    card_access: false,
 };
 
 /*
@@ -540,11 +504,6 @@ function normalizeEmployee(
             text(
                 employee.active
             ),
-
-        joining_date:
-            text(
-                employee.joining_date
-            ),
     };
 }
 
@@ -643,14 +602,6 @@ export default function DeviceLifecycleCreatePage() {
     ] =
         useState<LifecycleFormState>(
             EMPTY_FORM
-        );
-
-    const [
-        joiningRequirements,
-        setJoiningRequirements,
-    ] =
-        useState<JoiningRequirements>(
-            EMPTY_JOINING_REQUIREMENTS
         );
 
     const [
@@ -1097,32 +1048,17 @@ export default function DeviceLifecycleCreatePage() {
             ? "Create & Assign Joining Task"
             : "Create & Assign Clearance";
 
-    const joiningSelectedCount =
-        Object.values(
-            joiningRequirements
-        ).filter(
-            Boolean
-        ).length;
-
     const isFormValid =
         Boolean(
             form.request_type &&
-            (
-                isJoining
-                    ? form.joining_date
-                    : form.effective_date
-            ) &&
+            form.effective_date &&
             form.employee_id &&
             form.employee_name &&
             form.assigned_to &&
             form.assigned_to_name
         ) &&
         form.employee_id !==
-        form.assigned_to &&
-        (
-            !isJoining ||
-            joiningSelectedCount > 0
-        );
+        form.assigned_to;
 
     /* ========================================================
        EMPLOYEE SELECTION
@@ -1224,9 +1160,6 @@ export default function DeviceLifecycleCreatePage() {
 
                 employee_picture:
                     employee.picture,
-
-                joining_date:
-                    employee.joining_date,
             })
         );
 
@@ -1331,12 +1264,6 @@ export default function DeviceLifecycleCreatePage() {
                                 details.picture
                             ) ||
                             previous.employee_picture,
-
-                        joining_date:
-                            text(
-                                details.joining_date
-                            ) ||
-                            previous.joining_date,
                     };
                 }
             );
@@ -1401,9 +1328,6 @@ export default function DeviceLifecycleCreatePage() {
                     "",
 
                 employee_picture:
-                    "",
-
-                joining_date:
                     "",
             })
         );
@@ -1494,34 +1418,10 @@ export default function DeviceLifecycleCreatePage() {
         }
 
         if (
-            isJoining &&
-            !form.joining_date
-        ) {
-            setError(
-                "Joining date is missing in HRIS / employee office information."
-            );
-
-            return;
-        }
-
-        if (
-            !isJoining &&
             !form.effective_date
         ) {
             setError(
                 `Please select the ${dateLabel.toLowerCase()}.`
-            );
-
-            return;
-        }
-
-        if (
-            isJoining &&
-            joiningSelectedCount ===
-            0
-        ) {
-            setError(
-                "Select at least one Joining IT Preparation item."
             );
 
             return;
@@ -1579,9 +1479,7 @@ export default function DeviceLifecycleCreatePage() {
                             form.request_type,
 
                         effective_date:
-                            isJoining
-                                ? ""
-                                : form.effective_date,
+                            form.effective_date,
 
                         employee_id:
                             form.employee_id,
@@ -1589,43 +1487,15 @@ export default function DeviceLifecycleCreatePage() {
                         assigned_to:
                             form.assigned_to,
 
-                        // Exit date only. Joining date is fetched server-side
-                        // from employee_office_info.joining_date.
+                        // Existing backend compatibility.
                         resignation_date:
-                            isJoining
-                                ? ""
-                                : form.effective_date,
+                            form.effective_date,
 
                         separation_mode:
                             form.request_type,
 
                         remarks:
                             form.remarks.trim(),
-
-                        // Joining scope selected by the request creator.
-                        joining_device_required:
-                            isJoining &&
-                            joiningRequirements.device,
-
-                        joining_vpn_required:
-                            isJoining &&
-                            joiningRequirements.vpn,
-
-                        joining_ip_phone_required:
-                            isJoining &&
-                            joiningRequirements.ip_phone,
-
-                        joining_printer_required:
-                            isJoining &&
-                            joiningRequirements.printer,
-
-                        joining_endpoint_security_required:
-                            isJoining &&
-                            joiningRequirements.endpoint_security,
-
-                        joining_card_access_required:
-                            isJoining &&
-                            joiningRequirements.card_access,
 
                         /*
                          * The creation screen no longer performs
@@ -1756,7 +1626,7 @@ export default function DeviceLifecycleCreatePage() {
                         </h2>
 
                         <p className="mt-1 text-xs text-muted-foreground">
-                            Joining date comes from HRIS automatically. Exit dates are entered only when required.
+                            Select the employee lifecycle event and the date when IT action is required.
                         </p>
                     </div>
 
@@ -1844,49 +1714,30 @@ export default function DeviceLifecycleCreatePage() {
                                         "
                                     />
 
-                                    {isJoining ? (
-                                        <Input
-                                            type="date"
-                                            value={
-                                                form.joining_date
-                                            }
-                                            readOnly
-                                            placeholder="Select employee first"
-                                            className="h-11 cursor-default bg-muted/35 pl-9"
-                                            title="Joining date is loaded from employee_office_info"
-                                        />
-                                    ) : (
-                                        <Input
-                                            type="date"
-                                            value={
-                                                form.effective_date
-                                            }
-                                            className="h-11 pl-9"
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                setForm(
-                                                    (
-                                                        previous
-                                                    ) => ({
-                                                        ...previous,
+                                    <Input
+                                        type="date"
+                                        value={
+                                            form.effective_date
+                                        }
+                                        className="h-11 pl-9"
+                                        onChange={(
+                                            event
+                                        ) =>
+                                            setForm(
+                                                (
+                                                    previous
+                                                ) => ({
+                                                    ...previous,
 
-                                                        effective_date:
-                                                            event
-                                                                .target
-                                                                .value,
-                                                    })
-                                                )
-                                            }
-                                        />
-                                    )}
+                                                    effective_date:
+                                                        event
+                                                            .target
+                                                            .value,
+                                                })
+                                            )
+                                        }
+                                    />
                                 </div>
-
-                                {isJoining && (
-                                    <p className="mt-1.5 text-[10px] text-muted-foreground">
-                                        Auto-filled from HRIS employee office information.
-                                    </p>
-                                )}
                             </div>
                         </div>
 
@@ -2271,181 +2122,63 @@ export default function DeviceLifecycleCreatePage() {
 
                 {isJoining ? (
                     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-                        <div className="flex flex-col gap-2 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h2 className="text-sm font-semibold text-foreground">
-                                    Joining IT Preparation
-                                </h2>
+                        <div className="border-b border-border px-5 py-4">
+                            <h2 className="text-sm font-semibold text-foreground">
+                                Joining IT Preparation
+                            </h2>
 
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Select the IT activities required for this employee. Only selected items will be assigned to the responsible IT person.
-                                </p>
-                            </div>
-
-                            <span
-                                className={`
-                                    inline-flex
-                                    w-fit
-                                    rounded-full
-                                    border
-                                    px-2.5
-                                    py-1
-                                    text-[11px]
-                                    font-semibold
-                                    ${
-                                        joiningSelectedCount > 0
-                                            ? "border-blue-200 bg-blue-50 text-blue-700"
-                                            : "border-amber-200 bg-amber-50 text-amber-700"
-                                    }
-                                `}
-                            >
-                                {joiningSelectedCount}/6 selected
-                            </span>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                The assigned IT employee will complete these setup activities after the task is created.
+                            </p>
                         </div>
 
                         <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
                             <PreparationCard
-                                checked={
-                                    joiningRequirements.device
-                                }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            device:
-                                                checked,
-                                        })
-                                    )
-                                }
                                 icon={
-                                    <Laptop className="h-5 w-5" />
+                                    <KeyRound className="h-5 w-5" />
                                 }
-                                title="Device Assigned"
-                                description="Assign and configure the approved laptop, desktop or other required IT equipment."
+                                title="Account & Access"
+                                description="Prepare corporate account, email and standard access."
                             />
 
                             <PreparationCard
-                                checked={
-                                    joiningRequirements.vpn
+                                icon={
+                                    <Laptop className="h-5 w-5" />
                                 }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            vpn:
-                                                checked,
-                                        })
-                                    )
-                                }
+                                title="Device Provisioning"
+                                description="Allocate and configure the required workstation or laptop."
+                            />
+
+                            <PreparationCard
                                 icon={
                                     <Network className="h-5 w-5" />
                                 }
                                 title="VPN Access"
-                                description="Enable the required VPN profile and approved remote-access permissions."
+                                description="Enable the required VPN profile and remote-access permissions for the employee."
                             />
 
                             <PreparationCard
-                                checked={
-                                    joiningRequirements.ip_phone
-                                }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            ip_phone:
-                                                checked,
-                                        })
-                                    )
-                                }
-                                icon={
-                                    <Phone className="h-5 w-5" />
-                                }
-                                title="IP Phone"
-                                description="Create or activate the employee IP phone extension and voice service."
-                            />
-
-                            <PreparationCard
-                                checked={
-                                    joiningRequirements.printer
-                                }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            printer:
-                                                checked,
-                                        })
-                                    )
-                                }
                                 icon={
                                     <Printer className="h-5 w-5" />
                                 }
                                 title="Printer Access"
-                                description="Grant approved printer and print-server access for the employee role."
+                                description="Grant approved printer and print-server access based on the employee role."
                             />
 
                             <PreparationCard
-                                checked={
-                                    joiningRequirements.endpoint_security
+                                icon={
+                                    <Network className="h-5 w-5" />
                                 }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            endpoint_security:
-                                                checked,
-                                        })
-                                    )
-                                }
+                                title="Network Services"
+                                description="Configure the employee network profile, IP phone and standard connectivity services."
+                            />
+
+                            <PreparationCard
                                 icon={
                                     <ShieldCheck className="h-5 w-5" />
                                 }
-                                title="Endpoint Security"
-                                description="Install and activate Panda / endpoint security with the standard policy."
-                            />
-
-                            <PreparationCard
-                                checked={
-                                    joiningRequirements.card_access
-                                }
-                                onCheckedChange={(
-                                    checked
-                                ) =>
-                                    setJoiningRequirements(
-                                        (
-                                            previous
-                                        ) => ({
-                                            ...previous,
-                                            card_access:
-                                                checked,
-                                        })
-                                    )
-                                }
-                                icon={
-                                    <CreditCard className="h-5 w-5" />
-                                }
-                                title="Card Access"
-                                description="Activate the employee physical access card and approved office access."
+                                title="Security Baseline"
+                                description="Apply endpoint security and standard IT security controls."
                             />
                         </div>
                     </section>
@@ -3064,104 +2797,33 @@ function ReadOnlyField({
 }
 
 function PreparationCard({
-    checked,
-    onCheckedChange,
     icon,
     title,
     description,
 }: {
-    checked:
-        boolean;
-
-    onCheckedChange:
-        (
-            checked: boolean
-        ) => void;
-
     icon:
-        React.ReactNode;
+    React.ReactNode;
 
     title:
-        string;
+    string;
 
     description:
-        string;
+    string;
 }) {
     return (
-        <label
-            className={`
-                group
-                flex
-                cursor-pointer
-                items-start
-                gap-3
-                rounded-xl
-                border
-                p-4
-                transition-all
-                ${
-                    checked
-                        ? "border-primary/40 bg-primary/[0.04] shadow-sm ring-1 ring-primary/10"
-                        : "border-border bg-background hover:border-primary/20 hover:bg-muted/20"
-                }
-            `}
-        >
-            <Checkbox
-                checked={
-                    checked
-                }
-                onCheckedChange={(
-                    value
-                ) =>
-                    onCheckedChange(
-                        value ===
-                            true
-                    )
-                }
-                aria-label={
-                    title
-                }
-                className="mt-2 h-5 w-5 shrink-0"
-            />
-
-            <div
-                className={`
-                    flex
-                    h-10
-                    w-10
-                    shrink-0
-                    items-center
-                    justify-center
-                    rounded-xl
-                    transition-colors
-                    ${
-                        checked
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-primary/10 text-primary"
-                    }
-                `}
-            >
+        <div className="rounded-xl border border-border bg-background p-4 transition-colors hover:bg-muted/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 {icon}
             </div>
 
-            <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">
-                        {title}
-                    </p>
+            <p className="mt-3 text-sm font-semibold text-foreground">
+                {title}
+            </p>
 
-                    {checked && (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                            Required
-                        </span>
-                    )}
-                </div>
-
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {description}
-                </p>
-            </div>
-        </label>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {description}
+            </p>
+        </div>
     );
 }
 

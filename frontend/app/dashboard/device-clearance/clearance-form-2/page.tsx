@@ -111,10 +111,6 @@ type EmployeeSearchRaw = {
     | string
     | null;
 
-    joining_date?:
-    | string
-    | null;
-
     // Legacy Go response support.
     EmpID?: string;
     Name?: string;
@@ -138,7 +134,6 @@ type EmployeeOption = {
     email: string;
     picture: string;
     active: string;
-    joining_date: string;
 };
 
 type ITEmployeeRaw = {
@@ -205,10 +200,6 @@ type EmployeeDetailsRaw = {
     picture?:
     | string
     | null;
-
-    joining_date?:
-    | string
-    | null;
 };
 
 type JoiningRequirements = {
@@ -236,7 +227,6 @@ type LifecycleFormState = {
     request_type: RequestType;
 
     effective_date: string;
-    joining_date: string;
 
     employee_id: string;
     employee_name: string;
@@ -262,9 +252,6 @@ const EMPTY_FORM: LifecycleFormState = {
         "Joining",
 
     effective_date:
-        "",
-
-    joining_date:
         "",
 
     employee_id:
@@ -539,11 +526,6 @@ function normalizeEmployee(
         active:
             text(
                 employee.active
-            ),
-
-        joining_date:
-            text(
-                employee.joining_date
             ),
     };
 }
@@ -1107,11 +1089,7 @@ export default function DeviceLifecycleCreatePage() {
     const isFormValid =
         Boolean(
             form.request_type &&
-            (
-                isJoining
-                    ? form.joining_date
-                    : form.effective_date
-            ) &&
+            form.effective_date &&
             form.employee_id &&
             form.employee_name &&
             form.assigned_to &&
@@ -1224,9 +1202,6 @@ export default function DeviceLifecycleCreatePage() {
 
                 employee_picture:
                     employee.picture,
-
-                joining_date:
-                    employee.joining_date,
             })
         );
 
@@ -1331,12 +1306,6 @@ export default function DeviceLifecycleCreatePage() {
                                 details.picture
                             ) ||
                             previous.employee_picture,
-
-                        joining_date:
-                            text(
-                                details.joining_date
-                            ) ||
-                            previous.joining_date,
                     };
                 }
             );
@@ -1401,9 +1370,6 @@ export default function DeviceLifecycleCreatePage() {
                     "",
 
                 employee_picture:
-                    "",
-
-                joining_date:
                     "",
             })
         );
@@ -1494,18 +1460,6 @@ export default function DeviceLifecycleCreatePage() {
         }
 
         if (
-            isJoining &&
-            !form.joining_date
-        ) {
-            setError(
-                "Joining date is missing in HRIS / employee office information."
-            );
-
-            return;
-        }
-
-        if (
-            !isJoining &&
             !form.effective_date
         ) {
             setError(
@@ -1579,9 +1533,7 @@ export default function DeviceLifecycleCreatePage() {
                             form.request_type,
 
                         effective_date:
-                            isJoining
-                                ? ""
-                                : form.effective_date,
+                            form.effective_date,
 
                         employee_id:
                             form.employee_id,
@@ -1589,12 +1541,9 @@ export default function DeviceLifecycleCreatePage() {
                         assigned_to:
                             form.assigned_to,
 
-                        // Exit date only. Joining date is fetched server-side
-                        // from employee_office_info.joining_date.
+                        // Existing backend compatibility.
                         resignation_date:
-                            isJoining
-                                ? ""
-                                : form.effective_date,
+                            form.effective_date,
 
                         separation_mode:
                             form.request_type,
@@ -1756,7 +1705,7 @@ export default function DeviceLifecycleCreatePage() {
                         </h2>
 
                         <p className="mt-1 text-xs text-muted-foreground">
-                            Joining date comes from HRIS automatically. Exit dates are entered only when required.
+                            Select the employee lifecycle event and the date when IT action is required.
                         </p>
                     </div>
 
@@ -1844,49 +1793,30 @@ export default function DeviceLifecycleCreatePage() {
                                         "
                                     />
 
-                                    {isJoining ? (
-                                        <Input
-                                            type="date"
-                                            value={
-                                                form.joining_date
-                                            }
-                                            readOnly
-                                            placeholder="Select employee first"
-                                            className="h-11 cursor-default bg-muted/35 pl-9"
-                                            title="Joining date is loaded from employee_office_info"
-                                        />
-                                    ) : (
-                                        <Input
-                                            type="date"
-                                            value={
-                                                form.effective_date
-                                            }
-                                            className="h-11 pl-9"
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                setForm(
-                                                    (
-                                                        previous
-                                                    ) => ({
-                                                        ...previous,
+                                    <Input
+                                        type="date"
+                                        value={
+                                            form.effective_date
+                                        }
+                                        className="h-11 pl-9"
+                                        onChange={(
+                                            event
+                                        ) =>
+                                            setForm(
+                                                (
+                                                    previous
+                                                ) => ({
+                                                    ...previous,
 
-                                                        effective_date:
-                                                            event
-                                                                .target
-                                                                .value,
-                                                    })
-                                                )
-                                            }
-                                        />
-                                    )}
+                                                    effective_date:
+                                                        event
+                                                            .target
+                                                            .value,
+                                                })
+                                            )
+                                        }
+                                    />
                                 </div>
-
-                                {isJoining && (
-                                    <p className="mt-1.5 text-[10px] text-muted-foreground">
-                                        Auto-filled from HRIS employee office information.
-                                    </p>
-                                )}
                             </div>
                         </div>
 
