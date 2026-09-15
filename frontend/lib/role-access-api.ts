@@ -1,4 +1,5 @@
 
+
 // // itm/frontend/lib/role-access-api.ts
 
 // import {
@@ -29,31 +30,24 @@
 //     id: number;
 //     code: string;
 //     name: string;
-
 //     legacy_user_type: number;
 //     hierarchy_level: number;
-
 //     active: boolean;
 //     user_count: number;
 //     protected: boolean;
-
 //     permissions: RoleAccessPermission[];
 // }
 
 // export interface RoleAccessUser {
 //     id: number;
-
 //     username: string;
 //     employee_id: string;
 //     full_name: string;
 //     email: string;
-
 //     user_type: number;
-
 //     role_id: number;
 //     role_code: string;
 //     role_name: string;
-
 //     account_status: string;
 //     active: boolean;
 //     protected: boolean;
@@ -72,21 +66,16 @@
 
 // export interface UpdateUserRoleResult {
 //     updated: boolean;
-
 //     user_id: number;
 //     role_id: number;
-
 //     role_code: string;
 //     role_name: string;
-
 //     user_type: number;
 // }
 
 // export interface UpdateRolePermissionsResult {
 //     updated: boolean;
-
 //     role_id: number;
-
 //     permission_count: number;
 // }
 
@@ -97,30 +86,19 @@
 // function buildQuery(
 //     params?: RoleAccessUsersParams
 // ): string {
-//     const query =
-//         new URLSearchParams();
+//     const query = new URLSearchParams();
 
-//     if (
-//         params?.page !==
-//         undefined
-//     ) {
+//     if (params?.page !== undefined) {
 //         query.set(
 //             "page",
-//             String(
-//                 params.page
-//             )
+//             String(params.page)
 //         );
 //     }
 
-//     if (
-//         params?.limit !==
-//         undefined
-//     ) {
+//     if (params?.limit !== undefined) {
 //         query.set(
 //             "limit",
-//             String(
-//                 params.limit
-//             )
+//             String(params.limit)
 //         );
 //     }
 
@@ -153,7 +131,7 @@
 //         query.toString();
 
 //     return value
-//         ? `?${value}`
+//         ? `? ${ value } `
 //         : "";
 // }
 
@@ -168,9 +146,7 @@
 
 //     overview: () =>
 //         api.get<
-//             ApiOk<
-//                 RoleAccessOverview
-//             >
+//             ApiOk<RoleAccessOverview>
 //         >(
 //             "/admin/role-access/overview"
 //         ),
@@ -181,9 +157,7 @@
 
 //     roles: () =>
 //         api.get<
-//             ApiOk<
-//                 RoleAccessRole[]
-//             >
+//             ApiOk<RoleAccessRole[]>
 //         >(
 //             "/admin/role-access/roles"
 //         ),
@@ -194,9 +168,7 @@
 
 //     permissions: () =>
 //         api.get<
-//             ApiOk<
-//                 RoleAccessPermission[]
-//             >
+//             ApiOk<RoleAccessPermission[]>
 //         >(
 //             "/admin/role-access/permissions"
 //         ),
@@ -209,13 +181,13 @@
 //         params?: RoleAccessUsersParams
 //     ) =>
 //         api.get<
-//             ApiPage<
-//                 RoleAccessUser
-//             >
+//             ApiPage<RoleAccessUser>
 //         >(
-//             `/admin/role-access/users${buildQuery(
-//                 params
-//             )}`
+//             `/ admin / role - access / users${
+//     buildQuery(
+//         params
+//     )
+// } `
 //         ),
 
 //     /* --------------------------------------------------
@@ -227,40 +199,32 @@
 //         roleID: number
 //     ) =>
 //         api.put<
-//             ApiOk<
-//                 UpdateUserRoleResult
-//             >
+//             ApiOk<UpdateUserRoleResult>
 //         >(
-//             `/admin/role-access/users/${userID}/role`,
-//             {
-//                 role_id:
-//                     roleID,
+//             `/ admin / role - access / users / ${ userID }/role`,
+// {
+//     role_id: roleID,
 //             }
 //         ),
 
-//     /* --------------------------------------------------
-//        UPDATE ROLE PERMISSIONS
-//     -------------------------------------------------- */
+// /* --------------------------------------------------
+//    UPDATE ROLE PERMISSIONS
+// -------------------------------------------------- */
 
-//     updateRolePermissions: (
-//         roleID: number,
-//         permissionIDs: number[]
-//     ) =>
-//         api.put<
-//             ApiOk<
-//                 UpdateRolePermissionsResult
-//             >
-//         >(
-//             `/admin/role-access/roles/${roleID}/permissions`,
-//             {
-//                 permission_ids:
-//                     permissionIDs,
-//             }
-//         ),
+// updateRolePermissions: (
+//     roleID: number,
+//     permissionIDs: number[]
+// ) =>
+//     api.put<
+//         ApiOk<UpdateRolePermissionsResult>
+//     >(
+//         `/admin/role-access/roles/${roleID}/permissions`,
+//         {
+//             permission_ids:
+//                 permissionIDs,
+//         }
+//     ),
 // };
-
-
-
 
 
 
@@ -272,16 +236,9 @@ import {
     type ApiPage,
 } from "@/lib/api";
 
-/* ======================================================
+/* ============================================================
    TYPES
-====================================================== */
-
-export interface RoleAccessOverview {
-    total_roles: number;
-    total_permissions: number;
-    total_users: number;
-    privileged_users: number;
-}
+============================================================ */
 
 export interface RoleAccessPermission {
     id: number;
@@ -292,74 +249,83 @@ export interface RoleAccessPermission {
 
 export interface RoleAccessRole {
     id: number;
+
     code: string;
     name: string;
+
     legacy_user_type: number;
     hierarchy_level: number;
+
     active: boolean;
+
     user_count: number;
+
     protected: boolean;
+
     permissions: RoleAccessPermission[];
+}
+
+export interface RoleAccessOverview {
+    total_roles: number;
+    total_permissions: number;
+    total_users: number;
+    privileged_users: number;
 }
 
 export interface RoleAccessUser {
     id: number;
+
     username: string;
     employee_id: string;
+
     full_name: string;
     email: string;
+
     user_type: number;
+
     role_id: number;
     role_code: string;
     role_name: string;
+
     account_status: string;
     active: boolean;
+
     protected: boolean;
 }
 
-/* ======================================================
-   REQUEST TYPES
-====================================================== */
-
-export interface RoleAccessUsersParams {
+export interface RoleAccessUserParams {
     page?: number;
     limit?: number;
     search?: string;
     role?: string;
 }
 
-export interface UpdateUserRoleResult {
-    updated: boolean;
-    user_id: number;
-    role_id: number;
-    role_code: string;
-    role_name: string;
-    user_type: number;
-}
+/* ============================================================
+   QUERY
+============================================================ */
 
-export interface UpdateRolePermissionsResult {
-    updated: boolean;
-    role_id: number;
-    permission_count: number;
-}
-
-/* ======================================================
-   HELPERS
-====================================================== */
-
-function buildQuery(
-    params?: RoleAccessUsersParams
+function queryString(
+    params?: RoleAccessUserParams
 ): string {
-    const query = new URLSearchParams();
+    if (!params) {
+        return "";
+    }
 
-    if (params?.page !== undefined) {
+    const query =
+        new URLSearchParams();
+
+    if (
+        params.page !== undefined
+    ) {
         query.set(
             "page",
             String(params.page)
         );
     }
 
-    if (params?.limit !== undefined) {
+    if (
+        params.limit !== undefined
+    ) {
         query.set(
             "limit",
             String(params.limit)
@@ -367,7 +333,7 @@ function buildQuery(
     }
 
     const search =
-        params?.search?.trim();
+        params.search?.trim();
 
     if (search) {
         query.set(
@@ -377,13 +343,15 @@ function buildQuery(
     }
 
     const role =
-        params?.role
-            ?.trim()
-            .toUpperCase();
+        params.role?.trim();
 
+    /*
+     * Backend understands ALL, but there is no reason
+     * to send the role parameter for the All Roles case.
+     */
     if (
         role &&
-        role !== "ALL"
+        role.toUpperCase() !== "ALL"
     ) {
         query.set(
             "role",
@@ -395,98 +363,134 @@ function buildQuery(
         query.toString();
 
     return value
-        ? `? ${ value } `
+        ? `?${value}`
         : "";
 }
 
-/* ======================================================
+/* ============================================================
    API
-====================================================== */
+============================================================ */
+
+const BASE_PATH =
+    "/admin/role-access";
 
 export const roleAccessApi = {
-    /* --------------------------------------------------
-       OVERVIEW
-    -------------------------------------------------- */
+    /* --------------------------------------------------------
+       DASHBOARD METRICS
+       GET /api/v1/admin/role-access/overview
+    -------------------------------------------------------- */
 
     overview: () =>
         api.get<
             ApiOk<RoleAccessOverview>
         >(
-            "/admin/role-access/overview"
+            `${BASE_PATH}/overview`
         ),
 
-    /* --------------------------------------------------
+    /* --------------------------------------------------------
        ROLES
-    -------------------------------------------------- */
+       GET /api/v1/admin/role-access/roles
+    -------------------------------------------------------- */
 
     roles: () =>
         api.get<
             ApiOk<RoleAccessRole[]>
         >(
-            "/admin/role-access/roles"
+            `${BASE_PATH}/roles`
         ),
 
-    /* --------------------------------------------------
+    /* --------------------------------------------------------
        PERMISSIONS
-    -------------------------------------------------- */
+       GET /api/v1/admin/role-access/permissions
+    -------------------------------------------------------- */
 
     permissions: () =>
         api.get<
             ApiOk<RoleAccessPermission[]>
         >(
-            "/admin/role-access/permissions"
+            `${BASE_PATH}/permissions`
         ),
 
-    /* --------------------------------------------------
-       USERS
-    -------------------------------------------------- */
+    /* --------------------------------------------------------
+       USER ACCESS DIRECTORY
+
+       GET
+       /api/v1/admin/role-access/users
+            ?page=1
+            &limit=20
+            &search=...
+            &role=IT_ADMIN
+    -------------------------------------------------------- */
 
     users: (
-        params?: RoleAccessUsersParams
+        params?: RoleAccessUserParams
     ) =>
         api.get<
             ApiPage<RoleAccessUser>
         >(
-            `/ admin / role - access / users${
-    buildQuery(
-        params
-    )
-} `
+            `${BASE_PATH}/users${queryString(
+                params
+            )}`
         ),
 
-    /* --------------------------------------------------
+    /* --------------------------------------------------------
        CHANGE USER ROLE
-    -------------------------------------------------- */
+
+       PUT
+       /api/v1/admin/role-access/users/:id/role
+    -------------------------------------------------------- */
 
     updateUserRole: (
         userID: number,
         roleID: number
     ) =>
         api.put<
-            ApiOk<UpdateUserRoleResult>
+            ApiOk<{
+                updated: boolean;
+
+                user_id: number;
+
+                username: string;
+
+                role_id: number;
+                role_code: string;
+                role_name: string;
+
+                user_type: number;
+            }>
         >(
-            `/ admin / role - access / users / ${ userID }/role`,
-{
-    role_id: roleID,
+            `${BASE_PATH}/users/${userID}/role`,
+            {
+                role_id: roleID,
             }
         ),
 
-/* --------------------------------------------------
-   UPDATE ROLE PERMISSIONS
--------------------------------------------------- */
+    /* --------------------------------------------------------
+       UPDATE ROLE PERMISSIONS
 
-updateRolePermissions: (
-    roleID: number,
-    permissionIDs: number[]
-) =>
-    api.put<
-        ApiOk<UpdateRolePermissionsResult>
-    >(
-        `/admin/role-access/roles/${roleID}/permissions`,
-        {
-            permission_ids:
-                permissionIDs,
-        }
-    ),
+       PUT
+       /api/v1/admin/role-access/roles/:id/permissions
+    -------------------------------------------------------- */
+
+    updateRolePermissions: (
+        roleID: number,
+        permissionIDs: number[]
+    ) =>
+        api.put<
+            ApiOk<{
+                updated: boolean;
+
+                role_id: number;
+                role_code: string;
+                role_name: string;
+
+                permission_count: number;
+            }>
+        >(
+            `${BASE_PATH}/roles/${roleID}/permissions`,
+            {
+                permission_ids:
+                    permissionIDs,
+            }
+        ),
 };
-
