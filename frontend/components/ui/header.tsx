@@ -1,4 +1,5 @@
 
+
 // // frontend/components/ui/header.tsx
 
 
@@ -866,7 +867,7 @@
 //                                     label:
 //                                         "Create TT",
 //                                     href:
-//                                         "/dashboard/operations/create_tt",
+//                                         "/dashboard/operations/create_tt?source=user",
 //                                 },
 //                             ];
 //                         }
@@ -894,7 +895,7 @@
 //                                     label:
 //                                         "Create TT",
 //                                     href:
-//                                         "/dashboard/operations/create_tt",
+//                                         "/dashboard/operations/create_tt?source=dashboard",
 //                                 },
 //                             ];
 
@@ -955,10 +956,21 @@
 //                     HeaderNavItem
 //             ) {
 //                 /*
+//                  * Ignore query/hash values when checking active navigation.
+//                  * This allows Create TT to carry its source without changing
+//                  * the visual behavior of the header.
+//                  */
+//                 const itemPath =
+//                     item.href.split(
+//                         /[?#]/,
+//                         1
+//                     )[0];
+
+//                 /*
 //                  * Admin dashboard.
 //                  */
 //                 if (
-//                     item.href ===
+//                     itemPath ===
 //                     "/dashboard"
 //                 ) {
 //                     return (
@@ -971,7 +983,7 @@
 //                  * User Panel dashboard.
 //                  */
 //                 if (
-//                     item.href ===
+//                     itemPath ===
 //                     "/dashboard/user"
 //                 ) {
 //                     return (
@@ -988,9 +1000,9 @@
 //                  */
 //                 return (
 //                     pathname ===
-//                     item.href ||
+//                     itemPath ||
 //                     pathname.startsWith(
-//                         `${item.href}/`
+//                         `${itemPath}/`
 //                     )
 //                 );
 //             }
@@ -1773,6 +1785,91 @@ type HeaderNavItem = {
     href: string;
 };
 
+type UIFontKey =
+    | "inter"
+    | "system"
+    | "segoe"
+    | "arial";
+
+type UIFontOption = {
+    key: UIFontKey;
+    label: string;
+    description: string;
+    stack: string;
+};
+
+const HEADER_YEAR_STORAGE_KEY =
+    "itm_selected_year";
+
+const UI_FONT_STORAGE_KEY =
+    "itm_ui_font";
+
+const UI_FONT_OPTIONS: UIFontOption[] = [
+    {
+        key: "inter",
+        label: "Inter",
+        description: "Modern product UI",
+        stack: '"Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    },
+    {
+        key: "system",
+        label: "System",
+        description: "Native enterprise UI",
+        stack: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    },
+    {
+        key: "segoe",
+        label: "Segoe UI",
+        description: "Windows business UI",
+        stack: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+    },
+    {
+        key: "arial",
+        label: "Arial",
+        description: "Compact universal UI",
+        stack: 'Arial, Helvetica, sans-serif',
+    },
+];
+
+function isUIFontKey(
+    value: string | null
+): value is UIFontKey {
+    return UI_FONT_OPTIONS.some(
+        (option) =>
+            option.key === value
+    );
+}
+
+function applyUIFont(
+    fontKey: UIFontKey
+) {
+    if (
+        typeof document ===
+        "undefined"
+    ) {
+        return;
+    }
+
+    const option =
+        UI_FONT_OPTIONS.find(
+            (item) =>
+                item.key === fontKey
+        ) ?? UI_FONT_OPTIONS[0];
+
+    document.documentElement.style.setProperty(
+        "--itm-ui-font",
+        option.stack
+    );
+
+    document.documentElement.style.fontFamily =
+        option.stack;
+
+    if (document.body) {
+        document.body.style.fontFamily =
+            option.stack;
+    }
+}
+
 /* ======================================================
    NOTIFICATION SOUND
 ====================================================== */
@@ -2122,6 +2219,183 @@ export const Header =
                 React.useState(
                     false
                 );
+
+            const [
+                yearMenuOpen,
+                setYearMenuOpen,
+            ] =
+                React.useState(false);
+
+            const [
+                fontMenuOpen,
+                setFontMenuOpen,
+            ] =
+                React.useState(false);
+
+            const currentYear =
+                new Date().getFullYear();
+
+            const yearOptions =
+                React.useMemo(
+                    () =>
+                        Array.from(
+                            { length: 6 },
+                            (
+                                _,
+                                index
+                            ) =>
+                                currentYear -
+                                index
+                        ),
+                    [currentYear]
+                );
+
+            const [
+                selectedYear,
+                setSelectedYear,
+            ] =
+                React.useState(
+                    currentYear
+                );
+
+            const [
+                selectedFont,
+                setSelectedFont,
+            ] =
+                React.useState<UIFontKey>(
+                    "inter"
+                );
+
+            React.useEffect(
+                () => {
+                    if (
+                        typeof window ===
+                        "undefined"
+                    ) {
+                        return;
+                    }
+
+                    const savedYear =
+                        Number(
+                            window.localStorage.getItem(
+                                HEADER_YEAR_STORAGE_KEY
+                            )
+                        );
+
+                    if (
+                        Number.isInteger(
+                            savedYear
+                        ) &&
+                        yearOptions.includes(
+                            savedYear
+                        )
+                    ) {
+                        setSelectedYear(
+                            savedYear
+                        );
+                    }
+
+                    const savedFont =
+                        window.localStorage.getItem(
+                            UI_FONT_STORAGE_KEY
+                        );
+
+                    const initialFont:
+                        UIFontKey =
+                        isUIFontKey(
+                            savedFont
+                        )
+                            ? savedFont
+                            : "inter";
+
+                    setSelectedFont(
+                        initialFont
+                    );
+
+                    applyUIFont(
+                        initialFont
+                    );
+                },
+                [yearOptions]
+            );
+
+            const selectedFontOption =
+                UI_FONT_OPTIONS.find(
+                    (option) =>
+                        option.key ===
+                        selectedFont
+                ) ??
+                UI_FONT_OPTIONS[0];
+
+            function handleYearChange(
+                year: number
+            ) {
+                setSelectedYear(
+                    year
+                );
+
+                if (
+                    typeof window !==
+                    "undefined"
+                ) {
+                    window.localStorage.setItem(
+                        HEADER_YEAR_STORAGE_KEY,
+                        String(year)
+                    );
+
+                    window.dispatchEvent(
+                        new CustomEvent(
+                            "itm-year-change",
+                            {
+                                detail: {
+                                    year,
+                                },
+                            }
+                        )
+                    );
+                }
+
+                setYearMenuOpen(
+                    false
+                );
+            }
+
+            function handleFontChange(
+                fontKey: UIFontKey
+            ) {
+                setSelectedFont(
+                    fontKey
+                );
+
+                applyUIFont(
+                    fontKey
+                );
+
+                if (
+                    typeof window !==
+                    "undefined"
+                ) {
+                    window.localStorage.setItem(
+                        UI_FONT_STORAGE_KEY,
+                        fontKey
+                    );
+
+                    window.dispatchEvent(
+                        new CustomEvent(
+                            "itm-font-change",
+                            {
+                                detail: {
+                                    font: fontKey,
+                                },
+                            }
+                        )
+                    );
+                }
+
+                setFontMenuOpen(
+                    false
+                );
+            }
 
             const [
                 notifications,
@@ -2841,6 +3115,247 @@ export const Header =
                         </Button>
 
                         {/* ==============================================
+                            REPORTING YEAR
+
+                            Compact global period selector. The selected
+                            value is persisted and an itm-year-change event
+                            is emitted for reporting pages that subscribe.
+                        ============================================== */}
+
+                        <DropdownMenu
+                            open={
+                                yearMenuOpen
+                            }
+                            onOpenChange={(
+                                open
+                            ) => {
+                                setYearMenuOpen(
+                                    open
+                                );
+
+                                if (open) {
+                                    setFontMenuOpen(
+                                        false
+                                    );
+                                    setActiveMenu(
+                                        null
+                                    );
+                                }
+                            }}
+                        >
+                            <DropdownMenuTrigger
+                                asChild
+                            >
+                                <button
+                                    type="button"
+                                    title="Reporting year"
+                                    aria-label={`Reporting year ${selectedYear}`}
+                                    className="hidden h-8 items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 text-[11px] font-semibold text-foreground shadow-sm transition-all hover:border-primary/30 hover:bg-muted/70 hover:shadow md:flex"
+                                >
+                                    <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/10 px-1 text-[8px] font-bold tracking-wide text-primary">
+                                        YR
+                                    </span>
+
+                                    <span className="tabular-nums">
+                                        {selectedYear}
+                                    </span>
+
+                                    <ChevronDown
+                                        className={cn(
+                                            "h-3 w-3 text-muted-foreground transition-transform",
+                                            yearMenuOpen &&
+                                            "rotate-180"
+                                        )}
+                                    />
+                                </button>
+                            </DropdownMenuTrigger>
+
+                            <DropdownMenuContent
+                                align="end"
+                                sideOffset={8}
+                                className="w-44 overflow-hidden rounded-xl border border-border bg-popover p-1.5 shadow-xl"
+                            >
+                                <div className="px-2.5 pb-2 pt-1.5">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                        Reporting Year
+                                    </p>
+
+                                    <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground/80">
+                                        Global reporting period
+                                    </p>
+                                </div>
+
+                                {yearOptions.map(
+                                    (year) => (
+                                        <DropdownMenuItem
+                                            key={year}
+                                            onSelect={() =>
+                                                handleYearChange(
+                                                    year
+                                                )
+                                            }
+                                            className={cn(
+                                                "my-0.5 flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-xs",
+                                                selectedYear ===
+                                                year &&
+                                                "bg-primary/8 font-semibold text-primary"
+                                            )}
+                                        >
+                                            <span>
+                                                {year}
+                                            </span>
+
+                                            {selectedYear ===
+                                                year && (
+                                                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                                                )}
+                                        </DropdownMenuItem>
+                                    )
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* ==============================================
+                            UI FONT
+
+                            Enterprise-friendly font preference. It is
+                            applied globally and persisted per browser.
+                        ============================================== */}
+
+                        <DropdownMenu
+                            open={
+                                fontMenuOpen
+                            }
+                            onOpenChange={(
+                                open
+                            ) => {
+                                setFontMenuOpen(
+                                    open
+                                );
+
+                                if (open) {
+                                    setYearMenuOpen(
+                                        false
+                                    );
+                                    setActiveMenu(
+                                        null
+                                    );
+                                }
+                            }}
+                        >
+                            <DropdownMenuTrigger
+                                asChild
+                            >
+                                <button
+                                    type="button"
+                                    title={`UI font: ${selectedFontOption.label}`}
+                                    aria-label={`UI font ${selectedFontOption.label}`}
+                                    className="hidden h-8 items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 text-[11px] font-medium text-foreground shadow-sm transition-all hover:border-primary/30 hover:bg-muted/70 hover:shadow lg:flex"
+                                >
+                                    <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-indigo-500/10 px-1 font-serif text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                                        Aa
+                                    </span>
+
+                                    <span className="hidden max-w-20 truncate xl:inline">
+                                        {selectedFontOption.label}
+                                    </span>
+
+                                    <ChevronDown
+                                        className={cn(
+                                            "h-3 w-3 text-muted-foreground transition-transform",
+                                            fontMenuOpen &&
+                                            "rotate-180"
+                                        )}
+                                    />
+                                </button>
+                            </DropdownMenuTrigger>
+
+                            <DropdownMenuContent
+                                align="end"
+                                sideOffset={8}
+                                className="w-64 overflow-hidden rounded-xl border border-border bg-popover p-1.5 shadow-xl"
+                            >
+                                <div className="border-b border-border/70 px-2.5 pb-2.5 pt-1.5">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                        Interface Font
+                                    </p>
+
+                                    <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground/80">
+                                        Choose a professional workspace typeface
+                                    </p>
+                                </div>
+
+                                <div className="pt-1">
+                                    {UI_FONT_OPTIONS.map(
+                                        (option) => (
+                                            <DropdownMenuItem
+                                                key={
+                                                    option.key
+                                                }
+                                                onSelect={() =>
+                                                    handleFontChange(
+                                                        option.key
+                                                    )
+                                                }
+                                                className={cn(
+                                                    "my-0.5 cursor-pointer rounded-lg px-2.5 py-2.5",
+                                                    selectedFont ===
+                                                    option.key &&
+                                                    "bg-primary/8"
+                                                )}
+                                            >
+                                                <div className="flex w-full items-center gap-2.5">
+                                                    <div
+                                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-sm font-semibold text-foreground"
+                                                        style={{
+                                                            fontFamily:
+                                                                option.stack,
+                                                        }}
+                                                    >
+                                                        Aa
+                                                    </div>
+
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span
+                                                                className={cn(
+                                                                    "truncate text-xs font-semibold text-foreground",
+                                                                    selectedFont ===
+                                                                    option.key &&
+                                                                    "text-primary"
+                                                                )}
+                                                                style={{
+                                                                    fontFamily:
+                                                                        option.stack,
+                                                                }}
+                                                            >
+                                                                {option.label}
+                                                            </span>
+
+                                                            {selectedFont ===
+                                                                option.key && (
+                                                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                                                                )}
+                                                        </div>
+
+                                                        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                                                            {option.description}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </DropdownMenuItem>
+                                        )
+                                    )}
+                                </div>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <div
+                            className="mx-0.5 hidden h-5 w-px bg-border lg:block"
+                            aria-hidden="true"
+                        />
+
+                        {/* ==============================================
                             THEME
                         ============================================== */}
 
@@ -3371,6 +3886,8 @@ function getAvatarText(
     ][0] ?? ""
         }`.toUpperCase();
 }
+
+
 
 
 
