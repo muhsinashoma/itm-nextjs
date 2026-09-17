@@ -1,3 +1,4 @@
+
 // //frontend/components/tt-action-dialogs.tsx
 // "use client";
 
@@ -637,9 +638,9 @@
 //                                 </p>
 //                                 <span className="text-[9px] text-muted-foreground">Original requester statement</span>
 //                             </div>
-//                             {/* <p className="mt-1.5 whitespace-pre-wrap break-words text-[10.5px] leading-4 text-foreground">
+//                             <p className="mt-1.5 whitespace-pre-wrap break-words text-[10.5px] leading-4 text-foreground">
 //                                 {text(section?.description)}
-//                             </p> */}
+//                             </p>
 //                         </div>
 //                     </div>
 
@@ -716,7 +717,6 @@
 //         </Dialog>
 //     );
 // }
-
 
 
 //frontend/components/tt-action-dialogs.tsx

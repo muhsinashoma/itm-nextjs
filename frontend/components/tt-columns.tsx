@@ -937,9 +937,9 @@
 //                                 </p>
 //                                 <span className="text-[9px] text-muted-foreground">Requester statement</span>
 //                             </div>
-//                             {/* <p className="mt-1.5 whitespace-pre-wrap break-words text-[10.5px] leading-4 text-foreground">
+//                             <p className="mt-1.5 whitespace-pre-wrap break-words text-[10.5px] leading-4 text-foreground">
 //                                 {textValue(section?.description)}
-//                             </p> */}
+//                             </p>
 //                         </div>
 //                     </div>
 
@@ -1053,7 +1053,7 @@
 //                         <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-[10px] leading-4 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
 //                             <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0" />
 //                             <span>
-//                                 The requester will receive an in-app notification immediately after the assignment is committed.
+//                                 The selected IT Personnel will receive an in-app notification immediately after the assignment or reassignment is committed.
 //                             </span>
 //                         </div>
 //                     </div>
@@ -2124,13 +2124,14 @@ import {
     Mail,
     Pencil,
     Phone,
+    Search,
     TicketCheck,
     Trash2,
     UserCheck,
     XCircle,
 } from "lucide-react";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -2143,14 +2144,6 @@ import {
 } from "@/components/ui/dialog";
 
 import { Input } from "@/components/ui/input";
-
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 
 import {
     DropdownMenu,
@@ -2692,6 +2685,16 @@ function AssignmentDialog({
     ] = useState("");
 
     const [
+        personnelSearch,
+        setPersonnelSearch,
+    ] = useState("");
+
+    const [
+        personnelPickerOpen,
+        setPersonnelPickerOpen,
+    ] = useState(false);
+
+    const [
         note,
         setNote,
     ] = useState("");
@@ -2779,15 +2782,12 @@ function AssignmentDialog({
             return;
         }
 
-        setSelectedEmployee(
-            String(
-                section.assigned_id ??
-                ""
-            ).trim()
-        );
-
+        // Do not preselect the current assignee during reassignment.
+        // The user must intentionally choose the new owner.
+        setSelectedEmployee("");
+        setPersonnelSearch("");
+        setPersonnelPickerOpen(false);
         setNote("");
-
         setError("");
     }, [open, section]);
 
@@ -2807,6 +2807,32 @@ function AssignmentDialog({
             ""
         ).trim();
 
+    const filteredPersonnel = useMemo(() => {
+        const query = personnelSearch
+            .trim()
+            .toLowerCase()
+            .replace(/[()]/g, "");
+
+        return personnel.filter((person) => {
+            // A reassignment cannot select the current owner again.
+            if (
+                currentAssignedID &&
+                person.employee_id === currentAssignedID
+            ) {
+                return false;
+            }
+
+            if (!query) {
+                return true;
+            }
+
+            const searchable = `${person.employee_name ?? ""} ${person.employee_id ?? ""}`
+                .toLowerCase();
+
+            return searchable.includes(query);
+        });
+    }, [personnel, personnelSearch, currentAssignedID]);
+
     const selectedAssignee =
         personnel.find(
             (person) =>
@@ -2820,6 +2846,17 @@ function AssignmentDialog({
             selectedEmployee ===
             currentAssignedID
         );
+
+    function selectAssignee(
+        person: TroubleTicketITPersonnel
+    ) {
+        setSelectedEmployee(person.employee_id);
+        setPersonnelSearch(
+            `${person.employee_name} (${person.employee_id})`
+        );
+        setPersonnelPickerOpen(false);
+        setError("");
+    }
 
     /* ========================================================
        SUBMIT ASSIGNMENT
@@ -2957,7 +2994,7 @@ function AssignmentDialog({
              */
             onOpenChange(false);
 
-            window.location.reload();
+            window.location.assign("/dashboard#trouble-ticket-table");
         } catch (reason) {
             console.error(
                 "Trouble Ticket assignment failed:",
@@ -2987,8 +3024,8 @@ function AssignmentDialog({
                     : onOpenChange
             }
         >
-            <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[720px]">
-                <div className="flex items-start gap-3 border-b pb-4">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[820px]">
+                <div className="flex items-start gap-3 border-b pb-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30">
                         <TicketCheck className="h-5 w-5 text-blue-600" />
                     </div>
@@ -3006,7 +3043,7 @@ function AssignmentDialog({
                     </div>
                 </div>
 
-                <div className="space-y-4 pt-4">
+                <div className="space-y-3 pt-3">
 
                     {/* ==================================================
                        TICKET INFORMATION
@@ -3054,7 +3091,7 @@ function AssignmentDialog({
                        CURRENT ASSIGNEE
                     ================================================== */}
 
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <div className="rounded-lg border bg-muted/20 px-3 py-2.5">
                             <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                                 Current Assignee
@@ -3083,85 +3120,117 @@ function AssignmentDialog({
                     ================================================== */}
 
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold">
-                            Assign To *
-                        </label>
-
-                        <Select
-                            value={
-                                selectedEmployee
-                            }
-                            onValueChange={
-                                setSelectedEmployee
-                            }
-                            disabled={
-                                loadingPersonnel ||
-                                submitting
-                            }
-                        >
-                            <SelectTrigger className="h-9 text-[11px]">
-                                <SelectValue
-                                    placeholder={
-                                        loadingPersonnel
-                                            ? "Loading IT Personnel..."
-                                            : "Select IT Personnel"
-                                    }
-                                />
-                            </SelectTrigger>
-
-                            <SelectContent>
-                                {personnel.length ===
-                                    0 ? (
-                                    <SelectItem
-                                        value="__no_personnel__"
-                                        disabled
-                                    >
-                                        No active IT
-                                        Personnel
-                                        available
-                                    </SelectItem>
-                                ) : (
-                                    personnel.map(
-                                        (
-                                            person
-                                        ) => (
-                                            <SelectItem
-                                                key={
-                                                    person.employee_id
-                                                }
-                                                value={
-                                                    person.employee_id
-                                                }
-                                            >
-                                                {
-                                                    person.employee_name
-                                                }{" "}
-                                                (
-                                                {
-                                                    person.employee_id
-                                                }
-                                                )
-                                            </SelectItem>
-                                        )
-                                    )
-                                )}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <div className="flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 text-[10px] leading-4 text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950/20 dark:text-indigo-200">
-                            <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                            <span>
-                                The selected IT Personnel will receive a professional assignment email at the official email address stored in ITM.
+                        <div className="flex items-center justify-between gap-3">
+                            <label
+                                htmlFor="tt-assignee-search"
+                                className="text-[10px] font-semibold"
+                            >
+                                Assign To *
+                            </label>
+                            <span className="text-[9px] text-muted-foreground">
+                                Search by name or employee ID
                             </span>
                         </div>
 
-                        <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-[10px] leading-4 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
-                            <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                            <span>
-                                The selected IT Personnel will receive an in-app notification immediately after the assignment or reassignment is committed.
-                            </span>
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                id="tt-assignee-search"
+                                value={personnelSearch}
+                                onFocus={() =>
+                                    setPersonnelPickerOpen(true)
+                                }
+                                onBlur={() =>
+                                    window.setTimeout(
+                                        () => setPersonnelPickerOpen(false),
+                                        120
+                                    )
+                                }
+                                onChange={(event) => {
+                                    setPersonnelSearch(event.target.value);
+                                    setSelectedEmployee("");
+                                    setPersonnelPickerOpen(true);
+                                }}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Escape") {
+                                        setPersonnelPickerOpen(false);
+                                        return;
+                                    }
+
+                                    if (
+                                        event.key === "Enter" &&
+                                        personnelPickerOpen &&
+                                        filteredPersonnel.length > 0
+                                    ) {
+                                        event.preventDefault();
+                                        selectAssignee(filteredPersonnel[0]);
+                                    }
+                                }}
+                                role="combobox"
+                                aria-expanded={personnelPickerOpen}
+                                aria-controls="tt-assignee-options"
+                                aria-autocomplete="list"
+                                disabled={loadingPersonnel || submitting}
+                                autoComplete="off"
+                                placeholder={
+                                    loadingPersonnel
+                                        ? "Loading IT Personnel..."
+                                        : "Type a name or employee ID..."
+                                }
+                                className="h-9 pl-9 pr-3 text-[11px]"
+                            />
+
+                            {personnelPickerOpen && !loadingPersonnel && (
+                                <div
+                                    id="tt-assignee-options"
+                                    role="listbox"
+                                    className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border bg-popover shadow-lg"
+                                >
+                                    <div className="max-h-[220px] overflow-y-auto p-1">
+                                        {filteredPersonnel.length === 0 ? (
+                                            <div className="px-3 py-5 text-center text-[10px] text-muted-foreground">
+                                                {personnel.length === 0
+                                                    ? "No active IT Personnel available."
+                                                    : "No IT Personnel matched your search."}
+                                            </div>
+                                        ) : (
+                                            filteredPersonnel.map((person) => {
+                                                const selected =
+                                                    person.employee_id === selectedEmployee;
+
+                                                return (
+                                                    <button
+                                                        key={person.employee_id}
+                                                        type="button"
+                                                        role="option"
+                                                        aria-selected={selected}
+                                                        onMouseDown={(event) =>
+                                                            event.preventDefault()
+                                                        }
+                                                        onClick={() =>
+                                                            selectAssignee(person)
+                                                        }
+                                                        className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground ${selected ? "bg-accent/70" : ""
+                                                            }`}
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-[10.5px] font-semibold">
+                                                                {person.employee_name}
+                                                            </p>
+                                                            <p className="mt-0.5 font-mono text-[9px] text-muted-foreground">
+                                                                {person.employee_id}
+                                                            </p>
+                                                        </div>
+                                                        {selected ? (
+                                                            <CheckCircle className="h-3.5 w-3.5 shrink-0 text-primary" />
+                                                        ) : null}
+                                                    </button>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -3170,38 +3239,48 @@ function AssignmentDialog({
                     ================================================== */}
 
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold">
-                            Assignment Note
-                            <span className="ml-1 font-normal text-muted-foreground">
-                                (Optional · included in email)
+                        <div className="flex items-center justify-between gap-3">
+                            <label
+                                htmlFor="tt-assignment-note"
+                                className="text-[10px] font-semibold"
+                            >
+                                Assignment Note
+                                <span className="ml-1 font-normal text-muted-foreground">
+                                    (Optional · included in email)
+                                </span>
+                            </label>
+                            <span className="text-[9px] text-muted-foreground">
+                                {note.length}/500
                             </span>
-                        </label>
+                        </div>
 
-                        <Input
+                        <textarea
+                            id="tt-assignment-note"
                             value={note}
-                            onChange={(
-                                event
-                            ) =>
-                                setNote(
-                                    event.target
-                                        .value
-                                )
+                            onChange={(event) =>
+                                setNote(event.target.value)
                             }
-                            disabled={
-                                submitting
-                            }
+                            disabled={submitting}
                             placeholder={
                                 currentAssignedID
-                                    ? "Reason or context for reassignment..."
-                                    : "Add useful context for the assigned IT Personnel..."
+                                    ? "Add reassignment reason, handover context, priority or work already completed..."
+                                    : "Add troubleshooting context, priority, location or instructions for the assigned IT Personnel..."
                             }
                             maxLength={500}
-                            className="h-9 text-[11px]"
+                            rows={4}
+                            className="min-h-[96px] max-h-[180px] w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-[11px] leading-4 outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                         />
+                    </div>
 
-                        <p className="text-right text-[9px] text-muted-foreground">
-                            {note.length}/500
-                        </p>
+                    <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-[9.5px] leading-4 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200 sm:flex-row sm:items-center sm:gap-4">
+                        <span className="inline-flex items-center gap-1.5">
+                            <Mail className="h-3.5 w-3.5 shrink-0" />
+                            Assignment email to selected IT Personnel
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <BellRing className="h-3.5 w-3.5 shrink-0" />
+                            In-app notification after successful save
+                        </span>
                     </div>
 
                     {/* ==================================================
@@ -3234,7 +3313,7 @@ function AssignmentDialog({
                    FOOTER
                 ====================================================== */}
 
-                <div className="mt-5 flex items-center justify-end gap-2">
+                <div className="mt-3 flex items-center justify-end gap-2 border-t pt-3">
                     <Button
                         type="button"
                         variant="outline"
@@ -3301,7 +3380,7 @@ function ActionCell({
     section: Section;
     permissions: TTActionPermissions;
 }) {
-    const { openModal } =
+    const { openModal, setActionDialogOpen } =
         useTTModal();
 
     const [
@@ -3318,6 +3397,26 @@ function ActionCell({
         closeOpen,
         setCloseOpen,
     ] = useState(false);
+
+    const anyActionDialogOpen =
+        assignmentOpen ||
+        requisitionOpen ||
+        closeOpen;
+
+    useEffect(() => {
+        if (!anyActionDialogOpen) {
+            return;
+        }
+
+        setActionDialogOpen(true);
+
+        return () => {
+            setActionDialogOpen(false);
+        };
+    }, [
+        anyActionDialogOpen,
+        setActionDialogOpen,
+    ]);
 
     const isClosed =
         normalizeStatus(section.status) === "Closed";
