@@ -1,6 +1,3 @@
-
-
-
 // itm/backend/internal/handler/handlers.go
 package handler
 
@@ -2166,6 +2163,11 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				) ILIKE %s
 
 				OR COALESCE(
+					ticket.description,
+					''
+				) ILIKE %s
+
+				OR COALESCE(
 					dashboard.dept_name,
 					''
 				) ILIKE %s
@@ -2185,6 +2187,7 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 				OR (%s) ILIKE %s
 			)
 			`,
+			searchPlaceholder,
 			searchPlaceholder,
 			searchPlaceholder,
 			searchPlaceholder,
@@ -2264,6 +2267,8 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 
 		QueryType string `json:"query_type"`
 
+		Description string `json:"description"`
+
 		RequisitionType string `json:"requisition_type"`
 
 		Status string `json:"status"`
@@ -2317,6 +2322,11 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 
 			COALESCE(
 				dashboard.query_type,
+				''
+			),
+
+			COALESCE(
+				ticket.description,
 				''
 			),
 
@@ -2425,6 +2435,7 @@ func (h *DashboardHandler) TroubleTicketList(c *gin.Context) {
 			&item.AssignedID,
 			&item.AssignedName,
 			&item.QueryType,
+			&item.Description,
 			&item.RequisitionType,
 			&item.Status,
 			&item.Department,

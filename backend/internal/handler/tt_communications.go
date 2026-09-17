@@ -311,20 +311,24 @@ func enqueueTTAssignmentCommunications(
 
 	body, err := mailqueue.RenderAssignmentEmail(
 		mailqueue.AssignmentTemplateData{
-			EventLabel:       label,
-			TTNo:             ticket.TTNo,
-			QueryType:        fallbackText(ticket.QueryType, "IT Support"),
-			IssueDescription: fallbackText(ticket.Description, "No issue description was recorded."),
-			RequesterName:    fallbackText(ticket.EmployeeName, ticket.EmployeeID),
-			RequesterID:      ticket.EmployeeID,
-			Department:       fallbackText(ticket.Department, "—"),
-			Mobile:           fallbackText(ticket.MobileNo, "—"),
-			AssignedName:     fallbackText(assignee.EmployeeName, assignee.EmployeeID),
-			AssignedID:       assignee.EmployeeID,
-			AssignedByName:   fallbackText(actorName, actorEmployeeID),
-			AssignedByID:     actorEmployeeID,
-			AssignmentNote:   strings.TrimSpace(assignmentNote),
-			ActionURL:        mailqueue.AppURL("/dashboard"),
+			EventLabel:           label,
+			Reassigned:           reassigned,
+			TTNo:                 ticket.TTNo,
+			QueryType:            fallbackText(ticket.QueryType, "IT Support"),
+			IssueDescription:     fallbackText(ticket.Description, "No issue description was recorded."),
+			RequesterName:        fallbackText(ticket.EmployeeName, ticket.EmployeeID),
+			RequesterID:          ticket.EmployeeID,
+			Department:           fallbackText(ticket.Department, "—"),
+			Mobile:               fallbackText(ticket.MobileNo, "—"),
+			CreatedAt:            strings.TrimSpace(ticket.CreatedAt),
+			AssignedName:         fallbackText(assignee.EmployeeName, assignee.EmployeeID),
+			AssignedID:           assignee.EmployeeID,
+			AssignedByName:       fallbackText(actorName, actorEmployeeID),
+			AssignedByID:         actorEmployeeID,
+			PreviousAssignedName: fallbackText(ticket.AssignedName, "Previous IT Personnel"),
+			PreviousAssignedID:   ticket.AssignedID,
+			AssignmentNote:       strings.TrimSpace(assignmentNote),
+			ActionURL:            mailqueue.AppURL("/dashboard"),
 		},
 	)
 	if err != nil {
@@ -336,8 +340,12 @@ func enqueueTTAssignmentCommunications(
 		ctx,
 		tx,
 		mailqueue.Message{
+			// Assignment and reassignment email is intentionally sent only
+			// to the NEW assignee. Requesters receive an in-app notification,
+			// and the previous assignee is not copied on reassignment.
 			To:              assignee.Email,
 			ToName:          assignee.EmployeeName,
+			CC:              "",
 			Subject:         mailqueue.AssignmentSubject(ticket.TTNo, reassigned),
 			HTMLBody:        body,
 			SessionUser:     actorEmployeeID,
@@ -425,8 +433,11 @@ func enqueueTTClosedCommunications(
 		ctx,
 		tx,
 		mailqueue.Message{
+			// Closure email is a confirmation for the requester/user only.
+			// No assignee or internal distribution list is copied.
 			To:              requesterEmail,
 			ToName:          requesterName,
+			CC:              "",
 			Subject:         mailqueue.ClosedSubject(ticket.TTNo),
 			HTMLBody:        body,
 			SessionUser:     actorEmployeeID,
