@@ -937,9 +937,9 @@ function AssignmentDialog({
                                 </p>
                                 <span className="text-[9px] text-muted-foreground">Requester statement</span>
                             </div>
-                            <p className="mt-1.5 whitespace-pre-wrap break-words text-[10.5px] leading-4 text-foreground">
+                            {/* <p className="mt-1.5 whitespace-pre-wrap break-words text-[10.5px] leading-4 text-foreground">
                                 {textValue(section?.description)}
-                            </p>
+                            </p> */}
                         </div>
                     </div>
 
