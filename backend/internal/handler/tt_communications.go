@@ -118,8 +118,8 @@ func loadActiveITCommunicationContact(
         LEFT JOIN public.employee_personal_info AS p
             ON BTRIM(COALESCE(p.employee_id, '')) = BTRIM(COALESCE(o.employee_id, ''))
         WHERE BTRIM(COALESCE(o.employee_id, '')) = $1
-          AND BTRIM(COALESCE(o.work_field, '')) = 'IT'
-          AND BTRIM(COALESCE(o.active, '')) = 'Yes'
+          AND UPPER(BTRIM(COALESCE(o.work_field, ''))) = 'IT'
+          AND LOWER(BTRIM(COALESCE(o.active, ''))) IN ('yes', 'active')
         LIMIT 1
         `,
 		employeeID,
@@ -269,37 +269,37 @@ func enqueueTTAssignmentCommunications(
 	reassigned := strings.EqualFold(eventType, "REASSIGNED")
 
 	notificationType := "TT_ASSIGNED"
-	notificationTitle := fmt.Sprintf("TT %s assigned", ticket.TTNo)
+	notificationTitle := fmt.Sprintf("TT %s assigned to you", ticket.TTNo)
 	notificationMessage := fmt.Sprintf(
-		"Your Trouble Ticket %s (%s) has been assigned to %s (%s).",
+		"You are now responsible for TT %s. Query: %s. Requester: %s (%s).",
 		ticket.TTNo,
 		fallbackText(ticket.QueryType, "IT Support"),
-		fallbackText(assignee.EmployeeName, "IT Personnel"),
-		assignee.EmployeeID,
+		fallbackText(ticket.EmployeeName, ticket.EmployeeID),
+		ticket.EmployeeID,
 	)
 
 	if reassigned {
 		notificationType = "TT_REASSIGNED"
-		notificationTitle = fmt.Sprintf("TT %s reassigned", ticket.TTNo)
+		notificationTitle = fmt.Sprintf("TT %s reassigned to you", ticket.TTNo)
 		notificationMessage = fmt.Sprintf(
-			"Your Trouble Ticket %s (%s) has been reassigned to %s (%s).",
+			"TT %s has been reassigned to you. Query: %s. Requester: %s (%s).",
 			ticket.TTNo,
 			fallbackText(ticket.QueryType, "IT Support"),
-			fallbackText(assignee.EmployeeName, "IT Personnel"),
-			assignee.EmployeeID,
+			fallbackText(ticket.EmployeeName, ticket.EmployeeID),
+			ticket.EmployeeID,
 		)
 	}
 
 	if err := enqueueTTAppNotification(
 		ctx,
 		tx,
-		ticket.EmployeeID,
+		assignee.EmployeeID,
 		actorEmployeeID,
 		notificationType,
 		notificationTitle,
 		notificationMessage,
 		ticket,
-		"/dashboard/user",
+		"/dashboard/trouble-tickets?scope=running",
 	); err != nil {
 		return 0, "", err
 	}
@@ -340,9 +340,9 @@ func enqueueTTAssignmentCommunications(
 		ctx,
 		tx,
 		mailqueue.Message{
-			// Assignment and reassignment email is intentionally sent only
-			// to the NEW assignee. Requesters receive an in-app notification,
-			// and the previous assignee is not copied on reassignment.
+			// Assignment and reassignment communication is intentionally sent
+			// only to the NEW assignee. The assignee receives both the in-app
+			// notification and email; the requester/previous assignee is not copied.
 			To:              assignee.Email,
 			ToName:          assignee.EmployeeName,
 			CC:              "",

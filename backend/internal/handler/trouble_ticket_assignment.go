@@ -379,9 +379,9 @@ func (h *DashboardHandler) AssignTroubleTicket(c *gin.Context) {
 		========================================================
 		COMMUNICATION OUTBOX
 
-		The requester receives an in-app notification and the new
-		IT assignee receives an email. The email is only QUEUED here;
-		SMTP delivery is handled asynchronously by the mail worker.
+		The new IT assignee receives both an in-app notification and email.
+		The requester and previous assignee are not notified for assignment/
+		reassignment. Email delivery is queued for the async mail worker.
 		========================================================
 	*/
 
@@ -461,9 +461,9 @@ func (h *DashboardHandler) AssignTroubleTicket(c *gin.Context) {
 				CreatedAt:    createdAt.Format(time.RFC3339),
 			},
 			"communication": gin.H{
-				"requester_notification": "queued",
-				"assignee_email":         emailStatus,
-				"email_outbox_id":        emailOutboxID,
+				"assignee_notification": "queued",
+				"assignee_email":        emailStatus,
+				"email_outbox_id":       emailOutboxID,
 			},
 		},
 	)
