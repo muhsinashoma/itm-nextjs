@@ -1,5 +1,6 @@
 
 
+
 // //itm/frontend/components/tt-columns.tsx
 // "use client";
 
@@ -80,6 +81,12 @@
 //     canEdit: boolean;
 //     canDelete: boolean;
 // }
+
+// export type TTAssignmentUpdate = {
+//     ticketId: number;
+//     assignedId: string;
+//     assignedName: string;
+// };
 
 // /* ============================================================
 //    MAP RBAC PERMISSIONS
@@ -558,11 +565,15 @@
 //     section,
 //     open,
 //     onOpenChange,
+//     onAssignmentCommitted,
 // }: {
 //     section: Section | null;
 //     open: boolean;
 //     onOpenChange: (
 //         open: boolean
+//     ) => void;
+//     onAssignmentCommitted?: (
+//         update: TTAssignmentUpdate
 //     ) => void;
 // }) {
 //     const [
@@ -880,14 +891,22 @@
 //             }
 
 //             /*
-//              * Successful assignment.
+//              * Successful assignment/reassignment.
 //              *
-//              * Close modal first,
-//              * then refresh dashboard.
+//              * Update the dashboard row in memory immediately.
+//              * This avoids a page navigation, full refresh, loading
+//              * state, and a second API round-trip just to display
+//              * the assignee that the backend has already accepted.
 //              */
-//             onOpenChange(false);
+//             onAssignmentCommitted?.({
+//                 ticketId: ticketID,
+//                 assignedId: selectedEmployee,
+//                 assignedName:
+//                     selectedAssignee?.employee_name ??
+//                     selectedEmployee,
+//             });
 
-//             window.location.assign("/dashboard#trouble-ticket-table");
+//             onOpenChange(false);
 //         } catch (reason) {
 //             console.error(
 //                 "Trouble Ticket assignment failed:",
@@ -1269,9 +1288,13 @@
 // function ActionCell({
 //     section,
 //     permissions,
+//     onAssignmentCommitted,
 // }: {
 //     section: Section;
 //     permissions: TTActionPermissions;
+//     onAssignmentCommitted?: (
+//         update: TTAssignmentUpdate
+//     ) => void;
 // }) {
 //     const { openModal, setActionDialogOpen } =
 //         useTTModal();
@@ -1503,6 +1526,9 @@
 //                 onOpenChange={
 //                     setAssignmentOpen
 //                 }
+//                 onAssignmentCommitted={
+//                     onAssignmentCommitted
+//                 }
 //             />
 
 
@@ -1526,7 +1552,10 @@
 // ============================================================ */
 
 // export function createTTColumns(
-//     permissions: TTActionPermissions
+//     permissions: TTActionPermissions,
+//     onAssignmentCommitted?: (
+//         update: TTAssignmentUpdate
+//     ) => void
 // ): ColumnDef<Section>[] {
 //     /*
 //      * Column widths are intentionally not hard-coded here.
@@ -2197,11 +2226,16 @@
 //                     permissions={
 //                         permissions
 //                     }
+//                     onAssignmentCommitted={
+//                         onAssignmentCommitted
+//                     }
 //                 />
 //             ),
 //         },
 //     ];
 // }
+
+
 
 
 
@@ -2227,6 +2261,7 @@ import {
     TicketCheck,
     Trash2,
     UserCheck,
+    X,
     XCircle,
 } from "lucide-react";
 
@@ -2898,7 +2933,7 @@ function AssignmentDialog({
         setPersonnelPickerOpen(false);
         setNote("");
         setError("");
-    }, [open, section]);
+    }, [open, section?.id]);
 
     /* ========================================================
        CURRENT ASSIGNEE
@@ -2960,10 +2995,15 @@ function AssignmentDialog({
         person: TroubleTicketITPersonnel
     ) {
         setSelectedEmployee(person.employee_id);
-        setPersonnelSearch(
-            `${person.employee_name} (${person.employee_id})`
-        );
+        setPersonnelSearch("");
         setPersonnelPickerOpen(false);
+        setError("");
+    }
+
+    function clearSelectedAssignee() {
+        setSelectedEmployee("");
+        setPersonnelSearch("");
+        setPersonnelPickerOpen(true);
         setError("");
     }
 
@@ -3103,13 +3143,48 @@ function AssignmentDialog({
              * state, and a second API round-trip just to display
              * the assignee that the backend has already accepted.
              */
-            onAssignmentCommitted?.({
+            const assignmentUpdate: TTAssignmentUpdate = {
                 ticketId: ticketID,
                 assignedId: selectedEmployee,
                 assignedName:
                     selectedAssignee?.employee_name ??
                     selectedEmployee,
-            });
+            };
+
+            onAssignmentCommitted?.(assignmentUpdate);
+
+            /*
+             * Keep other open ITM tabs in sync immediately.
+             * A silent polling fallback in Dashboard handles users
+             * signed in from a different browser/device.
+             */
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                    new CustomEvent("itm:trouble-ticket-changed", {
+                        detail: {
+                            type: currentAssignedID
+                                ? "reassigned"
+                                : "assigned",
+                            ...assignmentUpdate,
+                        },
+                    })
+                );
+
+                try {
+                    const channel = new BroadcastChannel(
+                        "itm-trouble-tickets"
+                    );
+                    channel.postMessage({
+                        type: currentAssignedID
+                            ? "reassigned"
+                            : "assigned",
+                        ...assignmentUpdate,
+                    });
+                    channel.close();
+                } catch {
+                    // BroadcastChannel is optional; silent polling is the fallback.
+                }
+            }
 
             onOpenChange(false);
         } catch (reason) {
@@ -3236,18 +3311,47 @@ function AssignmentDialog({
                        IT PERSONNEL
                     ================================================== */}
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                         <div className="flex items-center justify-between gap-3">
                             <label
                                 htmlFor="tt-assignee-search"
                                 className="text-[10px] font-semibold"
                             >
-                                Assign To *
+                                IT Personnel *
                             </label>
                             <span className="text-[9px] text-muted-foreground">
                                 Search by name or employee ID
                             </span>
                         </div>
+
+                        {selectedAssignee ? (
+                            <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2.5 shadow-sm dark:border-blue-900 dark:bg-blue-950/25">
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-background text-blue-700 dark:border-blue-800 dark:text-blue-300">
+                                        <UserCheck className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-[10.5px] font-semibold text-foreground">
+                                            {selectedAssignee.employee_name}
+                                        </p>
+                                        <p className="mt-0.5 font-mono text-[9px] font-medium text-blue-700 dark:text-blue-300">
+                                            {selectedAssignee.employee_id}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={clearSelectedAssignee}
+                                    disabled={submitting}
+                                    aria-label="Remove selected IT Personnel"
+                                    title="Remove selected IT Personnel"
+                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-background text-muted-foreground transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-800 dark:hover:border-red-900 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        ) : null}
 
                         <div className="relative">
                             <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -3260,12 +3364,11 @@ function AssignmentDialog({
                                 onBlur={() =>
                                     window.setTimeout(
                                         () => setPersonnelPickerOpen(false),
-                                        120
+                                        140
                                     )
                                 }
                                 onChange={(event) => {
                                     setPersonnelSearch(event.target.value);
-                                    setSelectedEmployee("");
                                     setPersonnelPickerOpen(true);
                                 }}
                                 onKeyDown={(event) => {
@@ -3292,20 +3395,27 @@ function AssignmentDialog({
                                 placeholder={
                                     loadingPersonnel
                                         ? "Loading IT Personnel..."
-                                        : "Type a name or employee ID..."
+                                        : selectedAssignee
+                                            ? "Search to change selected IT Personnel..."
+                                            : "Search IT Personnel..."
                                 }
-                                className="h-9 pl-9 pr-3 text-[11px]"
+                                className="h-10 rounded-lg pl-9 pr-3 text-[11px] shadow-sm"
                             />
 
                             {personnelPickerOpen && !loadingPersonnel && (
                                 <div
                                     id="tt-assignee-options"
                                     role="listbox"
-                                    className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border bg-popover shadow-lg"
+                                    className="absolute z-[70] mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-popover shadow-[0_18px_45px_rgba(15,23,42,0.18)]"
                                 >
-                                    <div className="max-h-[220px] overflow-y-auto p-1">
+                                    <div className="border-b bg-muted/30 px-3 py-2">
+                                        <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Available IT Personnel
+                                        </p>
+                                    </div>
+                                    <div className="max-h-[240px] overflow-y-auto p-1.5">
                                         {filteredPersonnel.length === 0 ? (
-                                            <div className="px-3 py-5 text-center text-[10px] text-muted-foreground">
+                                            <div className="px-3 py-6 text-center text-[10px] text-muted-foreground">
                                                 {personnel.length === 0
                                                     ? "No active IT Personnel available."
                                                     : "No IT Personnel matched your search."}
@@ -3327,19 +3437,23 @@ function AssignmentDialog({
                                                         onClick={() =>
                                                             selectAssignee(person)
                                                         }
-                                                        className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground ${selected ? "bg-accent/70" : ""
-                                                            }`}
+                                                        className={`group flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground ${selected ? "bg-blue-50 text-blue-900 dark:bg-blue-950/30 dark:text-blue-100" : ""}`}
                                                     >
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-[10.5px] font-semibold">
-                                                                {person.employee_name}
-                                                            </p>
-                                                            <p className="mt-0.5 font-mono text-[9px] text-muted-foreground">
-                                                                {person.employee_id}
-                                                            </p>
+                                                        <div className="flex min-w-0 items-center gap-2.5">
+                                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground group-hover:text-foreground">
+                                                                <UserCheck className="h-3.5 w-3.5" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-[10.5px] font-semibold">
+                                                                    {person.employee_name}
+                                                                </p>
+                                                                <p className="mt-0.5 font-mono text-[9px] text-muted-foreground">
+                                                                    {person.employee_id}
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                         {selected ? (
-                                                            <CheckCircle className="h-3.5 w-3.5 shrink-0 text-primary" />
+                                                            <CheckCircle className="h-4 w-4 shrink-0 text-blue-600" />
                                                         ) : null}
                                                     </button>
                                                 );
@@ -3544,9 +3658,9 @@ function ActionCell({
 
     const hasActions =
         permissions.canView ||
-        permissions.canAssign ||
-        permissions.canRequisition ||
-        permissions.canClose ||
+        (permissions.canAssign && !isClosed) ||
+        (permissions.canRequisition && !isClosed) ||
+        (permissions.canClose && !isClosed) ||
         permissions.canEdit ||
         permissions.canDelete;
 
@@ -3616,14 +3730,13 @@ function ActionCell({
                        ASSIGN / REASSIGN
                     ================================================== */}
 
-                    {permissions.canAssign && (
+                    {permissions.canAssign && !isClosed && (
                         <DropdownMenuItem
                             className="cursor-pointer text-[10px]"
-                            onClick={() =>
-                                setAssignmentOpen(
-                                    true
-                                )
-                            }
+                            onClick={() => {
+                                setActionDialogOpen(true);
+                                setAssignmentOpen(true);
+                            }}
                         >
                             <UserCheck className="mr-2 h-3.5 w-3.5 text-blue-600" />
 
@@ -3640,9 +3753,10 @@ function ActionCell({
                     {permissions.canRequisition && !isClosed && (
                         <DropdownMenuItem
                             className="cursor-pointer text-[10px]"
-                            onClick={() =>
-                                setRequisitionOpen(true)
-                            }
+                            onClick={() => {
+                                setActionDialogOpen(true);
+                                setRequisitionOpen(true);
+                            }}
                         >
                             <ClipboardList className="mr-2 h-3.5 w-3.5 text-indigo-600" />
 
@@ -3659,9 +3773,10 @@ function ActionCell({
                     {permissions.canClose && !isClosed && (
                         <DropdownMenuItem
                             className="cursor-pointer text-[10px]"
-                            onClick={() =>
-                                setCloseOpen(true)
-                            }
+                            onClick={() => {
+                                setActionDialogOpen(true);
+                                setCloseOpen(true);
+                            }}
                         >
                             <CheckCircle className="mr-2 h-3.5 w-3.5 text-emerald-600" />
 
@@ -3728,9 +3843,10 @@ function ActionCell({
             <AssignmentDialog
                 section={section}
                 open={assignmentOpen}
-                onOpenChange={
-                    setAssignmentOpen
-                }
+                onOpenChange={(nextOpen) => {
+                    setAssignmentOpen(nextOpen);
+                    setActionDialogOpen(nextOpen);
+                }}
                 onAssignmentCommitted={
                     onAssignmentCommitted
                 }
@@ -3740,13 +3856,19 @@ function ActionCell({
             <TroubleTicketRequisitionDialog
                 section={section}
                 open={requisitionOpen}
-                onOpenChange={setRequisitionOpen}
+                onOpenChange={(nextOpen) => {
+                    setRequisitionOpen(nextOpen);
+                    setActionDialogOpen(nextOpen);
+                }}
             />
 
             <TroubleTicketCloseDialog
                 section={section}
                 open={closeOpen}
-                onOpenChange={setCloseOpen}
+                onOpenChange={(nextOpen) => {
+                    setCloseOpen(nextOpen);
+                    setActionDialogOpen(nextOpen);
+                }}
             />
         </>
     );

@@ -5,6 +5,7 @@
 // "use client";
 
 // import React, {
+//     useCallback,
 //     useEffect,
 //     useMemo,
 //     useState,
@@ -18,6 +19,7 @@
 //     createTTColumns,
 //     mapTTPermissions,
 //     toSection,
+//     type TTAssignmentUpdate,
 // } from "@/components/tt-columns";
 
 // import type {
@@ -554,14 +556,6 @@
 //         [authUser?.permissions]
 //     );
 
-//     const columns = useMemo(
-//         () =>
-//             createTTColumns(
-//                 actionPermissions
-//             ),
-//         [actionPermissions]
-//     );
-
 //     /* --------------------------------------------------------
 //        DASHBOARD STATE
 //        -------------------------------------------------------- */
@@ -644,6 +638,46 @@
 //     ] = useState<
 //         TroubleTicketITPersonnel[]
 //     >([]);
+
+//     /* --------------------------------------------------------
+//        INSTANT ASSIGN / REASSIGN UI UPDATE
+//        -------------------------------------------------------- */
+
+//     const handleAssignmentCommitted = useCallback(
+//         (update: TTAssignmentUpdate) => {
+//             setTroubleTicketRows((currentRows) =>
+//                 currentRows.map((ticket) => {
+//                     if (
+//                         Number(ticket.id) !==
+//                         update.ticketId
+//                     ) {
+//                         return ticket;
+//                     }
+
+//                     return {
+//                         ...ticket,
+//                         assigned_id:
+//                             update.assignedId,
+//                         assigned_name:
+//                             update.assignedName,
+//                     };
+//                 })
+//             );
+//         },
+//         []
+//     );
+
+//     const columns = useMemo(
+//         () =>
+//             createTTColumns(
+//                 actionPermissions,
+//                 handleAssignmentCommitted
+//             ),
+//         [
+//             actionPermissions,
+//             handleAssignmentCommitted,
+//         ]
+//     );
 
 //     /* ========================================================
 //        LOAD AUTH / PERMISSIONS
@@ -1074,8 +1108,28 @@
 //                 const tickets =
 //                     response.data ?? [];
 
+//                 const mappedTickets =
+//                     tickets.map(toSection);
+
+//                 /*
+//                  * Professional dashboard behavior:
+//                  * closed tickets remain in the database/history,
+//                  * but the default operational table shows only
+//                  * tickets that still need attention.
+//                  *
+//                  * If the user explicitly selects a Status filter
+//                  * (including Closed), honor that filter.
+//                  */
+//                 const visibleTickets =
+//                     troubleTicketServerFilters.status
+//                         ? mappedTickets
+//                         : mappedTickets.filter(
+//                             (ticket) =>
+//                                 ticket.status !== "Closed"
+//                         );
+
 //                 setTroubleTicketRows(
-//                     tickets.map(toSection)
+//                     visibleTickets
 //                 );
 //             } catch (
 //             reason: unknown
@@ -2770,7 +2824,6 @@
 
 
 
-
 // frontend/app/dashboard/page.tsx
 
 "use client";
@@ -2785,6 +2838,7 @@ import React, {
 import { useRouter } from "next/navigation";
 import OverviewChart from "@/components/overview-chart";
 import { DataTable } from "@/components/data-table";
+import { useTTModal } from "@/components/ui/tt-modal-store";
 
 import {
     createTTColumns,
@@ -3308,6 +3362,7 @@ const renewalLegend = [
 
 export default function DashboardPage() {
     const router = useRouter();
+    const { actionDialogOpen } = useTTModal();
 
     /* --------------------------------------------------------
        AUTH / TT COLUMN PERMISSIONS
@@ -3935,6 +3990,165 @@ export default function DashboardPage() {
     }, [
         troubleTicketServerFilters,
     ]);
+
+    /* ========================================================
+       SILENT TROUBLE TICKET SYNC
+
+       Assignment / reassignment can be performed by another logged-in
+       operator while this dashboard is already open. Keep the table
+       current without displaying a loader or reloading the page.
+
+       - Same browser/tab: custom event updates immediately.
+       - Other ITM tabs: BroadcastChannel updates immediately.
+       - Different browser/device: short silent polling fallback.
+       ======================================================== */
+
+    useEffect(() => {
+        let cancelled = false;
+        let inFlight = false;
+
+        async function silentSyncTroubleTickets() {
+            if (
+                cancelled ||
+                inFlight ||
+                actionDialogOpen ||
+                (typeof document !== "undefined" &&
+                    document.visibilityState === "hidden")
+            ) {
+                return;
+            }
+
+            try {
+                inFlight = true;
+
+                const response =
+                    await dashboardApi.troubleTickets({
+                        scope: "all",
+                        page: 1,
+                        limit: 1000,
+                        status:
+                            troubleTicketServerFilters.status
+                                ? (troubleTicketServerFilters.status as TroubleTicketStatus)
+                                : "all",
+                        from_date:
+                            troubleTicketServerFilters.fromDate ||
+                            undefined,
+                        to_date:
+                            troubleTicketServerFilters.toDate ||
+                            undefined,
+                        employee_id:
+                            troubleTicketServerFilters.employeeId ||
+                            undefined,
+                        it_personal:
+                            troubleTicketServerFilters.itPersonal ||
+                            undefined,
+                    });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const mappedTickets =
+                    (response.data ?? []).map(toSection);
+
+                const visibleTickets =
+                    troubleTicketServerFilters.status
+                        ? mappedTickets
+                        : mappedTickets.filter(
+                            (ticket) =>
+                                ticket.status !== "Closed"
+                        );
+
+                setTroubleTicketRows(visibleTickets);
+                setTroubleTicketError("");
+            } catch (reason) {
+                // Silent sync must never blank the existing table or show
+                // a page-level loading/error state for a transient failure.
+                console.debug(
+                    "Silent Trouble Ticket sync skipped:",
+                    reason
+                );
+            } finally {
+                inFlight = false;
+            }
+        }
+
+        const handleTicketChanged = () => {
+            void silentSyncTroubleTickets();
+        };
+
+        const handleFocus = () => {
+            void silentSyncTroubleTickets();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void silentSyncTroubleTickets();
+            }
+        };
+
+        window.addEventListener(
+            "itm:trouble-ticket-changed",
+            handleTicketChanged
+        );
+        window.addEventListener("focus", handleFocus);
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
+
+        let channel: BroadcastChannel | null = null;
+
+        try {
+            channel = new BroadcastChannel(
+                "itm-trouble-tickets"
+            );
+            channel.addEventListener(
+                "message",
+                handleTicketChanged
+            );
+        } catch {
+            channel = null;
+        }
+
+        /*
+         * Cross-browser/device fallback. It is intentionally silent: the
+         * existing table remains interactive and no "Updating..." state is
+         * shown. This gives near-real-time recipient updates even when the
+         * notification is received in another browser.
+         */
+        const interval = window.setInterval(
+            () => {
+                void silentSyncTroubleTickets();
+            },
+            2000
+        );
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+            window.removeEventListener(
+                "itm:trouble-ticket-changed",
+                handleTicketChanged
+            );
+            window.removeEventListener(
+                "focus",
+                handleFocus
+            );
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
+
+            if (channel) {
+                channel.removeEventListener(
+                    "message",
+                    handleTicketChanged
+                );
+                channel.close();
+            }
+        };
+    }, [troubleTicketServerFilters, actionDialogOpen]);
 
     /* ========================================================
        POST-CREATE TROUBLE TICKET UX
@@ -5590,8 +5804,6 @@ export default function DashboardPage() {
         </div>
     );
 }
-
-
 
 
 
