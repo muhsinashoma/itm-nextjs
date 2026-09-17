@@ -6,19 +6,24 @@
 import type { ColumnDef } from "@tanstack/react-table";
 
 import {
+    BellRing,
+    Building2,
     CheckCircle,
     ChevronDown,
     ClipboardList,
     Clock,
     Eye,
     Loader2,
+    Mail,
     Pencil,
+    Phone,
+    TicketCheck,
     Trash2,
     UserCheck,
     XCircle,
 } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -525,6 +530,33 @@ function assignmentError(
     return "Unable to process Trouble Ticket assignment.";
 }
 
+function InfoItem({
+    label,
+    value,
+    mono = false,
+    icon,
+}: {
+    label: string;
+    value: unknown;
+    mono?: boolean;
+    icon?: ReactNode;
+}) {
+    return (
+        <div className="min-w-0 rounded-lg border bg-background px-3 py-2.5">
+            <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {icon}
+                <span>{label}</span>
+            </div>
+            <p
+                title={textValue(value) === "—" ? undefined : textValue(value)}
+                className={`mt-1 truncate text-[10.5px] font-semibold text-foreground ${mono ? "font-mono" : ""}`}
+            >
+                {textValue(value)}
+            </p>
+        </div>
+    );
+}
+
 /* ============================================================
    ASSIGNMENT DIALOG
 ============================================================ */
@@ -667,6 +699,13 @@ function AssignmentDialog({
             section?.assigned_name ??
             ""
         ).trim();
+
+    const selectedAssignee =
+        personnel.find(
+            (person) =>
+                person.employee_id ===
+                selectedEmployee
+        ) ?? null;
 
     const alreadyAssigned =
         Boolean(
@@ -841,60 +880,66 @@ function AssignmentDialog({
                     : onOpenChange
             }
         >
-            <DialogContent>
-                <div className="mb-4">
-                    <DialogTitle className="text-sm">
-                        {currentAssignedID
-                            ? "Reassign Trouble Ticket"
-                            : "Assign Trouble Ticket"}
-                    </DialogTitle>
+            <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[720px]">
+                <div className="flex items-start gap-3 border-b pb-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30">
+                        <TicketCheck className="h-5 w-5 text-blue-600" />
+                    </div>
 
-                    <DialogDescription className="mt-1 text-xs">
-                        Assign this Trouble Ticket
-                        to an active IT Personnel.
-                    </DialogDescription>
+                    <div className="min-w-0">
+                        <DialogTitle className="text-sm font-semibold">
+                            {currentAssignedID
+                                ? "Reassign Trouble Ticket"
+                                : "Assign Trouble Ticket"}
+                        </DialogTitle>
+
+                        <DialogDescription className="mt-1 text-[10px] leading-4">
+                            Select the responsible IT Personnel and review the ticket context before confirming the assignment.
+                        </DialogDescription>
+                    </div>
                 </div>
 
-                <div className="space-y-4 py-4">
+                <div className="space-y-4 pt-4">
 
                     {/* ==================================================
                        TICKET INFORMATION
                     ================================================== */}
 
-                    <div
-                        className="
-                            rounded-lg
-                            border
-                            bg-muted/30
-                            p-3
-                        "
-                    >
-                        <div className="grid grid-cols-2 gap-4">
-
+                    <div className="rounded-xl border bg-muted/20 p-3">
+                        <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
-                                <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-                                    TT No
+                                <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Ticket Context
                                 </p>
-
-                                <p className="mt-1 font-mono text-[11px] font-semibold">
-                                    {textValue(
-                                        section?.tt_no
-                                    )}
+                                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                    Verify the requester and issue before assigning ownership.
                                 </p>
                             </div>
 
-                            <div>
-                                <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-                                    Ticket ID
-                                </p>
+                            <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 font-mono text-[9px] font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+                                {textValue(section?.tt_no)}
+                            </span>
+                        </div>
 
-                                <p className="mt-1 text-[11px] font-semibold">
-                                    {textValue(
-                                        section?.id
-                                    )}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <InfoItem label="Requester" value={section?.employee_name} />
+                            <InfoItem label="Employee ID" value={section?.employee_id} mono />
+                            <InfoItem label="Query Type" value={section?.query_type} />
+                            <InfoItem label="Department" value={section?.dept_name} icon={<Building2 className="h-3 w-3" />} />
+                            <InfoItem label="Contact" value={section?.mobile_no} icon={<Phone className="h-3 w-3" />} />
+                            <InfoItem label="Created" value={section?.created_at} />
+                        </div>
+
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-background px-3 py-2.5 dark:border-slate-800">
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    TT Reason / Problem Description
                                 </p>
+                                <span className="text-[9px] text-muted-foreground">Requester statement</span>
                             </div>
-
+                            <p className="mt-1.5 whitespace-pre-wrap break-words text-[10.5px] leading-4 text-foreground">
+                                {textValue(section?.description)}
+                            </p>
                         </div>
                     </div>
 
@@ -902,41 +947,27 @@ function AssignmentDialog({
                        CURRENT ASSIGNEE
                     ================================================== */}
 
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold">
-                            Current Assignee
-                        </label>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border bg-muted/20 px-3 py-2.5">
+                            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Current Assignee
+                            </p>
+                            <p className="mt-1 truncate text-[11px] font-semibold">
+                                {currentAssignedID
+                                    ? `${currentAssignedName || "Unknown"} (${currentAssignedID})`
+                                    : "Not assigned"}
+                            </p>
+                        </div>
 
-                        <div
-                            className="
-                                flex
-                                min-h-9
-                                items-center
-                                rounded-md
-                                border
-                                bg-muted/30
-                                px-3
-                                text-[11px]
-                            "
-                        >
-                            {currentAssignedID ? (
-                                <span>
-                                    {currentAssignedName ||
-                                        "Unknown"}
-
-                                    <span className="ml-1 text-muted-foreground">
-                                        (
-                                        {
-                                            currentAssignedID
-                                        }
-                                        )
-                                    </span>
-                                </span>
-                            ) : (
-                                <span className="text-muted-foreground">
-                                    Not assigned
-                                </span>
-                            )}
+                        <div className="rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2.5 dark:border-blue-900 dark:bg-blue-950/20">
+                            <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                                New Assignee
+                            </p>
+                            <p className="mt-1 truncate text-[11px] font-semibold text-blue-900 dark:text-blue-100">
+                                {selectedAssignee
+                                    ? `${selectedAssignee.employee_name} (${selectedAssignee.employee_id})`
+                                    : "Select IT Personnel below"}
+                            </p>
                         </div>
                     </div>
 
@@ -946,7 +977,7 @@ function AssignmentDialog({
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-semibold">
-                            Assign To
+                            Assign To *
                         </label>
 
                         <Select
@@ -1011,15 +1042,31 @@ function AssignmentDialog({
                         </Select>
                     </div>
 
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 text-[10px] leading-4 text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950/20 dark:text-indigo-200">
+                            <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                                The selected IT Personnel will receive a professional assignment email at the official email address stored in ITM.
+                            </span>
+                        </div>
+
+                        <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-[10px] leading-4 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
+                            <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                                The requester will receive an in-app notification immediately after the assignment is committed.
+                            </span>
+                        </div>
+                    </div>
+
                     {/* ==================================================
                        NOTE
                     ================================================== */}
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-semibold">
-                            Note
+                            Assignment Note
                             <span className="ml-1 font-normal text-muted-foreground">
-                                (Optional)
+                                (Optional · included in email)
                             </span>
                         </label>
 
@@ -1038,8 +1085,8 @@ function AssignmentDialog({
                             }
                             placeholder={
                                 currentAssignedID
-                                    ? "Reassigned to another IT Personnel"
-                                    : "Assigned to IT Personnel"
+                                    ? "Reason or context for reassignment..."
+                                    : "Add useful context for the assigned IT Personnel..."
                             }
                             maxLength={500}
                             className="h-9 text-[11px]"
@@ -1122,11 +1169,11 @@ function AssignmentDialog({
                             </>
                         ) : (
                             <>
-                                <UserCheck className="h-3.5 w-3.5" />
+                                <Mail className="h-3.5 w-3.5" />
 
                                 {currentAssignedID
-                                    ? "Reassign"
-                                    : "Assign"}
+                                    ? "Reassign & Notify"
+                                    : "Assign & Notify"}
                             </>
                         )}
                     </Button>

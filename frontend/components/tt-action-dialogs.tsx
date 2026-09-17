@@ -1,13 +1,17 @@
 //frontend/components/tt-action-dialogs.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
     AlertCircle,
+    BellRing,
+    Building2,
     CheckCircle2,
     ClipboardList,
     Loader2,
+    Mail,
     LockKeyhole,
+    Phone,
     UserRound,
 } from "lucide-react";
 
@@ -511,6 +515,33 @@ export function TroubleTicketRequisitionDialog({
     );
 }
 
+function CloseInfo({
+    label,
+    value,
+    mono = false,
+    icon,
+}: {
+    label: string;
+    value: unknown;
+    mono?: boolean;
+    icon?: ReactNode;
+}) {
+    return (
+        <div className="min-w-0 rounded-lg border bg-background px-3 py-2.5">
+            <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {icon}
+                <span>{label}</span>
+            </div>
+            <p
+                title={text(value) === "—" ? undefined : text(value)}
+                className={`mt-1 truncate text-[10.5px] font-semibold text-foreground ${mono ? "font-mono" : ""}`}
+            >
+                {text(value)}
+            </p>
+        </div>
+    );
+}
+
 export function TroubleTicketCloseDialog({
     section,
     open,
@@ -564,36 +595,75 @@ export function TroubleTicketCloseDialog({
             open={open}
             onOpenChange={submitting ? undefined : onOpenChange}
         >
-            <DialogContent className="sm:max-w-[580px]">
-                <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30">
-                        <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />
+            <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[700px]">
+                <div className="flex items-start gap-3 border-b pb-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                     </div>
-                    <div>
-                        <DialogTitle className="text-sm">Close Trouble Ticket</DialogTitle>
+                    <div className="min-w-0">
+                        <DialogTitle className="text-sm font-semibold">Close Trouble Ticket</DialogTitle>
                         <DialogDescription className="mt-1 text-[10px] leading-4">
-                            Closing is an auditable action. The backend records status, closed_at, authenticated closed_by and the closing description.
+                            Confirm the final resolution before closing. The requester will receive the closing summary as a system-generated email.
                         </DialogDescription>
                     </div>
                 </div>
 
-                <div className="space-y-4 pt-2">
-                    <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/20 p-3">
-                        <div>
-                            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">TT No</p>
-                            <p className="mt-1 font-mono text-[11px] font-semibold">{text(section?.tt_no)}</p>
+                <div className="space-y-4 pt-4">
+                    <div className="rounded-xl border bg-muted/20 p-3">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Ticket Context</p>
+                                <p className="mt-0.5 text-[10px] text-muted-foreground">Review the requester, issue and current ownership before closing.</p>
+                            </div>
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-[9px] font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                {text(section?.tt_no)}
+                            </span>
                         </div>
-                        <div>
-                            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Assigned To</p>
-                            <p className="mt-1 text-[11px] font-semibold">{text(section?.assigned_name || section?.assigned_id)}</p>
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <CloseInfo label="Requester" value={section?.employee_name} />
+                            <CloseInfo label="Employee ID" value={section?.employee_id} mono />
+                            <CloseInfo label="Query Type" value={section?.query_type} />
+                            <CloseInfo label="Department" value={section?.dept_name} icon={<Building2 className="h-3 w-3" />} />
+                            <CloseInfo label="Contact" value={section?.mobile_no} icon={<Phone className="h-3 w-3" />} />
+                            <CloseInfo label="Assigned To" value={section?.assigned_name || section?.assigned_id} />
+                        </div>
+
+
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-background px-3 py-2.5 dark:border-slate-800">
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    TT Reason / Problem Description
+                                </p>
+                                <span className="text-[9px] text-muted-foreground">Original requester statement</span>
+                            </div>
+                            {/* <p className="mt-1.5 whitespace-pre-wrap break-words text-[10.5px] leading-4 text-foreground">
+                                {text(section?.description)}
+                            </p> */}
                         </div>
                     </div>
 
                     <ActorCard />
 
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-[10px] leading-4 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
+                            <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                                The requester will receive a closure email containing the TT number, query type, resolution summary, closer and closure time.
+                            </span>
+                        </div>
+
+                        <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2.5 text-[10px] leading-4 text-blue-800 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200">
+                            <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                                An in-app notification is also created so the employee can see the closure immediately in ITM.
+                            </span>
+                        </div>
+                    </div>
+
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-semibold">Closing Description *</label>
+                            <label className="text-[10px] font-semibold">Resolution / Closing Summary *</label>
                             <span className="text-[9px] text-muted-foreground">{closingDescription.length}/2000</span>
                         </div>
                         <textarea
@@ -602,7 +672,7 @@ export function TroubleTicketCloseDialog({
                             disabled={submitting}
                             maxLength={2000}
                             rows={6}
-                            placeholder="Describe the resolution, corrective action and final outcome..."
+                            placeholder="Describe the resolution, corrective action, verification performed and final outcome. This text will be included in the user's closure email."
                             className="min-h-[132px] w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-[11px] outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                         />
                     </div>
@@ -617,7 +687,7 @@ export function TroubleTicketCloseDialog({
                 <div className="mt-2 flex items-center justify-between gap-3 border-t pt-4">
                     <div className="hidden items-center gap-1.5 text-[9px] text-muted-foreground sm:flex">
                         <LockKeyhole className="h-3 w-3" />
-                        Server-side permission: TT_Close
+                        Audited action · Permission: TT_Close
                     </div>
                     <div className="ml-auto flex gap-2">
                         <Button
@@ -637,8 +707,8 @@ export function TroubleTicketCloseDialog({
                             onClick={handleSubmit}
                             className="h-8 gap-1.5 text-[10px]"
                         >
-                            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                            {submitting ? "Closing..." : "Close Ticket"}
+                            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                            {submitting ? "Closing & Queuing Email..." : "Close & Notify User"}
                         </Button>
                     </div>
                 </div>

@@ -15,6 +15,7 @@ import (
 	"itm-api/internal/config"
 	"itm-api/internal/db"
 	"itm-api/internal/handler"
+	"itm-api/internal/mailqueue"
 	"itm-api/internal/middleware"
 
 	"github.com/gin-contrib/cors"
@@ -48,6 +49,43 @@ func main() {
 	log.Println(
 		"✅ PostgreSQL connected",
 	)
+
+	/* ============================================================
+	   EMAIL OUTBOX WORKER
+
+	   SMTP delivery is intentionally asynchronous so TT assignment
+	   and closure requests never wait on the mail server.
+	============================================================ */
+
+	mailService, err := mailqueue.New(
+		pool,
+		mailqueue.Config{
+			Enabled:      cfg.MailEnabled,
+			Host:         cfg.SMTPHost,
+			Port:         cfg.SMTPPort,
+			TLSMode:      cfg.SMTPTLSMode,
+			Username:     cfg.SMTPUsername,
+			Password:     cfg.SMTPPassword,
+			FromAddress:  cfg.SMTPFromAddress,
+			FromName:     cfg.SMTPFromName,
+			AppPublicURL: cfg.AppPublicURL,
+			PollInterval: time.Duration(cfg.MailWorkerPollSeconds) * time.Second,
+			MaxAttempts:  cfg.MailMaxAttempts,
+			SendTimeout:  time.Duration(cfg.MailSendTimeoutSeconds) * time.Second,
+		},
+	)
+	if err != nil {
+		log.Fatalf("❌ mail worker configuration failed: %v", err)
+	}
+
+	mailCtx, stopMailWorker := context.WithCancel(context.Background())
+	defer stopMailWorker()
+
+	if mailService.Enabled() {
+		go mailService.Run(mailCtx)
+	} else {
+		log.Println("ℹ️  ITM mail worker disabled (MAIL_ENABLED=false)")
+	}
 
 	/* ============================================================
 	   GIN MODE
@@ -326,8 +364,6 @@ func main() {
 		protected,
 	)
 
-	
-
 	roleAccessHandler :=
 		handler.NewRoleAccessHandler(
 			pool,
@@ -468,6 +504,8 @@ func main() {
 	)
 
 	<-quit
+
+	stopMailWorker()
 
 	log.Println(
 		"🛑 shutting down ITM API...",

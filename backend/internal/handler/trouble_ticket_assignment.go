@@ -3,6 +3,7 @@ package handler
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -183,24 +184,10 @@ func (h *DashboardHandler) AssignTroubleTicket(c *gin.Context) {
 		========================================================
 	*/
 
-	var assignedName string
-
-	err = tx.QueryRow(
+	assignee, err := loadActiveITCommunicationContact(
 		ctx,
-		`
-		SELECT
-			TRIM(employee_id),
-			TRIM(employee_name)
-		FROM public.employee_office_info
-		WHERE TRIM(employee_id) = TRIM($1)
-		  AND work_field = 'IT'
-		  AND active = 'Yes'
-		LIMIT 1
-		`,
+		tx,
 		assignedID,
-	).Scan(
-		&assignedID,
-		&assignedName,
 	)
 
 	if err != nil {
@@ -226,6 +213,9 @@ func (h *DashboardHandler) AssignTroubleTicket(c *gin.Context) {
 		return
 	}
 
+	assignedID = assignee.EmployeeID
+	assignedName := assignee.EmployeeName
+
 	/*
 		========================================================
 		LOCK TICKET
@@ -236,26 +226,14 @@ func (h *DashboardHandler) AssignTroubleTicket(c *gin.Context) {
 		========================================================
 	*/
 
-	var (
-		ttNo             string
-		previousAssigned string
+	ticket, err := loadTTCommunicationSnapshotForUpdate(
+		ctx,
+		tx,
+		ticketID,
 	)
 
-	err = tx.QueryRow(
-		ctx,
-		`
-		SELECT
-			tt_no,
-			COALESCE(TRIM(assigned_id), '')
-		FROM public.trouble_tickets
-		WHERE id = $1
-		FOR UPDATE
-		`,
-		ticketID,
-	).Scan(
-		&ttNo,
-		&previousAssigned,
-	)
+	ttNo := ticket.TTNo
+	previousAssigned := ticket.AssignedID
 
 	if err != nil {
 
@@ -399,6 +377,52 @@ func (h *DashboardHandler) AssignTroubleTicket(c *gin.Context) {
 
 	/*
 		========================================================
+		COMMUNICATION OUTBOX
+
+		The requester receives an in-app notification and the new
+		IT assignee receives an email. The email is only QUEUED here;
+		SMTP delivery is handled asynchronously by the mail worker.
+		========================================================
+	*/
+
+	actorName := resolveActorName(
+		ctx,
+		tx,
+		performedBy,
+	)
+
+	emailOutboxID, emailStatus, err := enqueueTTAssignmentCommunications(
+		ctx,
+		tx,
+		ticket,
+		assignee,
+		performedBy,
+		actorName,
+		eventType,
+		eventID,
+		note,
+		c.ClientIP(),
+	)
+	if err != nil {
+		log.Printf(
+			"TT assignment communication queue failed: ticket_id=%d tt_no=%s assignee=%s error=%v",
+			ticketID,
+			ttNo,
+			assignedID,
+			err,
+		)
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "failed to queue Trouble Ticket notifications",
+			},
+		)
+		return
+	}
+
+	/*
+		========================================================
 		COMMIT
 		========================================================
 	*/
@@ -435,6 +459,11 @@ func (h *DashboardHandler) AssignTroubleTicket(c *gin.Context) {
 				Note:         note,
 				PerformedBy:  performedBy,
 				CreatedAt:    createdAt.Format(time.RFC3339),
+			},
+			"communication": gin.H{
+				"requester_notification": "queued",
+				"assignee_email":         emailStatus,
+				"email_outbox_id":        emailOutboxID,
 			},
 		},
 	)

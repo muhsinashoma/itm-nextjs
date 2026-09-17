@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -348,14 +349,11 @@ func (h *DashboardHandler) CloseTroubleTicket(c *gin.Context) {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var ttNo string
-	var currentStatus string
-	err = tx.QueryRow(ctx, `
-        SELECT COALESCE(tt_no::text, ''), COALESCE(status, '')
-        FROM public.trouble_tickets
-        WHERE id = $1
-        FOR UPDATE
-    `, ticketID).Scan(&ttNo, &currentStatus)
+	ticket, err := loadTTCommunicationSnapshotForUpdate(
+		ctx,
+		tx,
+		ticketID,
+	)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		response.NotFound(c, "Trouble Ticket not found")
@@ -366,7 +364,7 @@ func (h *DashboardHandler) CloseTroubleTicket(c *gin.Context) {
 		return
 	}
 
-	if strings.EqualFold(strings.TrimSpace(currentStatus), "closed") {
+	if strings.EqualFold(strings.TrimSpace(ticket.Status), "closed") {
 		c.JSON(http.StatusConflict, gin.H{
 			"success": false,
 			"error":   "Trouble Ticket is already closed",
@@ -393,26 +391,51 @@ func (h *DashboardHandler) CloseTroubleTicket(c *gin.Context) {
 		return
 	}
 
+	actorName := resolveActorName(
+		ctx,
+		tx,
+		actorEmployeeID,
+	)
+
+	emailOutboxID, emailStatus, err := enqueueTTClosedCommunications(
+		ctx,
+		tx,
+		ticket,
+		actorEmployeeID,
+		actorName,
+		req.ClosingDescription,
+		closedAt,
+		c.ClientIP(),
+	)
+	if err != nil {
+		log.Printf(
+			"TT closure communication queue failed: ticket_id=%d tt_no=%s requester=%s error=%v",
+			ticketID,
+			ticket.TTNo,
+			ticket.EmployeeID,
+			err,
+		)
+		response.ServerError(c, err)
+		return
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		response.ServerError(c, err)
 		return
 	}
 
-	actorName := actorEmployeeID
-	_ = h.db.QueryRow(ctx, `
-        SELECT COALESCE(NULLIF(BTRIM(employee_name), ''), $1)
-        FROM public.employee_office_info
-        WHERE employee_id = $1
-        LIMIT 1
-    `, actorEmployeeID).Scan(&actorName)
-
 	response.OK(c, gin.H{
 		"id":                  ticketID,
-		"tt_no":               ttNo,
+		"tt_no":               ticket.TTNo,
 		"status":              "Closed",
 		"closed_at":           closedAt,
 		"closed_by":           actorEmployeeID,
 		"closed_by_name":      actorName,
 		"closing_description": req.ClosingDescription,
+		"communication": gin.H{
+			"requester_notification": "queued",
+			"requester_email":        emailStatus,
+			"email_outbox_id":        emailOutboxID,
+		},
 	})
 }
