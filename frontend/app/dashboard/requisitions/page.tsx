@@ -151,19 +151,6 @@ const VIEW_CONFIG: Record<
             "There are currently no requisitions waiting for approval.",
     },
 
-    rejected: {
-        title:
-            "Rejected Requisitions",
-
-        description:
-            "IT Accessories requisitions rejected during the approval workflow",
-
-        emptyTitle:
-            "No Rejected Requisitions",
-
-        emptyDescription:
-            "There are currently no rejected requisitions.",
-    },
 
     tt_reason: {
         title:
@@ -177,6 +164,20 @@ const VIEW_CONFIG: Record<
 
         emptyDescription:
             "No IT accessories requisition records were found.",
+    },
+
+    rejected: {
+        title:
+            "Rejected Requisitions",
+
+        description:
+            "IT Accessories requisitions rejected during the approval workflow",
+
+        emptyTitle:
+            "No Rejected Requisitions",
+
+        emptyDescription:
+            "There are currently no rejected requisitions.",
     },
 };
 
@@ -200,13 +201,6 @@ const VIEW_OPTIONS: {
                 "Approval Pending",
         },
 
-        {
-            view:
-                "rejected",
-
-            label:
-                "Rejected",
-        },
 
         {
             view:
@@ -214,6 +208,15 @@ const VIEW_OPTIONS: {
 
             label:
                 "TT Reason",
+        },
+
+
+        {
+            view:
+                "rejected",
+
+            label:
+                "Rejected",
         },
     ];
 
