@@ -2489,11 +2489,20 @@ export const vendorApi = {
    CATEGORY
 ====================================================== */
 
+export interface InventoryCategoryItem {
+    id: number;
+    category_name: string | null;
+    parent_id: number;
+    sub_parent_id: number;
+    type: string | null;
+    status: number;
+}
+
 export const categoryApi = {
     list: () =>
         api.get<
             ApiOk<
-                any[]
+                InventoryCategoryItem[]
             >
         >(
             "/categories"
@@ -3090,24 +3099,36 @@ export const reportsApi =
 
 export interface SCMStockPreviewItem {
     source_index: number;
+    item_id: string;
     pr_id: string;
+    pq_id: string;
+    po_id: string;
+    vendor_id: string;
     vendor_name: string;
     gr_id: string;
     serial_number: string;
     purchase_date: string;
     item_group: string;
     item_name: string;
+    warranty_text: string;
     warranty_months: number;
 }
 
 export interface SCMStockPreview {
     mr_id: string;
+    mi_id: string;
+    total_item: number;
     items: SCMStockPreviewItem[];
 }
 
 export interface SCMStockImportItem {
     source_index: number;
     serial_number?: string;
+
+    category_id?: number | null;
+    brand_id?: number | null;
+    model_id?: number | null;
+
     category: string;
     brand?: string;
     model?: string;
@@ -3135,6 +3156,13 @@ export interface AvailableStockItem {
     warranty_date: string;
     item_group: string;
     item_name: string;
+}
+
+export interface InventorySpecOptions {
+    cpu: string[];
+    ram: string[];
+    ssd: string[];
+    monitor: string[];
 }
 
 export interface AllocatableRequisition {
@@ -3165,6 +3193,11 @@ export const inventoryWorkflowApi = {
         }>>(
             "/inventory-workflow/scm/import",
             { mr_id, items }
+        ),
+
+    specOptions: () =>
+        api.get<ApiOk<InventorySpecOptions>>(
+            "/inventory-workflow/spec-options"
         ),
 
     availableStock: (params?: {
@@ -3200,6 +3233,9 @@ export const inventoryWorkflowApi = {
             employee_name: string;
             assigned_by: string;
             assigned_at: string;
+            delivered_val: number;
+            delivered_by: string;
+            delivered_at: string;
         }>>(
             `/inventory-workflow/requisitions/${requisitionId}/assign`,
             { stock_id: stockId, remarks: remarks ?? "" }

@@ -50,6 +50,10 @@ func (h *InventoryWorkflowHandler) Register(rg *gin.RouterGroup) {
 		middleware.RequirePermission(h.db, "inventory.stock.import"),
 		h.ImportSCMStock,
 	)
+	g.GET("/spec-options",
+		middleware.RequirePermission(h.db, "inventory.stock.view"),
+		h.SpecOptions,
+	)
 	g.GET("/available-stock",
 		middleware.RequirePermission(h.db, "inventory.stock.view"),
 		h.AvailableStock,
@@ -70,19 +74,26 @@ func (h *InventoryWorkflowHandler) Register(rg *gin.RouterGroup) {
 
 type scmPreviewItem struct {
 	SourceIndex    int    `json:"source_index"`
+	ItemID         string `json:"item_id"`
 	PRID           string `json:"pr_id"`
+	PQID           string `json:"pq_id"`
+	POID           string `json:"po_id"`
+	VendorID       string `json:"vendor_id"`
 	VendorName     string `json:"vendor_name"`
 	GRID           string `json:"gr_id"`
 	SerialNumber   string `json:"serial_number"`
 	PurchaseDate   string `json:"purchase_date"`
 	ItemGroup      string `json:"item_group"`
 	ItemName       string `json:"item_name"`
+	WarrantyText   string `json:"warranty_text"`
 	WarrantyMonths int    `json:"warranty_months"`
 }
 
 type scmPreview struct {
-	MRID  string           `json:"mr_id"`
-	Items []scmPreviewItem `json:"items"`
+	MRID      string           `json:"mr_id"`
+	MIID      string           `json:"mi_id"`
+	TotalItem int              `json:"total_item"`
+	Items     []scmPreviewItem `json:"items"`
 }
 
 func valueString(v any) string {
@@ -123,6 +134,35 @@ func parsePositiveInt(value string) int {
 	return n
 }
 
+// parseWarrantyMonths accepts both legacy numeric values ("36") and the
+// wording currently returned by SCM (for example "3 Years" or
+// "10 Years Full free service warranty ...").
+func parseWarrantyMonths(value string) int {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	if n := parsePositiveInt(value); n > 0 {
+		return n
+	}
+
+	fields := strings.Fields(strings.ToLower(value))
+	for i, field := range fields {
+		n, err := strconv.Atoi(strings.Trim(field, " ,.;:-()"))
+		if err != nil || n <= 0 || i+1 >= len(fields) {
+			continue
+		}
+		unit := strings.Trim(fields[i+1], " ,.;:-()")
+		switch {
+		case strings.HasPrefix(unit, "year"):
+			return n * 12
+		case strings.HasPrefix(unit, "month"):
+			return n
+		}
+	}
+	return 0
+}
+
 func (h *InventoryWorkflowHandler) fetchSCMMR(ctx context.Context, mr string) (scmPreview, error) {
 	mr = strings.TrimSpace(mr)
 	if mr == "" {
@@ -153,23 +193,40 @@ func (h *InventoryWorkflowHandler) fetchSCMMR(ctx context.Context, mr string) (s
 		return scmPreview{}, err
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		var apiError struct {
+			Message string `json:"message"`
+		}
+		_ = json.Unmarshal(body, &apiError)
+		if strings.TrimSpace(apiError.Message) != "" {
+			return scmPreview{}, fmt.Errorf("SCM returned HTTP %d: %s", res.StatusCode, strings.TrimSpace(apiError.Message))
+		}
 		return scmPreview{}, fmt.Errorf("SCM returned HTTP %d", res.StatusCode)
 	}
 
 	decoder := json.NewDecoder(strings.NewReader(string(body)))
 	decoder.UseNumber()
 	var raw struct {
-		Status bool             `json:"status"`
-		Data   []map[string]any `json:"data"`
+		Status  bool             `json:"status"`
+		Code    int              `json:"code"`
+		Message string           `json:"message"`
+		Data    []map[string]any `json:"data"`
 	}
 	if err := decoder.Decode(&raw); err != nil {
 		return scmPreview{}, fmt.Errorf("invalid SCM response: %w", err)
 	}
 	if !raw.Status || len(raw.Data) == 0 {
-		return scmPreview{}, errors.New("no SCM items found for this MR")
+		message := strings.TrimSpace(raw.Message)
+		if message == "" {
+			message = "no SCM items found for this MR"
+		}
+		return scmPreview{}, errors.New(message)
 	}
 
-	result := scmPreview{MRID: mapString(raw.Data[0], "mr_id")}
+	result := scmPreview{
+		MRID:      mapString(raw.Data[0], "mr_id"),
+		MIID:      mapString(raw.Data[0], "mi_id"),
+		TotalItem: parsePositiveInt(mapString(raw.Data[0], "total_item")),
+	}
 	if result.MRID == "" {
 		result.MRID = mr
 	}
@@ -180,17 +237,31 @@ func (h *InventoryWorkflowHandler) fetchSCMMR(ctx context.Context, mr string) (s
 		if !ok {
 			continue
 		}
+		warrantyText := mapString(item, "warenty", "warranty", "warranty_text")
+		warrantyMonths := parseWarrantyMonths(warrantyText)
+		if warrantyMonths == 0 {
+			warrantyMonths = parseWarrantyMonths(mapString(item, "warranty_months"))
+		}
+
 		result.Items = append(result.Items, scmPreviewItem{
 			SourceIndex:    i,
+			ItemID:         mapString(item, "item_id"),
 			PRID:           mapString(item, "pr_id"),
+			PQID:           mapString(item, "pq_id"),
+			POID:           mapString(item, "po_id"),
+			VendorID:       mapString(item, "vandor_id", "vendor_id"),
 			VendorName:     mapString(item, "vendor_name", "vendor"),
 			GRID:           mapString(item, "gr_id", "received_date"),
 			SerialNumber:   mapString(item, "serial_number", "serial_no"),
 			PurchaseDate:   mapString(item, "purchase_date"),
 			ItemGroup:      mapString(item, "item_group"),
 			ItemName:       mapString(item, "item_name"),
-			WarrantyMonths: parsePositiveInt(mapString(item, "warranty", "warranty_months")),
+			WarrantyText:   warrantyText,
+			WarrantyMonths: warrantyMonths,
 		})
+	}
+	if result.TotalItem <= 0 {
+		result.TotalItem = len(result.Items)
 	}
 	if len(result.Items) == 0 {
 		return scmPreview{}, errors.New("SCM MR contains no usable items")
@@ -207,9 +278,84 @@ func (h *InventoryWorkflowHandler) SCMPreview(c *gin.Context) {
 	response.OK(c, preview)
 }
 
+type inventorySpecOptions struct {
+	CPU     []string `json:"cpu"`
+	RAM     []string `json:"ram"`
+	SSD     []string `json:"ssd"`
+	Monitor []string `json:"monitor"`
+}
+
+// SpecOptions returns controlled vocabulary for non-hierarchical hardware
+// attributes. Category -> Brand -> Model remains authoritative in
+// inventory_categories; CPU/RAM/SSD/Monitor are independent searchable
+// dropdowns populated from existing stock plus any future master rows whose
+// type is cpu/ram/ssd/monitor.
+func (h *InventoryWorkflowHandler) SpecOptions(c *gin.Context) {
+	rows, err := h.db.Query(c.Request.Context(), `
+		WITH options AS (
+			SELECT 'cpu'::text AS kind, BTRIM(COALESCE(cpu,'')) AS name
+			FROM public.stack_inventory WHERE status = 1
+			UNION ALL
+			SELECT 'ram'::text, BTRIM(COALESCE(ram,''))
+			FROM public.stack_inventory WHERE status = 1
+			UNION ALL
+			SELECT 'ssd'::text, BTRIM(COALESCE(ssd,''))
+			FROM public.stack_inventory WHERE status = 1
+			UNION ALL
+			SELECT 'monitor'::text, BTRIM(COALESCE(monitor,''))
+			FROM public.stack_inventory WHERE status = 1
+			UNION ALL
+			SELECT LOWER(BTRIM(COALESCE(type,''))),
+			       BTRIM(COALESCE(inventory_category_list,''))
+			FROM public.inventory_categories
+			WHERE status = 1
+			  AND LOWER(BTRIM(COALESCE(type,''))) IN ('cpu','ram','ssd','monitor')
+		)
+		SELECT kind, name
+		FROM options
+		WHERE name <> ''
+		GROUP BY kind, name
+		ORDER BY kind, LOWER(name), name`)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer rows.Close()
+
+	result := inventorySpecOptions{
+		CPU: []string{}, RAM: []string{}, SSD: []string{}, Monitor: []string{},
+	}
+	for rows.Next() {
+		var kind, name string
+		if err := rows.Scan(&kind, &name); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+		switch kind {
+		case "cpu":
+			result.CPU = append(result.CPU, name)
+		case "ram":
+			result.RAM = append(result.RAM, name)
+		case "ssd":
+			result.SSD = append(result.SSD, name)
+		case "monitor":
+			result.Monitor = append(result.Monitor, name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.OK(c, result)
+}
+
 type scmImportMapping struct {
 	SourceIndex    int    `json:"source_index"`
 	SerialNumber   string `json:"serial_number"`
+	CategoryID     int64  `json:"category_id"`
+	BrandID        int64  `json:"brand_id"`
+	ModelID        int64  `json:"model_id"`
 	Category       string `json:"category"`
 	Brand          string `json:"brand"`
 	Model          string `json:"model"`
@@ -225,6 +371,85 @@ type scmImportMapping struct {
 type scmImportRequest struct {
 	MRID  string             `json:"mr_id"`
 	Items []scmImportMapping `json:"items"`
+}
+
+type inventoryClassification struct {
+	Category string
+	Brand    string
+	Model    string
+}
+
+func inventoryMasterRow(ctx context.Context, tx pgx.Tx, id int64) (name, itemType string, parentID int64, err error) {
+	err = tx.QueryRow(ctx, `
+		SELECT COALESCE(inventory_category_list,''),
+		       LOWER(BTRIM(COALESCE(type,''))),
+		       COALESCE(parent_id,0)
+		FROM public.inventory_categories
+		WHERE id=$1 AND status=1`, id).Scan(&name, &itemType, &parentID)
+	return strings.TrimSpace(name), strings.TrimSpace(itemType), parentID, err
+}
+
+// resolveInventoryClassification makes the database master-data hierarchy
+// authoritative. Category, brand and model IDs are mandatory and the parent
+// relationships are validated again on the server before stock is committed.
+func resolveInventoryClassification(ctx context.Context, tx pgx.Tx, mapping scmImportMapping) (inventoryClassification, error) {
+	result := inventoryClassification{
+		Category: strings.TrimSpace(mapping.Category),
+		Brand:    strings.TrimSpace(mapping.Brand),
+		Model:    strings.TrimSpace(mapping.Model),
+	}
+
+	if mapping.CategoryID <= 0 {
+		return result, errors.New("category is required")
+	}
+	if mapping.BrandID <= 0 {
+		return result, errors.New("brand is required")
+	}
+	if mapping.ModelID <= 0 {
+		return result, errors.New("model is required")
+	}
+
+	categoryName, categoryType, categoryParent, err := inventoryMasterRow(ctx, tx, mapping.CategoryID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return result, errors.New("selected category is inactive or no longer exists")
+		}
+		return result, err
+	}
+	if categoryType != "category" || categoryParent != 0 {
+		return result, errors.New("selected category is not a top-level category")
+	}
+	result.Category = categoryName
+
+	{
+		brandName, brandType, brandParent, err := inventoryMasterRow(ctx, tx, mapping.BrandID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return result, errors.New("selected brand is inactive or no longer exists")
+			}
+			return result, err
+		}
+		if brandType != "brand" || int64(brandParent) != mapping.CategoryID {
+			return result, errors.New("selected brand does not belong to the selected category")
+		}
+		result.Brand = brandName
+	}
+
+	{
+		modelName, modelType, modelParent, err := inventoryMasterRow(ctx, tx, mapping.ModelID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return result, errors.New("selected model is inactive or no longer exists")
+			}
+			return result, err
+		}
+		if modelType != "model" || int64(modelParent) != mapping.BrandID {
+			return result, errors.New("selected model does not belong to the selected brand")
+		}
+		result.Model = modelName
+	}
+
+	return result, nil
 }
 
 func stableInternalAssetTag(mr string, index int) string {
@@ -296,13 +521,19 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 	ids := make([]int64, 0, len(req.Items))
 
 	for _, mapping := range req.Items {
+		if mapping.WarrantyMonths <= 0 {
+			response.BadRequest(c, fmt.Sprintf("row %d: warranty duration is required", mapping.SourceIndex+1))
+			return
+		}
+
 		source, ok := sourceByIndex[mapping.SourceIndex]
 		if !ok {
 			response.BadRequest(c, fmt.Sprintf("invalid SCM source_index %d", mapping.SourceIndex))
 			return
 		}
-		if strings.TrimSpace(mapping.Category) == "" {
-			response.BadRequest(c, fmt.Sprintf("category is required for row %d", mapping.SourceIndex+1))
+		classification, err := resolveInventoryClassification(c.Request.Context(), tx, mapping)
+		if err != nil {
+			response.BadRequest(c, fmt.Sprintf("row %d: %v", mapping.SourceIndex+1, err))
 			return
 		}
 
@@ -317,9 +548,6 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 		serialKey := strings.ToUpper(strings.TrimSpace(serial))
 		purchaseDate := parseSCMTime(source.PurchaseDate)
 		warrantyMonths := mapping.WarrantyMonths
-		if warrantyMonths <= 0 {
-			warrantyMonths = source.WarrantyMonths
-		}
 		var warrantyDate *time.Time
 		if purchaseDate != nil && warrantyMonths > 0 {
 			w := purchaseDate.AddDate(0, warrantyMonths, 0)
@@ -335,7 +563,7 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 		}
 
 		var stockID int64
-		err := tx.QueryRow(c.Request.Context(), `
+		err = tx.QueryRow(c.Request.Context(), `
             SELECT id
             FROM public.stack_inventory
             WHERE status = 1
@@ -357,7 +585,7 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
                     $15,$16,$17,$18,$19,1,NOW(),0,$20,'SCM'
                 ) RETURNING id`,
 				currentEmployee, req.MRID, source.PRID, source.VendorName, serial, purchaseDate,
-				strings.TrimSpace(mapping.Category), strings.TrimSpace(mapping.Brand), strings.TrimSpace(mapping.Model),
+				classification.Category, classification.Brand, classification.Model,
 				strings.TrimSpace(mapping.CPU), strings.TrimSpace(mapping.RAM), strings.TrimSpace(mapping.SSD), strings.TrimSpace(mapping.Monitor), warrantyDate,
 				source.ItemGroup, source.ItemName, source.GRID, len(preview.Items), strings.TrimSpace(mapping.Remarks), deviceType,
 			).Scan(&stockID)
@@ -377,8 +605,8 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
                     item_group=$12, item_name=$13, gr_id=$14, total_item=$15,
                     remarks=$16, device_type=$17, edited_by=$18, edited_at=NOW()
                 WHERE id=$19`,
-				source.PRID, source.VendorName, purchaseDate, strings.TrimSpace(mapping.Category), strings.TrimSpace(mapping.Brand),
-				strings.TrimSpace(mapping.Model), strings.TrimSpace(mapping.CPU), strings.TrimSpace(mapping.RAM), strings.TrimSpace(mapping.SSD), strings.TrimSpace(mapping.Monitor), warrantyDate,
+				source.PRID, source.VendorName, purchaseDate, classification.Category, classification.Brand,
+				classification.Model, strings.TrimSpace(mapping.CPU), strings.TrimSpace(mapping.RAM), strings.TrimSpace(mapping.SSD), strings.TrimSpace(mapping.Monitor), warrantyDate,
 				source.ItemGroup, source.ItemName, source.GRID, len(preview.Items), strings.TrimSpace(mapping.Remarks), deviceType, currentEmployee, stockID,
 			)
 			if err != nil {
@@ -401,7 +629,7 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
                     asset_status, row_status, created_at, updated_at
                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,0,1,NOW(),NOW())
                 RETURNING id`,
-				stockID, serial, serialKey, strings.TrimSpace(mapping.Category), strings.TrimSpace(mapping.Brand), strings.TrimSpace(mapping.Model),
+				stockID, serial, serialKey, classification.Category, classification.Brand, classification.Model,
 				deviceType, req.MRID, source.PRID, source.VendorName, purchaseDate, warrantyDate,
 			).Scan(&assetID)
 		} else if assetErr == nil {
@@ -410,7 +638,7 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
                     device_serial=$1, device_serial_key=$2, category=$3, brand=$4, model=$5,
                     device_type=$6, mr_number=$7, pr_number=$8, vendor_name=$9,
                     purchase_date=$10, warranty_date=$11, updated_at=NOW()
-                WHERE id=$12`, serial, serialKey, strings.TrimSpace(mapping.Category), strings.TrimSpace(mapping.Brand), strings.TrimSpace(mapping.Model),
+                WHERE id=$12`, serial, serialKey, classification.Category, classification.Brand, classification.Model,
 				deviceType, req.MRID, source.PRID, source.VendorName, purchaseDate, warrantyDate, assetID)
 		}
 		if assetErr != nil {

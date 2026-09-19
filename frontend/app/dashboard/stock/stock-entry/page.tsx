@@ -1,14 +1,18 @@
+
+//itm/frontend/app/dashboard/stock/stock-entry/page.tsx
 "use client";
 
 import {
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 
 import {
-    ArrowRight,
+    Check,
     CheckCircle2,
+    ChevronDown,
     Copy,
     Database,
     LoaderCircle,
@@ -23,6 +27,8 @@ import {
 import {
     categoryApi,
     inventoryWorkflowApi,
+    type InventoryCategoryItem,
+    type InventorySpecOptions,
     type SCMStockImportItem,
     type SCMStockPreview,
 } from "@/lib/api";
@@ -32,18 +38,216 @@ import {
 } from "@/components/ui/button";
 
 type MappingRow = SCMStockImportItem & {
+    item_id: string;
     item_name: string;
     item_group: string;
     pr_id: string;
     vendor_name: string;
     purchase_date: string;
+    warranty_text: string;
 };
 
 const fieldClass =
-    "h-8 w-full rounded-lg border border-border bg-background px-2.5 text-[10px] outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10";
+    "h-8 w-full rounded-lg border border-border bg-background px-2.5 text-[10px] outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-muted/40 disabled:text-muted-foreground";
 
 const labelClass =
     "mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground";
+
+type SearchOption = {
+    value: string;
+    label: string;
+};
+
+function SearchableClearableSelect({
+    value,
+    options,
+    onChange,
+    placeholder,
+    disabled = false,
+    required = false,
+    emptyText = "No matching options",
+}: {
+    value: string;
+    options: SearchOption[];
+    onChange: (value: string) => void;
+    placeholder: string;
+    disabled?: boolean;
+    required?: boolean;
+    emptyText?: string;
+}) {
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
+
+    const selected = options.find(
+        (option) => option.value === value
+    );
+
+    const filtered = useMemo(() => {
+        const term = query.trim().toLowerCase();
+        if (!term) return options;
+
+        return options.filter((option) =>
+            option.label.toLowerCase().includes(term)
+        );
+    }, [options, query]);
+
+    useEffect(() => {
+        if (!open) return;
+
+        const onPointerDown = (event: MouseEvent) => {
+            if (
+                rootRef.current &&
+                !rootRef.current.contains(
+                    event.target as Node
+                )
+            ) {
+                setOpen(false);
+                setQuery("");
+            }
+        };
+
+        document.addEventListener(
+            "mousedown",
+            onPointerDown
+        );
+
+        return () => {
+            document.removeEventListener(
+                "mousedown",
+                onPointerDown
+            );
+        };
+    }, [open]);
+
+    return (
+        <div
+            ref={rootRef}
+            className="relative"
+        >
+            <div
+                className={`flex h-8 items-center rounded-lg border bg-background transition focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 ${disabled
+                    ? "cursor-not-allowed bg-muted/40 opacity-70"
+                    : "border-border"
+                    }`}
+            >
+                <Search className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+
+                <input
+                    type="text"
+                    value={
+                        open
+                            ? query
+                            : selected?.label ?? ""
+                    }
+                    disabled={disabled}
+                    required={required && !value}
+                    placeholder={placeholder}
+                    onFocus={() => {
+                        if (disabled) return;
+                        setOpen(true);
+                        setQuery("");
+                    }}
+                    onChange={(event) => {
+                        setQuery(event.target.value);
+                        setOpen(true);
+                    }}
+                    className="h-full min-w-0 flex-1 bg-transparent px-2 text-[10px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+                />
+
+                {value && !disabled ? (
+                    <button
+                        type="button"
+                        aria-label="Clear selection"
+                        title="Clear selection"
+                        onMouseDown={(event) =>
+                            event.preventDefault()
+                        }
+                        onClick={() => {
+                            onChange("");
+                            setQuery("");
+                            setOpen(false);
+                        }}
+                        className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                ) : null}
+
+                <button
+                    type="button"
+                    aria-label="Toggle options"
+                    disabled={disabled}
+                    onMouseDown={(event) =>
+                        event.preventDefault()
+                    }
+                    onClick={() => {
+                        if (disabled) return;
+                        setOpen((current) => !current);
+                        setQuery("");
+                    }}
+                    className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none"
+                >
+                    <ChevronDown
+                        className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""
+                            }`}
+                    />
+                </button>
+            </div>
+
+            {open && !disabled && (
+                <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-[80] overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
+                    <div className="max-h-52 overflow-y-auto p-1">
+                        {filtered.length === 0 ? (
+                            <div className="px-2.5 py-3 text-center text-[9px] text-muted-foreground">
+                                {emptyText}
+                            </div>
+                        ) : (
+                            filtered.map((option) => {
+                                const active =
+                                    option.value === value;
+
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
+                                        onClick={() => {
+                                            onChange(option.value);
+                                            setOpen(false);
+                                            setQuery("");
+                                        }}
+                                        className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-[10px] transition ${active
+                                            ? "bg-primary/10 font-semibold text-primary"
+                                            : "hover:bg-muted"
+                                            }`}
+                                    >
+                                        <span className="min-w-0 truncate">
+                                            {option.label}
+                                        </span>
+                                        {active && (
+                                            <Check className="h-3.5 w-3.5 shrink-0" />
+                                        )}
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function normalizeType(
+    value: string | null | undefined
+) {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase();
+}
 
 function emptyRow(
     preview: SCMStockPreview,
@@ -54,6 +258,11 @@ function emptyRow(
     return {
         source_index: item.source_index,
         serial_number: item.serial_number,
+
+        category_id: null,
+        brand_id: null,
+        model_id: null,
+
         category: "",
         brand: "",
         model: "",
@@ -62,7 +271,7 @@ function emptyRow(
         ssd: "",
         monitor: "",
         warranty_months:
-            item.warranty_months || 12,
+            item.warranty_months || 0,
         device_type:
             item.item_group
                 ?.toLowerCase()
@@ -70,11 +279,14 @@ function emptyRow(
                 ? "IT Accessory"
                 : "IT Device",
         remarks: "",
+
+        item_id: item.item_id,
         item_name: item.item_name,
         item_group: item.item_group,
         pr_id: item.pr_id,
         vendor_name: item.vendor_name,
         purchase_date: item.purchase_date,
+        warranty_text: item.warranty_text,
     };
 }
 
@@ -90,8 +302,21 @@ export default function StockEntryPage() {
     const [rows, setRows] =
         useState<MappingRow[]>([]);
 
-    const [categories, setCategories] =
-        useState<string[]>([]);
+    const [masterData, setMasterData] =
+        useState<InventoryCategoryItem[]>(
+            []
+        );
+
+    const [masterLoading, setMasterLoading] =
+        useState(true);
+
+    const [specOptions, setSpecOptions] =
+        useState<InventorySpecOptions>({
+            cpu: [],
+            ram: [],
+            ssd: [],
+            monitor: [],
+        });
 
     const [loading, setLoading] =
         useState(false);
@@ -105,63 +330,186 @@ export default function StockEntryPage() {
     const [success, setSuccess] =
         useState("");
 
+    const requestSequence = useRef(0);
+    const lastLoadedMR = useRef("");
+
+    /* ======================================================
+       MASTER DATA
+
+       inventory_categories is the single source for:
+       Category -> Brand -> Model.
+    ====================================================== */
+
     useEffect(() => {
         let mounted = true;
 
-        void categoryApi
-            .list()
-            .then((response) => {
+        async function loadMasterData() {
+            try {
+                setMasterLoading(true);
+
+                const response =
+                    await categoryApi.list();
+
                 if (!mounted) return;
 
-                const values = (
-                    response.data ?? []
-                )
-                    .map((item: any) =>
-                        String(
-                            item.category_name ??
-                                item.inventory_category_list ??
-                                item.name ??
-                                ""
-                        ).trim()
-                    )
-                    .filter(Boolean);
-
-                setCategories(
-                    Array.from(
-                        new Set(values)
-                    ).sort((a, b) =>
-                        a.localeCompare(b)
-                    )
+                setMasterData(
+                    (response.data ?? [])
+                        .filter(
+                            (item) =>
+                                Number(
+                                    item.status ?? 1
+                                ) === 1
+                        )
+                        .sort((a, b) =>
+                            String(
+                                a.category_name ?? ""
+                            ).localeCompare(
+                                String(
+                                    b.category_name ?? ""
+                                )
+                            )
+                        )
                 );
-            })
-            .catch(() => {
-                // Category list is helpful, not mandatory.
-            });
+            } catch {
+                if (!mounted) return;
+
+                setMasterData([]);
+                setError(
+                    "Unable to load ITM Category / Brand / Model master data."
+                );
+            } finally {
+                if (mounted) {
+                    setMasterLoading(false);
+                }
+            }
+        }
+
+        void loadMasterData();
 
         return () => {
             mounted = false;
         };
     }, []);
 
-    const completeRows = useMemo(
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadSpecOptions() {
+            try {
+                const response =
+                    await inventoryWorkflowApi.specOptions();
+
+                if (!mounted) return;
+
+                setSpecOptions({
+                    cpu: response.data?.cpu ?? [],
+                    ram: response.data?.ram ?? [],
+                    ssd: response.data?.ssd ?? [],
+                    monitor:
+                        response.data?.monitor ?? [],
+                });
+            } catch {
+                if (!mounted) return;
+
+                // Optional specification fields should not block
+                // SCM stock intake if the option catalogue fails.
+                setSpecOptions({
+                    cpu: [],
+                    ram: [],
+                    ssd: [],
+                    monitor: [],
+                });
+            }
+        }
+
+        void loadSpecOptions();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const categories = useMemo(
         () =>
-            rows.filter(
-                (row) =>
-                    row.category.trim()
-                        .length > 0
-            ).length,
-        [rows]
+            masterData.filter(
+                (item) =>
+                    normalizeType(item.type) ===
+                    "category" &&
+                    Number(item.parent_id ?? 0) ===
+                    0
+            ),
+        [masterData]
     );
 
-    async function loadMR() {
-        const mr = mrNumber.trim();
+    function brandsFor(
+        categoryID: number | null | undefined
+    ) {
+        if (!categoryID) return [];
+
+        return masterData.filter(
+            (item) =>
+                normalizeType(item.type) ===
+                "brand" &&
+                Number(item.parent_id ?? 0) ===
+                Number(categoryID)
+        );
+    }
+
+    function modelsFor(
+        brandID: number | null | undefined
+    ) {
+        if (!brandID) return [];
+
+        return masterData.filter(
+            (item) =>
+                normalizeType(item.type) ===
+                "model" &&
+                Number(item.parent_id ?? 0) ===
+                Number(brandID)
+        );
+    }
+
+    function isRowComplete(
+        row: MappingRow
+    ) {
+        return Boolean(
+            row.category_id &&
+            row.brand_id &&
+            row.model_id &&
+            Number(row.warranty_months ?? 0) > 0
+        );
+    }
+
+    const completeRows = rows.filter((row) =>
+        isRowComplete(row)
+    ).length;
+
+    /* ======================================================
+       SCM AJAX-LIKE MR PREVIEW
+
+       No Load button is required.  A pasted/typed MR is
+       fetched automatically after a short debounce.
+    ====================================================== */
+
+    async function loadMR(
+        mrInput: string,
+        force = false
+    ) {
+        const mr = mrInput.trim();
 
         if (!mr) {
-            setError(
-                "Enter an MR number first."
-            );
             return;
         }
+
+        if (
+            !force &&
+            lastLoadedMR.current === mr
+        ) {
+            return;
+        }
+
+        const sequence =
+            ++requestSequence.current;
 
         try {
             setLoading(true);
@@ -172,8 +520,17 @@ export default function StockEntryPage() {
                 await inventoryWorkflowApi
                     .previewMR(mr);
 
-            const data =
-                response.data;
+            if (
+                sequence !==
+                requestSequence.current
+            ) {
+                return;
+            }
+
+            const data = response.data;
+
+            lastLoadedMR.current =
+                data.mr_id || mr;
 
             setPreview(data);
             setMRNumber(data.mr_id || mr);
@@ -187,6 +544,14 @@ export default function StockEntryPage() {
                 )
             );
         } catch (reason) {
+            if (
+                sequence !==
+                requestSequence.current
+            ) {
+                return;
+            }
+
+            lastLoadedMR.current = "";
             setPreview(null);
             setRows([]);
             setError(
@@ -195,9 +560,106 @@ export default function StockEntryPage() {
                     : "Unable to load SCM MR data."
             );
         } finally {
-            setLoading(false);
+            if (
+                sequence ===
+                requestSequence.current
+            ) {
+                setLoading(false);
+            }
         }
     }
+
+    useEffect(() => {
+        const mr = mrNumber.trim();
+
+        if (!mr) {
+            requestSequence.current++;
+            lastLoadedMR.current = "";
+            setLoading(false);
+            setPreview(null);
+            setRows([]);
+            setError("");
+            setSuccess("");
+            return;
+        }
+
+        // Prevent SCM calls while the operator has only
+        // typed the first few characters of an MR.
+        if (mr.length < 10) {
+            return;
+        }
+
+        if (
+            lastLoadedMR.current === mr
+        ) {
+            return;
+        }
+
+        const timer =
+            window.setTimeout(() => {
+                void loadMR(mr);
+            }, 650);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [mrNumber]);
+
+    function clearMR() {
+        requestSequence.current++;
+        lastLoadedMR.current = "";
+        setMRNumber("");
+        setPreview(null);
+        setRows([]);
+        setLoading(false);
+        setError("");
+        setSuccess("");
+    }
+
+    const categorySelectOptions: SearchOption[] =
+        categories.map((item) => ({
+            value: String(item.id),
+            label: String(item.category_name ?? ""),
+        }));
+
+    const cpuSelectOptions: SearchOption[] =
+        specOptions.cpu.map((value) => ({
+            value,
+            label: value,
+        }));
+
+    const ramSelectOptions: SearchOption[] =
+        specOptions.ram.map((value) => ({
+            value,
+            label: value,
+        }));
+
+    const ssdSelectOptions: SearchOption[] =
+        specOptions.ssd.map((value) => ({
+            value,
+            label: value,
+        }));
+
+    const monitorSelectOptions: SearchOption[] =
+        specOptions.monitor.map((value) => ({
+            value,
+            label: value,
+        }));
+
+    const warrantySelectOptions: SearchOption[] = [
+        { value: "3", label: "3 Months" },
+        { value: "6", label: "6 Months" },
+        { value: "12", label: "1 Year" },
+        { value: "24", label: "2 Years" },
+        { value: "36", label: "3 Years" },
+        { value: "48", label: "4 Years" },
+        { value: "60", label: "5 Years" },
+        { value: "120", label: "10 Years" },
+    ];
+
+    /* ======================================================
+       CLASSIFICATION
+    ====================================================== */
 
     function updateRow(
         index: number,
@@ -207,42 +669,138 @@ export default function StockEntryPage() {
             current.map((row, rowIndex) =>
                 rowIndex === index
                     ? {
-                          ...row,
-                          ...patch,
-                      }
+                        ...row,
+                        ...patch,
+                    }
                     : row
             )
         );
     }
 
-    function copyClassificationToAll() {
+    function selectCategory(
+        index: number,
+        categoryID: number
+    ) {
+        const selected =
+            categories.find(
+                (item) =>
+                    item.id === categoryID
+            );
+
+        updateRow(index, {
+            category_id:
+                selected?.id ?? null,
+            category:
+                selected?.category_name ?? "",
+
+            // A parent change invalidates its children.
+            brand_id: null,
+            brand: "",
+            model_id: null,
+            model: "",
+        });
+    }
+
+    function selectBrand(
+        index: number,
+        brandID: number
+    ) {
+        const selected =
+            masterData.find(
+                (item) =>
+                    item.id === brandID
+            );
+
+        updateRow(index, {
+            brand_id:
+                selected?.id ?? null,
+            brand:
+                selected?.category_name ?? "",
+            model_id: null,
+            model: "",
+        });
+    }
+
+    function selectModel(
+        index: number,
+        modelID: number
+    ) {
+        const selected =
+            masterData.find(
+                (item) =>
+                    item.id === modelID
+            );
+
+        updateRow(index, {
+            model_id:
+                selected?.id ?? null,
+            model:
+                selected?.category_name ?? "",
+        });
+    }
+
+    function copyFirstClassificationToMatching() {
         if (rows.length < 2) return;
 
         const source = rows[0];
 
         setRows((current) =>
-            current.map((row, index) =>
-                index === 0
-                    ? row
-                    : {
-                          ...row,
-                          category:
-                              source.category,
-                          brand: source.brand,
-                          model: source.model,
-                          cpu: source.cpu,
-                          ram: source.ram,
-                          ssd: source.ssd,
-                          monitor:
-                              source.monitor,
-                          warranty_months:
-                              source.warranty_months,
-                          device_type:
-                              source.device_type,
-                      }
-            )
+            current.map((row, index) => {
+                if (index === 0) {
+                    return row;
+                }
+
+                const sameSCMItem =
+                    source.item_id &&
+                        row.item_id
+                        ? source.item_id ===
+                        row.item_id
+                        : source.item_name
+                            .trim()
+                            .toLowerCase() ===
+                        row.item_name
+                            .trim()
+                            .toLowerCase() &&
+                        source.item_group
+                            .trim()
+                            .toLowerCase() ===
+                        row.item_group
+                            .trim()
+                            .toLowerCase();
+
+                if (!sameSCMItem) {
+                    return row;
+                }
+
+                return {
+                    ...row,
+                    category_id:
+                        source.category_id,
+                    brand_id:
+                        source.brand_id,
+                    model_id:
+                        source.model_id,
+                    category:
+                        source.category,
+                    brand: source.brand,
+                    model: source.model,
+                    cpu: source.cpu,
+                    ram: source.ram,
+                    ssd: source.ssd,
+                    monitor:
+                        source.monitor,
+                    warranty_months:
+                        source.warranty_months,
+                    device_type:
+                        source.device_type,
+                };
+            })
         );
     }
+
+    /* ======================================================
+       FINAL DATABASE COMMIT
+    ====================================================== */
 
     async function importStock() {
         if (!preview) return;
@@ -250,13 +808,12 @@ export default function StockEntryPage() {
         const incomplete =
             rows.findIndex(
                 (row) =>
-                    !row.category.trim()
+                    !isRowComplete(row)
             );
 
         if (incomplete >= 0) {
             setError(
-                `Select a category for row ${
-                    incomplete + 1
+                `Complete Category / Brand / Model classification for row ${incomplete + 1
                 } before importing.`
             );
             return;
@@ -276,6 +833,16 @@ export default function StockEntryPage() {
                                 row.source_index,
                             serial_number:
                                 row.serial_number,
+
+                            category_id:
+                                row.category_id,
+                            brand_id:
+                                row.brand_id,
+                            model_id:
+                                row.model_id,
+
+                            // Names remain for backwards compatibility;
+                            // backend IDs are the canonical validation path.
                             category:
                                 row.category.trim(),
                             brand:
@@ -293,7 +860,7 @@ export default function StockEntryPage() {
                             warranty_months:
                                 Number(
                                     row.warranty_months ??
-                                        0
+                                    0
                                 ),
                             device_type:
                                 row.device_type,
@@ -303,7 +870,7 @@ export default function StockEntryPage() {
                     );
 
             setSuccess(
-                `${response.data.imported} new stock item(s) imported and ${response.data.updated} existing item(s) synchronized.`
+                `Import completed: ${response.data.imported} new item(s), ${response.data.updated} existing item(s) synchronized, 0 failed.`
             );
         } catch (reason) {
             setError(
@@ -331,7 +898,7 @@ export default function StockEntryPage() {
                             </h1>
 
                             <p className="mt-1 max-w-2xl text-[10px] leading-5 text-muted-foreground">
-                                Load an approved Material Requisition directly from SCM, classify each received item for ITM, and create available stock without exposing SCM credentials in the browser.
+                                Enter an approved Material Requisition. SCM data loads automatically; classify each received item with ITM master data, then commit the stock once.
                             </p>
                         </div>
                     </div>
@@ -343,74 +910,76 @@ export default function StockEntryPage() {
                 </div>
 
                 <div className="p-5">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                        <label className="min-w-0 flex-1">
-                            <span className={labelClass}>
-                                Material Requisition (MR)
-                            </span>
+                    <label className="block">
+                        <span className={labelClass}>
+                            Material Requisition (MR)
+                        </span>
 
-                            <div className="flex h-9 items-center rounded-lg border border-border bg-background px-3 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
-                                <Search className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                        <div className="flex h-10 items-center rounded-lg border border-border bg-background px-3 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
+                            <Search className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
 
-                                <input
-                                    value={mrNumber}
-                                    onChange={(event) =>
-                                        setMRNumber(
-                                            event.target.value
-                                        )
-                                    }
-                                    onKeyDown={(event) => {
-                                        if (
-                                            event.key ===
-                                            "Enter"
-                                        ) {
-                                            event.preventDefault();
-                                            void loadMR();
-                                        }
-                                    }}
-                                    placeholder="Enter MR number from SCM"
-                                    className="h-full w-full bg-transparent text-[10px] outline-none"
-                                />
+                            <input
+                                value={mrNumber}
+                                onChange={(event) => {
+                                    setMRNumber(
+                                        event.target.value
+                                    );
+                                    setSuccess("");
+                                }}
+                                placeholder="Enter / paste MR number — SCM will load automatically"
+                                className="h-full min-w-0 flex-1 bg-transparent text-[10px] outline-none"
+                                autoComplete="off"
+                            />
 
-                                {mrNumber && (
-                                    <button
-                                        type="button"
-                                        aria-label="Clear MR"
-                                        onClick={() => {
-                                            setMRNumber("");
-                                            setPreview(null);
-                                            setRows([]);
-                                            setError("");
-                                            setSuccess("");
-                                        }}
-                                    >
-                                        <X className="h-3.5 w-3.5 text-muted-foreground" />
-                                    </button>
-                                )}
-                            </div>
-                        </label>
-
-                        <Button
-                            type="button"
-                            size="sm"
-                            className="h-9 gap-2"
-                            disabled={loading}
-                            onClick={() =>
-                                void loadMR()
-                            }
-                        >
-                            {loading ? (
-                                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                                <RefreshCcw className="h-3.5 w-3.5" />
+                            {loading && (
+                                <div className="mr-2 flex items-center gap-1.5 whitespace-nowrap text-[8px] font-medium text-primary">
+                                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                    Loading SCM...
+                                </div>
                             )}
-                            Load from SCM
-                        </Button>
-                    </div>
+
+                            {!loading &&
+                                preview && (
+                                    <div className="mr-2 hidden items-center gap-1.5 whitespace-nowrap text-[8px] font-semibold text-emerald-600 sm:flex">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        {preview.items.length} item(s) loaded
+                                    </div>
+                                )}
+
+                            {mrNumber && (
+                                <button
+                                    type="button"
+                                    aria-label="Clear MR"
+                                    onClick={clearMR}
+                                    className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+                    </label>
 
                     {error && (
-                        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[9px] text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400">
-                            {error}
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[9px] text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400">
+                            <span>{error}</span>
+
+                            {mrNumber.trim().length >=
+                                10 && (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void loadMR(
+                                                mrNumber,
+                                                true
+                                            )
+                                        }
+                                        disabled={loading}
+                                        className="inline-flex items-center gap-1 rounded-md border border-red-300 px-2 py-1 text-[8px] font-semibold hover:bg-red-100 disabled:opacity-50 dark:border-red-900"
+                                    >
+                                        <RefreshCcw className="h-3 w-3" />
+                                        Retry
+                                    </button>
+                                )}
                         </div>
                     )}
 
@@ -430,7 +999,7 @@ export default function StockEntryPage() {
                             <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
                                 MR Number
                             </p>
-                            <p className="mt-1 break-all text-[11px] font-semibold text-foreground">
+                            <p className="mt-1 break-all text-[10px] font-semibold text-foreground">
                                 {preview.mr_id}
                             </p>
                         </div>
@@ -439,7 +1008,7 @@ export default function StockEntryPage() {
                             <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
                                 SCM Items
                             </p>
-                            <p className="mt-1 text-lg font-semibold text-primary">
+                            <p className="mt-1 text-lg font-bold text-primary">
                                 {preview.items.length}
                             </p>
                         </div>
@@ -448,20 +1017,26 @@ export default function StockEntryPage() {
                             <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
                                 Ready to Import
                             </p>
-                            <p className="mt-1 text-lg font-semibold text-emerald-600">
+                            <p
+                                className={`mt-1 text-lg font-bold ${completeRows ===
+                                    rows.length
+                                    ? "text-emerald-600"
+                                    : "text-amber-600"
+                                    }`}
+                            >
                                 {completeRows}/{rows.length}
                             </p>
                         </div>
                     </div>
 
                     <div className="rounded-2xl border border-border bg-card shadow-sm">
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
                             <div>
                                 <h2 className="text-[11px] font-semibold text-foreground">
                                     SCM Receipt & ITM Classification
                                 </h2>
-                                <p className="mt-0.5 text-[9px] text-muted-foreground">
-                                    SCM fields are read-only. ITM classification remains editable before stock is committed.
+                                <p className="mt-0.5 text-[8px] text-muted-foreground">
+                                    SCM procurement fields are read-only. Category → Brand → Model comes from the ITM inventory master.
                                 </p>
                             </div>
 
@@ -470,13 +1045,18 @@ export default function StockEntryPage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 gap-1.5 text-[9px]"
+                                    className="h-8 gap-1.5 text-[8px]"
+                                    disabled={
+                                        !isRowComplete(
+                                            rows[0]
+                                        )
+                                    }
                                     onClick={
-                                        copyClassificationToAll
+                                        copyFirstClassificationToMatching
                                     }
                                 >
                                     <Copy className="h-3 w-3" />
-                                    Apply first row to all
+                                    Apply row #1 to matching items
                                 </Button>
                             )}
                         </div>
@@ -485,6 +1065,19 @@ export default function StockEntryPage() {
                             {rows.map((row, index) => {
                                 const source =
                                     preview.items[index];
+
+                                const brandOptions =
+                                    brandsFor(
+                                        row.category_id
+                                    );
+
+                                const modelOptions =
+                                    modelsFor(
+                                        row.brand_id
+                                    );
+
+                                const rowReady =
+                                    isRowComplete(row);
 
                                 return (
                                     <div
@@ -508,10 +1101,23 @@ export default function StockEntryPage() {
                                                 </div>
                                             </div>
 
-                                            <span className="rounded-md border border-border bg-background px-2 py-1 font-mono text-[8px] text-muted-foreground">
-                                                {source.serial_number ||
-                                                    "Internal asset tag will be generated"}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className={`rounded-md border px-2 py-1 text-[7px] font-semibold ${rowReady
+                                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400"
+                                                        : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-400"
+                                                        }`}
+                                                >
+                                                    {rowReady
+                                                        ? "Ready"
+                                                        : "Classification required"}
+                                                </span>
+
+                                                <span className="rounded-md border border-border bg-background px-2 py-1 font-mono text-[8px] text-muted-foreground">
+                                                    {source.serial_number ||
+                                                        "Internal asset tag will be generated"}
+                                                </span>
+                                            </div>
                                         </div>
 
                                         <div className="grid gap-4 p-4 xl:grid-cols-2">
@@ -519,23 +1125,31 @@ export default function StockEntryPage() {
                                                 <div className="mb-3 flex items-center gap-2">
                                                     <Database className="h-3.5 w-3.5 text-amber-600" />
                                                     <p className="text-[9px] font-semibold text-foreground">
-                                                        SCM Source
+                                                        SCM Inventory
                                                     </p>
                                                 </div>
 
-                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
                                                     {[
+                                                        [
+                                                            "MR Number",
+                                                            preview.mr_id,
+                                                        ],
                                                         [
                                                             "PR Number",
                                                             source.pr_id,
                                                         ],
                                                         [
-                                                            "Vendor",
+                                                            "Vendor Name",
                                                             source.vendor_name,
                                                         ],
                                                         [
                                                             "Received / GR",
                                                             source.gr_id,
+                                                        ],
+                                                        [
+                                                            "Serial No.",
+                                                            source.serial_number,
                                                         ],
                                                         [
                                                             "Purchase Date",
@@ -548,6 +1162,13 @@ export default function StockEntryPage() {
                                                         [
                                                             "Item Name",
                                                             source.item_name,
+                                                        ],
+                                                        [
+                                                            "SCM Warranty",
+                                                            source.warranty_text ||
+                                                            (source.warranty_months
+                                                                ? `${source.warranty_months} month(s)`
+                                                                : ""),
                                                         ],
                                                     ].map(
                                                         ([
@@ -571,197 +1192,282 @@ export default function StockEntryPage() {
                                             </div>
 
                                             <div className="rounded-lg border border-primary/20 bg-primary/[0.02] p-3">
-                                                <div className="mb-3 flex items-center gap-2">
-                                                    <PackageCheck className="h-3.5 w-3.5 text-primary" />
-                                                    <p className="text-[9px] font-semibold text-foreground">
-                                                        ITM Classification
-                                                    </p>
+                                                <div className="mb-3 flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <PackageCheck className="h-3.5 w-3.5 text-primary" />
+                                                        <p className="text-[9px] font-semibold text-foreground">
+                                                            ITM Classification
+                                                        </p>
+                                                    </div>
+
+                                                    {masterLoading && (
+                                                        <span className="flex items-center gap-1 text-[7px] text-muted-foreground">
+                                                            <LoaderCircle className="h-3 w-3 animate-spin" />
+                                                            Loading master data
+                                                        </span>
+                                                    )}
                                                 </div>
 
                                                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                                    <label>
+                                                    <div>
                                                         <span className={labelClass}>
                                                             Category *
                                                         </span>
-                                                        <input
-                                                            list="itm-category-list"
-                                                            value={row.category}
-                                                            onChange={(event) =>
-                                                                updateRow(
+                                                        <SearchableClearableSelect
+                                                            value={
+                                                                row.category_id
+                                                                    ? String(
+                                                                        row.category_id
+                                                                    )
+                                                                    : ""
+                                                            }
+                                                            options={
+                                                                categorySelectOptions
+                                                            }
+                                                            disabled={
+                                                                masterLoading
+                                                            }
+                                                            required
+                                                            placeholder="Search category..."
+                                                            onChange={(value) =>
+                                                                selectCategory(
                                                                     index,
-                                                                    {
-                                                                        category:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                    }
+                                                                    Number(
+                                                                        value ||
+                                                                        0
+                                                                    )
                                                                 )
                                                             }
-                                                            placeholder="e.g. Mouse"
-                                                            className={fieldClass}
                                                         />
-                                                    </label>
+                                                    </div>
 
-                                                    <label>
+                                                    <div>
                                                         <span className={labelClass}>
-                                                            Brand
+                                                            Brand *
                                                         </span>
-                                                        <input
-                                                            value={row.brand}
-                                                            onChange={(event) =>
-                                                                updateRow(
+                                                        <SearchableClearableSelect
+                                                            value={
+                                                                row.brand_id
+                                                                    ? String(
+                                                                        row.brand_id
+                                                                    )
+                                                                    : ""
+                                                            }
+                                                            options={brandOptions.map(
+                                                                (item) => ({
+                                                                    value: String(
+                                                                        item.id
+                                                                    ),
+                                                                    label: String(
+                                                                        item.category_name ??
+                                                                        ""
+                                                                    ),
+                                                                })
+                                                            )}
+                                                            disabled={
+                                                                !row.category_id ||
+                                                                brandOptions.length ===
+                                                                0
+                                                            }
+                                                            required
+                                                            placeholder={
+                                                                row.category_id &&
+                                                                    brandOptions.length ===
+                                                                    0
+                                                                    ? "No active brand under category"
+                                                                    : "Search brand..."
+                                                            }
+                                                            onChange={(value) =>
+                                                                selectBrand(
                                                                     index,
-                                                                    {
-                                                                        brand:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                    }
+                                                                    Number(
+                                                                        value ||
+                                                                        0
+                                                                    )
                                                                 )
                                                             }
-                                                            className={fieldClass}
                                                         />
-                                                    </label>
+                                                    </div>
 
-                                                    <label>
+                                                    <div>
                                                         <span className={labelClass}>
-                                                            Model
+                                                            Model *
                                                         </span>
-                                                        <input
-                                                            value={row.model}
-                                                            onChange={(event) =>
-                                                                updateRow(
+                                                        <SearchableClearableSelect
+                                                            value={
+                                                                row.model_id
+                                                                    ? String(
+                                                                        row.model_id
+                                                                    )
+                                                                    : ""
+                                                            }
+                                                            options={modelOptions.map(
+                                                                (item) => ({
+                                                                    value: String(
+                                                                        item.id
+                                                                    ),
+                                                                    label: String(
+                                                                        item.category_name ??
+                                                                        ""
+                                                                    ),
+                                                                })
+                                                            )}
+                                                            disabled={
+                                                                !row.brand_id ||
+                                                                modelOptions.length ===
+                                                                0
+                                                            }
+                                                            required
+                                                            placeholder={
+                                                                row.brand_id &&
+                                                                    modelOptions.length ===
+                                                                    0
+                                                                    ? "No active model under brand"
+                                                                    : "Search model..."
+                                                            }
+                                                            onChange={(value) =>
+                                                                selectModel(
                                                                     index,
-                                                                    {
-                                                                        model:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                    }
+                                                                    Number(
+                                                                        value ||
+                                                                        0
+                                                                    )
                                                                 )
                                                             }
-                                                            className={fieldClass}
                                                         />
-                                                    </label>
+                                                    </div>
 
-                                                    <label>
+                                                    <div>
                                                         <span className={labelClass}>
-                                                            CPU
+                                                            CPU / Processor
                                                         </span>
-                                                        <input
+                                                        <SearchableClearableSelect
                                                             value={row.cpu}
-                                                            onChange={(event) =>
+                                                            options={
+                                                                cpuSelectOptions
+                                                            }
+                                                            placeholder="Search CPU / processor..."
+                                                            emptyText="No CPU options found"
+                                                            onChange={(value) =>
                                                                 updateRow(
                                                                     index,
                                                                     {
-                                                                        cpu:
-                                                                            event
-                                                                                .target
-                                                                                .value,
+                                                                        cpu: value,
                                                                     }
                                                                 )
                                                             }
-                                                            className={fieldClass}
                                                         />
-                                                    </label>
+                                                    </div>
 
-                                                    <label>
+                                                    <div>
                                                         <span className={labelClass}>
                                                             RAM
                                                         </span>
-                                                        <input
+                                                        <SearchableClearableSelect
                                                             value={row.ram}
-                                                            onChange={(event) =>
+                                                            options={
+                                                                ramSelectOptions
+                                                            }
+                                                            placeholder="Search RAM..."
+                                                            emptyText="No RAM options found"
+                                                            onChange={(value) =>
                                                                 updateRow(
                                                                     index,
                                                                     {
-                                                                        ram:
-                                                                            event
-                                                                                .target
-                                                                                .value,
+                                                                        ram: value,
                                                                     }
                                                                 )
                                                             }
-                                                            className={fieldClass}
                                                         />
-                                                    </label>
+                                                    </div>
 
-                                                    <label>
+                                                    <div>
                                                         <span className={labelClass}>
                                                             SSD / HDD
                                                         </span>
-                                                        <input
+                                                        <SearchableClearableSelect
                                                             value={row.ssd}
-                                                            onChange={(event) =>
+                                                            options={
+                                                                ssdSelectOptions
+                                                            }
+                                                            placeholder="Search SSD / HDD..."
+                                                            emptyText="No SSD / HDD options found"
+                                                            onChange={(value) =>
                                                                 updateRow(
                                                                     index,
                                                                     {
-                                                                        ssd:
-                                                                            event
-                                                                                .target
-                                                                                .value,
+                                                                        ssd: value,
                                                                     }
                                                                 )
                                                             }
-                                                            className={fieldClass}
                                                         />
-                                                    </label>
+                                                    </div>
 
-                                                    <label>
+                                                    <div>
                                                         <span className={labelClass}>
                                                             Monitor
                                                         </span>
-                                                        <input
+                                                        <SearchableClearableSelect
                                                             value={row.monitor}
-                                                            onChange={(event) =>
+                                                            options={
+                                                                monitorSelectOptions
+                                                            }
+                                                            placeholder="Search monitor..."
+                                                            emptyText="No monitor options found"
+                                                            onChange={(value) =>
                                                                 updateRow(
                                                                     index,
                                                                     {
-                                                                        monitor:
-                                                                            event
-                                                                                .target
-                                                                                .value,
+                                                                        monitor: value,
                                                                     }
                                                                 )
                                                             }
-                                                            className={fieldClass}
                                                         />
-                                                    </label>
+                                                    </div>
 
-                                                    <label>
+                                                    <div>
                                                         <span className={labelClass}>
-                                                            Warranty Months
+                                                            Warranty Duration *
                                                         </span>
-                                                        <input
-                                                            type="number"
-                                                            min={0}
+                                                        <SearchableClearableSelect
                                                             value={
-                                                                row.warranty_months ??
-                                                                0
+                                                                Number(
+                                                                    row.warranty_months ??
+                                                                    0
+                                                                ) > 0
+                                                                    ? String(
+                                                                        row.warranty_months
+                                                                    )
+                                                                    : ""
                                                             }
-                                                            onChange={(event) =>
+                                                            options={
+                                                                warrantySelectOptions
+                                                            }
+                                                            required
+                                                            placeholder="Search warranty..."
+                                                            onChange={(value) =>
                                                                 updateRow(
                                                                     index,
                                                                     {
                                                                         warranty_months:
                                                                             Number(
-                                                                                event
-                                                                                    .target
-                                                                                    .value
+                                                                                value ||
+                                                                                0
                                                                             ),
                                                                     }
                                                                 )
                                                             }
-                                                            className={fieldClass}
                                                         />
-                                                    </label>
+                                                    </div>
 
                                                     <label>
                                                         <span className={labelClass}>
                                                             Asset Type
                                                         </span>
                                                         <select
-                                                            value={row.device_type}
+                                                            value={
+                                                                row.device_type
+                                                            }
                                                             onChange={(event) =>
                                                                 updateRow(
                                                                     index,
@@ -789,8 +1495,9 @@ export default function StockEntryPage() {
                                                             Remarks
                                                         </span>
                                                         <textarea
-                                                            rows={2}
-                                                            value={row.remarks}
+                                                            value={
+                                                                row.remarks
+                                                            }
                                                             onChange={(event) =>
                                                                 updateRow(
                                                                     index,
@@ -802,7 +1509,9 @@ export default function StockEntryPage() {
                                                                     }
                                                                 )
                                                             }
-                                                            className="w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                                                            rows={2}
+                                                            placeholder="Optional stock / warranty note"
+                                                            className="w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                                                         />
                                                     </label>
                                                 </div>
@@ -813,20 +1522,20 @@ export default function StockEntryPage() {
                             })}
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/20 px-5 py-3">
-                            <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
-                                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                                Duplicate MR + serial items are synchronized instead of inserted twice.
-                            </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+                            <p className="text-[8px] text-muted-foreground">
+                                Duplicate MR + serial items are synchronized instead of inserted twice. SCM procurement data is revalidated by the backend during import.
+                            </p>
 
                             <Button
                                 type="button"
-                                className="h-9 gap-2"
+                                size="sm"
+                                className="h-8 gap-1.5 text-[9px]"
                                 disabled={
                                     saving ||
                                     rows.length === 0 ||
                                     completeRows !==
-                                        rows.length
+                                    rows.length
                                 }
                                 onClick={() =>
                                     void importStock()
@@ -841,21 +1550,11 @@ export default function StockEntryPage() {
                                 {rows.length === 1
                                     ? ""
                                     : "s"}
-                                <ArrowRight className="h-3.5 w-3.5" />
                             </Button>
                         </div>
                     </div>
                 </>
             )}
-
-            <datalist id="itm-category-list">
-                {categories.map((category) => (
-                    <option
-                        key={category}
-                        value={category}
-                    />
-                ))}
-            </datalist>
         </div>
     );
 }
