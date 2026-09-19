@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"itm-api/internal/middleware"
 	"itm-api/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,32 @@ func (h *AssetDeviceHandler) Register(
 
 	// Asset devices.
 	g.GET("/devices", h.List)
+	g.PUT(
+		"/devices/:id",
+		middleware.RequirePermission(h.db, "inventory.asset.assign"),
+		h.UpdateDevice,
+	)
+	g.POST(
+		"/devices/:id/assign-direct",
+		middleware.RequirePermission(h.db, "inventory.asset.assign"),
+		h.AssignDirect,
+	)
+	g.POST(
+		"/devices/:id/return",
+		middleware.RequirePermission(h.db, "inventory.asset.assign"),
+		h.ReturnDevice,
+	)
+	g.POST(
+		"/devices/:id/owst",
+		middleware.RequirePermission(h.db, "inventory.asset.assign"),
+		h.CreateOWST,
+	)
+	g.POST(
+		"/devices/:id/warranty-claim",
+		middleware.RequirePermission(h.db, "inventory.asset.assign"),
+		h.CreateWarrantyClaim,
+	)
+	g.DELETE("/devices/:id", h.DeleteDeviceRootOnly)
 
 	// Non-operational assets.
 	g.GET(
@@ -86,12 +113,13 @@ func (h *AssetDeviceHandler) Register(
 }
 
 type AssetDevice struct {
-	ID           int64   `json:"id"`
-	DeviceSerial *string `json:"device_serial"`
-	Category     *string `json:"category"`
-	Brand        *string `json:"brand"`
-	Model        *string `json:"model"`
-	DeviceType   *string `json:"device_type"`
+	ID               int64   `json:"id"`
+	StockInventoryID *int64  `json:"stock_inventory_id"`
+	DeviceSerial     *string `json:"device_serial"`
+	Category         *string `json:"category"`
+	Brand            *string `json:"brand"`
+	Model            *string `json:"model"`
+	DeviceType       *string `json:"device_type"`
 
 	AssetStatus int16  `json:"asset_status"`
 	StatusLabel string `json:"status_label"`
@@ -2451,8 +2479,14 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 					OR ad.brand ILIKE $%d
 					OR ad.model ILIKE $%d
 					OR v.vendor_name ILIKE $%d
+					OR COALESCE(ad.mr_number, '') ILIKE $%d
+					OR COALESCE(ad.pr_number, '') ILIKE $%d
+					OR ad.id::text ILIKE $%d
 				)
 			`,
+				placeholder,
+				placeholder,
+				placeholder,
 				placeholder,
 				placeholder,
 				placeholder,
@@ -2492,6 +2526,7 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 	listSQL := fmt.Sprintf(`
 		SELECT
 			ad.id,
+			ad.legacy_stack_id,
 			ad.device_serial,
 			ad.category,
 			ad.brand,
@@ -2566,6 +2601,7 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 
 		err := rows.Scan(
 			&asset.ID,
+			&asset.StockInventoryID,
 			&asset.DeviceSerial,
 			&asset.Category,
 			&asset.Brand,
@@ -2624,6 +2660,7 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 	const sqlQuery = `
 		SELECT
 			ad.id,
+			ad.legacy_stack_id,
 			ad.device_serial,
 			ad.category,
 			ad.brand,
@@ -2685,6 +2722,7 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 		id,
 	).Scan(
 		&asset.ID,
+		&asset.StockInventoryID,
 		&asset.DeviceSerial,
 		&asset.Category,
 		&asset.Brand,

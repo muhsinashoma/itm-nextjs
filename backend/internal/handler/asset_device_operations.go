@@ -1,0 +1,760 @@
+package handler
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"itm-api/internal/middleware"
+	"itm-api/pkg/response"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
+)
+
+type assetOperationSnapshot struct {
+	ID               int64
+	StockInventoryID *int64
+	DeviceSerial     string
+	Category         string
+	Brand            string
+	Model            string
+	DeviceType       string
+	MRNumber         string
+	PRNumber         string
+	VendorName       string
+	AssetStatus      int
+	EmpID            string
+	EmpName          string
+	Department       string
+	Designation      string
+	AssignedDate     *time.Time
+}
+
+func parseAssetDeviceID(c *gin.Context) (int64, bool) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id < 1 {
+		response.BadRequest(c, "invalid asset device id")
+		return 0, false
+	}
+	return id, true
+}
+
+func scanAssetForUpdate(c *gin.Context, tx pgx.Tx, id int64) (assetOperationSnapshot, error) {
+	var item assetOperationSnapshot
+	err := tx.QueryRow(
+		c.Request.Context(),
+		`
+		SELECT
+			ad.id,
+			ad.legacy_stack_id,
+			COALESCE(ad.device_serial, ''),
+			COALESCE(ad.category, ''),
+			COALESCE(ad.brand, ''),
+			COALESCE(ad.model, ''),
+			COALESCE(ad.device_type, ''),
+			COALESCE(ad.mr_number, ''),
+			COALESCE(ad.pr_number, ''),
+			COALESCE(ad.vendor_name, ''),
+			ad.asset_status,
+			COALESCE(ad.emp_id, ''),
+			COALESCE(ad.emp_name, ''),
+			COALESCE(ad.department, ''),
+			COALESCE(ad.designation, ''),
+			ad.assigned_date
+		FROM public.asset_devices ad
+		WHERE ad.id = $1
+		  AND ad.row_status = 1
+		FOR UPDATE
+		`,
+		id,
+	).Scan(
+		&item.ID,
+		&item.StockInventoryID,
+		&item.DeviceSerial,
+		&item.Category,
+		&item.Brand,
+		&item.Model,
+		&item.DeviceType,
+		&item.MRNumber,
+		&item.PRNumber,
+		&item.VendorName,
+		&item.AssetStatus,
+		&item.EmpID,
+		&item.EmpName,
+		&item.Department,
+		&item.Designation,
+		&item.AssignedDate,
+	)
+	return item, err
+}
+
+func (h *AssetDeviceHandler) UpdateDevice(c *gin.Context) {
+	id, ok := parseAssetDeviceID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Category     string `json:"category"`
+		Brand        string `json:"brand"`
+		Model        string `json:"model"`
+		DeviceType   string `json:"device_type"`
+		VendorName   string `json:"vendor_name"`
+		PurchaseDate string `json:"purchase_date"`
+		WarrantyDate string `json:"warranty_date"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	result, err := h.db.Exec(
+		c.Request.Context(),
+		`
+		UPDATE public.asset_devices
+		SET
+			category = COALESCE(NULLIF(BTRIM($1), ''), category),
+			brand = COALESCE(NULLIF(BTRIM($2), ''), brand),
+			model = COALESCE(NULLIF(BTRIM($3), ''), model),
+			device_type = COALESCE(NULLIF(BTRIM($4), ''), device_type),
+			vendor_name = COALESCE(NULLIF(BTRIM($5), ''), vendor_name),
+			purchase_date = COALESCE(NULLIF(BTRIM($6), '')::timestamptz, purchase_date),
+			warranty_date = COALESCE(NULLIF(BTRIM($7), '')::timestamptz, warranty_date),
+			updated_at = NOW()
+		WHERE id = $8
+		  AND row_status = 1
+		`,
+		req.Category,
+		req.Brand,
+		req.Model,
+		req.DeviceType,
+		req.VendorName,
+		req.PurchaseDate,
+		req.WarrantyDate,
+		id,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	if result.RowsAffected() == 0 {
+		response.NotFound(c, "asset device not found")
+		return
+	}
+
+	response.OK(c, gin.H{"updated": true, "asset_id": id})
+}
+
+func (h *AssetDeviceHandler) AssignDirect(c *gin.Context) {
+	id, ok := parseAssetDeviceID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		EmployeeID string `json:"employee_id" binding:"required"`
+		Remarks    string `json:"remarks"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "employee_id is required")
+		return
+	}
+	req.EmployeeID = strings.TrimSpace(req.EmployeeID)
+	if req.EmployeeID == "" {
+		response.BadRequest(c, "employee_id is required")
+		return
+	}
+
+	ctx := c.Request.Context()
+	tx, err := h.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	asset, err := scanAssetForUpdate(c, tx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		response.NotFound(c, "asset device not found")
+		return
+	}
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	if asset.AssetStatus != 0 && asset.AssetStatus != 4 {
+		c.JSON(http.StatusConflict, gin.H{
+			"success": false,
+			"error":   "only Available or Returned devices can be assigned directly",
+		})
+		return
+	}
+
+	var employeeName, department, designation string
+	err = tx.QueryRow(
+		ctx,
+		`
+		SELECT
+			COALESCE(employee_name, ''),
+			COALESCE(department_name, ''),
+			COALESCE(designation, '')
+		FROM public.employee_office_info
+		WHERE BTRIM(employee_id) = BTRIM($1)
+		  AND COALESCE(active, 'Yes') = 'Yes'
+		LIMIT 1
+		`,
+		req.EmployeeID,
+	).Scan(&employeeName, &department, &designation)
+	if errors.Is(err, pgx.ErrNoRows) {
+		response.BadRequest(c, "active employee not found")
+		return
+	}
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	_, err = tx.Exec(
+		ctx,
+		`
+		UPDATE public.asset_devices
+		SET
+			asset_status = 1,
+			emp_id = $1,
+			emp_name = $2,
+			department = $3,
+			designation = $4,
+			assigned_date = NOW(),
+			updated_at = NOW()
+		WHERE id = $5
+		`,
+		req.EmployeeID,
+		employeeName,
+		department,
+		designation,
+		id,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	actor := strings.TrimSpace(c.GetString("employee_id"))
+	if asset.StockInventoryID != nil {
+		_, err = tx.Exec(
+			ctx,
+			`
+			UPDATE public.stack_inventory
+			SET
+				device_assigned_status = 1,
+				device_assiged_date = NOW(),
+				device_assiged_by = $1,
+				edited_by = $1,
+				edited_at = NOW()
+			WHERE id = $2
+			`,
+			actor,
+			*asset.StockInventoryID,
+		)
+		if err != nil {
+			response.ServerError(c, err)
+			return
+		}
+	}
+
+	historyReason := "Assigned directly to employee"
+	if asset.AssetStatus == 4 {
+		historyReason = "Returned device transferred/reassigned to employee"
+	}
+	if remarks := strings.TrimSpace(req.Remarks); remarks != "" {
+		historyReason += ": " + remarks
+	}
+
+	_, err = tx.Exec(
+		ctx,
+		`
+		INSERT INTO public.asset_device_history (
+			asset_device_id, legacy_equipment_id, device_serial,
+			status_code, raw_status, previous_status,
+			emp_id, emp_name, department, designation,
+			mr_number, pr_number, vendor, assigned_date,
+			history_reason, created_at_source, updated_at_source, migrated_at
+		)
+		VALUES (
+			$1, 0, $2,
+			1, 'Assigned', $3,
+			$4, $5, $6, $7,
+			$8, $9, $10, NOW(),
+			$11, NOW(), NOW(), NOW()
+		)
+		`,
+		id,
+		asset.DeviceSerial,
+		asset.AssetStatus,
+		req.EmployeeID,
+		employeeName,
+		department,
+		designation,
+		asset.MRNumber,
+		asset.PRNumber,
+		asset.VendorName,
+		historyReason,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	_, _ = tx.Exec(
+		ctx,
+		`INSERT INTO public.audit_log (user_id, table_name, record_id, action, new_data)
+		 VALUES ($1, 'asset_devices', $2, 'DIRECT_ASSIGN_ASSET',
+		 jsonb_build_object('employee_id',$3,'previous_status',$4))`,
+		actor,
+		id,
+		req.EmployeeID,
+		asset.AssetStatus,
+	)
+
+	if err = tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.OK(c, gin.H{
+		"asset_id":      id,
+		"asset_status":  1,
+		"status_label":  "Assigned",
+		"employee_id":   req.EmployeeID,
+		"employee_name": employeeName,
+		"department":    department,
+		"designation":   designation,
+		"assigned_at":   time.Now(),
+	})
+}
+
+func (h *AssetDeviceHandler) ReturnDevice(c *gin.Context) {
+	id, ok := parseAssetDeviceID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		Remarks string `json:"remarks"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	ctx := c.Request.Context()
+	tx, err := h.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	asset, err := scanAssetForUpdate(c, tx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		response.NotFound(c, "asset device not found")
+		return
+	}
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	if asset.AssetStatus != 1 {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "only Assigned devices can be returned"})
+		return
+	}
+
+	_, err = tx.Exec(
+		ctx,
+		`
+		UPDATE public.asset_devices
+		SET
+			asset_status = 4,
+			emp_id = NULL,
+			emp_name = NULL,
+			department = NULL,
+			designation = NULL,
+			assigned_date = NULL,
+			updated_at = NOW()
+		WHERE id = $1
+		`,
+		id,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	// Keep the SCM stock row synchronized with the asset registry so a
+	// returned device can be reused through later allocation workflows.
+	if asset.StockInventoryID != nil {
+		actor := strings.TrimSpace(c.GetString("employee_id"))
+		_, err = tx.Exec(
+			ctx,
+			`
+			UPDATE public.stack_inventory
+			SET
+				device_assigned_status = 0,
+				device_assiged_date = NULL,
+				device_assiged_by = NULL,
+				edited_by = $1,
+				edited_at = NOW()
+			WHERE id = $2
+			`,
+			actor,
+			*asset.StockInventoryID,
+		)
+		if err != nil {
+			response.ServerError(c, err)
+			return
+		}
+	}
+
+	reason := "Device returned"
+	if value := strings.TrimSpace(req.Remarks); value != "" {
+		reason += ": " + value
+	}
+	_, err = tx.Exec(
+		ctx,
+		`
+		INSERT INTO public.asset_device_history (
+			asset_device_id, legacy_equipment_id, device_serial,
+			status_code, raw_status, previous_status,
+			emp_id, emp_name, department, designation,
+			mr_number, pr_number, vendor, assigned_date, returned_at,
+			history_reason, created_at_source, updated_at_source, migrated_at
+		)
+		VALUES (
+			$1, 0, $2,
+			4, 'Returned', 1,
+			$3, $4, $5, $6,
+			$7, $8, $9, $10, NOW(),
+			$11, NOW(), NOW(), NOW()
+		)
+		`,
+		id,
+		asset.DeviceSerial,
+		asset.EmpID,
+		asset.EmpName,
+		asset.Department,
+		asset.Designation,
+		asset.MRNumber,
+		asset.PRNumber,
+		asset.VendorName,
+		asset.AssignedDate,
+		reason,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	actor := strings.TrimSpace(c.GetString("employee_id"))
+	_, _ = tx.Exec(
+		ctx,
+		`INSERT INTO public.audit_log (user_id, table_name, record_id, action, new_data)
+		 VALUES ($1, 'asset_devices', $2, 'RETURN_ASSET', jsonb_build_object('previous_employee_id',$3))`,
+		actor,
+		id,
+		asset.EmpID,
+	)
+
+	if err = tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.OK(c, gin.H{"asset_id": id, "asset_status": 4, "status_label": "Returned"})
+}
+
+func (h *AssetDeviceHandler) CreateOWST(c *gin.Context) {
+	id, ok := parseAssetDeviceID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		OwnershipType  string `json:"ownership_type" binding:"required"`
+		ReceiverID     string `json:"receiver_id"`
+		VendorName     string `json:"vendor_name"`
+		DeductedAmount int64  `json:"deducted_amount"`
+		Remarks        string `json:"remarks"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "ownership_type is required")
+		return
+	}
+	typeKey := strings.ToLower(strings.TrimSpace(req.OwnershipType))
+	owstCategory := 0
+	switch typeKey {
+	case "employee", "user":
+		owstCategory = 1
+		if strings.TrimSpace(req.ReceiverID) == "" {
+			response.BadRequest(c, "receiver_id is required for employee ownership transfer")
+			return
+		}
+	case "vendor":
+		owstCategory = 2
+		if strings.TrimSpace(req.VendorName) == "" {
+			response.BadRequest(c, "vendor_name is required for vendor ownership transfer")
+			return
+		}
+	default:
+		response.BadRequest(c, "ownership_type must be employee or vendor")
+		return
+	}
+
+	ctx := c.Request.Context()
+	tx, err := h.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	asset, err := scanAssetForUpdate(c, tx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		response.NotFound(c, "asset device not found")
+		return
+	}
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	if asset.AssetStatus != 1 {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "OWST is available only for Assigned devices"})
+		return
+	}
+
+	actor := strings.TrimSpace(c.GetString("employee_id"))
+	spec := strings.TrimSpace(strings.Join([]string{asset.Brand, asset.Model}, " "))
+	var owstID int64
+	err = tx.QueryRow(
+		ctx,
+		`
+		INSERT INTO public.ownership_transfers (
+			employee_id, deducted_amount, device_age, sepecification,
+			receiver_id, gate_pass_date, item_name, item_description,
+			unit, quantity, device_sl_no, remarks,
+			created_by, created_at, status, company_material,
+			non_refundable, device_assigned_id, owst_category, vendor_name
+		)
+		VALUES (
+			NULLIF($1,''), $2, '', NULLIF($3,''),
+			NULLIF($4,''), CURRENT_DATE, NULLIF($5,''), NULLIF($6,''),
+			'Nos', 1, NULLIF($7,''), NULLIF($8,''),
+			$9, NOW(), 1, 0,
+			0, $10, $11, NULLIF($12,'')
+		)
+		RETURNING id
+		`,
+		asset.EmpID,
+		req.DeductedAmount,
+		spec,
+		strings.TrimSpace(req.ReceiverID),
+		asset.Category,
+		strings.TrimSpace(strings.Join([]string{asset.DeviceType, spec}, " ")),
+		asset.DeviceSerial,
+		strings.TrimSpace(req.Remarks),
+		actor,
+		id,
+		owstCategory,
+		strings.TrimSpace(req.VendorName),
+	).Scan(&owstID)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE public.asset_devices SET asset_status=7, updated_at=NOW() WHERE id=$1`, id)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	_, err = tx.Exec(
+		ctx,
+		`
+		INSERT INTO public.asset_device_history (
+			asset_device_id, legacy_equipment_id, device_serial, status_code,
+			raw_status, previous_status, emp_id, emp_name, department, designation,
+			mr_number, pr_number, vendor, assigned_date, transferred_at,
+			history_reason, created_at_source, updated_at_source, migrated_at
+		)
+		VALUES ($1,0,$2,7,'Ownership Transfer',1,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),$11,NOW(),NOW(),NOW())
+		`,
+		id,
+		asset.DeviceSerial,
+		asset.EmpID,
+		asset.EmpName,
+		asset.Department,
+		asset.Designation,
+		asset.MRNumber,
+		asset.PRNumber,
+		asset.VendorName,
+		asset.AssignedDate,
+		fmt.Sprintf("OWST reference #%d", owstID),
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"asset_id": id, "owst_id": owstID, "asset_status": 7, "status_label": "Ownership Transfer"})
+}
+
+func (h *AssetDeviceHandler) CreateWarrantyClaim(c *gin.Context) {
+	id, ok := parseAssetDeviceID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		Problems string `json:"problems" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Problems) == "" {
+		response.BadRequest(c, "problems is required")
+		return
+	}
+
+	ctx := c.Request.Context()
+	tx, err := h.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	asset, err := scanAssetForUpdate(c, tx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		response.NotFound(c, "asset device not found")
+		return
+	}
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	if asset.AssetStatus != 1 {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "warranty claim is available only for Assigned devices"})
+		return
+	}
+
+	var refNo int
+	if err = tx.QueryRow(ctx, `SELECT COALESCE(MAX(reference_no_claim),0)+1 FROM public.device_claims`).Scan(&refNo); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	actor := strings.TrimSpace(c.GetString("employee_id"))
+	var claimID int64
+	err = tx.QueryRow(
+		ctx,
+		`
+		INSERT INTO public.device_claims (
+			reference_no_claim, category, brand, model_no, device_sl_no, problems,
+			claim_status, previous_status, vendor, service_type, received_date,
+			received_by, gate_pass_date, unit, quantity, return_issue, return_date,
+			return_by_it_person, gate_pass_remarks, created_by, created_at,
+			edited_by, edited_at, status, tbl_it_inventory_device_id, approved_val,
+			designated_email_to, designated_email_cc, vendor_receiver, vndr_receiver_mobile
+		)
+		VALUES ($1,$2,$3,$4,$5,$6,1,1,NULL,0,NOW(),$7,NOW(),0,1,'',NOW(),'','',$7,NOW(),$7,NOW(),1,$8,0,'','','','')
+		RETURNING id
+		`,
+		refNo,
+		asset.Category,
+		asset.Brand,
+		asset.Model,
+		asset.DeviceSerial,
+		strings.TrimSpace(req.Problems),
+		actor,
+		id,
+	).Scan(&claimID)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE public.asset_devices SET asset_status=8, updated_at=NOW() WHERE id=$1`, id)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	_, err = tx.Exec(
+		ctx,
+		`
+		INSERT INTO public.asset_device_history (
+			asset_device_id, legacy_equipment_id, device_serial, status_code,
+			raw_status, previous_status, emp_id, emp_name, department, designation,
+			mr_number, pr_number, vendor, assigned_date,
+			history_reason, created_at_source, updated_at_source, migrated_at
+		)
+		VALUES ($1,0,$2,8,'Claim Raised',1,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW(),NOW())
+		`,
+		id,
+		asset.DeviceSerial,
+		asset.EmpID,
+		asset.EmpName,
+		asset.Department,
+		asset.Designation,
+		asset.MRNumber,
+		asset.PRNumber,
+		asset.VendorName,
+		asset.AssignedDate,
+		fmt.Sprintf("Warranty claim #%d: %s", claimID, strings.TrimSpace(req.Problems)),
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"asset_id": id, "claim_id": claimID, "reference_no": refNo, "asset_status": 8, "status_label": "Claim Raised"})
+}
+
+func (h *AssetDeviceHandler) DeleteDeviceRootOnly(c *gin.Context) {
+	id, ok := parseAssetDeviceID(c)
+	if !ok {
+		return
+	}
+
+	userType, hasUserType := middleware.GetCurrentUserType(c)
+	roleCode, _ := middleware.GetCurrentRoleCode(c)
+	if !hasUserType || (userType != middleware.UserTypeRoot && !strings.EqualFold(strings.TrimSpace(roleCode), "ROOT")) {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "ROOT access is required to delete an asset device"})
+		return
+	}
+
+	result, err := h.db.Exec(
+		c.Request.Context(),
+		`UPDATE public.asset_devices SET row_status=0, updated_at=NOW() WHERE id=$1 AND row_status=1`,
+		id,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	if result.RowsAffected() == 0 {
+		response.NotFound(c, "asset device not found")
+		return
+	}
+
+	actor := strings.TrimSpace(c.GetString("employee_id"))
+	_, _ = h.db.Exec(
+		c.Request.Context(),
+		`INSERT INTO public.audit_log (user_id, table_name, record_id, action, new_data)
+		 VALUES ($1, 'asset_devices', $2, 'ROOT_DELETE_ASSET', jsonb_build_object('row_status',0))`,
+		actor,
+		id,
+	)
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"deleted": true, "asset_id": id}})
+}
