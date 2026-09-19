@@ -27,10 +27,18 @@ type Config struct {
 	MailWorkerPollSeconds  int
 	MailMaxAttempts        int
 	MailSendTimeoutSeconds int
+
+	SCMAPIURL         string
+	SCMAPIToken       string
+	SCMTimeoutSeconds int
 }
 
 func Load() *Config {
+	// Load the normal backend environment first, then an optional SCM-only
+	// environment file. Existing process variables keep precedence.
 	_ = godotenv.Load()
+	_ = godotenv.Load(".env.inventory")
+	_ = godotenv.Load("backend/.env.inventory")
 
 	return &Config{
 		Port:        getenv("PORT", "8080"),
@@ -51,6 +59,10 @@ func Load() *Config {
 		MailWorkerPollSeconds:  getenvInt("MAIL_WORKER_POLL_SECONDS", 2),
 		MailMaxAttempts:        getenvInt("MAIL_MAX_ATTEMPTS", 5),
 		MailSendTimeoutSeconds: getenvInt("MAIL_SEND_TIMEOUT_SECONDS", 20),
+
+		SCMAPIURL:         getenv("SCM_API_URL", "https://scm.fiberathome.net/scm/api/item-search-by-mr.php"),
+		SCMAPIToken:       getenv("SCM_API_TOKEN", ""),
+		SCMTimeoutSeconds: getenvInt("SCM_TIMEOUT_SECONDS", 15),
 	}
 }
 

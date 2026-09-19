@@ -112,44 +112,72 @@ export default function AssignedPage() {
                 setLoading(true);
                 setError(null);
 
-                //Api Conecction 
                 const res = await reportApi.assets({
                     status: status || undefined,
                 });
 
                 const rows = Array.isArray(res.data) ? res.data : [];
 
+                const mapped: AssignedDevice[] = rows.map(
+                    (item: any, index: number) => ({
+                        sl: index + 1,
 
-                const mapped: AssignedDevice[] = rows.map((item: any, index: number) => ({
-                    sl: index + 1,
+                        // Reference priority:
+                        // backend reference_no
 
-                    referenceNumber: item.mr_number || item.pr_number || String(item.id || ""),
-                    mrnNumber: item.mr_number || "",
-                    prNumber: item.pr_number || "",
+                        referenceNumber: item.id ? String(item.id) : "—",
+                        mrnNumber: item.mr_number || "",
+                        prNumber: item.pr_number || "",
+                        department: item.department || "",
 
-                    employeeId: item.emp_id || "",
-                    employeeName: item.emp_name || "",
-                    designation: item.designation || "",
-                    department: item.department || "",
 
-                    category: item.category || "",
-                    deviceSl: item.device_serial || "",
-                    model: item.model_no || "",
+                        // Default visible employee fields
 
-                    status: normalizeAssetStatus(item.status || status || ""),
-                    userUsageDuration: item.device_age || "",
-                    warranty: item.warranty_date || "",
-                    vendor: item.vendor || "",
+                        deviceSl: item.device_serial || "",
 
-                    assignedBy: item.assigned_by || item.created_by || "",
-                    assignedDate: item.assign_date || "",
+                        employeeId: item.emp_id || "",
+                        employeeName: item.emp_name || "",
+                        designation: item.designation || "",
 
-                    deviceType: item.device_type ? String(item.device_type) : "",
-                    deviceAge: item.device_age || "",
-                    purchaseDate: item.purchase_date || item.assign_date || "",
+                        category: item.category || "",
+                        model: item.model || item.model_no || "",
 
-                    remarks: item.remarks || "",
-                }));
+                        status: normalizeAssetStatus(
+                            item.status_label ||
+                            item.status ||
+                            status ||
+                            ""
+                        ),
+
+                        // Optional fields — hidden under Columns initially
+                        userUsageDuration: item.device_age || "",
+                        warranty: item.warranty_date || "",
+                        vendor: item.vendor_name || item.vendor || "",
+
+                        assignedBy:
+                            item.assigned_by ||
+                            item.created_by ||
+                            "",
+
+                        assignedDate:
+                            item.assigned_date ||
+                            item.assign_date ||
+                            "",
+
+                        deviceType: item.device_type
+                            ? String(item.device_type)
+                            : "",
+
+                        deviceAge: item.device_age || "",
+
+                        purchaseDate:
+                            item.purchase_date ||
+                            item.assign_date ||
+                            "",
+
+                        remarks: item.remarks || "",
+                    })
+                );
 
                 setData(mapped);
             } catch (err) {

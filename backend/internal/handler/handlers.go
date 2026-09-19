@@ -3150,40 +3150,37 @@ func (h *ReportHandler) Register(rg *gin.RouterGroup) {
 }
 
 func (h *ReportHandler) Assigned(c *gin.Context) {
-	status := c.Query("status")
+	status := strings.TrimSpace(c.Query("status"))
 
-	// -------------------------------------------------------------------------
-	// Available devices: source is stack_inventory
-	// -------------------------------------------------------------------------
-	if status == "Available" {
+	// Available stock remains in stack_inventory until allocation.
+	if strings.EqualFold(status, "Available") {
 		availableRows, availableErr := h.db.Query(c.Request.Context(), `
-    SELECT
-        s.id,
-        COALESCE(s.mr_id, ''),
-        COALESCE(s.pr_id, ''),
-        COALESCE(s.serial_no, ''),
-
-        COALESCE(
-    (
-        SELECT ic.inventory_category_list
-        FROM public.inventory_categories ic
-        WHERE ic.id::text = TRIM(s.category::text)
-        LIMIT 1
-    ),
-    'Unknown Category'
-) AS category_name,
-
-        COALESCE(s.brand, ''),
-        COALESCE(s.model, ''),
-        COALESCE(s.device_type, ''),
-        COALESCE(s.vendor_name, ''),
-        COALESCE(s.purchase_date::text, ''),
-        COALESCE(s.warranty_date::text, '')
-    FROM stack_inventory s
-    
-    WHERE s.device_assigned_status = 0
-    ORDER BY s.id DESC
-`)
+			SELECT
+				s.id,
+				COALESCE(s.mr_id, ''),
+				COALESCE(s.pr_id, ''),
+				COALESCE(s.serial_no, ''),
+				COALESCE(
+					(
+						SELECT ic.inventory_category_list
+						FROM public.inventory_categories ic
+						WHERE ic.id::text = BTRIM(COALESCE(s.category, ''))
+						LIMIT 1
+					),
+					NULLIF(BTRIM(COALESCE(s.category, '')), ''),
+					'Uncategorized'
+				) AS category_name,
+				COALESCE(s.brand, ''),
+				COALESCE(s.model, ''),
+				COALESCE(s.device_type, ''),
+				COALESCE(s.vendor_name, ''),
+				COALESCE(s.purchase_date::text, ''),
+				COALESCE(s.warranty_date::text, '')
+			FROM public.stack_inventory s
+			WHERE s.status = 1
+			  AND COALESCE(s.device_assigned_status, 0) = 0
+			ORDER BY s.id DESC
+		`)
 		if availableErr != nil {
 			response.ServerError(c, availableErr)
 			return
@@ -3191,152 +3188,99 @@ func (h *ReportHandler) Assigned(c *gin.Context) {
 		defer availableRows.Close()
 
 		result := []map[string]any{}
-
 		for availableRows.Next() {
 			var id int64
-			var mrNumber string
-			var prNumber string
-			var serialNo string
-			var category string
-			var brand string
-			var model string
-			var deviceType string
-			var vendor string
-			var purchaseDate string
-			var warrantyDate string
+			var mrNumber, prNumber, serialNo, category, brand, model string
+			var deviceType, vendor, purchaseDate, warrantyDate string
 
 			if err := availableRows.Scan(
-				&id,
-				&mrNumber,
-				&prNumber,
-				&serialNo,
-				&category,
-				&brand,
-				&model,
-				&deviceType,
-				&vendor,
-				&purchaseDate,
-				&warrantyDate,
+				&id, &mrNumber, &prNumber, &serialNo, &category, &brand, &model,
+				&deviceType, &vendor, &purchaseDate, &warrantyDate,
 			); err != nil {
 				response.ServerError(c, err)
 				return
 			}
 
 			result = append(result, map[string]any{
-				"id":            id,
-				"emp_id":        "",
-				"emp_name":      "",
-				"department":    "",
-				"designation":   "",
-				"category":      category,
-				"brand":         brand,
-				"device_serial": serialNo,
-				"model_no":      model,
-				"device_type":   deviceType,
-				"status":        "Available",
-
-				"assign_date":   "",
-				"purchase_date": purchaseDate,
-				"warranty_date": warrantyDate,
-
-				"mr_number":     mrNumber,
-				"pr_number":     prNumber,
-				"vendor":        vendor,
-				"device_age":    "",
-				"warranty_left": "",
-				"assigned_by":   "",
-				"remarks":       "",
+				"id": id, "emp_id": "", "emp_name": "", "department": "", "designation": "",
+				"category": category, "brand": brand, "device_serial": serialNo, "model_no": model,
+				"device_type": deviceType, "status": "Available", "assign_date": "",
+				"purchase_date": purchaseDate, "warranty_date": warrantyDate,
+				"mr_number": mrNumber, "pr_number": prNumber, "vendor": vendor,
+				"device_age": "", "warranty_left": "", "assigned_by": "", "remarks": "",
 			})
 		}
-
-		fmt.Printf("Available first category: %s, total: %d\n", func() string {
-			if len(result) == 0 {
-				return "none"
-			}
-			return fmt.Sprint(result[0]["category"])
-		}(), len(result))
 		response.OK(c, result)
 		return
 	}
 
-	// -------------------------------------------------------------------------
-	// Assigned / Returned / Transferred: source is it_equipment
-	// -------------------------------------------------------------------------
-	where := "WHERE d.active > 0"
+	// Assigned and lifecycle states are read from the current asset registry.
+	where := "WHERE ad.row_status = 1"
 	args := []any{}
 	argNo := 1
 
-	switch status {
-	case "Assigned":
-		where += fmt.Sprintf(`
-			AND (
-				d.status = $%d
-				OR LOWER(COALESCE(d.status, '')) = 'assigned'
-			)`, argNo)
-		args = append(args, "1")
-		argNo++
-
-	case "Returned":
-		where += fmt.Sprintf(`
-			AND (
-				d.status = $%d
-				OR LOWER(COALESCE(d.status, '')) = 'returned'
-			)`, argNo)
-		args = append(args, "4")
-		argNo++
-
-	case "Transferred":
-		where += fmt.Sprintf(`
-			AND (
-				d.status = $%d
-				OR LOWER(COALESCE(d.status, '')) IN ('transfer', 'transferred')
-			)`, argNo)
-		args = append(args, "3")
-		argNo++
-
-	case "":
-		// All active equipment, no status filter.
-
-	default:
-		where += fmt.Sprintf(
-			" AND LOWER(COALESCE(d.status, '')) = LOWER($%d)",
-			argNo,
-		)
-		args = append(args, status)
-		argNo++
+	statusCode := map[string]int{
+		"assigned":           1,
+		"damaged":            2,
+		"transferred":        3,
+		"returned":           4,
+		"lost":               5,
+		"ownership transfer": 7,
+		"claim raised":       8,
+		"service request":    15,
+	}
+	if status != "" {
+		if code, ok := statusCode[strings.ToLower(status)]; ok {
+			where += fmt.Sprintf(" AND ad.asset_status = $%d", argNo)
+			args = append(args, code)
+			argNo++
+		}
 	}
 
 	deviceRows, deviceErr := h.db.Query(
 		c.Request.Context(),
 		fmt.Sprintf(`
 			SELECT
-				d.id,
-				d.emp_id,
-				COALESCE(e.employee_name, d.emp_name),
-				COALESCE(d.department, e.department_name),
-				e.designation,
-				d.category,
-				d.brand,
-				d.device_s_or_n,
-				d.model_no,
-				d.device_type,
-				d.status,
-				d.assign_date::text,
-				d.device_warranty_date::text,
-				d.mr_number,
-				d.pr_number,
-				d.vendor,
-				to_char(NOW() - d.assign_date, 'DD" days"'),
+				ad.id,
+				ad.emp_id,
+				COALESCE(NULLIF(BTRIM(ad.emp_name), ''), e.employee_name),
+				COALESCE(NULLIF(BTRIM(ad.department), ''), e.department_name),
+				COALESCE(NULLIF(BTRIM(ad.designation), ''), e.designation),
+				ad.category,
+				ad.brand,
+				ad.device_serial,
+				ad.model,
+				ad.device_type,
+				CASE ad.asset_status
+					WHEN 0 THEN 'Available'
+					WHEN 1 THEN 'Assigned'
+					WHEN 2 THEN 'Damaged'
+					WHEN 3 THEN 'Transferred'
+					WHEN 4 THEN 'Returned'
+					WHEN 5 THEN 'Lost'
+					WHEN 7 THEN 'Ownership Transfer'
+					WHEN 8 THEN 'Claim Raised'
+					WHEN 15 THEN 'Service Request'
+					ELSE 'Unknown'
+				END,
+				ad.assigned_date::text,
+				ad.warranty_date::text,
+				ad.mr_number,
+				ad.pr_number,
+				COALESCE(v.vendor_name, NULLIF(BTRIM(ad.vendor_name), '')),
+				CASE WHEN ad.assigned_date IS NULL THEN ''
+					ELSE CONCAT(EXTRACT(DAY FROM (NOW() - ad.assigned_date))::int, ' days') END,
 				CASE
-					WHEN d.device_warranty_date > NOW()
-						THEN to_char(d.device_warranty_date - NOW(), 'DD" days"')
+					WHEN ad.warranty_date IS NULL THEN ''
+					WHEN ad.warranty_date > NOW() THEN CONCAT(EXTRACT(DAY FROM (ad.warranty_date - NOW()))::int, ' days')
 					ELSE 'Expired'
 				END
-			FROM it_equipment d
-			LEFT JOIN employee_office_info e
-				ON e.employee_id = d.emp_id
+			FROM public.asset_devices ad
+			LEFT JOIN public.employee_office_info e
+				ON BTRIM(e.employee_id) = BTRIM(COALESCE(ad.emp_id, ''))
+			LEFT JOIN public.vendors v ON v.id = ad.vendor_id
 			%s
-			ORDER BY e.employee_name, d.category
+			ORDER BY ad.updated_at DESC NULLS LAST, ad.id DESC
 		`, where),
 		args...,
 	)
@@ -3347,77 +3291,32 @@ func (h *ReportHandler) Assigned(c *gin.Context) {
 	defer deviceRows.Close()
 
 	result := []map[string]any{}
-
 	for deviceRows.Next() {
 		var id int64
-		var deviceType *int
 		var empID, empName, department, designation *string
-		var category, brand, serialNo, modelNo *string
-		var statusValue, assignDate, warrantyDate *string
-		var mrNumber, prNumber, vendor, deviceAge, warrantyLeft *string
+		var category, brand, serialNo, modelNo, deviceType *string
+		var statusValue string
+		var assignDate, warrantyDate, mrNumber, prNumber, vendor, deviceAge, warrantyLeft *string
 
 		if err := deviceRows.Scan(
-			&id,
-			&empID,
-			&empName,
-			&department,
-			&designation,
-			&category,
-			&brand,
-			&serialNo,
-			&modelNo,
-			&deviceType,
-			&statusValue,
-			&assignDate,
-			&warrantyDate,
-			&mrNumber,
-			&prNumber,
-			&vendor,
-			&deviceAge,
-			&warrantyLeft,
+			&id, &empID, &empName, &department, &designation,
+			&category, &brand, &serialNo, &modelNo, &deviceType, &statusValue,
+			&assignDate, &warrantyDate, &mrNumber, &prNumber, &vendor, &deviceAge, &warrantyLeft,
 		); err != nil {
 			response.ServerError(c, err)
 			return
 		}
 
-		displayStatus := ""
-		if statusValue != nil {
-			switch *statusValue {
-			case "1":
-				displayStatus = "Assigned"
-			case "3":
-				displayStatus = "Transferred"
-			case "4":
-				displayStatus = "Returned"
-			default:
-				displayStatus = *statusValue
-			}
-		}
-
 		result = append(result, map[string]any{
-			"id":            id,
-			"emp_id":        empID,
-			"emp_name":      empName,
-			"department":    department,
-			"designation":   designation,
-			"category":      category,
-			"brand":         brand,
-			"device_serial": serialNo,
-			"model_no":      modelNo,
-			"device_type":   deviceType,
-			"status":        displayStatus,
-			"assign_date":   assignDate,
-			"warranty_date": warrantyDate,
-			"mr_number":     mrNumber,
-			"pr_number":     prNumber,
-			"vendor":        vendor,
-			"device_age":    deviceAge,
-			"warranty_left": warrantyLeft,
-			"assigned_by":   "",
-			"remarks":       "",
+			"id": id, "emp_id": empID, "emp_name": empName, "department": department,
+			"designation": designation, "category": category, "brand": brand,
+			"device_serial": serialNo, "model_no": modelNo, "device_type": deviceType,
+			"status": statusValue, "assign_date": assignDate, "warranty_date": warrantyDate,
+			"mr_number": mrNumber, "pr_number": prNumber, "vendor": vendor,
+			"device_age": deviceAge, "warranty_left": warrantyLeft,
+			"assigned_by": "", "remarks": "",
 		})
 	}
-
 	response.OK(c, result)
 }
 

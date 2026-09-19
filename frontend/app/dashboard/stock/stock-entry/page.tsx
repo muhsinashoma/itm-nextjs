@@ -1,301 +1,861 @@
-// app/dashboard/stock/stock-entry/page.tsx
 "use client";
 
-import React, { useState } from "react";
-import { Plus, Trash2, Send, PackagePlus, ClipboardList, Cpu } from "lucide-react";
+import {
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 
-interface SCMInventory {
-    mrNumber: string;
-    prId: string;
-    vendorName: string;
-    receivedDate: string;
-    serialNo: string;
-    purchaseDate: string;
-    itemGroup: string;
-    itemName: string;
-}
+import {
+    ArrowRight,
+    CheckCircle2,
+    Copy,
+    Database,
+    LoaderCircle,
+    PackageCheck,
+    RefreshCcw,
+    Search,
+    ServerCog,
+    ShieldCheck,
+    X,
+} from "lucide-react";
 
-interface ITMPart {
-    category: string;
-    brand: string;
-    model: string;
-    cpu: string;
-    ram: string;
-    ssd: string;
-    monitor: string;
-    warrantyEndDate: string;
-    remarks: string;
-}
+import {
+    categoryApi,
+    inventoryWorkflowApi,
+    type SCMStockImportItem,
+    type SCMStockPreview,
+} from "@/lib/api";
 
-interface StockRow {
-    scm: SCMInventory;
-    itm: ITMPart;
-    mrQuantity: number | "";
-}
+import {
+    Button,
+} from "@/components/ui/button";
 
-const defaultScm: SCMInventory = {
-    mrNumber: "FAHSC02-22972025-10-19MR125732",
-    prId: "FAHSC02-22972025-09-04PR13795",
-    vendorName: "Daffodil Computers Limited",
-    receivedDate: "2025-10-13T15:17",
-    serialNo: "2514APC6KVZ9",
-    purchaseDate: "2025-10-13T15:17",
-    itemGroup: "Computer Accessories",
-    itemName: "Mouse-Wireless (Standard)",
+type MappingRow = SCMStockImportItem & {
+    item_name: string;
+    item_group: string;
+    pr_id: string;
+    vendor_name: string;
+    purchase_date: string;
 };
 
-const emptyScm: SCMInventory = { mrNumber: "", prId: "", vendorName: "", receivedDate: "", serialNo: "", purchaseDate: "", itemGroup: "", itemName: "" };
-const emptyItm: ITMPart = { category: "", brand: "", model: "", cpu: "", ram: "", ssd: "", monitor: "", warrantyEndDate: "", remarks: "" };
+const fieldClass =
+    "h-8 w-full rounded-lg border border-border bg-background px-2.5 text-[10px] outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10";
 
-const scmLabels: Record<keyof SCMInventory, string> = {
-    mrNumber: "MR Number", prId: "PR ID", vendorName: "Vendor Name",
-    receivedDate: "Received Date", serialNo: "Serial No", purchaseDate: "Purchase Date",
-    itemGroup: "Item Group", itemName: "Item Name",
-};
+const labelClass =
+    "mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground";
 
-const itmLabels: Record<keyof ITMPart, string> = {
-    category: "Category", brand: "Brand", model: "Model", cpu: "CPU",
-    ram: "RAM", ssd: "SSD", monitor: "Monitor", warrantyEndDate: "Warranty End Date", remarks: "Remarks",
-};
+function emptyRow(
+    preview: SCMStockPreview,
+    index: number
+): MappingRow {
+    const item = preview.items[index];
 
-function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
-    return (
-        <div className="space-y-1">
-            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-            </label>
-            {children}
-        </div>
-    );
-}
-
-const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition";
-const readonlyCls = "w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-muted text-muted-foreground cursor-not-allowed";
-
-export default function StockEntry() {
-    const [rows, setRows] = useState<StockRow[]>([{ scm: defaultScm, itm: emptyItm, mrQuantity: 5 }]);
-    const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 16));
-    const [submitted, setSubmitted] = useState(false);
-
-    const employeeName = "Muhsina Akter";
-    const employeeId = "02-0501";
-
-    const handleRowChange = (index: number, section: "scm" | "itm" | "mrQuantity", field: string, value: string) => {
-        const newRows = [...rows];
-        if (section === "mrQuantity") {
-            const num = value === "" ? "" : parseInt(value);
-            if (num === "" || (typeof num === "number" && num >= 1 && num <= 5)) {
-                newRows[index].mrQuantity = num;
-            }
-        } else {
-            // @ts-ignore
-            newRows[index][section][field] = value;
-        }
-        setRows(newRows);
+    return {
+        source_index: item.source_index,
+        serial_number: item.serial_number,
+        category: "",
+        brand: "",
+        model: "",
+        cpu: "",
+        ram: "",
+        ssd: "",
+        monitor: "",
+        warranty_months:
+            item.warranty_months || 12,
+        device_type:
+            item.item_group
+                ?.toLowerCase()
+                .includes("accessor")
+                ? "IT Accessory"
+                : "IT Device",
+        remarks: "",
+        item_name: item.item_name,
+        item_group: item.item_group,
+        pr_id: item.pr_id,
+        vendor_name: item.vendor_name,
+        purchase_date: item.purchase_date,
     };
+}
 
-    const addRow = () => {
-        if (rows.length >= 5) { alert("Maximum 5 rows allowed."); return; }
-        const last = rows[rows.length - 1];
-        if (!last.mrQuantity || Object.values(last.itm).some(v => v === "")) {
-            alert("Please fill all ITM fields before adding a new row.");
+export default function StockEntryPage() {
+    const [mrNumber, setMRNumber] =
+        useState("");
+
+    const [preview, setPreview] =
+        useState<SCMStockPreview | null>(
+            null
+        );
+
+    const [rows, setRows] =
+        useState<MappingRow[]>([]);
+
+    const [categories, setCategories] =
+        useState<string[]>([]);
+
+    const [loading, setLoading] =
+        useState(false);
+
+    const [saving, setSaving] =
+        useState(false);
+
+    const [error, setError] =
+        useState("");
+
+    const [success, setSuccess] =
+        useState("");
+
+    useEffect(() => {
+        let mounted = true;
+
+        void categoryApi
+            .list()
+            .then((response) => {
+                if (!mounted) return;
+
+                const values = (
+                    response.data ?? []
+                )
+                    .map((item: any) =>
+                        String(
+                            item.category_name ??
+                                item.inventory_category_list ??
+                                item.name ??
+                                ""
+                        ).trim()
+                    )
+                    .filter(Boolean);
+
+                setCategories(
+                    Array.from(
+                        new Set(values)
+                    ).sort((a, b) =>
+                        a.localeCompare(b)
+                    )
+                );
+            })
+            .catch(() => {
+                // Category list is helpful, not mandatory.
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const completeRows = useMemo(
+        () =>
+            rows.filter(
+                (row) =>
+                    row.category.trim()
+                        .length > 0
+            ).length,
+        [rows]
+    );
+
+    async function loadMR() {
+        const mr = mrNumber.trim();
+
+        if (!mr) {
+            setError(
+                "Enter an MR number first."
+            );
             return;
         }
-        setRows([...rows, { scm: emptyScm, itm: emptyItm, mrQuantity: 1 }]);
-    };
 
-    const removeRow = (index: number) => setRows(rows.filter((_, i) => i !== index));
+        try {
+            setLoading(true);
+            setError("");
+            setSuccess("");
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
-            if (!r.mrQuantity || Object.values(r.itm).some(v => !v)) {
-                alert(`Row ${i + 1} is incomplete.`);
-                return;
-            }
+            const response =
+                await inventoryWorkflowApi
+                    .previewMR(mr);
+
+            const data =
+                response.data;
+
+            setPreview(data);
+            setMRNumber(data.mr_id || mr);
+            setRows(
+                data.items.map(
+                    (_, index) =>
+                        emptyRow(
+                            data,
+                            index
+                        )
+                )
+            );
+        } catch (reason) {
+            setPreview(null);
+            setRows([]);
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to load SCM MR data."
+            );
+        } finally {
+            setLoading(false);
         }
-        setSubmitted(true);
-        setTimeout(() => setSubmitted(false), 3000);
-        console.log("Submitted:", rows);
-    };
+    }
+
+    function updateRow(
+        index: number,
+        patch: Partial<MappingRow>
+    ) {
+        setRows((current) =>
+            current.map((row, rowIndex) =>
+                rowIndex === index
+                    ? {
+                          ...row,
+                          ...patch,
+                      }
+                    : row
+            )
+        );
+    }
+
+    function copyClassificationToAll() {
+        if (rows.length < 2) return;
+
+        const source = rows[0];
+
+        setRows((current) =>
+            current.map((row, index) =>
+                index === 0
+                    ? row
+                    : {
+                          ...row,
+                          category:
+                              source.category,
+                          brand: source.brand,
+                          model: source.model,
+                          cpu: source.cpu,
+                          ram: source.ram,
+                          ssd: source.ssd,
+                          monitor:
+                              source.monitor,
+                          warranty_months:
+                              source.warranty_months,
+                          device_type:
+                              source.device_type,
+                      }
+            )
+        );
+    }
+
+    async function importStock() {
+        if (!preview) return;
+
+        const incomplete =
+            rows.findIndex(
+                (row) =>
+                    !row.category.trim()
+            );
+
+        if (incomplete >= 0) {
+            setError(
+                `Select a category for row ${
+                    incomplete + 1
+                } before importing.`
+            );
+            return;
+        }
+
+        try {
+            setSaving(true);
+            setError("");
+            setSuccess("");
+
+            const response =
+                await inventoryWorkflowApi
+                    .importMR(
+                        preview.mr_id,
+                        rows.map((row) => ({
+                            source_index:
+                                row.source_index,
+                            serial_number:
+                                row.serial_number,
+                            category:
+                                row.category.trim(),
+                            brand:
+                                row.brand?.trim(),
+                            model:
+                                row.model?.trim(),
+                            cpu:
+                                row.cpu?.trim(),
+                            ram:
+                                row.ram?.trim(),
+                            ssd:
+                                row.ssd?.trim(),
+                            monitor:
+                                row.monitor?.trim(),
+                            warranty_months:
+                                Number(
+                                    row.warranty_months ??
+                                        0
+                                ),
+                            device_type:
+                                row.device_type,
+                            remarks:
+                                row.remarks?.trim(),
+                        }))
+                    );
+
+            setSuccess(
+                `${response.data.imported} new stock item(s) imported and ${response.data.updated} existing item(s) synchronized.`
+            );
+        } catch (reason) {
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to import stock."
+            );
+        } finally {
+            setSaving(false);
+        }
+    }
 
     return (
-        <div className="p-4 sm:p-6 space-y-4 max-w-6xl mx-auto">
-
-            {/* Page header */}
-            <div className="bg-card border border-border rounded-2xl p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                            <PackagePlus className="w-5 h-5 text-primary" />
+        <div className="space-y-4 p-4 sm:p-6">
+            <div className="rounded-2xl border border-border bg-card shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-4">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/5">
+                            <ServerCog className="h-5 w-5 text-primary" />
                         </div>
+
                         <div>
-                            <h1 className="text-sm font-bold text-foreground">Stock Entry Form</h1>
-                            <p className="text-xs text-muted-foreground mt-0.5">IT Stock Input with Material Requisition (MR)</p>
+                            <h1 className="text-sm font-semibold text-foreground">
+                                SCM Stock Intake
+                            </h1>
+
+                            <p className="mt-1 max-w-2xl text-[10px] leading-5 text-muted-foreground">
+                                Load an approved Material Requisition directly from SCM, classify each received item for ITM, and create available stock without exposing SCM credentials in the browser.
+                            </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground px-2.5 py-1 bg-muted rounded-lg border border-border">
-                            {rows.length} / 5 rows
-                        </span>
-                        <button
-                            type="button"
-                            onClick={addRow}
-                            disabled={rows.length >= 5}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition disabled:opacity-40"
-                        >
-                            <Plus size={13} /> Add Row
-                        </button>
-                        <button
-                            onClick={handleSubmit}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition ${submitted
-                                ? "bg-emerald-500 text-white"
-                                : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                }`}
-                        >
-                            <Send size={13} /> {submitted ? "Submitted!" : "Submit"}
-                        </button>
+
+                    <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[9px] font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        Server-side SCM integration
                     </div>
                 </div>
 
-                {/* Header fields */}
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Field label="MR Number" required>
-                        <input type="text" value={rows[0].scm.mrNumber} readOnly className={readonlyCls} />
-                    </Field>
-                    <Field label="MR Quantity" required>
-                        <input
-                            type="number" min={1} max={5}
-                            value={rows[0].mrQuantity}
-                            onChange={e => handleRowChange(0, "mrQuantity", "", e.target.value)}
-                            className={inputCls}
-                        />
-                    </Field>
-                    <Field label="Entry Date">
-                        <input
-                            type="datetime-local" value={entryDate}
-                            onChange={e => setEntryDate(e.target.value)}
-                            className={inputCls}
-                        />
-                    </Field>
-                    <Field label="Employee">
-                        <div className="flex gap-1.5">
-                            <input type="text" value={employeeName} readOnly className={`${readonlyCls} flex-1`} />
-                            <input type="text" value={employeeId} readOnly className={`${readonlyCls} w-20`} />
+                <div className="p-5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                        <label className="min-w-0 flex-1">
+                            <span className={labelClass}>
+                                Material Requisition (MR)
+                            </span>
+
+                            <div className="flex h-9 items-center rounded-lg border border-border bg-background px-3 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
+                                <Search className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+
+                                <input
+                                    value={mrNumber}
+                                    onChange={(event) =>
+                                        setMRNumber(
+                                            event.target.value
+                                        )
+                                    }
+                                    onKeyDown={(event) => {
+                                        if (
+                                            event.key ===
+                                            "Enter"
+                                        ) {
+                                            event.preventDefault();
+                                            void loadMR();
+                                        }
+                                    }}
+                                    placeholder="Enter MR number from SCM"
+                                    className="h-full w-full bg-transparent text-[10px] outline-none"
+                                />
+
+                                {mrNumber && (
+                                    <button
+                                        type="button"
+                                        aria-label="Clear MR"
+                                        onClick={() => {
+                                            setMRNumber("");
+                                            setPreview(null);
+                                            setRows([]);
+                                            setError("");
+                                            setSuccess("");
+                                        }}
+                                    >
+                                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </button>
+                                )}
+                            </div>
+                        </label>
+
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-9 gap-2"
+                            disabled={loading}
+                            onClick={() =>
+                                void loadMR()
+                            }
+                        >
+                            {loading ? (
+                                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <RefreshCcw className="h-3.5 w-3.5" />
+                            )}
+                            Load from SCM
+                        </Button>
+                    </div>
+
+                    {error && (
+                        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[9px] text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400">
+                            {error}
                         </div>
-                    </Field>
+                    )}
+
+                    {success && (
+                        <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[9px] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {success}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Dynamic rows */}
-            {rows.map((row, index) => (
-                <div key={index} className="bg-card border border-border rounded-2xl overflow-hidden">
+            {preview && (
+                <>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                            <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                MR Number
+                            </p>
+                            <p className="mt-1 break-all text-[11px] font-semibold text-foreground">
+                                {preview.mr_id}
+                            </p>
+                        </div>
 
-                    {/* Row header */}
-                    <div className="flex items-center justify-between px-5 py-3 bg-muted/40 border-b border-border">
-                        <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0">
-                                {index + 1}
-                            </span>
-                            <span className="text-xs font-semibold text-foreground">Entry Row #{index + 1}</span>
-                            {row.scm.itemName && (
-                                <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-                                    {row.scm.itemName}
-                                </span>
+                        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                            <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                SCM Items
+                            </p>
+                            <p className="mt-1 text-lg font-semibold text-primary">
+                                {preview.items.length}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                            <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Ready to Import
+                            </p>
+                            <p className="mt-1 text-lg font-semibold text-emerald-600">
+                                {completeRows}/{rows.length}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-card shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+                            <div>
+                                <h2 className="text-[11px] font-semibold text-foreground">
+                                    SCM Receipt & ITM Classification
+                                </h2>
+                                <p className="mt-0.5 text-[9px] text-muted-foreground">
+                                    SCM fields are read-only. ITM classification remains editable before stock is committed.
+                                </p>
+                            </div>
+
+                            {rows.length > 1 && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 gap-1.5 text-[9px]"
+                                    onClick={
+                                        copyClassificationToAll
+                                    }
+                                >
+                                    <Copy className="h-3 w-3" />
+                                    Apply first row to all
+                                </Button>
                             )}
                         </div>
-                        {rows.length > 1 && (
-                            <button
-                                onClick={() => removeRow(index)}
-                                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition"
+
+                        <div className="space-y-3 p-4">
+                            {rows.map((row, index) => {
+                                const source =
+                                    preview.items[index];
+
+                                return (
+                                    <div
+                                        key={source.source_index}
+                                        className="overflow-hidden rounded-xl border border-border"
+                                    >
+                                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
+                                                    {index + 1}
+                                                </span>
+                                                <div>
+                                                    <p className="text-[10px] font-semibold text-foreground">
+                                                        {source.item_name ||
+                                                            "SCM Item"}
+                                                    </p>
+                                                    <p className="text-[8px] text-muted-foreground">
+                                                        {source.item_group ||
+                                                            "Unclassified group"}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <span className="rounded-md border border-border bg-background px-2 py-1 font-mono text-[8px] text-muted-foreground">
+                                                {source.serial_number ||
+                                                    "Internal asset tag will be generated"}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid gap-4 p-4 xl:grid-cols-2">
+                                            <div className="rounded-lg border border-border bg-muted/15 p-3">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <Database className="h-3.5 w-3.5 text-amber-600" />
+                                                    <p className="text-[9px] font-semibold text-foreground">
+                                                        SCM Source
+                                                    </p>
+                                                </div>
+
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    {[
+                                                        [
+                                                            "PR Number",
+                                                            source.pr_id,
+                                                        ],
+                                                        [
+                                                            "Vendor",
+                                                            source.vendor_name,
+                                                        ],
+                                                        [
+                                                            "Received / GR",
+                                                            source.gr_id,
+                                                        ],
+                                                        [
+                                                            "Purchase Date",
+                                                            source.purchase_date,
+                                                        ],
+                                                        [
+                                                            "Item Group",
+                                                            source.item_group,
+                                                        ],
+                                                        [
+                                                            "Item Name",
+                                                            source.item_name,
+                                                        ],
+                                                    ].map(
+                                                        ([
+                                                            label,
+                                                            value,
+                                                        ]) => (
+                                                            <div
+                                                                key={label}
+                                                            >
+                                                                <p className="text-[7px] font-semibold uppercase text-muted-foreground">
+                                                                    {label}
+                                                                </p>
+                                                                <p className="mt-1 break-words text-[9px] font-medium text-foreground">
+                                                                    {value ||
+                                                                        "—"}
+                                                                </p>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="rounded-lg border border-primary/20 bg-primary/[0.02] p-3">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <PackageCheck className="h-3.5 w-3.5 text-primary" />
+                                                    <p className="text-[9px] font-semibold text-foreground">
+                                                        ITM Classification
+                                                    </p>
+                                                </div>
+
+                                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            Category *
+                                                        </span>
+                                                        <input
+                                                            list="itm-category-list"
+                                                            value={row.category}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        category:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            placeholder="e.g. Mouse"
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            Brand
+                                                        </span>
+                                                        <input
+                                                            value={row.brand}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        brand:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            Model
+                                                        </span>
+                                                        <input
+                                                            value={row.model}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        model:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            CPU
+                                                        </span>
+                                                        <input
+                                                            value={row.cpu}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        cpu:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            RAM
+                                                        </span>
+                                                        <input
+                                                            value={row.ram}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        ram:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            SSD / HDD
+                                                        </span>
+                                                        <input
+                                                            value={row.ssd}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        ssd:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            Monitor
+                                                        </span>
+                                                        <input
+                                                            value={row.monitor}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        monitor:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            Warranty Months
+                                                        </span>
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            value={
+                                                                row.warranty_months ??
+                                                                0
+                                                            }
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        warranty_months:
+                                                                            Number(
+                                                                                event
+                                                                                    .target
+                                                                                    .value
+                                                                            ),
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            Asset Type
+                                                        </span>
+                                                        <select
+                                                            value={row.device_type}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        device_type:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        >
+                                                            <option value="IT Device">
+                                                                IT Device
+                                                            </option>
+                                                            <option value="IT Accessory">
+                                                                IT Accessory
+                                                            </option>
+                                                        </select>
+                                                    </label>
+
+                                                    <label className="sm:col-span-2 lg:col-span-3">
+                                                        <span className={labelClass}>
+                                                            Remarks
+                                                        </span>
+                                                        <textarea
+                                                            rows={2}
+                                                            value={row.remarks}
+                                                            onChange={(event) =>
+                                                                updateRow(
+                                                                    index,
+                                                                    {
+                                                                        remarks:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className="w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                                                        />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/20 px-5 py-3">
+                            <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
+                                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                                Duplicate MR + serial items are synchronized instead of inserted twice.
+                            </div>
+
+                            <Button
+                                type="button"
+                                className="h-9 gap-2"
+                                disabled={
+                                    saving ||
+                                    rows.length === 0 ||
+                                    completeRows !==
+                                        rows.length
+                                }
+                                onClick={() =>
+                                    void importStock()
+                                }
                             >
-                                <Trash2 size={11} /> Remove
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                        {/* SCM Inventory */}
-                        <div className="rounded-xl border border-border overflow-hidden">
-                            <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 border-b border-blue-100">
-                                <ClipboardList className="w-3.5 h-3.5 text-blue-600" />
-                                <p className="text-xs font-semibold text-blue-700">SCM Inventory</p>
-                                <span className="ml-auto text-[10px] text-blue-400">Read-only from MR</span>
-                            </div>
-                            <div className="p-4 grid grid-cols-2 gap-3 bg-card">
-                                {(Object.keys(row.scm) as (keyof SCMInventory)[]).map(key => (
-                                    <Field key={key} label={scmLabels[key]}>
-                                        <input
-                                            type={key.includes("Date") ? "datetime-local" : "text"}
-                                            value={row.scm[key]}
-                                            readOnly
-                                            className={readonlyCls}
-                                        />
-                                    </Field>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* ITM Part */}
-                        <div className="rounded-xl border border-border overflow-hidden">
-                            <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border-b border-emerald-100">
-                                <Cpu className="w-3.5 h-3.5 text-emerald-600" />
-                                <p className="text-xs font-semibold text-emerald-700">ITM Part Details</p>
-                                <span className="ml-auto text-[10px] text-emerald-400">Fill all fields</span>
-                            </div>
-                            <div className="p-4 grid grid-cols-2 gap-3 bg-card">
-                                {(Object.keys(row.itm) as (keyof ITMPart)[]).map(key => (
-                                    <Field key={key} label={itmLabels[key]} required={key !== "remarks"}>
-                                        {key === "remarks" ? (
-                                            <textarea
-                                                value={row.itm[key]}
-                                                onChange={e => handleRowChange(index, "itm", key, e.target.value)}
-                                                rows={2}
-                                                placeholder="Optional remarks..."
-                                                className={`${inputCls} resize-none col-span-2`}
-                                            />
-                                        ) : (
-                                            <input
-                                                type={key === "warrantyEndDate" ? "date" : "text"}
-                                                value={row.itm[key]}
-                                                onChange={e => handleRowChange(index, "itm", key, e.target.value)}
-                                                placeholder={itmLabels[key]}
-                                                className={inputCls}
-                                            />
-                                        )}
-                                    </Field>
-                                ))}
-                            </div>
+                                {saving ? (
+                                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <PackageCheck className="h-3.5 w-3.5" />
+                                )}
+                                Import {rows.length} Stock Item
+                                {rows.length === 1
+                                    ? ""
+                                    : "s"}
+                                <ArrowRight className="h-3.5 w-3.5" />
+                            </Button>
                         </div>
                     </div>
-                </div>
-            ))}
+                </>
+            )}
 
-            {/* Bottom actions */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border rounded-2xl px-5 py-4">
-                <p className="text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground">{rows.length}</span> row{rows.length !== 1 ? "s" : ""} · Max 5 allowed
-                </p>
-                <div className="flex gap-2">
-                    <button
-                        type="button"
-                        onClick={addRow}
-                        disabled={rows.length >= 5}
-                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-muted hover:bg-border border border-border rounded-lg transition disabled:opacity-40 text-foreground"
-                    >
-                        <Plus size={13} /> Add Row
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition ${submitted ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"
-                            }`}
-                    >
-                        <Send size={13} /> {submitted ? "Submitted!" : "Submit Entry"}
-                    </button>
-                </div>
-            </div>
+            <datalist id="itm-category-list">
+                {categories.map((category) => (
+                    <option
+                        key={category}
+                        value={category}
+                    />
+                ))}
+            </datalist>
         </div>
     );
 }

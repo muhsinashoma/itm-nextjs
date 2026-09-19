@@ -315,6 +315,19 @@ func main() {
 	)
 
 	/* ============================================================
+	   PROFESSIONAL INVENTORY WORKFLOW
+
+	   SCM receipt -> Stock -> Approved Requisition -> Asset -> Delivery
+	============================================================ */
+
+	handler.NewInventoryWorkflowHandler(
+		pool,
+		cfg,
+	).Register(
+		protected,
+	)
+
+	/* ============================================================
 	   REPORT
 	============================================================ */
 
