@@ -624,21 +624,21 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 		if errors.Is(assetErr, pgx.ErrNoRows) {
 			assetErr = tx.QueryRow(c.Request.Context(), `
                 INSERT INTO public.asset_devices (
-                    legacy_stack_id, device_serial, device_serial_key, category, brand, model,
+                    legacy_stack_id, device_serial, category, brand, model,
                     device_type, mr_number, pr_number, vendor_name, purchase_date, warranty_date,
                     asset_status, row_status, created_at, updated_at
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,0,1,NOW(),NOW())
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,1,NOW(),NOW())
                 RETURNING id`,
-				stockID, serial, serialKey, classification.Category, classification.Brand, classification.Model,
+				stockID, serial, classification.Category, classification.Brand, classification.Model,
 				deviceType, req.MRID, source.PRID, source.VendorName, purchaseDate, warrantyDate,
 			).Scan(&assetID)
 		} else if assetErr == nil {
 			_, assetErr = tx.Exec(c.Request.Context(), `
                 UPDATE public.asset_devices SET
-                    device_serial=$1, device_serial_key=$2, category=$3, brand=$4, model=$5,
-                    device_type=$6, mr_number=$7, pr_number=$8, vendor_name=$9,
-                    purchase_date=$10, warranty_date=$11, updated_at=NOW()
-                WHERE id=$12`, serial, serialKey, classification.Category, classification.Brand, classification.Model,
+                    device_serial=$1, category=$2, brand=$3, model=$4,
+                    device_type=$5, mr_number=$6, pr_number=$7, vendor_name=$8,
+                    purchase_date=$9, warranty_date=$10, updated_at=NOW()
+                WHERE id=$11`, serial, classification.Category, classification.Brand, classification.Model,
 				deviceType, req.MRID, source.PRID, source.VendorName, purchaseDate, warrantyDate, assetID)
 		}
 		if assetErr != nil {
@@ -858,7 +858,7 @@ func (h *InventoryWorkflowHandler) AssignStockToRequisition(c *gin.Context) {
 	var currentAssetStatus int
 	assetErr := tx.QueryRow(ctx, `SELECT id,asset_status FROM public.asset_devices WHERE legacy_stack_id=$1 AND row_status=1 ORDER BY id DESC LIMIT 1 FOR UPDATE`, req.StockID).Scan(&assetID, &currentAssetStatus)
 	if errors.Is(assetErr, pgx.ErrNoRows) {
-		assetErr = tx.QueryRow(ctx, `INSERT INTO public.asset_devices (legacy_stack_id,device_serial,device_serial_key,category,brand,model,device_type,mr_number,pr_number,vendor_name,purchase_date,warranty_date,asset_status,row_status,emp_id,emp_name,department,designation,assigned_date,created_at,updated_at) VALUES ($1,$2,UPPER(BTRIM($2)),$3,$4,$5,$6,$7,$8,$9,$10,$11,1,1,$12,$13,$14,$15,NOW(),NOW(),NOW()) RETURNING id`, req.StockID, serial, stockCategory, brand, model, deviceType, mr, pr, vendor, purchase, warranty, employeeID, empName, department, designation).Scan(&assetID)
+		assetErr = tx.QueryRow(ctx, `INSERT INTO public.asset_devices (legacy_stack_id,device_serial,category,brand,model,device_type,mr_number,pr_number,vendor_name,purchase_date,warranty_date,asset_status,row_status,emp_id,emp_name,department,designation,assigned_date,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,1,1,$12,$13,$14,$15,NOW(),NOW(),NOW()) RETURNING id`, req.StockID, serial, stockCategory, brand, model, deviceType, mr, pr, vendor, purchase, warranty, employeeID, empName, department, designation).Scan(&assetID)
 	} else if assetErr == nil {
 		if currentAssetStatus != 0 {
 			c.JSON(http.StatusConflict, gin.H{"success": false, "error": "asset registry shows this stock is not available"})
