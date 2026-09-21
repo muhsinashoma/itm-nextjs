@@ -1,3 +1,4 @@
+//frontend/app/dashboard/assets/devices/page.tsx
 "use client";
 
 import {
@@ -360,6 +361,7 @@ export default function AssetDevicesPage() {
 
     const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
+    const [ajaxSearching, setAjaxSearching] = useState(false);
     const [status, setStatus] = useState("");
     const [categoryInput, setCategoryInput] = useState("");
     const [category, setCategory] = useState("");
@@ -443,6 +445,35 @@ export default function AssetDevicesPage() {
         setSearch(importMR);
         setPage(1);
     }, [importSuccess, importMR]);
+
+    useEffect(() => {
+        const query = searchInput.trim();
+
+        // Empty / very short input resets the live search so stale results
+        // are not left on screen while the user types a new MR / PR / ID.
+        if (query.length < 2) {
+            setAjaxSearching(false);
+
+            if (search !== "") {
+                setSearch("");
+                setPage(1);
+            }
+
+            return;
+        }
+
+        setAjaxSearching(true);
+
+        const timer = window.setTimeout(() => {
+            setPage(1);
+            setSearch(query);
+            setAjaxSearching(false);
+        }, 350);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [searchInput, search]);
 
     const loadAssets = useCallback(async () => {
         try {
@@ -555,12 +586,14 @@ export default function AssetDevicesPage() {
     }, [operation, requisitionQuery, selectedAsset]);
 
     function applyFilters() {
+        setAjaxSearching(false);
         setPage(1);
         setSearch(searchInput.trim());
         setCategory(categoryInput.trim());
     }
 
     function clearFilters() {
+        setAjaxSearching(false);
         setSearchInput("");
         setSearch("");
         setStatus("");
@@ -883,17 +916,49 @@ export default function AssetDevicesPage() {
 
             <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                 <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1.6fr)_180px_180px_auto]">
-                    <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                            value={searchInput}
-                            onChange={(event) => setSearchInput(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === "Enter") applyFilters();
-                            }}
-                            placeholder="Search serial, asset ID, employee, brand, model, vendor, MR or PR..."
-                            className="h-10 w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                        />
+                    <div>
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                                value={searchInput}
+                                onChange={(event) => setSearchInput(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter") applyFilters();
+                                }}
+                                placeholder="Type MR, PR or Employee ID..."
+                                autoComplete="off"
+                                className="h-10 w-full rounded-lg border border-input bg-background py-2 pl-9 pr-10 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+
+                            {(ajaxSearching || (loading && searchInput.trim().length >= 2)) ? (
+                                <RefreshCw className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
+                            ) : searchInput ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAjaxSearching(false);
+                                        setSearchInput("");
+                                        setSearch("");
+                                        setPage(1);
+                                    }}
+                                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    aria-label="Clear live search"
+                                    title="Clear search"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            ) : null}
+                        </div>
+
+                        <div className="mt-1 flex min-h-[16px] items-center justify-between gap-3 px-1 text-[10px] text-muted-foreground">
+                            <span>Live search: MR · PR · Employee ID</span>
+
+                            {searchInput.trim().length >= 2 && !ajaxSearching && !loading && (
+                                <span className="shrink-0 font-medium text-foreground/70">
+                                    {total.toLocaleString()} {total === 1 ? "match" : "matches"}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     <select
@@ -977,7 +1042,7 @@ export default function AssetDevicesPage() {
                                     </th>
                                 )}
                                 {visibleColumns.has("mrpr") && (
-                                    <th className={hasExtraColumns ? "min-w-[320px] px-3 py-2" : "w-[22%] px-3 py-2"}>
+                                    <th className={hasExtraColumns ? "min-w-[360px] px-3 py-2" : "w-[24%] px-3 py-2"}>
                                         MR / PR Number
                                     </th>
                                 )}
@@ -1120,21 +1185,26 @@ export default function AssetDevicesPage() {
                                     )}
 
                                     {visibleColumns.has("mrpr") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            <div className="space-y-1.5">
-                                                <div className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-1.5">
-                                                    <span className="rounded border border-border bg-muted/40 px-1 py-0.5 text-center text-[7px] font-bold uppercase text-muted-foreground">MR</span>
+                                        <td className="px-3 py-2.5 align-middle">
+                                            <div className="space-y-2">
+                                                <div className="grid grid-cols-[30px_minmax(0,1fr)] items-start gap-2">
+                                                    <span className="inline-flex h-5 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-1.5 text-[8px] font-extrabold uppercase tracking-wide text-blue-700">
+                                                        MR
+                                                    </span>
                                                     <span
-                                                        className="break-all font-mono text-[9px] font-semibold leading-4 text-foreground"
+                                                        className="break-all font-mono text-[11px] font-bold leading-5 tracking-[0.01em] text-foreground"
                                                         title={item.mr_number || undefined}
                                                     >
                                                         {item.mr_number || "—"}
                                                     </span>
                                                 </div>
-                                                <div className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-1.5">
-                                                    <span className="rounded border border-border bg-muted/40 px-1 py-0.5 text-center text-[7px] font-bold uppercase text-muted-foreground">PR</span>
+
+                                                <div className="grid grid-cols-[30px_minmax(0,1fr)] items-start gap-2 border-t border-border/50 pt-1.5">
+                                                    <span className="inline-flex h-5 items-center justify-center rounded-md border border-violet-200 bg-violet-50 px-1.5 text-[8px] font-extrabold uppercase tracking-wide text-violet-700">
+                                                        PR
+                                                    </span>
                                                     <span
-                                                        className="break-all font-mono text-[9px] font-medium leading-4 text-muted-foreground"
+                                                        className="break-all font-mono text-[10.5px] font-semibold leading-5 tracking-[0.01em] text-foreground/90"
                                                         title={item.pr_number || undefined}
                                                     >
                                                         {item.pr_number || "—"}
