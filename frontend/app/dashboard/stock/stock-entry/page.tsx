@@ -1,1679 +1,3578 @@
 
-//itm/frontend/app/dashboard/stock/stock-entry/page.tsx
+// //itm/frontend/app/dashboard/stock/stock-entry/page.tsx
+// "use client";
 
+// import {
+//     useEffect,
+//     useMemo,
+//     useRef,
+//     useState,
+// } from "react";
+
+// import { useRouter } from "next/navigation";
+
+// import {
+//     Check,
+//     CheckCircle2,
+//     ChevronDown,
+//     Copy,
+//     Database,
+//     LoaderCircle,
+//     PackageCheck,
+//     RefreshCcw,
+//     Search,
+//     ServerCog,
+//     ShieldCheck,
+//     TriangleAlert,
+//     X,
+// } from "lucide-react";
+
+// import {
+//     categoryApi,
+//     inventoryWorkflowApi,
+//     type InventoryCategoryItem,
+//     type InventorySpecOptions,
+//     type SCMStockImportItem,
+//     type SCMStockPreview,
+// } from "@/lib/api";
+
+// import {
+//     Button,
+// } from "@/components/ui/button";
+
+// type MappingRow = SCMStockImportItem & {
+//     item_id: string;
+//     item_name: string;
+//     item_group: string;
+//     pr_id: string;
+//     vendor_name: string;
+//     purchase_date: string;
+//     warranty_text: string;
+// };
+
+// type SerialConflictInfo = {
+//     row: number;
+//     serial: string;
+//     assetId: number;
+//     existingMR: string;
+//     stockId: number;
+//     status: number;
+//     raw: string;
+// };
+
+// function parseSerialConflict(message: string): SerialConflictInfo | null {
+//     const match = message.match(
+//         /row\s+(\d+):\s+serial\s+"([^"]+)"\s+is already registered as Asset #(\d+)\s+under MR\s+(.+?)\s+\(stock #(\d+), status (\d+)\)/i
+//     );
+
+//     if (!match) return null;
+
+//     return {
+//         row: Number(match[1]),
+//         serial: match[2],
+//         assetId: Number(match[3]),
+//         existingMR: match[4].trim(),
+//         stockId: Number(match[5]),
+//         status: Number(match[6]),
+//         raw: message,
+//     };
+// }
+
+// const fieldClass =
+//     "h-8 w-full rounded-lg border border-border bg-background px-2.5 text-[10px] outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-muted/40 disabled:text-muted-foreground";
+
+// const labelClass =
+//     "mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground";
+
+// type SearchOption = {
+//     value: string;
+//     label: string;
+// };
+
+// function warrantyEndDate(
+//     purchaseDate: string,
+//     warrantyMonths: number
+// ) {
+//     const value = String(purchaseDate ?? "").trim();
+
+//     if (!value || warrantyMonths <= 0) {
+//         return "";
+//     }
+
+//     const match = value.match(
+//         /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?/
+//     );
+
+//     if (!match) {
+//         return "";
+//     }
+
+//     const year = Number(match[1]);
+//     const month = Number(match[2]) - 1;
+//     const day = Number(match[3]);
+//     const hour = Number(match[4] ?? 0);
+//     const minute = Number(match[5] ?? 0);
+//     const second = Number(match[6] ?? 0);
+
+//     const targetMonthIndex =
+//         month + warrantyMonths;
+
+//     const targetYear =
+//         year + Math.floor(targetMonthIndex / 12);
+
+//     const targetMonth =
+//         ((targetMonthIndex % 12) + 12) % 12;
+
+//     const lastDay = new Date(
+//         targetYear,
+//         targetMonth + 1,
+//         0
+//     ).getDate();
+
+//     const date = new Date(
+//         targetYear,
+//         targetMonth,
+//         Math.min(day, lastDay),
+//         hour,
+//         minute,
+//         second
+//     );
+
+//     const pad = (number: number) =>
+//         String(number).padStart(2, "0");
+
+//     return `${date.getFullYear()}-${pad(
+//         date.getMonth() + 1
+//     )}-${pad(date.getDate())} ${pad(
+//         date.getHours()
+//     )}:${pad(date.getMinutes())}:${pad(
+//         date.getSeconds()
+//     )}`;
+// }
+
+// function SearchableClearableSelect({
+//     value,
+//     options,
+//     onChange,
+//     placeholder,
+//     disabled = false,
+//     required = false,
+//     emptyText = "No matching options",
+// }: {
+//     value: string;
+//     options: SearchOption[];
+//     onChange: (value: string) => void;
+//     placeholder: string;
+//     disabled?: boolean;
+//     required?: boolean;
+//     emptyText?: string;
+// }) {
+//     const rootRef = useRef<HTMLDivElement | null>(null);
+//     const [open, setOpen] = useState(false);
+//     const [query, setQuery] = useState("");
+
+//     const selected = options.find(
+//         (option) => option.value === value
+//     );
+
+//     const filtered = useMemo(() => {
+//         const term = query.trim().toLowerCase();
+//         if (!term) return options;
+
+//         return options.filter((option) =>
+//             option.label.toLowerCase().includes(term)
+//         );
+//     }, [options, query]);
+
+//     useEffect(() => {
+//         if (!open) return;
+
+//         const onPointerDown = (event: MouseEvent) => {
+//             if (
+//                 rootRef.current &&
+//                 !rootRef.current.contains(
+//                     event.target as Node
+//                 )
+//             ) {
+//                 setOpen(false);
+//                 setQuery("");
+//             }
+//         };
+
+//         document.addEventListener(
+//             "mousedown",
+//             onPointerDown
+//         );
+
+//         return () => {
+//             document.removeEventListener(
+//                 "mousedown",
+//                 onPointerDown
+//             );
+//         };
+//     }, [open]);
+
+//     return (
+//         <div
+//             ref={rootRef}
+//             className="relative"
+//         >
+//             <div
+//                 className={`flex h-8 items-center rounded-lg border bg-background transition focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 ${disabled
+//                     ? "cursor-not-allowed bg-muted/40 opacity-70"
+//                     : "border-border"
+//                     }`}
+//             >
+//                 <Search className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+
+//                 <input
+//                     type="text"
+//                     value={
+//                         open
+//                             ? query
+//                             : selected?.label ?? ""
+//                     }
+//                     disabled={disabled}
+//                     required={required && !value}
+//                     placeholder={placeholder}
+//                     onFocus={() => {
+//                         if (disabled) return;
+//                         setOpen(true);
+//                         setQuery("");
+//                     }}
+//                     onChange={(event) => {
+//                         setQuery(event.target.value);
+//                         setOpen(true);
+//                     }}
+//                     className="h-full min-w-0 flex-1 bg-transparent px-2 text-[10px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+//                 />
+
+//                 {value && !disabled ? (
+//                     <button
+//                         type="button"
+//                         aria-label="Clear selection"
+//                         title="Clear selection"
+//                         onMouseDown={(event) =>
+//                             event.preventDefault()
+//                         }
+//                         onClick={() => {
+//                             onChange("");
+//                             setQuery("");
+//                             setOpen(false);
+//                         }}
+//                         className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+//                     >
+//                         <X className="h-3.5 w-3.5" />
+//                     </button>
+//                 ) : null}
+
+//                 <button
+//                     type="button"
+//                     aria-label="Toggle options"
+//                     disabled={disabled}
+//                     onMouseDown={(event) =>
+//                         event.preventDefault()
+//                     }
+//                     onClick={() => {
+//                         if (disabled) return;
+//                         setOpen((current) => !current);
+//                         setQuery("");
+//                     }}
+//                     className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none"
+//                 >
+//                     <ChevronDown
+//                         className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""
+//                             }`}
+//                     />
+//                 </button>
+//             </div>
+
+//             {open && !disabled && (
+//                 <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-[150] overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
+//                     <div className="max-h-[320px] overflow-y-auto overscroll-contain p-1">
+//                         {filtered.length === 0 ? (
+//                             <div className="px-2.5 py-3 text-center text-[9px] text-muted-foreground">
+//                                 {emptyText}
+//                             </div>
+//                         ) : (
+//                             filtered.map((option) => {
+//                                 const active =
+//                                     option.value === value;
+
+//                                 return (
+//                                     <button
+//                                         key={option.value}
+//                                         type="button"
+//                                         onMouseDown={(event) =>
+//                                             event.preventDefault()
+//                                         }
+//                                         onClick={() => {
+//                                             onChange(option.value);
+//                                             setOpen(false);
+//                                             setQuery("");
+//                                         }}
+//                                         className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-[10px] transition ${active
+//                                             ? "bg-primary/10 font-semibold text-primary"
+//                                             : "hover:bg-muted"
+//                                             }`}
+//                                     >
+//                                         <span className="min-w-0 truncate">
+//                                             {option.label}
+//                                         </span>
+//                                         {active && (
+//                                             <Check className="h-3.5 w-3.5 shrink-0" />
+//                                         )}
+//                                     </button>
+//                                 );
+//                             })
+//                         )}
+//                     </div>
+//                 </div>
+//             )}
+//         </div>
+//     );
+// }
+
+// function normalizeType(
+//     value: string | null | undefined
+// ) {
+//     return String(value ?? "")
+//         .trim()
+//         .toLowerCase();
+// }
+
+// function emptyRow(
+//     preview: SCMStockPreview,
+//     index: number
+// ): MappingRow {
+//     const item = preview.items[index];
+
+//     return {
+//         source_index: item.source_index,
+//         serial_number: item.serial_number,
+
+//         category_id: null,
+//         brand_id: null,
+//         model_id: null,
+
+//         category: "",
+//         brand: "",
+//         model: "",
+//         cpu: "",
+//         ram: "",
+//         ssd: "",
+//         monitor: "",
+//         warranty_months:
+//             item.warranty_months || 0,
+//         device_type:
+//             item.item_group
+//                 ?.toLowerCase()
+//                 .includes("accessor")
+//                 ? "IT Accessory"
+//                 : "IT Device",
+//         remarks: "",
+
+//         item_id: item.item_id,
+//         item_name: item.item_name,
+//         item_group: item.item_group,
+//         pr_id: item.pr_id,
+//         vendor_name: item.vendor_name,
+//         purchase_date: item.purchase_date,
+//         warranty_text: item.warranty_text,
+//     };
+// }
+
+// export default function StockEntryPage() {
+//     const router = useRouter();
+
+//     const [mrNumber, setMRNumber] =
+//         useState("");
+
+//     const [preview, setPreview] =
+//         useState<SCMStockPreview | null>(
+//             null
+//         );
+
+//     const [rows, setRows] =
+//         useState<MappingRow[]>([]);
+
+//     // Professional default for bulk MR intake:
+//     // Row #1 acts as the template for all remaining rows.
+//     // Disable this only when one MR contains mixed device types.
+//     const [syncFirstRow, setSyncFirstRow] =
+//         useState(true);
+
+//     const [masterData, setMasterData] =
+//         useState<InventoryCategoryItem[]>(
+//             []
+//         );
+
+//     const [masterLoading, setMasterLoading] =
+//         useState(true);
+
+//     const [specOptions, setSpecOptions] =
+//         useState<InventorySpecOptions>({
+//             cpu: [],
+//             ram: [],
+//             ssd: [],
+//             monitor: [],
+//         });
+
+//     const [loading, setLoading] =
+//         useState(false);
+
+//     const [saving, setSaving] =
+//         useState(false);
+
+//     const [error, setError] =
+//         useState("");
+
+//     const [serialConflict, setSerialConflict] =
+//         useState<SerialConflictInfo | null>(null);
+
+//     const [success, setSuccess] =
+//         useState("");
+
+//     const requestSequence = useRef(0);
+//     const lastLoadedMR = useRef("");
+
+//     /* ======================================================
+//        MASTER DATA
+
+//        inventory_categories is the single source for:
+//        Category -> Brand -> Model.
+//     ====================================================== */
+
+//     useEffect(() => {
+//         let mounted = true;
+
+//         async function loadMasterData() {
+//             try {
+//                 setMasterLoading(true);
+
+//                 const response =
+//                     await categoryApi.list();
+
+//                 if (!mounted) return;
+
+//                 setMasterData(
+//                     (response.data ?? [])
+//                         .filter(
+//                             (item) =>
+//                                 Number(
+//                                     item.status ?? 1
+//                                 ) === 1
+//                         )
+//                         .sort((a, b) =>
+//                             String(
+//                                 a.category_name ?? ""
+//                             ).localeCompare(
+//                                 String(
+//                                     b.category_name ?? ""
+//                                 )
+//                             )
+//                         )
+//                 );
+//             } catch {
+//                 if (!mounted) return;
+
+//                 setMasterData([]);
+//                 setError(
+//                     "Unable to load ITM Category / Brand / Model master data."
+//                 );
+//             } finally {
+//                 if (mounted) {
+//                     setMasterLoading(false);
+//                 }
+//             }
+//         }
+
+//         void loadMasterData();
+
+//         return () => {
+//             mounted = false;
+//         };
+//     }, []);
+
+//     useEffect(() => {
+//         let mounted = true;
+
+//         async function loadSpecOptions() {
+//             try {
+//                 const response =
+//                     await inventoryWorkflowApi.specOptions();
+
+//                 if (!mounted) return;
+
+//                 setSpecOptions({
+//                     cpu: response.data?.cpu ?? [],
+//                     ram: response.data?.ram ?? [],
+//                     ssd: response.data?.ssd ?? [],
+//                     monitor:
+//                         response.data?.monitor ?? [],
+//                 });
+//             } catch {
+//                 if (!mounted) return;
+
+//                 // Optional specification fields should not block
+//                 // SCM stock intake if the option catalogue fails.
+//                 setSpecOptions({
+//                     cpu: [],
+//                     ram: [],
+//                     ssd: [],
+//                     monitor: [],
+//                 });
+//             }
+//         }
+
+//         void loadSpecOptions();
+
+//         return () => {
+//             mounted = false;
+//         };
+//     }, []);
+
+//     const categories = useMemo(
+//         () =>
+//             masterData.filter(
+//                 (item) =>
+//                     normalizeType(item.type) ===
+//                     "category" &&
+//                     Number(item.parent_id ?? 0) ===
+//                     0
+//             ),
+//         [masterData]
+//     );
+
+//     function brandsFor(
+//         categoryID: number | null | undefined
+//     ) {
+//         if (!categoryID) return [];
+
+//         return masterData.filter(
+//             (item) =>
+//                 normalizeType(item.type) ===
+//                 "brand" &&
+//                 Number(item.parent_id ?? 0) ===
+//                 Number(categoryID)
+//         );
+//     }
+
+//     function modelsFor(
+//         brandID: number | null | undefined
+//     ) {
+//         if (!brandID) return [];
+
+//         return masterData.filter(
+//             (item) =>
+//                 normalizeType(item.type) ===
+//                 "model" &&
+//                 Number(item.parent_id ?? 0) ===
+//                 Number(brandID)
+//         );
+//     }
+
+//     function isRowComplete(
+//         row: MappingRow
+//     ) {
+//         return Boolean(
+//             row.category_id &&
+//             row.brand_id &&
+//             row.model_id &&
+//             Number(row.warranty_months ?? 0) > 0
+//         );
+//     }
+
+//     const completeRows = rows.filter((row) =>
+//         isRowComplete(row)
+//     ).length;
+
+//     /* ======================================================
+//        SCM AJAX-LIKE MR PREVIEW
+
+//        No Load button is required.  A pasted/typed MR is
+//        fetched automatically after a short debounce.
+//     ====================================================== */
+
+//     async function loadMR(
+//         mrInput: string,
+//         force = false
+//     ) {
+//         const mr = mrInput.trim();
+
+//         if (!mr) {
+//             return;
+//         }
+
+//         if (
+//             !force &&
+//             lastLoadedMR.current === mr
+//         ) {
+//             return;
+//         }
+
+//         const sequence =
+//             ++requestSequence.current;
+
+//         try {
+//             setLoading(true);
+//             setError("");
+//             setSerialConflict(null);
+//             setSuccess("");
+
+//             const response =
+//                 await inventoryWorkflowApi
+//                     .previewMR(mr);
+
+//             if (
+//                 sequence !==
+//                 requestSequence.current
+//             ) {
+//                 return;
+//             }
+
+//             const data = response.data;
+
+//             lastLoadedMR.current =
+//                 data.mr_id || mr;
+
+//             setPreview(data);
+//             setMRNumber(data.mr_id || mr);
+//             setRows(
+//                 data.items.map(
+//                     (_, index) =>
+//                         emptyRow(
+//                             data,
+//                             index
+//                         )
+//                 )
+//             );
+//         } catch (reason) {
+//             if (
+//                 sequence !==
+//                 requestSequence.current
+//             ) {
+//                 return;
+//             }
+
+//             lastLoadedMR.current = "";
+//             setPreview(null);
+//             setRows([]);
+//             setError(
+//                 reason instanceof Error
+//                     ? reason.message
+//                     : "Unable to load SCM MR data."
+//             );
+//         } finally {
+//             if (
+//                 sequence ===
+//                 requestSequence.current
+//             ) {
+//                 setLoading(false);
+//             }
+//         }
+//     }
+
+//     useEffect(() => {
+//         const mr = mrNumber.trim();
+
+//         if (!mr) {
+//             requestSequence.current++;
+//             lastLoadedMR.current = "";
+//             setLoading(false);
+//             setPreview(null);
+//             setRows([]);
+//             setError("");
+//             setSuccess("");
+//             return;
+//         }
+
+//         // Prevent SCM calls while the operator has only
+//         // typed the first few characters of an MR.
+//         if (mr.length < 10) {
+//             return;
+//         }
+
+//         if (
+//             lastLoadedMR.current === mr
+//         ) {
+//             return;
+//         }
+
+//         const timer =
+//             window.setTimeout(() => {
+//                 void loadMR(mr);
+//             }, 650);
+
+//         return () => {
+//             window.clearTimeout(timer);
+//         };
+//     }, [mrNumber]);
+
+//     function clearMR() {
+//         requestSequence.current++;
+//         lastLoadedMR.current = "";
+//         setMRNumber("");
+//         setPreview(null);
+//         setRows([]);
+//         setLoading(false);
+//         setError("");
+//         setSerialConflict(null);
+//         setSuccess("");
+//     }
+
+//     const categorySelectOptions: SearchOption[] =
+//         categories.map((item) => ({
+//             value: String(item.id),
+//             label: String(item.category_name ?? ""),
+//         }));
+
+//     const cpuSelectOptions: SearchOption[] =
+//         specOptions.cpu.map((value) => ({
+//             value,
+//             label: value,
+//         }));
+
+//     const ramSelectOptions: SearchOption[] =
+//         specOptions.ram.map((value) => ({
+//             value,
+//             label: value,
+//         }));
+
+//     const ssdSelectOptions: SearchOption[] =
+//         specOptions.ssd.map((value) => ({
+//             value,
+//             label: value,
+//         }));
+
+//     const monitorSelectOptions: SearchOption[] =
+//         specOptions.monitor.map((value) => ({
+//             value,
+//             label: value,
+//         }));
+
+//     const warrantySelectOptions: SearchOption[] = [
+//         { value: "3", label: "3 Months" },
+//         { value: "6", label: "6 Months" },
+//         { value: "12", label: "1 Year" },
+//         { value: "24", label: "2 Years" },
+//         { value: "36", label: "3 Years" },
+//         { value: "48", label: "4 Years" },
+//         { value: "60", label: "5 Years" },
+//         { value: "72", label: "6 Years" },
+//         { value: "84", label: "7 Years" },
+//         { value: "96", label: "8 Years" },
+//         { value: "108", label: "9 Years" },
+//         { value: "120", label: "10 Years" },
+//     ];
+
+//     /* ======================================================
+//        CLASSIFICATION
+//     ====================================================== */
+
+//     function updateRow(
+//         index: number,
+//         patch: Partial<MappingRow>
+//     ) {
+//         setRows((current) =>
+//             current.map((row, rowIndex) =>
+//                 rowIndex === index
+//                     ? {
+//                         ...row,
+//                         ...patch,
+//                     }
+//                     : row
+//             )
+//         );
+//     }
+
+//     function updateClassification(
+//         index: number,
+//         patch: Partial<MappingRow>
+//     ) {
+//         setRows((current) =>
+//             current.map((row, rowIndex) => {
+//                 const shouldSync =
+//                     syncFirstRow &&
+//                     index === 0;
+
+//                 if (
+//                     rowIndex !== index &&
+//                     !shouldSync
+//                 ) {
+//                     return row;
+//                 }
+
+//                 return {
+//                     ...row,
+//                     ...patch,
+//                 };
+//             })
+//         );
+//     }
+
+//     function selectCategory(
+//         index: number,
+//         categoryID: number
+//     ) {
+//         const selected =
+//             categories.find(
+//                 (item) =>
+//                     item.id === categoryID
+//             );
+
+//         updateClassification(index, {
+//             category_id:
+//                 selected?.id ?? null,
+//             category:
+//                 selected?.category_name ?? "",
+
+//             // A parent change invalidates Brand + Model.
+//             brand_id: null,
+//             brand: "",
+//             model_id: null,
+//             model: "",
+//         });
+//     }
+
+//     function selectBrand(
+//         index: number,
+//         brandID: number
+//     ) {
+//         const selected =
+//             masterData.find(
+//                 (item) =>
+//                     item.id === brandID
+//             );
+
+//         updateClassification(index, {
+//             brand_id:
+//                 selected?.id ?? null,
+//             brand:
+//                 selected?.category_name ?? "",
+//             model_id: null,
+//             model: "",
+//         });
+//     }
+
+//     function selectModel(
+//         index: number,
+//         modelID: number
+//     ) {
+//         const selected =
+//             masterData.find(
+//                 (item) =>
+//                     item.id === modelID
+//             );
+
+//         updateClassification(index, {
+//             model_id:
+//                 selected?.id ?? null,
+//             model:
+//                 selected?.category_name ?? "",
+//         });
+//     }
+
+//     /* ======================================================
+//        FINAL DATABASE COMMIT
+//     ====================================================== */
+
+//     async function importStock() {
+//         if (!preview) return;
+
+//         const incomplete =
+//             rows.findIndex(
+//                 (row) =>
+//                     !isRowComplete(row)
+//             );
+
+//         if (incomplete >= 0) {
+//             setError(
+//                 `Complete Category / Brand / Model / Warranty for row ${incomplete + 1
+//                 } before importing.`
+//             );
+//             return;
+//         }
+
+//         try {
+//             setSaving(true);
+//             setError("");
+//             setSerialConflict(null);
+//             setSuccess("");
+
+//             const response =
+//                 await inventoryWorkflowApi
+//                     .importMR(
+//                         preview.mr_id,
+//                         rows.map((row) => ({
+//                             source_index:
+//                                 row.source_index,
+//                             serial_number:
+//                                 row.serial_number,
+
+//                             category_id:
+//                                 row.category_id,
+//                             brand_id:
+//                                 row.brand_id,
+//                             model_id:
+//                                 row.model_id,
+
+//                             // Names remain for backwards compatibility;
+//                             // backend IDs are the canonical validation path.
+//                             category:
+//                                 row.category.trim(),
+//                             brand:
+//                                 row.brand?.trim(),
+//                             model:
+//                                 row.model?.trim(),
+//                             cpu:
+//                                 row.cpu?.trim(),
+//                             ram:
+//                                 row.ram?.trim(),
+//                             ssd:
+//                                 row.ssd?.trim(),
+//                             monitor:
+//                                 row.monitor?.trim(),
+//                             warranty_months:
+//                                 Number(
+//                                     row.warranty_months ??
+//                                     0
+//                                 ),
+//                             device_type:
+//                                 row.device_type,
+//                             remarks:
+//                                 row.remarks?.trim(),
+//                         }))
+//                     );
+
+//             const importResult = response.data as typeof response.data & {
+//                 received?: number;
+//                 stock_rows_committed?: number;
+//                 asset_created?: number;
+//                 asset_synchronized?: number;
+//                 conflicted?: number;
+//                 conflicts?: Array<{
+//                     row?: number;
+//                     serial?: string;
+//                     asset_id?: number;
+//                     existing_mr?: string;
+//                     stock_id?: number;
+//                     asset_status?: number;
+//                 }>;
+//             };
+
+//             const conflicted = Number(importResult.conflicted ?? 0);
+//             const assetCreated = Number(importResult.asset_created ?? importResult.imported ?? 0);
+//             const stockCommitted = Number(
+//                 importResult.stock_rows_committed ??
+//                 (Number(importResult.imported ?? 0) + Number(importResult.updated ?? 0))
+//             );
+//             const firstConflict = importResult.conflicts?.[0];
+
+//             setSuccess(
+//                 conflicted > 0
+//                     ? `Import completed with warning: ${stockCommitted} stock row(s) committed, ${assetCreated} new asset(s) created, ${conflicted} serial conflict(s) kept pending verification. Opening Device Operations...`
+//                     : `Import completed: ${response.data.imported} new item(s), ${response.data.updated} existing item(s) synchronized. Opening Device Operations...`
+//             );
+
+//             const destination =
+//                 `/dashboard/assets/devices?import=success&mr=${encodeURIComponent(
+//                     preview.mr_id
+//                 )}&imported=${encodeURIComponent(
+//                     String(response.data.imported ?? 0)
+//                 )}&updated=${encodeURIComponent(
+//                     String(response.data.updated ?? 0)
+//                 )}&stock_committed=${encodeURIComponent(
+//                     String(stockCommitted)
+//                 )}&assets_created=${encodeURIComponent(
+//                     String(assetCreated)
+//                 )}&conflicted=${encodeURIComponent(
+//                     String(conflicted)
+//                 )}&conflict_asset_id=${encodeURIComponent(
+//                     String(firstConflict?.asset_id ?? "")
+//                 )}&conflict_serial=${encodeURIComponent(
+//                     String(firstConflict?.serial ?? "")
+//                 )}`;
+
+//             // The stock transaction has already committed successfully.
+//             // Replace avoids returning to a stale form that could be submitted again.
+//             router.replace(destination);
+//         } catch (reason) {
+//             const message =
+//                 reason instanceof Error
+//                     ? reason.message
+//                     : "Unable to import stock.";
+
+//             const conflict =
+//                 parseSerialConflict(message);
+
+//             if (conflict) {
+//                 setSerialConflict(conflict);
+//                 setError("");
+//             } else {
+//                 setSerialConflict(null);
+//                 setError(message);
+//             }
+//         } finally {
+//             setSaving(false);
+//         }
+//     }
+
+//     return (
+//         <div className="space-y-4 p-4 sm:p-6">
+//             <div className="rounded-2xl border border-border bg-card shadow-sm">
+//                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-4">
+//                     <div className="flex items-start gap-3">
+//                         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/5">
+//                             <ServerCog className="h-5 w-5 text-primary" />
+//                         </div>
+
+//                         <div>
+//                             <h1 className="text-sm font-semibold text-foreground">
+//                                 SCM Stock Intake
+//                             </h1>
+
+//                             <p className="mt-1 max-w-2xl text-[10px] leading-5 text-muted-foreground">
+//                                 Enter an approved Material Requisition. SCM data loads automatically; classify each received item with ITM master data, then commit the stock once.
+//                             </p>
+//                         </div>
+//                     </div>
+
+//                     <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[9px] font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400">
+//                         <ShieldCheck className="h-3.5 w-3.5" />
+//                         Server-side SCM integration
+//                     </div>
+//                 </div>
+
+//                 <div className="p-5">
+//                     <label className="block">
+//                         <span className={labelClass}>
+//                             Material Requisition (MR)
+//                         </span>
+
+//                         <div className="flex h-10 items-center rounded-lg border border-border bg-background px-3 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
+//                             <Search className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+
+//                             <input
+//                                 value={mrNumber}
+//                                 onChange={(event) => {
+//                                     setMRNumber(
+//                                         event.target.value
+//                                     );
+//                                     setSuccess("");
+//                                 }}
+//                                 placeholder="Enter / paste MR number — SCM will load automatically"
+//                                 className="h-full min-w-0 flex-1 bg-transparent text-[10px] outline-none"
+//                                 autoComplete="off"
+//                             />
+
+//                             {loading && (
+//                                 <div className="mr-2 flex items-center gap-1.5 whitespace-nowrap text-[8px] font-medium text-primary">
+//                                     <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+//                                     Loading SCM...
+//                                 </div>
+//                             )}
+
+//                             {!loading &&
+//                                 preview && (
+//                                     <div className="mr-2 hidden items-center gap-1.5 whitespace-nowrap text-[8px] font-semibold text-emerald-600 sm:flex">
+//                                         <CheckCircle2 className="h-3.5 w-3.5" />
+//                                         {preview.items.length} item(s) loaded
+//                                     </div>
+//                                 )}
+
+//                             {mrNumber && (
+//                                 <button
+//                                     type="button"
+//                                     aria-label="Clear MR"
+//                                     onClick={clearMR}
+//                                     className="flex h-7 w-7 items-center justify-center rounded-md text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+//                                 >
+//                                     <X className="h-3.5 w-3.5" />
+//                                 </button>
+//                             )}
+//                         </div>
+//                     </label>
+
+//                     {serialConflict && (
+//                         <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:border-amber-900/70 dark:bg-amber-950/25 dark:text-amber-200">
+//                             <div className="flex items-start gap-2.5">
+//                                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+
+//                                 <div className="min-w-0 flex-1">
+//                                     <p className="text-[10px] font-bold">
+//                                         Duplicate device serial blocked safely
+//                                     </p>
+//                                     <p className="mt-1 text-[9px] leading-5">
+//                                         Row {serialConflict.row} · Serial <span className="font-mono font-bold">{serialConflict.serial}</span> is already registered as <span className="font-semibold">Asset #{serialConflict.assetId}</span>.
+//                                     </p>
+
+//                                     <div className="mt-2 grid gap-2 sm:grid-cols-3">
+//                                         <div className="rounded-lg border border-amber-200 bg-white/70 px-2.5 py-2 dark:border-amber-900/60 dark:bg-black/10">
+//                                             <p className="text-[7px] font-semibold uppercase tracking-wide opacity-70">Existing MR</p>
+//                                             <p className="mt-1 break-all text-[8px] font-semibold">{serialConflict.existingMR || "—"}</p>
+//                                         </div>
+//                                         <div className="rounded-lg border border-amber-200 bg-white/70 px-2.5 py-2 dark:border-amber-900/60 dark:bg-black/10">
+//                                             <p className="text-[7px] font-semibold uppercase tracking-wide opacity-70">Existing Stock</p>
+//                                             <p className="mt-1 text-[8px] font-semibold">#{serialConflict.stockId}</p>
+//                                         </div>
+//                                         <div className="rounded-lg border border-amber-200 bg-white/70 px-2.5 py-2 dark:border-amber-900/60 dark:bg-black/10">
+//                                             <p className="text-[7px] font-semibold uppercase tracking-wide opacity-70">Asset Status Code</p>
+//                                             <p className="mt-1 text-[8px] font-semibold">{serialConflict.status}</p>
+//                                         </div>
+//                                     </div>
+
+//                                     <p className="mt-2 text-[8px] leading-4 opacity-90">
+//                                         No duplicate asset was created. Verify the physical device / SCM serial and correct SCM if this is a different device. Do not remove the unique serial constraint.
+//                                     </p>
+
+//                                     <div className="mt-2 flex flex-wrap gap-2">
+//                                         <button
+//                                             type="button"
+//                                             onClick={() =>
+//                                                 router.push(
+//                                                     `/dashboard/assets/devices/${serialConflict.assetId}`
+//                                                 )
+//                                             }
+//                                             className="inline-flex h-7 items-center rounded-md border border-amber-400 bg-white px-2.5 text-[8px] font-semibold hover:bg-amber-100 dark:bg-transparent dark:hover:bg-amber-950/50"
+//                                         >
+//                                             View Existing Asset #{serialConflict.assetId}
+//                                         </button>
+
+//                                         <button
+//                                             type="button"
+//                                             disabled={loading || saving}
+//                                             onClick={() => {
+//                                                 setSerialConflict(null);
+//                                                 void loadMR(mrNumber, true);
+//                                             }}
+//                                             className="inline-flex h-7 items-center gap-1.5 rounded-md border border-amber-400 px-2.5 text-[8px] font-semibold hover:bg-amber-100 disabled:opacity-50 dark:hover:bg-amber-950/50"
+//                                         >
+//                                             <RefreshCcw className="h-3 w-3" />
+//                                             Reload MR after SCM correction
+//                                         </button>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     )}
+
+//                     {error && (
+//                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[9px] text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400">
+//                             <span>{error}</span>
+
+//                             {mrNumber.trim().length >=
+//                                 10 && (
+//                                     <button
+//                                         type="button"
+//                                         onClick={() =>
+//                                             void loadMR(
+//                                                 mrNumber,
+//                                                 true
+//                                             )
+//                                         }
+//                                         disabled={loading}
+//                                         className="inline-flex items-center gap-1 rounded-md border border-red-300 px-2 py-1 text-[8px] font-semibold hover:bg-red-100 disabled:opacity-50 dark:border-red-900"
+//                                     >
+//                                         <RefreshCcw className="h-3 w-3" />
+//                                         Retry
+//                                     </button>
+//                                 )}
+//                         </div>
+//                     )}
+
+//                     {success && (
+//                         <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[9px] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400">
+//                             <CheckCircle2 className="h-4 w-4" />
+//                             {success}
+//                         </div>
+//                     )}
+//                 </div>
+//             </div>
+
+//             {preview && (
+//                 <>
+//                     <div className="grid gap-3 sm:grid-cols-3">
+//                         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+//                             <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+//                                 MR Number
+//                             </p>
+//                             <p className="mt-1 break-all text-[10px] font-semibold text-foreground">
+//                                 {preview.mr_id}
+//                             </p>
+//                         </div>
+
+//                         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+//                             <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+//                                 SCM Items
+//                             </p>
+//                             <p className="mt-1 text-lg font-bold text-primary">
+//                                 {preview.items.length}
+//                             </p>
+//                         </div>
+
+//                         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+//                             <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+//                                 Ready to Import
+//                             </p>
+//                             <p
+//                                 className={`mt-1 text-lg font-bold ${completeRows ===
+//                                     rows.length
+//                                     ? "text-emerald-600"
+//                                     : "text-amber-600"
+//                                     }`}
+//                             >
+//                                 {completeRows}/{rows.length}
+//                             </p>
+//                         </div>
+//                     </div>
+
+//                     <div className="rounded-2xl border border-border bg-card shadow-sm">
+//                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+//                             <div>
+//                                 <h2 className="text-[11px] font-semibold text-foreground">
+//                                     SCM Receipt & ITM Classification
+//                                 </h2>
+//                                 <p className="mt-0.5 text-[8px] text-muted-foreground">
+//                                     SCM procurement fields are read-only. Category → Brand → Model comes from the ITM inventory master.
+//                                 </p>
+//                                 {rows.length > 1 && syncFirstRow && (
+//                                     <p className="mt-1 text-[8px] font-medium text-primary">
+//                                         Row #1 is the active template: classification and remarks are synchronized to all rows automatically.
+//                                     </p>
+//                                 )}
+//                             </div>
+
+//                             {rows.length > 1 && (
+//                                 <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.03] px-3 py-2 text-[8px] font-medium text-foreground">
+//                                     <input
+//                                         type="checkbox"
+//                                         checked={syncFirstRow}
+//                                         onChange={(event) =>
+//                                             setSyncFirstRow(
+//                                                 event.target.checked
+//                                             )
+//                                         }
+//                                         className="h-3.5 w-3.5 accent-primary"
+//                                     />
+//                                     <Copy className="h-3 w-3 text-primary" />
+//                                     <span>
+//                                         Auto-apply Row #1 classification to all rows
+//                                     </span>
+//                                 </label>
+//                             )}
+//                         </div>
+
+//                         <div className="space-y-3 p-4">
+//                             {rows.map((row, index) => {
+//                                 const source =
+//                                     preview.items[index];
+
+//                                 const brandOptions =
+//                                     brandsFor(
+//                                         row.category_id
+//                                     );
+
+//                                 const modelOptions =
+//                                     modelsFor(
+//                                         row.brand_id
+//                                     );
+
+//                                 const rowReady =
+//                                     isRowComplete(row);
+
+//                                 return (
+//                                     <div
+//                                         key={source.source_index}
+//                                         className="relative overflow-visible rounded-xl border border-border"
+//                                     >
+//                                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
+//                                             <div className="flex items-center gap-2">
+//                                                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
+//                                                     {index + 1}
+//                                                 </span>
+//                                                 <div>
+//                                                     <p className="text-[10px] font-semibold text-foreground">
+//                                                         {source.item_name ||
+//                                                             "SCM Item"}
+//                                                     </p>
+//                                                     <p className="text-[8px] text-muted-foreground">
+//                                                         {source.item_group ||
+//                                                             "Unclassified group"}
+//                                                     </p>
+//                                                 </div>
+//                                             </div>
+
+//                                             <div className="flex items-center gap-2">
+//                                                 <span
+//                                                     className={`rounded-md border px-2 py-1 text-[7px] font-semibold ${rowReady
+//                                                         ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400"
+//                                                         : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-400"
+//                                                         }`}
+//                                                 >
+//                                                     {rowReady
+//                                                         ? "Ready"
+//                                                         : "Classification required"}
+//                                                 </span>
+
+//                                                 <span className="rounded-md border border-border bg-background px-2 py-1 font-mono text-[8px] text-muted-foreground">
+//                                                     {source.serial_number ||
+//                                                         "Internal asset tag will be generated"}
+//                                                 </span>
+//                                             </div>
+//                                         </div>
+
+//                                         <div className="grid gap-4 p-4 xl:grid-cols-2">
+//                                             <div className="rounded-lg border border-border bg-muted/15 p-3">
+//                                                 <div className="mb-3 flex items-center gap-2">
+//                                                     <Database className="h-3.5 w-3.5 text-amber-600" />
+//                                                     <p className="text-[9px] font-semibold text-foreground">
+//                                                         SCM Inventory
+//                                                     </p>
+//                                                 </div>
+
+//                                                 <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+//                                                     {[
+//                                                         [
+//                                                             "MR Number",
+//                                                             preview.mr_id,
+//                                                         ],
+//                                                         [
+//                                                             "PR Number",
+//                                                             source.pr_id,
+//                                                         ],
+//                                                         [
+//                                                             "Vendor Name",
+//                                                             source.vendor_name,
+//                                                         ],
+//                                                         [
+//                                                             "Received / GR",
+//                                                             source.gr_id,
+//                                                         ],
+//                                                         [
+//                                                             "Serial No.",
+//                                                             source.serial_number,
+//                                                         ],
+//                                                         [
+//                                                             "Purchase Date",
+//                                                             source.purchase_date,
+//                                                         ],
+//                                                         [
+//                                                             "Item Group",
+//                                                             source.item_group,
+//                                                         ],
+//                                                         [
+//                                                             "Item Name",
+//                                                             source.item_name,
+//                                                         ],
+//                                                         [
+//                                                             "SCM Warranty",
+//                                                             source.warranty_text ||
+//                                                             (source.warranty_months
+//                                                                 ? `${source.warranty_months} month(s)`
+//                                                                 : ""),
+//                                                         ],
+//                                                     ].map(
+//                                                         ([
+//                                                             label,
+//                                                             value,
+//                                                         ]) => (
+//                                                             <div
+//                                                                 key={label}
+//                                                             >
+//                                                                 <p className="text-[7px] font-semibold uppercase text-muted-foreground">
+//                                                                     {label}
+//                                                                 </p>
+//                                                                 <p className="mt-1 break-words text-[9px] font-medium text-foreground">
+//                                                                     {value ||
+//                                                                         "—"}
+//                                                                 </p>
+//                                                             </div>
+//                                                         )
+//                                                     )}
+//                                                 </div>
+//                                             </div>
+
+//                                             <div className="rounded-lg border border-primary/20 bg-primary/[0.02] p-3">
+//                                                 <div className="mb-3 flex items-center justify-between gap-3">
+//                                                     <div className="flex items-center gap-2">
+//                                                         <PackageCheck className="h-3.5 w-3.5 text-primary" />
+//                                                         <p className="text-[9px] font-semibold text-foreground">
+//                                                             ITM Classification
+//                                                         </p>
+//                                                     </div>
+
+//                                                     {masterLoading && (
+//                                                         <span className="flex items-center gap-1 text-[7px] text-muted-foreground">
+//                                                             <LoaderCircle className="h-3 w-3 animate-spin" />
+//                                                             Loading master data
+//                                                         </span>
+//                                                     )}
+//                                                 </div>
+
+//                                                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             Category <span className="text-red-500">*</span>
+//                                                         </span>
+//                                                         <SearchableClearableSelect
+//                                                             value={
+//                                                                 row.category_id
+//                                                                     ? String(
+//                                                                         row.category_id
+//                                                                     )
+//                                                                     : ""
+//                                                             }
+//                                                             options={
+//                                                                 categorySelectOptions
+//                                                             }
+//                                                             disabled={
+//                                                                 masterLoading
+//                                                             }
+//                                                             required
+//                                                             placeholder="Search category..."
+//                                                             onChange={(value) =>
+//                                                                 selectCategory(
+//                                                                     index,
+//                                                                     Number(
+//                                                                         value ||
+//                                                                         0
+//                                                                     )
+//                                                                 )
+//                                                             }
+//                                                         />
+//                                                     </div>
+
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             Brand <span className="text-red-500">*</span>
+//                                                         </span>
+//                                                         <SearchableClearableSelect
+//                                                             value={
+//                                                                 row.brand_id
+//                                                                     ? String(
+//                                                                         row.brand_id
+//                                                                     )
+//                                                                     : ""
+//                                                             }
+//                                                             options={brandOptions.map(
+//                                                                 (item) => ({
+//                                                                     value: String(
+//                                                                         item.id
+//                                                                     ),
+//                                                                     label: String(
+//                                                                         item.category_name ??
+//                                                                         ""
+//                                                                     ),
+//                                                                 })
+//                                                             )}
+//                                                             disabled={
+//                                                                 !row.category_id ||
+//                                                                 brandOptions.length ===
+//                                                                 0
+//                                                             }
+//                                                             required
+//                                                             placeholder={
+//                                                                 row.category_id &&
+//                                                                     brandOptions.length ===
+//                                                                     0
+//                                                                     ? "No active brand under category"
+//                                                                     : "Search brand..."
+//                                                             }
+//                                                             onChange={(value) =>
+//                                                                 selectBrand(
+//                                                                     index,
+//                                                                     Number(
+//                                                                         value ||
+//                                                                         0
+//                                                                     )
+//                                                                 )
+//                                                             }
+//                                                         />
+//                                                     </div>
+
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             Model <span className="text-red-500">*</span>
+//                                                         </span>
+//                                                         <SearchableClearableSelect
+//                                                             value={
+//                                                                 row.model_id
+//                                                                     ? String(
+//                                                                         row.model_id
+//                                                                     )
+//                                                                     : ""
+//                                                             }
+//                                                             options={modelOptions.map(
+//                                                                 (item) => ({
+//                                                                     value: String(
+//                                                                         item.id
+//                                                                     ),
+//                                                                     label: String(
+//                                                                         item.category_name ??
+//                                                                         ""
+//                                                                     ),
+//                                                                 })
+//                                                             )}
+//                                                             disabled={
+//                                                                 !row.brand_id ||
+//                                                                 modelOptions.length ===
+//                                                                 0
+//                                                             }
+//                                                             required
+//                                                             placeholder={
+//                                                                 row.brand_id &&
+//                                                                     modelOptions.length ===
+//                                                                     0
+//                                                                     ? "No active model under brand"
+//                                                                     : "Search model..."
+//                                                             }
+//                                                             onChange={(value) =>
+//                                                                 selectModel(
+//                                                                     index,
+//                                                                     Number(
+//                                                                         value ||
+//                                                                         0
+//                                                                     )
+//                                                                 )
+//                                                             }
+//                                                         />
+//                                                     </div>
+
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             CPU / Processor
+//                                                         </span>
+//                                                         <SearchableClearableSelect
+//                                                             value={row.cpu ?? ""}
+//                                                             options={
+//                                                                 cpuSelectOptions
+//                                                             }
+//                                                             placeholder="Search CPU / processor..."
+//                                                             emptyText="No CPU options found"
+//                                                             onChange={(value) =>
+//                                                                 updateClassification(
+//                                                                     index,
+//                                                                     {
+//                                                                         cpu: value,
+//                                                                     }
+//                                                                 )
+//                                                             }
+//                                                         />
+//                                                     </div>
+
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             RAM
+//                                                         </span>
+//                                                         <SearchableClearableSelect
+//                                                             value={row.ram ?? ""}
+//                                                             options={
+//                                                                 ramSelectOptions
+//                                                             }
+//                                                             placeholder="Search RAM..."
+//                                                             emptyText="No RAM options found"
+//                                                             onChange={(value) =>
+//                                                                 updateClassification(
+//                                                                     index,
+//                                                                     {
+//                                                                         ram: value,
+//                                                                     }
+//                                                                 )
+//                                                             }
+//                                                         />
+//                                                     </div>
+
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             SSD / HDD
+//                                                         </span>
+//                                                         <SearchableClearableSelect
+//                                                             value={row.ssd ?? ""}
+//                                                             options={
+//                                                                 ssdSelectOptions
+//                                                             }
+//                                                             placeholder="Search SSD / HDD..."
+//                                                             emptyText="No SSD / HDD options found"
+//                                                             onChange={(value) =>
+//                                                                 updateClassification(
+//                                                                     index,
+//                                                                     {
+//                                                                         ssd: value,
+//                                                                     }
+//                                                                 )
+//                                                             }
+//                                                         />
+//                                                     </div>
+
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             Monitor
+//                                                         </span>
+//                                                         <SearchableClearableSelect
+//                                                             value={row.monitor ?? ""}
+//                                                             options={
+//                                                                 monitorSelectOptions
+//                                                             }
+//                                                             placeholder="Search monitor..."
+//                                                             emptyText="No monitor options found"
+//                                                             onChange={(value) =>
+//                                                                 updateClassification(
+//                                                                     index,
+//                                                                     {
+//                                                                         monitor: value,
+//                                                                     }
+//                                                                 )
+//                                                             }
+//                                                         />
+//                                                     </div>
+
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             Warranty Duration <span className="text-red-500">*</span>
+//                                                         </span>
+//                                                         <SearchableClearableSelect
+//                                                             value={
+//                                                                 Number(
+//                                                                     row.warranty_months ??
+//                                                                     0
+//                                                                 ) > 0
+//                                                                     ? String(
+//                                                                         row.warranty_months
+//                                                                     )
+//                                                                     : ""
+//                                                             }
+//                                                             options={
+//                                                                 warrantySelectOptions
+//                                                             }
+//                                                             required
+//                                                             placeholder="Search warranty..."
+//                                                             onChange={(value) =>
+//                                                                 updateClassification(
+//                                                                     index,
+//                                                                     {
+//                                                                         warranty_months:
+//                                                                             Number(
+//                                                                                 value ||
+//                                                                                 0
+//                                                                             ),
+//                                                                     }
+//                                                                 )
+//                                                             }
+//                                                         />
+//                                                     </div>
+
+//                                                     <div>
+//                                                         <span className={labelClass}>
+//                                                             Warranty End Date
+//                                                         </span>
+//                                                         <input
+//                                                             type="text"
+//                                                             readOnly
+//                                                             value={
+//                                                                 warrantyEndDate(
+//                                                                     source.purchase_date,
+//                                                                     Number(
+//                                                                         row.warranty_months ??
+//                                                                         0
+//                                                                     )
+//                                                                 )
+//                                                             }
+//                                                             placeholder="Select warranty duration"
+//                                                             className={`${fieldClass} font-mono text-[9px] text-emerald-700 dark:text-emerald-400`}
+//                                                         />
+//                                                     </div>
+
+//                                                     <label>
+//                                                         <span className={labelClass}>
+//                                                             Asset Type
+//                                                         </span>
+//                                                         <select
+//                                                             value={
+//                                                                 row.device_type
+//                                                             }
+//                                                             onChange={(event) =>
+//                                                                 updateClassification(
+//                                                                     index,
+//                                                                     {
+//                                                                         device_type:
+//                                                                             event
+//                                                                                 .target
+//                                                                                 .value,
+//                                                                     }
+//                                                                 )
+//                                                             }
+//                                                             className={fieldClass}
+//                                                         >
+//                                                             <option value="IT Device">
+//                                                                 IT Device
+//                                                             </option>
+//                                                             <option value="IT Accessory">
+//                                                                 IT Accessory
+//                                                             </option>
+//                                                         </select>
+//                                                     </label>
+
+//                                                     <label className="sm:col-span-1 lg:col-span-2">
+//                                                         <span className={labelClass}>
+//                                                             Remarks
+//                                                         </span>
+//                                                         <input
+//                                                             type="text"
+//                                                             value={
+//                                                                 row.remarks
+//                                                             }
+//                                                             maxLength={500}
+//                                                             onChange={(event) =>
+//                                                                 updateClassification(
+//                                                                     index,
+//                                                                     {
+//                                                                         remarks:
+//                                                                             event
+//                                                                                 .target
+//                                                                                 .value,
+//                                                                     }
+//                                                                 )
+//                                                             }
+//                                                             placeholder="Optional stock / warranty note"
+//                                                             className={fieldClass}
+//                                                         />
+//                                                     </label>
+//                                                 </div>
+//                                             </div>
+//                                         </div>
+//                                     </div>
+//                                 );
+//                             })}
+//                         </div>
+
+//                         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+//                             <p className="text-[8px] text-muted-foreground">
+//                                 Duplicate MR + serial items are synchronized instead of inserted twice. SCM procurement data is revalidated by the backend during import.
+//                             </p>
+
+//                             <Button
+//                                 type="button"
+//                                 size="sm"
+//                                 className="h-8 gap-1.5 text-[9px]"
+//                                 disabled={
+//                                     saving ||
+//                                     rows.length === 0 ||
+//                                     completeRows !==
+//                                     rows.length
+//                                 }
+//                                 onClick={() =>
+//                                     void importStock()
+//                                 }
+//                             >
+//                                 {saving ? (
+//                                     <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+//                                 ) : (
+//                                     <PackageCheck className="h-3.5 w-3.5" />
+//                                 )}
+//                                 Import {rows.length} Stock Item
+//                                 {rows.length === 1
+//                                     ? ""
+//                                     : "s"}
+//                             </Button>
+//                         </div>
+//                     </div>
+//                 </>
+//             )}
+//         </div>
+//     );
+// }
+
+
+
+
+//itm/frontend/app/dashboard/stock/stock-entry/page.tsx
 "use client";
 
 import {
-    useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
+
+import { useRouter } from "next/navigation";
+
 import {
-    useRouter,
-    useSearchParams,
-} from "next/navigation";
-import {
-    ArrowRightLeft,
+    Check,
     CheckCircle2,
     ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ClipboardCheck,
-    Columns3,
-    Eye,
-    FileWarning,
-    Filter,
-    Pencil,
-    RefreshCw,
-    RotateCcw,
+    Copy,
+    Database,
+    LoaderCircle,
+    PackageCheck,
+    RefreshCcw,
     Search,
+    ServerCog,
     ShieldCheck,
-    Trash2,
-    UserPlus,
-    UserRound,
+    TriangleAlert,
     X,
 } from "lucide-react";
 
 import {
-    api,
-    assetDeviceApi,
-    employeeApi,
-    getUser,
+    categoryApi,
     inventoryWorkflowApi,
-    type AllocatableRequisition,
-    type AssetDevice,
-    type Employee,
+    type InventoryCategoryItem,
+    type InventorySpecOptions,
+    type SCMStockImportItem,
+    type SCMStockPreview,
 } from "@/lib/api";
 
 import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+    Button,
+} from "@/components/ui/button";
 
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-
-const PAGE_SIZE = 50;
-const COLUMN_STORAGE_KEY = "itm:asset-devices:visible-columns:v3";
-
-const STATUS_OPTIONS = [
-    { value: "", label: "All Status" },
-    { value: "0", label: "Available" },
-    { value: "1", label: "Assigned" },
-    { value: "2", label: "Damaged" },
-    { value: "3", label: "Transferred" },
-    { value: "4", label: "Returned" },
-    { value: "5", label: "Lost" },
-    { value: "7", label: "Ownership Transfer" },
-    { value: "8", label: "Claim Raised" },
-    { value: "15", label: "Service Request" },
-];
-
-type ColumnKey =
-    | "serial"
-    | "device"
-    | "employee"
-    | "mrpr"
-    | "vendor"
-    | "assigned"
-    | "purchase"
-    | "warranty"
-    | "assetType";
-
-const COLUMN_OPTIONS: Array<{ key: ColumnKey; label: string }> = [
-    { key: "serial", label: "Serial / Asset ID" },
-    { key: "device", label: "Device" },
-    { key: "employee", label: "Employee" },
-    { key: "mrpr", label: "MR / PR" },
-    { key: "vendor", label: "Vendor" },
-    { key: "assigned", label: "Assigned Date" },
-    { key: "purchase", label: "Purchase Date" },
-    { key: "warranty", label: "Warranty End Date" },
-    { key: "assetType", label: "Asset Type" },
-];
-
-const DEFAULT_COLUMNS: ColumnKey[] = [
-    "serial",
-    "device",
-    "employee",
-    "mrpr",
-];
-
-type OperationType =
-    | "assign-direct"
-    | "assign-tt"
-    | "update"
-    | "return"
-    | "owst"
-    | "warranty"
-    | "reassign"
-    | "delete"
-    | null;
-
-type OperationalAssetDevice = AssetDevice & {
-    stock_inventory_id?: number | null;
-    category_id?: number | null;
-    brand_id?: number | null;
-    model_id?: number | null;
+type MappingRow = SCMStockImportItem & {
+    item_id: string;
+    item_name: string;
+    item_group: string;
+    pr_id: string;
+    vendor_name: string;
+    purchase_date: string;
+    warranty_text: string;
 };
 
-type ApprovedTTRequisition = AllocatableRequisition & {
-    category_id?: number;
-    brand_id?: number;
-    model_id?: number;
-    brand?: string;
-    model?: string;
-    department?: string;
-    designation?: string;
-    approval_status?: string;
-    approved_by?: string;
-    approved_by_name?: string;
-    approved_date?: string;
+type SerialConflictInfo = {
+    row: number;
+    serial: string;
+    assetId: number;
+    existingMR: string;
+    stockId: number;
+    status: number;
+    raw: string;
 };
 
-const deviceOperationsApi = {
-    update: (
-        id: number,
-        body: {
-            category?: string;
-            brand?: string;
-            model?: string;
-            device_type?: string;
-            vendor_name?: string;
-            purchase_date?: string;
-            warranty_date?: string;
-        },
-    ) => api.put(`/assets/devices/${id}`, body),
+function parseSerialConflict(message: string): SerialConflictInfo | null {
+    const match = message.match(
+        /row\s+(\d+):\s+serial\s+"([^"]+)"\s+is already registered as Asset #(\d+)\s+under MR\s+(.+?)\s+\(stock #(\d+), status (\d+)\)/i
+    );
 
-    assignDirect: (
-        id: number,
-        employee_id: string,
-        remarks?: string,
-    ) =>
-        api.post(`/assets/devices/${id}/assign-direct`, {
-            employee_id,
-            remarks: remarks ?? "",
-        }),
+    if (!match) return null;
 
-    returnAsset: (id: number, remarks?: string) =>
-        api.post(`/assets/devices/${id}/return`, {
-            remarks: remarks ?? "",
-        }),
+    return {
+        row: Number(match[1]),
+        serial: match[2],
+        assetId: Number(match[3]),
+        existingMR: match[4].trim(),
+        stockId: Number(match[5]),
+        status: Number(match[6]),
+        raw: message,
+    };
+}
 
-    createOWST: (
-        id: number,
-        body: {
-            ownership_type: "employee" | "vendor";
-            receiver_id?: string;
-            vendor_name?: string;
-            deducted_amount?: number;
-            remarks?: string;
-        },
-    ) => api.post(`/assets/devices/${id}/owst`, body),
+const fieldClass =
+    "h-8 w-full rounded-lg border border-border bg-background px-2.5 text-[10px] outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-muted/40 disabled:text-muted-foreground";
 
-    createWarrantyClaim: (id: number, problems: string) =>
-        api.post(`/assets/devices/${id}/warranty-claim`, { problems }),
+const labelClass =
+    "mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground";
 
-    delete: (id: number) =>
-        api.del(`/assets/devices/${id}`),
+type SearchOption = {
+    value: string;
+    label: string;
 };
 
-function formatDate(value: string | null | undefined) {
-    if (!value) return "—";
+function warrantyEndDate(
+    purchaseDate: string,
+    warrantyMonths: number
+) {
+    const value = String(purchaseDate ?? "").trim();
 
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
+    if (!value || warrantyMonths <= 0) {
+        return "";
     }
 
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(date);
-}
-
-function dateInputValue(value: string | null | undefined) {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-function statusClass(status: number) {
-    const map: Record<number, string> = {
-        0: "border-violet-200 bg-violet-50 text-violet-700",
-        1: "border-blue-200 bg-blue-50 text-blue-700",
-        2: "border-orange-200 bg-orange-50 text-orange-700",
-        3: "border-amber-200 bg-amber-50 text-amber-700",
-        4: "border-emerald-200 bg-emerald-50 text-emerald-700",
-        5: "border-red-200 bg-red-50 text-red-700",
-        7: "border-teal-200 bg-teal-50 text-teal-700",
-        8: "border-pink-200 bg-pink-50 text-pink-700",
-        15: "border-cyan-200 bg-cyan-50 text-cyan-700",
-    };
-
-    return map[status] ?? "border-slate-200 bg-slate-50 text-slate-700";
-}
-
-function getInitials(name: string | null) {
-    if (!name?.trim()) return "NA";
-
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
-
-function EmployeeAvatar({
-    name,
-    image,
-}: {
-    name: string | null;
-    image: string | null | undefined;
-}) {
-    const [imageFailed, setImageFailed] = useState(false);
-    const canShowImage = Boolean(image && !imageFailed);
-
-    return (
-        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-[10px] font-bold text-foreground">
-            {canShowImage ? (
-                <img
-                    src={image!}
-                    alt={name || "Employee"}
-                    className="h-full w-full object-cover"
-                    onError={() => setImageFailed(true)}
-                />
-            ) : name ? (
-                getInitials(name)
-            ) : (
-                <UserRound className="h-4 w-4 text-muted-foreground" />
-            )}
-        </div>
+    const match = value.match(
+        /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?/
     );
+
+    if (!match) {
+        return "";
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    const hour = Number(match[4] ?? 0);
+    const minute = Number(match[5] ?? 0);
+    const second = Number(match[6] ?? 0);
+
+    const targetMonthIndex =
+        month + warrantyMonths;
+
+    const targetYear =
+        year + Math.floor(targetMonthIndex / 12);
+
+    const targetMonth =
+        ((targetMonthIndex % 12) + 12) % 12;
+
+    const lastDay = new Date(
+        targetYear,
+        targetMonth + 1,
+        0
+    ).getDate();
+
+    const date = new Date(
+        targetYear,
+        targetMonth,
+        Math.min(day, lastDay),
+        hour,
+        minute,
+        second
+    );
+
+    const pad = (number: number) =>
+        String(number).padStart(2, "0");
+
+    return `${date.getFullYear()}-${pad(
+        date.getMonth() + 1
+    )}-${pad(date.getDate())} ${pad(
+        date.getHours()
+    )}:${pad(date.getMinutes())}:${pad(
+        date.getSeconds()
+    )}`;
 }
 
-function EmployeeSearchBox({
-    query,
-    onQueryChange,
-    results,
-    selected,
-    onSelect,
-    searching,
+function SearchableClearableSelect({
+    value,
+    options,
+    onChange,
+    placeholder,
+    disabled = false,
+    required = false,
+    emptyText = "No matching options",
 }: {
-    query: string;
-    onQueryChange: (value: string) => void;
-    results: Employee[];
-    selected: Employee | null;
-    onSelect: (employee: Employee) => void;
-    searching: boolean;
+    value: string;
+    options: SearchOption[];
+    onChange: (value: string) => void;
+    placeholder: string;
+    disabled?: boolean;
+    required?: boolean;
+    emptyText?: string;
 }) {
-    return (
-        <div className="space-y-2">
-            <label className="block text-xs font-semibold text-foreground">
-                Employee <span className="text-red-500">*</span>
-            </label>
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
 
-            {selected ? (
-                <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/[0.03] px-3 py-2.5">
-                    <div>
-                        <p className="text-sm font-semibold">
-                            {selected.employee_id} · {selected.employee_name}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                            {[selected.department, selected.designation]
-                                .filter(Boolean)
-                                .join(" · ") || "Employee selected"}
-                        </p>
-                    </div>
+    const selected = options.find(
+        (option) => option.value === value
+    );
+
+    const filtered = useMemo(() => {
+        const term = query.trim().toLowerCase();
+        if (!term) return options;
+
+        return options.filter((option) =>
+            option.label.toLowerCase().includes(term)
+        );
+    }, [options, query]);
+
+    useEffect(() => {
+        if (!open) return;
+
+        const onPointerDown = (event: MouseEvent) => {
+            if (
+                rootRef.current &&
+                !rootRef.current.contains(
+                    event.target as Node
+                )
+            ) {
+                setOpen(false);
+                setQuery("");
+            }
+        };
+
+        document.addEventListener(
+            "mousedown",
+            onPointerDown
+        );
+
+        return () => {
+            document.removeEventListener(
+                "mousedown",
+                onPointerDown
+            );
+        };
+    }, [open]);
+
+    return (
+        <div
+            ref={rootRef}
+            className="relative"
+        >
+            <div
+                className={`flex h-8 items-center rounded-lg border bg-background transition focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 ${disabled
+                    ? "cursor-not-allowed bg-muted/40 opacity-70"
+                    : "border-border"
+                    }`}
+            >
+                <Search className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+
+                <input
+                    type="text"
+                    value={
+                        open
+                            ? query
+                            : selected?.label ?? ""
+                    }
+                    disabled={disabled}
+                    required={required && !value}
+                    placeholder={placeholder}
+                    onFocus={() => {
+                        if (disabled) return;
+                        setOpen(true);
+                        setQuery("");
+                    }}
+                    onChange={(event) => {
+                        setQuery(event.target.value);
+                        setOpen(true);
+                    }}
+                    className="h-full min-w-0 flex-1 bg-transparent px-2 text-[10px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+                />
+
+                {value && !disabled ? (
                     <button
                         type="button"
+                        aria-label="Clear selection"
+                        title="Clear selection"
+                        onMouseDown={(event) =>
+                            event.preventDefault()
+                        }
                         onClick={() => {
-                            onQueryChange("");
+                            onChange("");
+                            setQuery("");
+                            setOpen(false);
                         }}
-                        className="rounded-md p-1.5 text-red-500 hover:bg-red-50"
-                        title="Change employee"
+                        className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 dark:hover:text-red-400"
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-3.5 w-3.5" />
                     </button>
-                </div>
-            ) : (
-                <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <input
-                        value={query}
-                        onChange={(event) => onQueryChange(event.target.value)}
-                        placeholder="Search employee ID or name..."
-                        className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                    />
+                ) : null}
 
-                    {(searching || results.length > 0) && query.trim().length >= 2 && (
-                        <div className="absolute left-0 right-0 top-[44px] z-[80] max-h-64 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl">
-                            {searching ? (
-                                <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                                    Searching employees...
-                                </div>
-                            ) : (
-                                results.map((employee) => (
+                <button
+                    type="button"
+                    aria-label="Toggle options"
+                    disabled={disabled}
+                    onMouseDown={(event) =>
+                        event.preventDefault()
+                    }
+                    onClick={() => {
+                        if (disabled) return;
+                        setOpen((current) => !current);
+                        setQuery("");
+                    }}
+                    className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none"
+                >
+                    <ChevronDown
+                        className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""
+                            }`}
+                    />
+                </button>
+            </div>
+
+            {open && !disabled && (
+                <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-[150] overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
+                    <div className="max-h-[320px] overflow-y-auto overscroll-contain p-1">
+                        {filtered.length === 0 ? (
+                            <div className="px-2.5 py-3 text-center text-[9px] text-muted-foreground">
+                                {emptyText}
+                            </div>
+                        ) : (
+                            filtered.map((option) => {
+                                const active =
+                                    option.value === value;
+
+                                return (
                                     <button
+                                        key={option.value}
                                         type="button"
-                                        key={employee.employee_id}
-                                        onClick={() => onSelect(employee)}
-                                        className="w-full rounded-md px-3 py-2 text-left hover:bg-muted"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
+                                        onClick={() => {
+                                            onChange(option.value);
+                                            setOpen(false);
+                                            setQuery("");
+                                        }}
+                                        className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-[10px] transition ${active
+                                            ? "bg-primary/10 font-semibold text-primary"
+                                            : "hover:bg-muted"
+                                            }`}
                                     >
-                                        <p className="text-sm font-semibold">
-                                            {employee.employee_id} · {employee.employee_name}
-                                        </p>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {[employee.department, employee.designation]
-                                                .filter(Boolean)
-                                                .join(" · ") || "—"}
-                                        </p>
+                                        <span className="min-w-0 truncate">
+                                            {option.label}
+                                        </span>
+                                        {active && (
+                                            <Check className="h-3.5 w-3.5 shrink-0" />
+                                        )}
                                     </button>
-                                ))
-                            )}
-                        </div>
-                    )}
+                                );
+                            })
+                        )}
+                    </div>
                 </div>
             )}
         </div>
     );
 }
 
-export default function AssetDevicesPage() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
+function normalizeType(
+    value: string | null | undefined
+) {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase();
+}
 
-    const [items, setItems] = useState<OperationalAssetDevice[]>([]);
-    const [total, setTotal] = useState(0);
-    const [page, setPage] = useState(1);
+function emptyRow(
+    preview: SCMStockPreview,
+    index: number
+): MappingRow {
+    const item = preview.items[index];
 
-    const [searchInput, setSearchInput] = useState("");
-    const [search, setSearch] = useState("");
-    const [status, setStatus] = useState("");
-    const [categoryInput, setCategoryInput] = useState("");
-    const [category, setCategory] = useState("");
+    return {
+        source_index: item.source_index,
+        serial_number: item.serial_number,
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [notice, setNotice] = useState("");
-    const [showImportNotice, setShowImportNotice] = useState(true);
+        category_id: null,
+        brand_id: null,
+        model_id: null,
 
-    const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
-        () => new Set(DEFAULT_COLUMNS),
-    );
-
-    const [operation, setOperation] = useState<OperationType>(null);
-    const [selectedAsset, setSelectedAsset] = useState<OperationalAssetDevice | null>(null);
-    const [operationBusy, setOperationBusy] = useState(false);
-    const [operationError, setOperationError] = useState("");
-    const [remarks, setRemarks] = useState("");
-
-    const [employeeQuery, setEmployeeQuery] = useState("");
-    const [employeeResults, setEmployeeResults] = useState<Employee[]>([]);
-    const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-    const [employeeSearching, setEmployeeSearching] = useState(false);
-
-    const [requisitionQuery, setRequisitionQuery] = useState("");
-    const [requisitionResults, setRequisitionResults] = useState<ApprovedTTRequisition[]>([]);
-    const [selectedRequisition, setSelectedRequisition] = useState<ApprovedTTRequisition | null>(null);
-    const [requisitionLoading, setRequisitionLoading] = useState(false);
-
-    const [updateForm, setUpdateForm] = useState({
         category: "",
         brand: "",
         model: "",
-        device_type: "",
-        vendor_name: "",
-        purchase_date: "",
-        warranty_date: "",
-    });
+        cpu: "",
+        ram: "",
+        ssd: "",
+        monitor: "",
+        warranty_months:
+            item.warranty_months || 0,
+        device_type:
+            item.item_group
+                ?.toLowerCase()
+                .includes("accessor")
+                ? "IT Accessory"
+                : "IT Device",
+        remarks: "",
 
-    const [owstType, setOWSTType] = useState<"employee" | "vendor">("employee");
-    const [owstVendor, setOWSTVendor] = useState("");
-    const [owstAmount, setOWSTAmount] = useState("");
-    const [warrantyProblems, setWarrantyProblems] = useState("");
+        item_id: item.item_id,
+        item_name: item.item_name,
+        item_group: item.item_group,
+        pr_id: item.pr_id,
+        vendor_name: item.vendor_name,
+        purchase_date: item.purchase_date,
+        warranty_text: item.warranty_text,
+    };
+}
 
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const authUser = getUser();
-    const isRoot =
-        authUser?.role_code?.trim().toUpperCase() === "ROOT" ||
-        Number(authUser?.user_type) === 0;
+export default function StockEntryPage() {
+    const router = useRouter();
 
-    const importSuccess = searchParams.get("import") === "success";
-    const importMR = searchParams.get("mr") ?? "";
-    const importedCount = Number(searchParams.get("imported") ?? 0);
-    const updatedCount = Number(searchParams.get("updated") ?? 0);
-    const stockCommittedCount = Number(searchParams.get("stock_committed") ?? 0);
-    const assetsCreatedCount = Number(searchParams.get("assets_created") ?? importedCount);
-    const assetsSynchronizedCount = Number(searchParams.get("assets_synchronized") ?? 0);
-    const normalizedAvailableCount = Number(searchParams.get("normalized_available") ?? 0);
-    const conflictedCount = Number(searchParams.get("conflicted") ?? 0);
-    const conflictAssetID = Number(searchParams.get("conflict_asset_id") ?? 0);
-    const conflictSerial = searchParams.get("conflict_serial") ?? "";
+    const [mrNumber, setMRNumber] =
+        useState("");
+
+    const [preview, setPreview] =
+        useState<SCMStockPreview | null>(
+            null
+        );
+
+    const [rows, setRows] =
+        useState<MappingRow[]>([]);
+
+    // Professional default for bulk MR intake:
+    // Row #1 acts as the template for all remaining rows.
+    // Disable this only when one MR contains mixed device types.
+    const [syncFirstRow, setSyncFirstRow] =
+        useState(true);
+
+    const [masterData, setMasterData] =
+        useState<InventoryCategoryItem[]>(
+            []
+        );
+
+    const [masterLoading, setMasterLoading] =
+        useState(true);
+
+    const [specOptions, setSpecOptions] =
+        useState<InventorySpecOptions>({
+            cpu: [],
+            ram: [],
+            ssd: [],
+            monitor: [],
+        });
+
+    const [loading, setLoading] =
+        useState(false);
+
+    const [saving, setSaving] =
+        useState(false);
+
+    const [error, setError] =
+        useState("");
+
+    const [serialConflict, setSerialConflict] =
+        useState<SerialConflictInfo | null>(null);
+
+    const [success, setSuccess] =
+        useState("");
+
+    const requestSequence = useRef(0);
+    const lastLoadedMR = useRef("");
+
+    /* ======================================================
+       MASTER DATA
+
+       inventory_categories is the single source for:
+       Category -> Brand -> Model.
+    ====================================================== */
 
     useEffect(() => {
-        try {
-            const saved = window.localStorage.getItem(COLUMN_STORAGE_KEY);
-            if (!saved) return;
-            const parsed = JSON.parse(saved);
-            if (!Array.isArray(parsed)) return;
-            const valid = parsed.filter((key): key is ColumnKey =>
-                COLUMN_OPTIONS.some((column) => column.key === key),
-            );
-            if (valid.length > 0) setVisibleColumns(new Set(valid));
-        } catch {
-            // Keep defaults when old browser storage is malformed.
+        let mounted = true;
+
+        async function loadMasterData() {
+            try {
+                setMasterLoading(true);
+
+                const response =
+                    await categoryApi.list();
+
+                if (!mounted) return;
+
+                setMasterData(
+                    (response.data ?? [])
+                        .filter(
+                            (item) =>
+                                Number(
+                                    item.status ?? 1
+                                ) === 1
+                        )
+                        .sort((a, b) =>
+                            String(
+                                a.category_name ?? ""
+                            ).localeCompare(
+                                String(
+                                    b.category_name ?? ""
+                                )
+                            )
+                        )
+                );
+            } catch {
+                if (!mounted) return;
+
+                setMasterData([]);
+                setError(
+                    "Unable to load ITM Category / Brand / Model master data."
+                );
+            } finally {
+                if (mounted) {
+                    setMasterLoading(false);
+                }
+            }
         }
+
+        void loadMasterData();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     useEffect(() => {
-        if (!importSuccess || !importMR) return;
-        setSearchInput(importMR);
-        setSearch(importMR);
-        setPage(1);
-    }, [importSuccess, importMR]);
+        let mounted = true;
 
-    const loadAssets = useCallback(async () => {
+        async function loadSpecOptions() {
+            try {
+                const response =
+                    await inventoryWorkflowApi.specOptions();
+
+                if (!mounted) return;
+
+                setSpecOptions({
+                    cpu: response.data?.cpu ?? [],
+                    ram: response.data?.ram ?? [],
+                    ssd: response.data?.ssd ?? [],
+                    monitor:
+                        response.data?.monitor ?? [],
+                });
+            } catch {
+                if (!mounted) return;
+
+                // Optional specification fields should not block
+                // SCM stock intake if the option catalogue fails.
+                setSpecOptions({
+                    cpu: [],
+                    ram: [],
+                    ssd: [],
+                    monitor: [],
+                });
+            }
+        }
+
+        void loadSpecOptions();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const categories = useMemo(
+        () =>
+            masterData.filter(
+                (item) =>
+                    normalizeType(item.type) ===
+                    "category" &&
+                    Number(item.parent_id ?? 0) ===
+                    0
+            ),
+        [masterData]
+    );
+
+    function brandsFor(
+        categoryID: number | null | undefined
+    ) {
+        if (!categoryID) return [];
+
+        return masterData.filter(
+            (item) =>
+                normalizeType(item.type) ===
+                "brand" &&
+                Number(item.parent_id ?? 0) ===
+                Number(categoryID)
+        );
+    }
+
+    function modelsFor(
+        brandID: number | null | undefined
+    ) {
+        if (!brandID) return [];
+
+        return masterData.filter(
+            (item) =>
+                normalizeType(item.type) ===
+                "model" &&
+                Number(item.parent_id ?? 0) ===
+                Number(brandID)
+        );
+    }
+
+    function isRowComplete(
+        row: MappingRow
+    ) {
+        return Boolean(
+            row.category_id &&
+            row.brand_id &&
+            row.model_id &&
+            Number(row.warranty_months ?? 0) > 0
+        );
+    }
+
+    const completeRows = rows.filter((row) =>
+        isRowComplete(row)
+    ).length;
+
+    /* ======================================================
+       SCM AJAX-LIKE MR PREVIEW
+
+       No Load button is required.  A pasted/typed MR is
+       fetched automatically after a short debounce.
+    ====================================================== */
+
+    async function loadMR(
+        mrInput: string,
+        force = false
+    ) {
+        const mr = mrInput.trim();
+
+        if (!mr) {
+            return;
+        }
+
+        if (
+            !force &&
+            lastLoadedMR.current === mr
+        ) {
+            return;
+        }
+
+        const sequence =
+            ++requestSequence.current;
+
         try {
             setLoading(true);
             setError("");
+            setSerialConflict(null);
+            setSuccess("");
 
-            const response = await assetDeviceApi.list({
-                page,
-                limit: PAGE_SIZE,
-                search: search || undefined,
-                status: status ? Number(status) : undefined,
-                category: category || undefined,
-            });
+            const response =
+                await inventoryWorkflowApi
+                    .previewMR(mr);
 
-            setItems(response.data ?? []);
-            setTotal(response.total ?? 0);
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Unable to load asset devices",
+            if (
+                sequence !==
+                requestSequence.current
+            ) {
+                return;
+            }
+
+            const data = response.data;
+
+            lastLoadedMR.current =
+                data.mr_id || mr;
+
+            setPreview(data);
+            setMRNumber(data.mr_id || mr);
+            setRows(
+                data.items.map(
+                    (_, index) =>
+                        emptyRow(
+                            data,
+                            index
+                        )
+                )
             );
-        } finally {
-            setLoading(false);
-        }
-    }, [page, search, status, category]);
-
-    useEffect(() => {
-        void loadAssets();
-    }, [loadAssets]);
-
-    useEffect(() => {
-        const needsEmployeeSearch =
-            operation === "assign-direct" ||
-            operation === "reassign" ||
-            (operation === "owst" && owstType === "employee");
-
-        if (!needsEmployeeSearch || selectedEmployee) {
-            setEmployeeResults([]);
-            return;
-        }
-
-        const query = employeeQuery.trim();
-        if (query.length < 2) {
-            setEmployeeResults([]);
-            return;
-        }
-
-        const timer = window.setTimeout(async () => {
-            try {
-                setEmployeeSearching(true);
-                const response = await employeeApi.search(
-                    encodeURIComponent(query),
-                );
-                setEmployeeResults(response.data ?? []);
-            } catch {
-                setEmployeeResults([]);
-            } finally {
-                setEmployeeSearching(false);
-            }
-        }, 300);
-
-        return () => window.clearTimeout(timer);
-    }, [employeeQuery, operation, owstType, selectedEmployee]);
-
-    useEffect(() => {
-        if (operation !== "assign-tt" || !selectedAsset) {
-            setRequisitionResults([]);
-            return;
-        }
-
-        const timer = window.setTimeout(async () => {
-            try {
-                setRequisitionLoading(true);
-                setOperationError("");
-                const query = new URLSearchParams();
-
-                if (selectedAsset.category_id) {
-                    query.set("category_id", String(selectedAsset.category_id));
-                } else if (selectedAsset.category) {
-                    // Compatibility fallback for unresolved legacy assets.
-                    query.set("category", selectedAsset.category);
-                }
-
-                if (requisitionQuery.trim()) {
-                    query.set("search", requisitionQuery.trim());
-                }
-
-                const response = await api.get<{
-                    success: boolean;
-                    data: ApprovedTTRequisition[];
-                }>(
-                    `/inventory-workflow/allocatable-requisitions?${query.toString()}`,
-                );
-
-                setRequisitionResults(response.data ?? []);
-            } catch (reason) {
-                setRequisitionResults([]);
-                setOperationError(
-                    reason instanceof Error
-                        ? reason.message
-                        : "Unable to load approved TT requisitions.",
-                );
-            } finally {
-                setRequisitionLoading(false);
-            }
-        }, 250);
-
-        return () => window.clearTimeout(timer);
-    }, [operation, requisitionQuery, selectedAsset]);
-
-    function applyFilters() {
-        setPage(1);
-        setSearch(searchInput.trim());
-        setCategory(categoryInput.trim());
-    }
-
-    function clearFilters() {
-        setSearchInput("");
-        setSearch("");
-        setStatus("");
-        setCategoryInput("");
-        setCategory("");
-        setPage(1);
-    }
-
-    function toggleColumn(key: ColumnKey) {
-        setVisibleColumns((current) => {
-            const next = new Set(current);
-            if (next.has(key)) next.delete(key);
-            else next.add(key);
-
-            if (next.size === 0) next.add("serial");
-            window.localStorage.setItem(
-                COLUMN_STORAGE_KEY,
-                JSON.stringify(Array.from(next)),
-            );
-            return next;
-        });
-    }
-
-    function openDevice(item: OperationalAssetDevice) {
-        router.push(`/dashboard/assets/devices/${item.id}`);
-    }
-
-    function openOperation(item: OperationalAssetDevice, next: Exclude<OperationType, null>) {
-        setSelectedAsset(item);
-        setOperation(next);
-        setOperationError("");
-        setRemarks("");
-        setEmployeeQuery("");
-        setEmployeeResults([]);
-        setSelectedEmployee(null);
-        setRequisitionQuery("");
-        setRequisitionResults([]);
-        setSelectedRequisition(null);
-        setOWSTType("employee");
-        setOWSTVendor("");
-        setOWSTAmount("");
-        setWarrantyProblems("");
-        setUpdateForm({
-            category: item.category ?? "",
-            brand: item.brand ?? "",
-            model: item.model ?? "",
-            device_type: item.device_type ?? "",
-            vendor_name: item.vendor_name ?? "",
-            purchase_date: dateInputValue(item.purchase_date),
-            warranty_date: dateInputValue(item.warranty_date),
-        });
-    }
-
-    function closeOperation() {
-        if (operationBusy) return;
-        setOperation(null);
-        setSelectedAsset(null);
-        setOperationError("");
-    }
-
-    async function submitOperation() {
-        if (!selectedAsset || !operation) return;
-
-        try {
-            setOperationBusy(true);
-            setOperationError("");
-            let message = "Device operation completed successfully.";
-
-            if (operation === "assign-direct" || operation === "reassign") {
-                if (!selectedEmployee) {
-                    setOperationError("Select an employee first.");
-                    return;
-                }
-
-                await deviceOperationsApi.assignDirect(
-                    selectedAsset.id,
-                    selectedEmployee.employee_id,
-                    remarks,
-                );
-
-                message =
-                    operation === "reassign"
-                        ? `Device reassigned to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`
-                        : `Device assigned directly to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
-            }
-
-            if (operation === "assign-tt") {
-                if (!selectedRequisition) {
-                    setOperationError("Select an approved TT requisition first.");
-                    return;
-                }
-                if (!selectedAsset.stock_inventory_id) {
-                    setOperationError(
-                        "This asset is not linked to an SCM stock row, so TT allocation cannot be completed from this screen.",
-                    );
-                    return;
-                }
-
-                await inventoryWorkflowApi.assignToRequisition(
-                    selectedRequisition.id,
-                    selectedAsset.stock_inventory_id,
-                    remarks,
-                );
-
-                message = `Device assigned and delivered against TT ${selectedRequisition.tt_no}.`;
-            }
-
-            if (operation === "update") {
-                await deviceOperationsApi.update(selectedAsset.id, updateForm);
-                message = "Device information updated.";
-            }
-
-            if (operation === "return") {
-                await deviceOperationsApi.returnAsset(selectedAsset.id, remarks);
-                message = "Device marked as Returned and is ready for transfer/reassignment.";
-            }
-
-            if (operation === "owst") {
-                if (owstType === "employee" && !selectedEmployee) {
-                    setOperationError("Select the ownership receiver employee.");
-                    return;
-                }
-                if (owstType === "vendor" && !owstVendor.trim()) {
-                    setOperationError("Enter the receiving vendor name.");
-                    return;
-                }
-
-                await deviceOperationsApi.createOWST(selectedAsset.id, {
-                    ownership_type: owstType,
-                    receiver_id:
-                        owstType === "employee"
-                            ? selectedEmployee?.employee_id
-                            : undefined,
-                    vendor_name:
-                        owstType === "vendor"
-                            ? owstVendor.trim()
-                            : undefined,
-                    deducted_amount: Number(owstAmount || 0),
-                    remarks,
-                });
-                message = "OWST created and device status changed to Ownership Transfer.";
-            }
-
-            if (operation === "warranty") {
-                if (!warrantyProblems.trim()) {
-                    setOperationError("Describe the warranty problem first.");
-                    return;
-                }
-                await deviceOperationsApi.createWarrantyClaim(
-                    selectedAsset.id,
-                    warrantyProblems.trim(),
-                );
-                message = "Warranty claim raised and device status changed to Claim Raised.";
-            }
-
-            if (operation === "delete") {
-                await deviceOperationsApi.delete(selectedAsset.id);
-                message = "Asset device deleted by ROOT user.";
-            }
-
-            setOperation(null);
-            setSelectedAsset(null);
-            setNotice(message);
-            await loadAssets();
         } catch (reason) {
-            setOperationError(
+            if (
+                sequence !==
+                requestSequence.current
+            ) {
+                return;
+            }
+
+            lastLoadedMR.current = "";
+            setPreview(null);
+            setRows([]);
+            setError(
                 reason instanceof Error
                     ? reason.message
-                    : "Unable to complete device operation.",
+                    : "Unable to load SCM MR data."
             );
         } finally {
-            setOperationBusy(false);
+            if (
+                sequence ===
+                requestSequence.current
+            ) {
+                setLoading(false);
+            }
         }
     }
 
-    const hasExtraColumns = Array.from(visibleColumns).some(
-        (key) => !DEFAULT_COLUMNS.includes(key),
-    );
-    const visibleCount = visibleColumns.size + 4;
-    const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-    const endItem = Math.min(page * PAGE_SIZE, total);
+    useEffect(() => {
+        const mr = mrNumber.trim();
 
-    const operationTitle = useMemo(() => {
-        switch (operation) {
-            case "assign-direct":
-                return "Assign to Employee Directly";
-            case "assign-tt":
-                return "Assign from Approved TT Requisition";
-            case "update":
-                return "Update Device";
-            case "return":
-                return "Return Device";
-            case "owst":
-                return "OWST · Ownership Transfer";
-            case "warranty":
-                return "Raise Warranty Claim";
-            case "reassign":
-                return "Transferred / Reassign Returned Device";
-            case "delete":
-                return "Delete Asset Device";
-            default:
-                return "Device Operation";
+        if (!mr) {
+            requestSequence.current++;
+            lastLoadedMR.current = "";
+            setLoading(false);
+            setPreview(null);
+            setRows([]);
+            setError("");
+            setSuccess("");
+            return;
         }
-    }, [operation]);
+
+        // Prevent SCM calls while the operator has only
+        // typed the first few characters of an MR.
+        if (mr.length < 10) {
+            return;
+        }
+
+        if (
+            lastLoadedMR.current === mr
+        ) {
+            return;
+        }
+
+        const timer =
+            window.setTimeout(() => {
+                void loadMR(mr);
+            }, 650);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [mrNumber]);
+
+    function clearMR() {
+        requestSequence.current++;
+        lastLoadedMR.current = "";
+        setMRNumber("");
+        setPreview(null);
+        setRows([]);
+        setLoading(false);
+        setError("");
+        setSerialConflict(null);
+        setSuccess("");
+    }
+
+    const categorySelectOptions: SearchOption[] =
+        categories.map((item) => ({
+            value: String(item.id),
+            label: String(item.category_name ?? ""),
+        }));
+
+    const cpuSelectOptions: SearchOption[] =
+        specOptions.cpu.map((value) => ({
+            value,
+            label: value,
+        }));
+
+    const ramSelectOptions: SearchOption[] =
+        specOptions.ram.map((value) => ({
+            value,
+            label: value,
+        }));
+
+    const ssdSelectOptions: SearchOption[] =
+        specOptions.ssd.map((value) => ({
+            value,
+            label: value,
+        }));
+
+    const monitorSelectOptions: SearchOption[] =
+        specOptions.monitor.map((value) => ({
+            value,
+            label: value,
+        }));
+
+    const warrantySelectOptions: SearchOption[] = [
+        { value: "3", label: "3 Months" },
+        { value: "6", label: "6 Months" },
+        { value: "12", label: "1 Year" },
+        { value: "24", label: "2 Years" },
+        { value: "36", label: "3 Years" },
+        { value: "48", label: "4 Years" },
+        { value: "60", label: "5 Years" },
+        { value: "72", label: "6 Years" },
+        { value: "84", label: "7 Years" },
+        { value: "96", label: "8 Years" },
+        { value: "108", label: "9 Years" },
+        { value: "120", label: "10 Years" },
+    ];
+
+    /* ======================================================
+       CLASSIFICATION
+    ====================================================== */
+
+    function updateRow(
+        index: number,
+        patch: Partial<MappingRow>
+    ) {
+        setRows((current) =>
+            current.map((row, rowIndex) =>
+                rowIndex === index
+                    ? {
+                        ...row,
+                        ...patch,
+                    }
+                    : row
+            )
+        );
+    }
+
+    function updateClassification(
+        index: number,
+        patch: Partial<MappingRow>
+    ) {
+        setRows((current) =>
+            current.map((row, rowIndex) => {
+                const shouldSync =
+                    syncFirstRow &&
+                    index === 0;
+
+                if (
+                    rowIndex !== index &&
+                    !shouldSync
+                ) {
+                    return row;
+                }
+
+                return {
+                    ...row,
+                    ...patch,
+                };
+            })
+        );
+    }
+
+    function selectCategory(
+        index: number,
+        categoryID: number
+    ) {
+        const selected =
+            categories.find(
+                (item) =>
+                    item.id === categoryID
+            );
+
+        updateClassification(index, {
+            category_id:
+                selected?.id ?? null,
+            category:
+                selected?.category_name ?? "",
+
+            // A parent change invalidates Brand + Model.
+            brand_id: null,
+            brand: "",
+            model_id: null,
+            model: "",
+        });
+    }
+
+    function selectBrand(
+        index: number,
+        brandID: number
+    ) {
+        const selected =
+            masterData.find(
+                (item) =>
+                    item.id === brandID
+            );
+
+        updateClassification(index, {
+            brand_id:
+                selected?.id ?? null,
+            brand:
+                selected?.category_name ?? "",
+            model_id: null,
+            model: "",
+        });
+    }
+
+    function selectModel(
+        index: number,
+        modelID: number
+    ) {
+        const selected =
+            masterData.find(
+                (item) =>
+                    item.id === modelID
+            );
+
+        updateClassification(index, {
+            model_id:
+                selected?.id ?? null,
+            model:
+                selected?.category_name ?? "",
+        });
+    }
+
+    /* ======================================================
+       FINAL DATABASE COMMIT
+    ====================================================== */
+
+    async function importStock() {
+        if (!preview) return;
+
+        const incomplete =
+            rows.findIndex(
+                (row) =>
+                    !isRowComplete(row)
+            );
+
+        if (incomplete >= 0) {
+            setError(
+                `Complete Category / Brand / Model / Warranty for row ${incomplete + 1
+                } before importing.`
+            );
+            return;
+        }
+
+        try {
+            setSaving(true);
+            setError("");
+            setSerialConflict(null);
+            setSuccess("");
+
+            const response =
+                await inventoryWorkflowApi
+                    .importMR(
+                        preview.mr_id,
+                        rows.map((row) => ({
+                            source_index:
+                                row.source_index,
+                            serial_number:
+                                row.serial_number,
+
+                            category_id:
+                                row.category_id,
+                            brand_id:
+                                row.brand_id,
+                            model_id:
+                                row.model_id,
+
+                            // Names remain for backwards compatibility;
+                            // backend IDs are the canonical validation path.
+                            category:
+                                row.category.trim(),
+                            brand:
+                                row.brand?.trim(),
+                            model:
+                                row.model?.trim(),
+                            cpu:
+                                row.cpu?.trim(),
+                            ram:
+                                row.ram?.trim(),
+                            ssd:
+                                row.ssd?.trim(),
+                            monitor:
+                                row.monitor?.trim(),
+                            warranty_months:
+                                Number(
+                                    row.warranty_months ??
+                                    0
+                                ),
+                            device_type:
+                                row.device_type,
+                            remarks:
+                                row.remarks?.trim(),
+                        }))
+                    );
+
+            const importResult = response.data as typeof response.data & {
+                received?: number;
+                stock_rows_committed?: number;
+                asset_created?: number;
+                asset_synchronized?: number;
+                asset_normalized_available?: number;
+                conflicted?: number;
+                conflicts?: Array<{
+                    row?: number;
+                    serial?: string;
+                    asset_id?: number;
+                    existing_mr?: string;
+                    stock_id?: number;
+                    asset_status?: number;
+                }>;
+            };
+
+            const conflicted = Number(importResult.conflicted ?? 0);
+            const assetCreated = Number(importResult.asset_created ?? importResult.imported ?? 0);
+            const assetSynchronized = Number(importResult.asset_synchronized ?? 0);
+            const assetNormalizedAvailable = Number(importResult.asset_normalized_available ?? 0);
+            const stockCommitted = Number(
+                importResult.stock_rows_committed ??
+                (Number(importResult.imported ?? 0) + Number(importResult.updated ?? 0))
+            );
+            const firstConflict = importResult.conflicts?.[0];
+
+            setSuccess(
+                conflicted > 0
+                    ? `Import completed with warning: ${stockCommitted} stock row(s) committed, ${assetCreated} new asset(s) created, ${conflicted} serial conflict(s) kept pending verification. Opening Device Operations...`
+                    : `Import completed: ${stockCommitted} stock row(s) committed, ${assetCreated} new asset(s), ${assetSynchronized} existing asset(s) synchronized${assetNormalizedAvailable > 0 ? `, ${assetNormalizedAvailable} normalized to Available` : ""}. Opening Device Operations...`
+            );
+
+            const destination =
+                `/dashboard/assets/devices?import=success&mr=${encodeURIComponent(
+                    preview.mr_id
+                )}&imported=${encodeURIComponent(
+                    String(response.data.imported ?? 0)
+                )}&updated=${encodeURIComponent(
+                    String(response.data.updated ?? 0)
+                )}&stock_committed=${encodeURIComponent(
+                    String(stockCommitted)
+                )}&assets_created=${encodeURIComponent(
+                    String(assetCreated)
+                )}&assets_synchronized=${encodeURIComponent(
+                    String(assetSynchronized)
+                )}&normalized_available=${encodeURIComponent(
+                    String(assetNormalizedAvailable)
+                )}&conflicted=${encodeURIComponent(
+                    String(conflicted)
+                )}&conflict_asset_id=${encodeURIComponent(
+                    String(firstConflict?.asset_id ?? "")
+                )}&conflict_serial=${encodeURIComponent(
+                    String(firstConflict?.serial ?? "")
+                )}`;
+
+            // The stock transaction has already committed successfully.
+            // Replace avoids returning to a stale form that could be submitted again.
+            router.replace(destination);
+        } catch (reason) {
+            const message =
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to import stock.";
+
+            const conflict =
+                parseSerialConflict(message);
+
+            if (conflict) {
+                setSerialConflict(conflict);
+                setError("");
+            } else {
+                setSerialConflict(null);
+                setError(message);
+            }
+        } finally {
+            setSaving(false);
+        }
+    }
 
     return (
-        <div className="space-y-4 p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>Dashboard</span>
-                        <span>/</span>
-                        <span>Inventory</span>
-                        <span>/</span>
-                        <span className="font-medium text-primary">Device Operations</span>
-                    </div>
+        <div className="space-y-4 p-4 sm:p-6">
+            <div className="rounded-2xl border border-border bg-card shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-4">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/5">
+                            <ServerCog className="h-5 w-5 text-primary" />
+                        </div>
 
-                    <h1 className="text-xl font-bold text-foreground">
-                        Device Operations Control Center
-                    </h1>
-
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Search, assign, return, transfer, claim and maintain devices from one page.
-                    </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button
-                                type="button"
-                                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
-                            >
-                                <Columns3 className="h-4 w-4" />
-                                Columns
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>Show / hide columns</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {COLUMN_OPTIONS.map((column) => (
-                                <DropdownMenuCheckboxItem
-                                    key={column.key}
-                                    checked={visibleColumns.has(column.key)}
-                                    onCheckedChange={() => toggleColumn(column.key)}
-                                >
-                                    {column.label}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <button
-                        type="button"
-                        onClick={() => void loadAssets()}
-                        disabled={loading}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-60"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                        Refresh
-                    </button>
-
-                    <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
-                        <span className="text-muted-foreground">Total Devices:</span>
-                        <span className="ml-1 font-bold text-primary">
-                            {total.toLocaleString()}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            {importSuccess && showImportNotice && (
-                <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
-                    <div className="flex gap-2">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                         <div>
-                            <p className="text-sm font-semibold">SCM stock import completed</p>
-                            <p className="mt-0.5 text-xs">
-                                {conflictedCount > 0 ? (
-                                    <>
-                                        MR: {importMR || "—"} · {stockCommittedCount || importedCount + updatedCount} stock row(s) committed · {assetsCreatedCount} new asset(s) · {updatedCount} synchronized · {conflictedCount} serial conflict(s). Conflicting serials were not duplicated.
-                                        {conflictSerial ? ` First conflict: ${conflictSerial}.` : ""}
-                                    </>
-                                ) : (
-                                    <>MR: {importMR || "—"} · {stockCommittedCount || importedCount + updatedCount} stock row(s) committed · {assetsCreatedCount} new asset(s) · {assetsSynchronizedCount} existing asset(s) synchronized{normalizedAvailableCount > 0 ? ` · ${normalizedAvailableCount} normalized to Available` : ""}. Imported rows are filtered below.</>
-                                )}
+                            <h1 className="text-sm font-semibold text-foreground">
+                                SCM Stock Intake
+                            </h1>
+
+                            <p className="mt-1 max-w-2xl text-[10px] leading-5 text-muted-foreground">
+                                Enter an approved Material Requisition. SCM data loads automatically; classify each received item with ITM master data, then commit the stock once.
                             </p>
-                            {conflictedCount > 0 && conflictAssetID > 0 && (
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[9px] font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        Server-side SCM integration
+                    </div>
+                </div>
+
+                <div className="p-5">
+                    <label className="block">
+                        <span className={labelClass}>
+                            Material Requisition (MR)
+                        </span>
+
+                        <div className="flex h-10 items-center rounded-lg border border-border bg-background px-3 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
+                            <Search className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+
+                            <input
+                                value={mrNumber}
+                                onChange={(event) => {
+                                    setMRNumber(
+                                        event.target.value
+                                    );
+                                    setSuccess("");
+                                }}
+                                placeholder="Enter / paste MR number — SCM will load automatically"
+                                className="h-full min-w-0 flex-1 bg-transparent text-[10px] outline-none"
+                                autoComplete="off"
+                            />
+
+                            {loading && (
+                                <div className="mr-2 flex items-center gap-1.5 whitespace-nowrap text-[8px] font-medium text-primary">
+                                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                    Loading SCM...
+                                </div>
+                            )}
+
+                            {!loading &&
+                                preview && (
+                                    <div className="mr-2 hidden items-center gap-1.5 whitespace-nowrap text-[8px] font-semibold text-emerald-600 sm:flex">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        {preview.items.length} item(s) loaded
+                                    </div>
+                                )}
+
+                            {mrNumber && (
                                 <button
                                     type="button"
-                                    onClick={() => router.push(`/dashboard/assets/devices/${conflictAssetID}`)}
-                                    className="mt-2 inline-flex h-7 items-center rounded-md border border-amber-300 bg-white px-2.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-50"
+                                    aria-label="Clear MR"
+                                    onClick={clearMR}
+                                    className="flex h-7 w-7 items-center justify-center rounded-md text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 dark:hover:text-red-400"
                                 >
-                                    View Existing Asset #{conflictAssetID}
+                                    <X className="h-3.5 w-3.5" />
                                 </button>
                             )}
                         </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowImportNotice(false)}
-                        className="rounded-md p-1 hover:bg-emerald-100"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                </div>
-            )}
+                    </label>
 
-            {notice && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                    <span className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4" />
-                        {notice}
-                    </span>
-                    <button type="button" onClick={() => setNotice("")}>
-                        <X className="h-4 w-4" />
-                    </button>
-                </div>
-            )}
+                    {serialConflict && (
+                        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:border-amber-900/70 dark:bg-amber-950/25 dark:text-amber-200">
+                            <div className="flex items-start gap-2.5">
+                                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
 
-            <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-                <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1.6fr)_180px_180px_auto]">
-                    <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                            value={searchInput}
-                            onChange={(event) => setSearchInput(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === "Enter") applyFilters();
-                            }}
-                            placeholder="Search serial, asset ID, employee, brand, model, vendor, MR or PR..."
-                            className="h-10 w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                        />
-                    </div>
-
-                    <select
-                        value={status}
-                        onChange={(event) => {
-                            setStatus(event.target.value);
-                            setPage(1);
-                        }}
-                        className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                        {STATUS_OPTIONS.map((item) => (
-                            <option key={item.value} value={item.value}>
-                                {item.label}
-                            </option>
-                        ))}
-                    </select>
-
-                    <input
-                        value={categoryInput}
-                        onChange={(event) => {
-                            setCategoryInput(event.target.value);
-                        }}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") applyFilters();
-                        }}
-                        placeholder="Category, e.g. Laptop"
-                        className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={applyFilters}
-                            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
-                        >
-                            <Filter className="h-4 w-4" />
-                            Search
-                        </button>
-                        <button
-                            type="button"
-                            onClick={clearFilters}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted"
-                            title="Clear filters"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                <div className={hasExtraColumns ? "overflow-x-auto" : "overflow-hidden"}>
-                    <table
-                        className={
-                            hasExtraColumns
-                                ? "w-full min-w-[1520px] text-[11px]"
-                                : "w-full table-fixed text-[11px]"
-                        }
-                    >
-                        <thead className="border-b border-border bg-muted/40">
-                            <tr className="text-left text-[9px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
-                                <th className={hasExtraColumns ? "w-[48px] min-w-[48px] px-2 py-2 text-center" : "w-[4%] px-2 py-2 text-center"}>
-                                    SL
-                                </th>
-                                {visibleColumns.has("serial") && (
-                                    <th className={hasExtraColumns ? "min-w-[180px] px-3 py-2" : "w-[15%] px-3 py-2"}>
-                                        Serial / Asset
-                                    </th>
-                                )}
-                                {visibleColumns.has("device") && (
-                                    <th className={hasExtraColumns ? "min-w-[180px] px-3 py-2" : "w-[13%] px-3 py-2"}>
-                                        Device
-                                    </th>
-                                )}
-                                <th className={hasExtraColumns ? "min-w-[105px] px-2.5 py-2 text-center" : "w-[8%] px-2.5 py-2 text-center"}>
-                                    Entry Type
-                                </th>
-                                {visibleColumns.has("employee") && (
-                                    <th className={hasExtraColumns ? "min-w-[235px] px-3 py-2" : "w-[19%] px-3 py-2"}>
-                                        Employee Information
-                                    </th>
-                                )}
-                                {visibleColumns.has("mrpr") && (
-                                    <th className={hasExtraColumns ? "min-w-[320px] px-3 py-2" : "w-[22%] px-3 py-2"}>
-                                        MR / PR Number
-                                    </th>
-                                )}
-                                {visibleColumns.has("vendor") && <th className="min-w-[150px] px-3 py-2">Vendor</th>}
-                                {visibleColumns.has("assigned") && <th className="min-w-[120px] px-3 py-2">Assigned</th>}
-                                {visibleColumns.has("purchase") && <th className="min-w-[120px] px-3 py-2">Purchase</th>}
-                                {visibleColumns.has("warranty") && <th className="min-w-[130px] px-3 py-2">Warranty End</th>}
-                                {visibleColumns.has("assetType") && <th className="min-w-[115px] px-3 py-2">Asset Type</th>}
-                                <th className={hasExtraColumns ? "min-w-[105px] px-2.5 py-2 text-center" : "w-[9%] px-2.5 py-2 text-center"}>
-                                    Status
-                                </th>
-                                <th className={hasExtraColumns ? "w-[96px] min-w-[96px] px-2 py-2 text-center" : "w-[10%] px-2 py-2 text-center"}>
-                                    Action
-                                </th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {loading && (
-                                <tr>
-                                    <td colSpan={visibleCount} className="px-4 py-16 text-center text-muted-foreground">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-                                            Loading asset devices...
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-
-                            {!loading && error && (
-                                <tr>
-                                    <td colSpan={visibleCount} className="px-4 py-16 text-center text-red-600">
-                                        {error}
-                                    </td>
-                                </tr>
-                            )}
-
-                            {!loading && !error && items.length === 0 && (
-                                <tr>
-                                    <td colSpan={visibleCount} className="px-4 py-16 text-center text-muted-foreground">
-                                        No asset devices found.
-                                    </td>
-                                </tr>
-                            )}
-
-                            {!loading && !error && items.map((item, index) => (
-                                <tr
-                                    key={item.id}
-                                    onDoubleClick={() => openDevice(item)}
-                                    className="group border-b border-border/70 transition-colors last:border-b-0 hover:bg-primary/[0.035]"
-                                >
-                                    <td className="px-2 py-2 text-center align-middle">
-                                        <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-muted/40 px-1.5 text-[9px] font-bold tabular-nums text-foreground shadow-sm">
-                                            {startItem + index}
-                                        </span>
-                                    </td>
-
-                                    {visibleColumns.has("serial") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            <div
-                                                className="inline-flex max-w-full rounded-md border border-primary/15 bg-primary/[0.035] px-2 py-1 font-mono text-[10px] font-bold leading-4 tracking-[0.02em] text-foreground"
-                                                title={item.device_serial || undefined}
-                                            >
-                                                <span className="break-all">{item.device_serial || "—"}</span>
-                                            </div>
-                                            <div className="mt-1 text-[9px] font-medium text-muted-foreground">
-                                                Asset ID <span className="font-semibold text-foreground">#{item.id}</span>
-                                            </div>
-                                        </td>
-                                    )}
-
-                                    {visibleColumns.has("device") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            <div
-                                                className="text-[10px] font-semibold leading-4 text-foreground"
-                                                title={item.category || "Uncategorized"}
-                                            >
-                                                {item.category || "Uncategorized"}
-                                            </div>
-                                            <div
-                                                className="mt-0.5 text-[9px] leading-4 text-muted-foreground"
-                                                title={[item.brand, item.model].filter(Boolean).join(" · ") || undefined}
-                                            >
-                                                {[item.brand, item.model].filter(Boolean).join(" · ") || "—"}
-                                            </div>
-                                        </td>
-                                    )}
-
-                                    <td className="px-2.5 py-2 text-center align-middle">
-                                        {item.mr_number?.trim() ? (
-                                            <span
-                                                className="inline-flex items-center justify-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[8px] font-bold uppercase tracking-wide text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-300"
-                                                title="Material Requisition entry"
-                                            >
-                                                MR
-                                            </span>
-                                        ) : (
-                                            <span
-                                                className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[8px] font-bold tracking-wide text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300"
-                                                title="Petty Cash entry — no MR number"
-                                            >
-                                                Petty Cash
-                                            </span>
-                                        )}
-                                    </td>
-
-                                    {visibleColumns.has("employee") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            {item.emp_id ? (
-                                                <div className="flex min-w-0 items-start gap-2">
-                                                    <EmployeeAvatar name={item.emp_name} image={item.employee_image} />
-                                                    <div className="min-w-0 flex-1 space-y-1">
-                                                        <div className="grid grid-cols-[32px_minmax(0,1fr)] items-start gap-1.5">
-                                                            <span className="pt-0.5 text-[7px] font-bold uppercase tracking-wide text-muted-foreground">ID</span>
-                                                            <span className="break-words text-[10px] font-bold leading-4 text-foreground">{item.emp_id}</span>
-                                                        </div>
-                                                        <div className="grid grid-cols-[32px_minmax(0,1fr)] items-start gap-1.5">
-                                                            <span className="pt-0.5 text-[7px] font-bold uppercase tracking-wide text-muted-foreground">Name</span>
-                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">{item.emp_name || "Employee"}</span>
-                                                        </div>
-                                                        {(item.department || item.designation) && (
-                                                            <div
-                                                                className="border-t border-border/60 pt-1 text-[8px] leading-3.5 text-muted-foreground"
-                                                                title={[item.department, item.designation].filter(Boolean).join(" · ") || undefined}
-                                                            >
-                                                                {[item.department, item.designation].filter(Boolean).join(" · ")}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-1">
-                                                    <span className="inline-flex rounded-md border border-border bg-muted/40 px-2 py-1 text-[9px] font-semibold text-muted-foreground">
-                                                        Unassigned
-                                                    </span>
-                                                    <div className="text-[8px] text-muted-foreground">No employee assigned</div>
-                                                </div>
-                                            )}
-                                        </td>
-                                    )}
-
-                                    {visibleColumns.has("mrpr") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            <div className="space-y-1.5">
-                                                <div className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-1.5">
-                                                    <span className="rounded border border-border bg-muted/40 px-1 py-0.5 text-center text-[7px] font-bold uppercase text-muted-foreground">MR</span>
-                                                    <span
-                                                        className="break-all font-mono text-[9px] font-semibold leading-4 text-foreground"
-                                                        title={item.mr_number || undefined}
-                                                    >
-                                                        {item.mr_number || "—"}
-                                                    </span>
-                                                </div>
-                                                <div className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-1.5">
-                                                    <span className="rounded border border-border bg-muted/40 px-1 py-0.5 text-center text-[7px] font-bold uppercase text-muted-foreground">PR</span>
-                                                    <span
-                                                        className="break-all font-mono text-[9px] font-medium leading-4 text-muted-foreground"
-                                                        title={item.pr_number || undefined}
-                                                    >
-                                                        {item.pr_number || "—"}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    )}
-
-                                    {visibleColumns.has("vendor") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
-                                            {item.vendor_name || "—"}
-                                        </td>
-                                    )}
-
-                                    {visibleColumns.has("assigned") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
-                                            {formatDate(item.assigned_date)}
-                                        </td>
-                                    )}
-
-                                    {visibleColumns.has("purchase") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
-                                            {formatDate(item.purchase_date)}
-                                        </td>
-                                    )}
-
-                                    {visibleColumns.has("warranty") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
-                                            {formatDate(item.warranty_date)}
-                                        </td>
-                                    )}
-
-                                    {visibleColumns.has("assetType") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
-                                            {item.device_type || "—"}
-                                        </td>
-                                    )}
-
-                                    <td className="px-2.5 py-2 text-center align-middle">
-                                        <span className={`inline-flex max-w-full items-center justify-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-bold ${statusClass(item.asset_status)}`}>
-                                            {item.status_label ||
-                                                STATUS_OPTIONS.find(
-                                                    (statusItem) =>
-                                                        statusItem.value === String(item.asset_status)
-                                                )?.label ||
-                                                `Status ${item.asset_status}`}
-                                        </span>
-                                    </td>
-
-                                    <td className="px-2 py-2 text-center align-middle">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <button
-                                                    type="button"
-                                                    className="inline-flex h-7 items-center justify-center gap-1 rounded-md border border-border bg-background px-2 text-[9px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
-                                                    aria-label={`Actions for ${item.device_serial || "asset device"}`}
-                                                    aria-haspopup="menu"
-                                                >
-                                                    Action
-                                                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                                                </button>
-                                            </DropdownMenuTrigger>
-
-                                            <DropdownMenuContent align="end" className="w-64">
-                                                <DropdownMenuLabel>
-                                                    {item.status_label} · Device Actions
-                                                </DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-
-                                                {item.asset_status === 0 && (
-                                                    <>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "assign-direct")} className="gap-2">
-                                                            <UserPlus className="h-4 w-4 text-primary" />
-                                                            Assign to Employee Directly
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "assign-tt")} className="gap-2">
-                                                            <ClipboardCheck className="h-4 w-4 text-emerald-600" />
-                                                            Assign from Approved TT Requisition
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => openDevice(item)} className="gap-2">
-                                                            <Eye className="h-4 w-4" />
-                                                            Detail
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "update")} className="gap-2">
-                                                            <Pencil className="h-4 w-4 text-amber-600" />
-                                                            Update
-                                                        </DropdownMenuItem>
-                                                    </>
-                                                )}
-
-                                                {item.asset_status === 1 && (
-                                                    <>
-                                                        <DropdownMenuItem onClick={() => openDevice(item)} className="gap-2">
-                                                            <Eye className="h-4 w-4" />
-                                                            Detail
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "update")} className="gap-2">
-                                                            <Pencil className="h-4 w-4 text-amber-600" />
-                                                            Update
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "return")} className="gap-2">
-                                                            <RotateCcw className="h-4 w-4 text-emerald-600" />
-                                                            Return
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "owst")} className="gap-2">
-                                                            <ArrowRightLeft className="h-4 w-4 text-teal-600" />
-                                                            OWST
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "warranty")} className="gap-2">
-                                                            <ShieldCheck className="h-4 w-4 text-violet-600" />
-                                                            Warranty Claim
-                                                        </DropdownMenuItem>
-                                                        {isRoot && (
-                                                            <>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onClick={() => openOperation(item, "delete")} className="gap-2 text-red-600 focus:text-red-600">
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                    Delete · ROOT only
-                                                                </DropdownMenuItem>
-                                                            </>
-                                                        )}
-                                                    </>
-                                                )}
-
-                                                {item.asset_status === 4 && (
-                                                    <>
-                                                        <DropdownMenuItem onClick={() => openDevice(item)} className="gap-2">
-                                                            <Eye className="h-4 w-4" />
-                                                            Detail
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "update")} className="gap-2">
-                                                            <Pencil className="h-4 w-4 text-amber-600" />
-                                                            Update
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "reassign")} className="gap-2">
-                                                            <ArrowRightLeft className="h-4 w-4 text-primary" />
-                                                            Transferred / Reassign
-                                                        </DropdownMenuItem>
-                                                        {isRoot && (
-                                                            <>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onClick={() => openOperation(item, "delete")} className="gap-2 text-red-600 focus:text-red-600">
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                    Delete · ROOT only
-                                                                </DropdownMenuItem>
-                                                            </>
-                                                        )}
-                                                    </>
-                                                )}
-
-                                                {![0, 1, 4].includes(item.asset_status) && (
-                                                    <>
-                                                        <DropdownMenuItem onClick={() => openDevice(item)} className="gap-2">
-                                                            <Eye className="h-4 w-4" />
-                                                            Detail
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openOperation(item, "update")} className="gap-2">
-                                                            <Pencil className="h-4 w-4 text-amber-600" />
-                                                            Update
-                                                        </DropdownMenuItem>
-                                                    </>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted-foreground">
-                        Showing <span className="font-semibold text-foreground">{startItem}</span>
-                        {" - "}
-                        <span className="font-semibold text-foreground">{endItem}</span>
-                        {" of "}
-                        <span className="font-semibold text-foreground">{total.toLocaleString()}</span>
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            disabled={page <= 1 || loading}
-                            onClick={() => setPage((current) => Math.max(1, current - 1))}
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                        </button>
-
-                        <span className="px-1 text-sm text-muted-foreground">
-                            Page <span className="font-semibold text-foreground">{page}</span> of{" "}
-                            <span className="font-semibold text-foreground">{totalPages}</span>
-                        </span>
-
-                        <button
-                            type="button"
-                            disabled={page >= totalPages || loading}
-                            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
-                        >
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <Dialog open={Boolean(operation && selectedAsset)} onOpenChange={(open) => !open && closeOperation()}>
-                <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>{operationTitle}</DialogTitle>
-                        <DialogDescription>
-                            {selectedAsset
-                                ? `${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} · ${selectedAsset.category || "Device"}`
-                                : "Device operation"}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {operationError && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                            {operationError}
-                        </div>
-                    )}
-
-                    {(operation === "assign-direct" || operation === "reassign") && (
-                        <div className="space-y-4 py-2">
-                            <EmployeeSearchBox
-                                query={employeeQuery}
-                                onQueryChange={(value) => {
-                                    setEmployeeQuery(value);
-                                    if (!value) setSelectedEmployee(null);
-                                }}
-                                results={employeeResults}
-                                selected={selectedEmployee}
-                                onSelect={(employee) => {
-                                    setSelectedEmployee(employee);
-                                    setEmployeeResults([]);
-                                    setEmployeeQuery("");
-                                }}
-                                searching={employeeSearching}
-                            />
-                            <label className="block">
-                                <span className="mb-1 block text-xs font-semibold">Remarks</span>
-                                <textarea
-                                    value={remarks}
-                                    onChange={(event) => setRemarks(event.target.value)}
-                                    rows={3}
-                                    placeholder="Optional assignment note"
-                                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                                />
-                            </label>
-                        </div>
-                    )}
-
-                    {operation === "assign-tt" && (
-                        <div className="space-y-4 py-2">
-                            {!selectedAsset?.stock_inventory_id && (
-                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                    This asset has no linked SCM stock row. Direct assignment remains available, but TT allocation requires an SCM stock link.
-                                </div>
-                            )}
-
-                            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
-                                <span className="font-semibold">Matching:</span>{" "}
-                                {selectedAsset?.category || "Uncategorized"}
-                                {selectedAsset?.category_id ? ` (Category ID ${selectedAsset.category_id})` : " · legacy label fallback"}
-                                {selectedAsset?.brand ? ` · ${selectedAsset.brand}` : ""}
-                                {selectedAsset?.model ? ` · ${selectedAsset.model}` : ""}
-                            </div>
-
-                            <div>
-                                <label className="mb-1 block text-xs font-semibold">
-                                    Approved TT Requisition <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative">
-                                    <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <input
-                                        value={requisitionQuery}
-                                        onChange={(event) => setRequisitionQuery(event.target.value)}
-                                        placeholder="Search TT no, employee ID or name..."
-                                        className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                                    />
-                                </div>
-
-                                <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border">
-                                    {requisitionLoading ? (
-                                        <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                                            Loading approved requisitions...
-                                        </div>
-                                    ) : requisitionResults.length === 0 ? (
-                                        <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                                            No approved, unfulfilled TT requisition found for this device category.
-                                        </div>
-                                    ) : (
-                                        requisitionResults.map((req) => (
-                                            <button
-                                                type="button"
-                                                key={req.id}
-                                                onClick={() => setSelectedRequisition(req)}
-                                                className={`flex w-full items-start justify-between gap-3 border-b border-border px-3 py-2.5 text-left last:border-b-0 ${selectedRequisition?.id === req.id ? "bg-primary/10" : "hover:bg-muted"}`}
-                                            >
-                                                <div>
-                                                    <p className="text-sm font-semibold">TT {req.tt_no}</p>
-                                                    <p className="mt-0.5 text-xs text-muted-foreground">
-                                                        {req.employee_id} · {req.employee_name}
-                                                    </p>
-                                                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                                        {req.category}
-                                                        {req.brand ? ` · ${req.brand}` : ""}
-                                                        {req.model ? ` · ${req.model}` : ""}
-                                                    </p>
-                                                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                                        {req.approval_status || (req.approved_val === 3 ? "PR (Approved)" : "Petty Cash (Approved)")}
-                                                        {req.approved_by
-                                                            ? ` · ${req.approved_by}${req.approved_by_name ? ` · ${req.approved_by_name}` : ""}`
-                                                            : ""}
-                                                    </p>
-                                                    <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                                        {req.approved_date ? `Approved ${formatDate(req.approved_date)}` : ""}
-                                                        {req.department ? ` · ${req.department}` : ""}
-                                                        {req.reason_details ? ` · ${req.reason_details}` : ""}
-                                                    </p>
-                                                </div>
-                                                {selectedRequisition?.id === req.id && (
-                                                    <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" />
-                                                )}
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-
-                            <label className="block">
-                                <span className="mb-1 block text-xs font-semibold">Assignment / Delivery Remarks</span>
-                                <textarea
-                                    value={remarks}
-                                    onChange={(event) => setRemarks(event.target.value)}
-                                    rows={3}
-                                    placeholder="Optional handover note"
-                                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                                />
-                            </label>
-                        </div>
-                    )}
-
-                    {operation === "update" && (
-                        <div className="grid gap-3 py-2 sm:grid-cols-2">
-                            {[
-                                ["category", "Category"],
-                                ["brand", "Brand"],
-                                ["model", "Model"],
-                                ["device_type", "Asset Type"],
-                                ["vendor_name", "Vendor"],
-                            ].map(([key, label]) => (
-                                <label key={key} className={key === "model" ? "sm:col-span-2" : ""}>
-                                    <span className="mb-1 block text-xs font-semibold">{label}</span>
-                                    <input
-                                        value={updateForm[key as keyof typeof updateForm]}
-                                        onChange={(event) => setUpdateForm((current) => ({
-                                            ...current,
-                                            [key]: event.target.value,
-                                        }))}
-                                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                                    />
-                                </label>
-                            ))}
-                            <label>
-                                <span className="mb-1 block text-xs font-semibold">Purchase Date</span>
-                                <input
-                                    type="date"
-                                    value={updateForm.purchase_date}
-                                    onChange={(event) => setUpdateForm((current) => ({ ...current, purchase_date: event.target.value }))}
-                                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                                />
-                            </label>
-                            <label>
-                                <span className="mb-1 block text-xs font-semibold">Warranty End Date</span>
-                                <input
-                                    type="date"
-                                    value={updateForm.warranty_date}
-                                    onChange={(event) => setUpdateForm((current) => ({ ...current, warranty_date: event.target.value }))}
-                                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                                />
-                            </label>
-                        </div>
-                    )}
-
-                    {operation === "return" && (
-                        <div className="space-y-3 py-2">
-                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                                Returning the device clears the current employee assignment and moves the asset to Returned. It can then be transferred/reassigned from this page.
-                            </div>
-                            <label className="block">
-                                <span className="mb-1 block text-xs font-semibold">Return Remarks</span>
-                                <textarea
-                                    value={remarks}
-                                    onChange={(event) => setRemarks(event.target.value)}
-                                    rows={4}
-                                    placeholder="Condition / return note"
-                                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                                />
-                            </label>
-                        </div>
-                    )}
-
-                    {operation === "owst" && (
-                        <div className="space-y-4 py-2">
-                            <label className="block">
-                                <span className="mb-1 block text-xs font-semibold">Ownership Transfer To</span>
-                                <select
-                                    value={owstType}
-                                    onChange={(event) => {
-                                        setOWSTType(event.target.value as "employee" | "vendor");
-                                        setSelectedEmployee(null);
-                                        setEmployeeQuery("");
-                                    }}
-                                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                                >
-                                    <option value="employee">Employee / User</option>
-                                    <option value="vendor">Vendor</option>
-                                </select>
-                            </label>
-
-                            {owstType === "employee" ? (
-                                <EmployeeSearchBox
-                                    query={employeeQuery}
-                                    onQueryChange={(value) => {
-                                        setEmployeeQuery(value);
-                                        if (!value) setSelectedEmployee(null);
-                                    }}
-                                    results={employeeResults}
-                                    selected={selectedEmployee}
-                                    onSelect={(employee) => {
-                                        setSelectedEmployee(employee);
-                                        setEmployeeResults([]);
-                                        setEmployeeQuery("");
-                                    }}
-                                    searching={employeeSearching}
-                                />
-                            ) : (
-                                <label className="block">
-                                    <span className="mb-1 block text-xs font-semibold">Vendor Name <span className="text-red-500">*</span></span>
-                                    <input
-                                        value={owstVendor}
-                                        onChange={(event) => setOWSTVendor(event.target.value)}
-                                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                                        placeholder="Receiving vendor"
-                                    />
-                                </label>
-                            )}
-
-                            <label className="block">
-                                <span className="mb-1 block text-xs font-semibold">Deducted Amount</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={owstAmount}
-                                    onChange={(event) => setOWSTAmount(event.target.value)}
-                                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                                    placeholder="0"
-                                />
-                            </label>
-
-                            <label className="block">
-                                <span className="mb-1 block text-xs font-semibold">Remarks</span>
-                                <textarea
-                                    value={remarks}
-                                    onChange={(event) => setRemarks(event.target.value)}
-                                    rows={3}
-                                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                                    placeholder="Ownership transfer note"
-                                />
-                            </label>
-                        </div>
-                    )}
-
-                    {operation === "warranty" && (
-                        <div className="space-y-3 py-2">
-                            <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
-                                Warranty end date: {formatDate(selectedAsset?.warranty_date)}
-                            </div>
-                            <label className="block">
-                                <span className="mb-1 block text-xs font-semibold">
-                                    Problem / Claim Reason <span className="text-red-500">*</span>
-                                </span>
-                                <textarea
-                                    value={warrantyProblems}
-                                    onChange={(event) => setWarrantyProblems(event.target.value)}
-                                    rows={5}
-                                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Describe the warranty issue..."
-                                />
-                            </label>
-                        </div>
-                    )}
-
-                    {operation === "delete" && (
-                        <div className="space-y-3 py-2">
-                            <div className="flex gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-red-800">
-                                <FileWarning className="h-5 w-5 shrink-0" />
-                                <div>
-                                    <p className="text-sm font-semibold">ROOT-only destructive action</p>
-                                    <p className="mt-1 text-xs">
-                                        The asset record will be soft-deleted from the active registry. History remains available in the database.
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-bold">
+                                        Duplicate device serial blocked safely
                                     </p>
+                                    <p className="mt-1 text-[9px] leading-5">
+                                        Row {serialConflict.row} · Serial <span className="font-mono font-bold">{serialConflict.serial}</span> is already registered as <span className="font-semibold">Asset #{serialConflict.assetId}</span>.
+                                    </p>
+
+                                    <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                                        <div className="rounded-lg border border-amber-200 bg-white/70 px-2.5 py-2 dark:border-amber-900/60 dark:bg-black/10">
+                                            <p className="text-[7px] font-semibold uppercase tracking-wide opacity-70">Existing MR</p>
+                                            <p className="mt-1 break-all text-[8px] font-semibold">{serialConflict.existingMR || "—"}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-amber-200 bg-white/70 px-2.5 py-2 dark:border-amber-900/60 dark:bg-black/10">
+                                            <p className="text-[7px] font-semibold uppercase tracking-wide opacity-70">Existing Stock</p>
+                                            <p className="mt-1 text-[8px] font-semibold">#{serialConflict.stockId}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-amber-200 bg-white/70 px-2.5 py-2 dark:border-amber-900/60 dark:bg-black/10">
+                                            <p className="text-[7px] font-semibold uppercase tracking-wide opacity-70">Asset Status Code</p>
+                                            <p className="mt-1 text-[8px] font-semibold">{serialConflict.status}</p>
+                                        </div>
+                                    </div>
+
+                                    <p className="mt-2 text-[8px] leading-4 opacity-90">
+                                        No duplicate asset was created. Verify the physical device / SCM serial and correct SCM if this is a different device. Do not remove the unique serial constraint.
+                                    </p>
+
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                router.push(
+                                                    `/dashboard/assets/devices/${serialConflict.assetId}`
+                                                )
+                                            }
+                                            className="inline-flex h-7 items-center rounded-md border border-amber-400 bg-white px-2.5 text-[8px] font-semibold hover:bg-amber-100 dark:bg-transparent dark:hover:bg-amber-950/50"
+                                        >
+                                            View Existing Asset #{serialConflict.assetId}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            disabled={loading || saving}
+                                            onClick={() => {
+                                                setSerialConflict(null);
+                                                void loadMR(mrNumber, true);
+                                            }}
+                                            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-amber-400 px-2.5 text-[8px] font-semibold hover:bg-amber-100 disabled:opacity-50 dark:hover:bg-amber-950/50"
+                                        >
+                                            <RefreshCcw className="h-3 w-3" />
+                                            Reload MR after SCM correction
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    <DialogFooter>
-                        <button
-                            type="button"
-                            disabled={operationBusy}
-                            onClick={closeOperation}
-                            className="h-9 rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted disabled:opacity-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            disabled={operationBusy}
-                            onClick={() => void submitOperation()}
-                            className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-50 ${operation === "delete" ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:opacity-90"}`}
-                        >
-                            {operationBusy && <RefreshCw className="h-4 w-4 animate-spin" />}
-                            {operation === "delete" ? "Delete Device" : "Submit"}
-                        </button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    {error && (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[9px] text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400">
+                            <span>{error}</span>
+
+                            {mrNumber.trim().length >=
+                                10 && (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void loadMR(
+                                                mrNumber,
+                                                true
+                                            )
+                                        }
+                                        disabled={loading}
+                                        className="inline-flex items-center gap-1 rounded-md border border-red-300 px-2 py-1 text-[8px] font-semibold hover:bg-red-100 disabled:opacity-50 dark:border-red-900"
+                                    >
+                                        <RefreshCcw className="h-3 w-3" />
+                                        Retry
+                                    </button>
+                                )}
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[9px] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {success}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {preview && (
+                <>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                            <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                MR Number
+                            </p>
+                            <p className="mt-1 break-all text-[10px] font-semibold text-foreground">
+                                {preview.mr_id}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                            <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                SCM Items
+                            </p>
+                            <p className="mt-1 text-lg font-bold text-primary">
+                                {preview.items.length}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                            <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Ready to Import
+                            </p>
+                            <p
+                                className={`mt-1 text-lg font-bold ${completeRows ===
+                                    rows.length
+                                    ? "text-emerald-600"
+                                    : "text-amber-600"
+                                    }`}
+                            >
+                                {completeRows}/{rows.length}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-card shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+                            <div>
+                                <h2 className="text-[11px] font-semibold text-foreground">
+                                    SCM Receipt & ITM Classification
+                                </h2>
+                                <p className="mt-0.5 text-[8px] text-muted-foreground">
+                                    SCM procurement fields are read-only. Category → Brand → Model comes from the ITM inventory master.
+                                </p>
+                                {rows.length > 1 && syncFirstRow && (
+                                    <p className="mt-1 text-[8px] font-medium text-primary">
+                                        Row #1 is the active template: classification and remarks are synchronized to all rows automatically.
+                                    </p>
+                                )}
+                            </div>
+
+                            {rows.length > 1 && (
+                                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.03] px-3 py-2 text-[8px] font-medium text-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={syncFirstRow}
+                                        onChange={(event) =>
+                                            setSyncFirstRow(
+                                                event.target.checked
+                                            )
+                                        }
+                                        className="h-3.5 w-3.5 accent-primary"
+                                    />
+                                    <Copy className="h-3 w-3 text-primary" />
+                                    <span>
+                                        Auto-apply Row #1 classification to all rows
+                                    </span>
+                                </label>
+                            )}
+                        </div>
+
+                        <div className="space-y-3 p-4">
+                            {rows.map((row, index) => {
+                                const source =
+                                    preview.items[index];
+
+                                const brandOptions =
+                                    brandsFor(
+                                        row.category_id
+                                    );
+
+                                const modelOptions =
+                                    modelsFor(
+                                        row.brand_id
+                                    );
+
+                                const rowReady =
+                                    isRowComplete(row);
+
+                                return (
+                                    <div
+                                        key={source.source_index}
+                                        className="relative overflow-visible rounded-xl border border-border"
+                                    >
+                                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
+                                                    {index + 1}
+                                                </span>
+                                                <div>
+                                                    <p className="text-[10px] font-semibold text-foreground">
+                                                        {source.item_name ||
+                                                            "SCM Item"}
+                                                    </p>
+                                                    <p className="text-[8px] text-muted-foreground">
+                                                        {source.item_group ||
+                                                            "Unclassified group"}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className={`rounded-md border px-2 py-1 text-[7px] font-semibold ${rowReady
+                                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400"
+                                                        : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-400"
+                                                        }`}
+                                                >
+                                                    {rowReady
+                                                        ? "Ready"
+                                                        : "Classification required"}
+                                                </span>
+
+                                                <span className="rounded-md border border-border bg-background px-2 py-1 font-mono text-[8px] text-muted-foreground">
+                                                    {source.serial_number ||
+                                                        "Internal asset tag will be generated"}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-4 p-4 xl:grid-cols-2">
+                                            <div className="rounded-lg border border-border bg-muted/15 p-3">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <Database className="h-3.5 w-3.5 text-amber-600" />
+                                                    <p className="text-[9px] font-semibold text-foreground">
+                                                        SCM Inventory
+                                                    </p>
+                                                </div>
+
+                                                <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                                                    {[
+                                                        [
+                                                            "MR Number",
+                                                            preview.mr_id,
+                                                        ],
+                                                        [
+                                                            "PR Number",
+                                                            source.pr_id,
+                                                        ],
+                                                        [
+                                                            "Vendor Name",
+                                                            source.vendor_name,
+                                                        ],
+                                                        [
+                                                            "Received / GR",
+                                                            source.gr_id,
+                                                        ],
+                                                        [
+                                                            "Serial No.",
+                                                            source.serial_number,
+                                                        ],
+                                                        [
+                                                            "Purchase Date",
+                                                            source.purchase_date,
+                                                        ],
+                                                        [
+                                                            "Item Group",
+                                                            source.item_group,
+                                                        ],
+                                                        [
+                                                            "Item Name",
+                                                            source.item_name,
+                                                        ],
+                                                        [
+                                                            "SCM Warranty",
+                                                            source.warranty_text ||
+                                                            (source.warranty_months
+                                                                ? `${source.warranty_months} month(s)`
+                                                                : ""),
+                                                        ],
+                                                    ].map(
+                                                        ([
+                                                            label,
+                                                            value,
+                                                        ]) => (
+                                                            <div
+                                                                key={label}
+                                                            >
+                                                                <p className="text-[7px] font-semibold uppercase text-muted-foreground">
+                                                                    {label}
+                                                                </p>
+                                                                <p className="mt-1 break-words text-[9px] font-medium text-foreground">
+                                                                    {value ||
+                                                                        "—"}
+                                                                </p>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="rounded-lg border border-primary/20 bg-primary/[0.02] p-3">
+                                                <div className="mb-3 flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <PackageCheck className="h-3.5 w-3.5 text-primary" />
+                                                        <p className="text-[9px] font-semibold text-foreground">
+                                                            ITM Classification
+                                                        </p>
+                                                    </div>
+
+                                                    {masterLoading && (
+                                                        <span className="flex items-center gap-1 text-[7px] text-muted-foreground">
+                                                            <LoaderCircle className="h-3 w-3 animate-spin" />
+                                                            Loading master data
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            Category <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <SearchableClearableSelect
+                                                            value={
+                                                                row.category_id
+                                                                    ? String(
+                                                                        row.category_id
+                                                                    )
+                                                                    : ""
+                                                            }
+                                                            options={
+                                                                categorySelectOptions
+                                                            }
+                                                            disabled={
+                                                                masterLoading
+                                                            }
+                                                            required
+                                                            placeholder="Search category..."
+                                                            onChange={(value) =>
+                                                                selectCategory(
+                                                                    index,
+                                                                    Number(
+                                                                        value ||
+                                                                        0
+                                                                    )
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            Brand <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <SearchableClearableSelect
+                                                            value={
+                                                                row.brand_id
+                                                                    ? String(
+                                                                        row.brand_id
+                                                                    )
+                                                                    : ""
+                                                            }
+                                                            options={brandOptions.map(
+                                                                (item) => ({
+                                                                    value: String(
+                                                                        item.id
+                                                                    ),
+                                                                    label: String(
+                                                                        item.category_name ??
+                                                                        ""
+                                                                    ),
+                                                                })
+                                                            )}
+                                                            disabled={
+                                                                !row.category_id ||
+                                                                brandOptions.length ===
+                                                                0
+                                                            }
+                                                            required
+                                                            placeholder={
+                                                                row.category_id &&
+                                                                    brandOptions.length ===
+                                                                    0
+                                                                    ? "No active brand under category"
+                                                                    : "Search brand..."
+                                                            }
+                                                            onChange={(value) =>
+                                                                selectBrand(
+                                                                    index,
+                                                                    Number(
+                                                                        value ||
+                                                                        0
+                                                                    )
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            Model <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <SearchableClearableSelect
+                                                            value={
+                                                                row.model_id
+                                                                    ? String(
+                                                                        row.model_id
+                                                                    )
+                                                                    : ""
+                                                            }
+                                                            options={modelOptions.map(
+                                                                (item) => ({
+                                                                    value: String(
+                                                                        item.id
+                                                                    ),
+                                                                    label: String(
+                                                                        item.category_name ??
+                                                                        ""
+                                                                    ),
+                                                                })
+                                                            )}
+                                                            disabled={
+                                                                !row.brand_id ||
+                                                                modelOptions.length ===
+                                                                0
+                                                            }
+                                                            required
+                                                            placeholder={
+                                                                row.brand_id &&
+                                                                    modelOptions.length ===
+                                                                    0
+                                                                    ? "No active model under brand"
+                                                                    : "Search model..."
+                                                            }
+                                                            onChange={(value) =>
+                                                                selectModel(
+                                                                    index,
+                                                                    Number(
+                                                                        value ||
+                                                                        0
+                                                                    )
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            CPU / Processor
+                                                        </span>
+                                                        <SearchableClearableSelect
+                                                            value={row.cpu ?? ""}
+                                                            options={
+                                                                cpuSelectOptions
+                                                            }
+                                                            placeholder="Search CPU / processor..."
+                                                            emptyText="No CPU options found"
+                                                            onChange={(value) =>
+                                                                updateClassification(
+                                                                    index,
+                                                                    {
+                                                                        cpu: value,
+                                                                    }
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            RAM
+                                                        </span>
+                                                        <SearchableClearableSelect
+                                                            value={row.ram ?? ""}
+                                                            options={
+                                                                ramSelectOptions
+                                                            }
+                                                            placeholder="Search RAM..."
+                                                            emptyText="No RAM options found"
+                                                            onChange={(value) =>
+                                                                updateClassification(
+                                                                    index,
+                                                                    {
+                                                                        ram: value,
+                                                                    }
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            SSD / HDD
+                                                        </span>
+                                                        <SearchableClearableSelect
+                                                            value={row.ssd ?? ""}
+                                                            options={
+                                                                ssdSelectOptions
+                                                            }
+                                                            placeholder="Search SSD / HDD..."
+                                                            emptyText="No SSD / HDD options found"
+                                                            onChange={(value) =>
+                                                                updateClassification(
+                                                                    index,
+                                                                    {
+                                                                        ssd: value,
+                                                                    }
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            Monitor
+                                                        </span>
+                                                        <SearchableClearableSelect
+                                                            value={row.monitor ?? ""}
+                                                            options={
+                                                                monitorSelectOptions
+                                                            }
+                                                            placeholder="Search monitor..."
+                                                            emptyText="No monitor options found"
+                                                            onChange={(value) =>
+                                                                updateClassification(
+                                                                    index,
+                                                                    {
+                                                                        monitor: value,
+                                                                    }
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            Warranty Duration <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <SearchableClearableSelect
+                                                            value={
+                                                                Number(
+                                                                    row.warranty_months ??
+                                                                    0
+                                                                ) > 0
+                                                                    ? String(
+                                                                        row.warranty_months
+                                                                    )
+                                                                    : ""
+                                                            }
+                                                            options={
+                                                                warrantySelectOptions
+                                                            }
+                                                            required
+                                                            placeholder="Search warranty..."
+                                                            onChange={(value) =>
+                                                                updateClassification(
+                                                                    index,
+                                                                    {
+                                                                        warranty_months:
+                                                                            Number(
+                                                                                value ||
+                                                                                0
+                                                                            ),
+                                                                    }
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <span className={labelClass}>
+                                                            Warranty End Date
+                                                        </span>
+                                                        <input
+                                                            type="text"
+                                                            readOnly
+                                                            value={
+                                                                warrantyEndDate(
+                                                                    source.purchase_date,
+                                                                    Number(
+                                                                        row.warranty_months ??
+                                                                        0
+                                                                    )
+                                                                )
+                                                            }
+                                                            placeholder="Select warranty duration"
+                                                            className={`${fieldClass} font-mono text-[9px] text-emerald-700 dark:text-emerald-400`}
+                                                        />
+                                                    </div>
+
+                                                    <label>
+                                                        <span className={labelClass}>
+                                                            Asset Type
+                                                        </span>
+                                                        <select
+                                                            value={
+                                                                row.device_type
+                                                            }
+                                                            onChange={(event) =>
+                                                                updateClassification(
+                                                                    index,
+                                                                    {
+                                                                        device_type:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className={fieldClass}
+                                                        >
+                                                            <option value="IT Device">
+                                                                IT Device
+                                                            </option>
+                                                            <option value="IT Accessory">
+                                                                IT Accessory
+                                                            </option>
+                                                        </select>
+                                                    </label>
+
+                                                    <label className="sm:col-span-1 lg:col-span-2">
+                                                        <span className={labelClass}>
+                                                            Remarks
+                                                        </span>
+                                                        <input
+                                                            type="text"
+                                                            value={
+                                                                row.remarks
+                                                            }
+                                                            maxLength={500}
+                                                            onChange={(event) =>
+                                                                updateClassification(
+                                                                    index,
+                                                                    {
+                                                                        remarks:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    }
+                                                                )
+                                                            }
+                                                            placeholder="Optional stock / warranty note"
+                                                            className={fieldClass}
+                                                        />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+                            <p className="text-[8px] text-muted-foreground">
+                                Duplicate MR + serial items are synchronized instead of inserted twice. SCM procurement data is revalidated by the backend during import.
+                            </p>
+
+                            <Button
+                                type="button"
+                                size="sm"
+                                className="h-8 gap-1.5 text-[9px]"
+                                disabled={
+                                    saving ||
+                                    rows.length === 0 ||
+                                    completeRows !==
+                                    rows.length
+                                }
+                                onClick={() =>
+                                    void importStock()
+                                }
+                            >
+                                {saving ? (
+                                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <PackageCheck className="h-3.5 w-3.5" />
+                                )}
+                                Import {rows.length} Stock Item
+                                {rows.length === 1
+                                    ? ""
+                                    : "s"}
+                            </Button>
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 }
