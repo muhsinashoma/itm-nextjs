@@ -1,5 +1,4 @@
-
-//itm/frontend/app/dashboard/stock/stock-entry/page.tsx
+// frontend/app/dashboard/assets/devices/page.tsx
 
 "use client";
 
@@ -16,7 +15,6 @@ import {
 import {
     ArrowRightLeft,
     CheckCircle2,
-    ChevronDown,
     ChevronLeft,
     ChevronRight,
     ClipboardCheck,
@@ -24,6 +22,7 @@ import {
     Eye,
     FileWarning,
     Filter,
+    MoreHorizontal,
     Pencil,
     RefreshCw,
     RotateCcw,
@@ -419,8 +418,6 @@ export default function AssetDevicesPage() {
     const updatedCount = Number(searchParams.get("updated") ?? 0);
     const stockCommittedCount = Number(searchParams.get("stock_committed") ?? 0);
     const assetsCreatedCount = Number(searchParams.get("assets_created") ?? importedCount);
-    const assetsSynchronizedCount = Number(searchParams.get("assets_synchronized") ?? 0);
-    const normalizedAvailableCount = Number(searchParams.get("normalized_available") ?? 0);
     const conflictedCount = Number(searchParams.get("conflicted") ?? 0);
     const conflictAssetID = Number(searchParams.get("conflict_asset_id") ?? 0);
     const conflictSerial = searchParams.get("conflict_serial") ?? "";
@@ -739,10 +736,7 @@ export default function AssetDevicesPage() {
         }
     }
 
-    const hasExtraColumns = Array.from(visibleColumns).some(
-        (key) => !DEFAULT_COLUMNS.includes(key),
-    );
-    const visibleCount = visibleColumns.size + 4;
+    const visibleCount = visibleColumns.size + 2;
     const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
     const endItem = Math.min(page * PAGE_SIZE, total);
 
@@ -848,7 +842,7 @@ export default function AssetDevicesPage() {
                                         {conflictSerial ? ` First conflict: ${conflictSerial}.` : ""}
                                     </>
                                 ) : (
-                                    <>MR: {importMR || "—"} · {stockCommittedCount || importedCount + updatedCount} stock row(s) committed · {assetsCreatedCount} new asset(s) · {assetsSynchronizedCount} existing asset(s) synchronized{normalizedAvailableCount > 0 ? ` · ${normalizedAvailableCount} normalized to Available` : ""}. Imported rows are filtered below.</>
+                                    <>MR: {importMR || "—"} · {importedCount} new · {updatedCount} synchronized. Imported rows are filtered below.</>
                                 )}
                             </p>
                             {conflictedCount > 0 && conflictAssetID > 0 && (
@@ -948,53 +942,21 @@ export default function AssetDevicesPage() {
             </div>
 
             <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                <div className={hasExtraColumns ? "overflow-x-auto" : "overflow-hidden"}>
-                    <table
-                        className={
-                            hasExtraColumns
-                                ? "w-full min-w-[1520px] text-[11px]"
-                                : "w-full table-fixed text-[11px]"
-                        }
-                    >
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[980px] text-sm">
                         <thead className="border-b border-border bg-muted/40">
-                            <tr className="text-left text-[9px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
-                                <th className={hasExtraColumns ? "w-[48px] min-w-[48px] px-2 py-2 text-center" : "w-[4%] px-2 py-2 text-center"}>
-                                    SL
-                                </th>
-                                {visibleColumns.has("serial") && (
-                                    <th className={hasExtraColumns ? "min-w-[180px] px-3 py-2" : "w-[15%] px-3 py-2"}>
-                                        Serial / Asset
-                                    </th>
-                                )}
-                                {visibleColumns.has("device") && (
-                                    <th className={hasExtraColumns ? "min-w-[180px] px-3 py-2" : "w-[13%] px-3 py-2"}>
-                                        Device
-                                    </th>
-                                )}
-                                <th className={hasExtraColumns ? "min-w-[105px] px-2.5 py-2 text-center" : "w-[8%] px-2.5 py-2 text-center"}>
-                                    Entry Type
-                                </th>
-                                {visibleColumns.has("employee") && (
-                                    <th className={hasExtraColumns ? "min-w-[235px] px-3 py-2" : "w-[19%] px-3 py-2"}>
-                                        Employee Information
-                                    </th>
-                                )}
-                                {visibleColumns.has("mrpr") && (
-                                    <th className={hasExtraColumns ? "min-w-[320px] px-3 py-2" : "w-[22%] px-3 py-2"}>
-                                        MR / PR Number
-                                    </th>
-                                )}
-                                {visibleColumns.has("vendor") && <th className="min-w-[150px] px-3 py-2">Vendor</th>}
-                                {visibleColumns.has("assigned") && <th className="min-w-[120px] px-3 py-2">Assigned</th>}
-                                {visibleColumns.has("purchase") && <th className="min-w-[120px] px-3 py-2">Purchase</th>}
-                                {visibleColumns.has("warranty") && <th className="min-w-[130px] px-3 py-2">Warranty End</th>}
-                                {visibleColumns.has("assetType") && <th className="min-w-[115px] px-3 py-2">Asset Type</th>}
-                                <th className={hasExtraColumns ? "min-w-[105px] px-2.5 py-2 text-center" : "w-[9%] px-2.5 py-2 text-center"}>
-                                    Status
-                                </th>
-                                <th className={hasExtraColumns ? "w-[96px] min-w-[96px] px-2 py-2 text-center" : "w-[10%] px-2 py-2 text-center"}>
-                                    Action
-                                </th>
+                            <tr className="text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                                {visibleColumns.has("serial") && <th className="min-w-[170px] px-4 py-3">Serial / Asset</th>}
+                                {visibleColumns.has("device") && <th className="min-w-[240px] px-4 py-3">Device</th>}
+                                {visibleColumns.has("employee") && <th className="min-w-[250px] px-4 py-3">Employee</th>}
+                                {visibleColumns.has("mrpr") && <th className="min-w-[210px] px-4 py-3">MR / PR</th>}
+                                {visibleColumns.has("vendor") && <th className="min-w-[160px] px-4 py-3">Vendor</th>}
+                                {visibleColumns.has("assigned") && <th className="min-w-[125px] px-4 py-3">Assigned</th>}
+                                {visibleColumns.has("purchase") && <th className="min-w-[125px] px-4 py-3">Purchase</th>}
+                                {visibleColumns.has("warranty") && <th className="min-w-[135px] px-4 py-3">Warranty End</th>}
+                                {visibleColumns.has("assetType") && <th className="min-w-[120px] px-4 py-3">Asset Type</th>}
+                                <th className="sticky right-[76px] z-30 min-w-[125px] border-l border-border bg-muted px-3 py-3">Status</th>
+                                <th className="sticky right-0 z-40 w-[76px] min-w-[76px] bg-muted px-3 py-3 text-right">Action</th>
                             </tr>
                         </thead>
 
@@ -1026,159 +988,99 @@ export default function AssetDevicesPage() {
                                 </tr>
                             )}
 
-                            {!loading && !error && items.map((item, index) => (
+                            {!loading && !error && items.map((item) => (
                                 <tr
                                     key={item.id}
                                     onDoubleClick={() => openDevice(item)}
-                                    className="group border-b border-border/70 transition-colors last:border-b-0 hover:bg-primary/[0.035]"
+                                    className="group border-b border-border/70 transition-colors hover:bg-primary/[0.035]"
                                 >
-                                    <td className="px-2 py-2 text-center align-middle">
-                                        <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-muted/40 px-1.5 text-[9px] font-bold tabular-nums text-foreground shadow-sm">
-                                            {startItem + index}
-                                        </span>
-                                    </td>
-
                                     {visibleColumns.has("serial") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            <div
-                                                className="inline-flex max-w-full rounded-md border border-primary/15 bg-primary/[0.035] px-2 py-1 font-mono text-[10px] font-bold leading-4 tracking-[0.02em] text-foreground"
-                                                title={item.device_serial || undefined}
-                                            >
-                                                <span className="break-all">{item.device_serial || "—"}</span>
+                                        <td className="px-4 py-3">
+                                            <div className="font-semibold tracking-wide text-foreground">
+                                                {item.device_serial || "—"}
                                             </div>
-                                            <div className="mt-1 text-[9px] font-medium text-muted-foreground">
-                                                Asset ID <span className="font-semibold text-foreground">#{item.id}</span>
+                                            <div className="mt-1 text-[11px] text-muted-foreground">
+                                                Asset ID #{item.id}
                                             </div>
                                         </td>
                                     )}
 
                                     {visibleColumns.has("device") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            <div
-                                                className="text-[10px] font-semibold leading-4 text-foreground"
-                                                title={item.category || "Uncategorized"}
-                                            >
+                                        <td className="px-4 py-3">
+                                            <div className="font-semibold text-foreground">
                                                 {item.category || "Uncategorized"}
                                             </div>
-                                            <div
-                                                className="mt-0.5 text-[9px] leading-4 text-muted-foreground"
-                                                title={[item.brand, item.model].filter(Boolean).join(" · ") || undefined}
-                                            >
+                                            <div className="mt-1 max-w-[260px] text-xs text-muted-foreground">
                                                 {[item.brand, item.model].filter(Boolean).join(" · ") || "—"}
                                             </div>
                                         </td>
                                     )}
 
-                                    <td className="px-2.5 py-2 text-center align-middle">
-                                        {item.mr_number?.trim() ? (
-                                            <span
-                                                className="inline-flex items-center justify-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[8px] font-bold uppercase tracking-wide text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-300"
-                                                title="Material Requisition entry"
-                                            >
-                                                MR
-                                            </span>
-                                        ) : (
-                                            <span
-                                                className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[8px] font-bold tracking-wide text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300"
-                                                title="Petty Cash entry — no MR number"
-                                            >
-                                                Petty Cash
-                                            </span>
-                                        )}
-                                    </td>
-
                                     {visibleColumns.has("employee") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            {item.emp_id ? (
-                                                <div className="flex min-w-0 items-start gap-2">
-                                                    <EmployeeAvatar name={item.emp_name} image={item.employee_image} />
-                                                    <div className="min-w-0 flex-1 space-y-1">
-                                                        <div className="grid grid-cols-[32px_minmax(0,1fr)] items-start gap-1.5">
-                                                            <span className="pt-0.5 text-[7px] font-bold uppercase tracking-wide text-muted-foreground">ID</span>
-                                                            <span className="break-words text-[10px] font-bold leading-4 text-foreground">{item.emp_id}</span>
-                                                        </div>
-                                                        <div className="grid grid-cols-[32px_minmax(0,1fr)] items-start gap-1.5">
-                                                            <span className="pt-0.5 text-[7px] font-bold uppercase tracking-wide text-muted-foreground">Name</span>
-                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">{item.emp_name || "Employee"}</span>
-                                                        </div>
-                                                        {(item.department || item.designation) && (
-                                                            <div
-                                                                className="border-t border-border/60 pt-1 text-[8px] leading-3.5 text-muted-foreground"
-                                                                title={[item.department, item.designation].filter(Boolean).join(" · ") || undefined}
-                                                            >
-                                                                {[item.department, item.designation].filter(Boolean).join(" · ")}
-                                                            </div>
-                                                        )}
+                                        <td className="px-4 py-3">
+                                            <div className="flex min-w-[210px] items-center gap-2.5">
+                                                <EmployeeAvatar name={item.emp_name} image={item.employee_image} />
+                                                <div className="min-w-0">
+                                                    <div className="truncate font-semibold text-foreground">
+                                                        {item.emp_id
+                                                            ? `${item.emp_id} · ${item.emp_name || "Employee"}`
+                                                            : "Unassigned"}
                                                     </div>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-1">
-                                                    <span className="inline-flex rounded-md border border-border bg-muted/40 px-2 py-1 text-[9px] font-semibold text-muted-foreground">
-                                                        Unassigned
-                                                    </span>
-                                                    <div className="text-[8px] text-muted-foreground">No employee assigned</div>
-                                                </div>
-                                            )}
-                                        </td>
-                                    )}
-
-                                    {visibleColumns.has("mrpr") && (
-                                        <td className="px-3 py-2 align-middle">
-                                            <div className="space-y-1.5">
-                                                <div className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-1.5">
-                                                    <span className="rounded border border-border bg-muted/40 px-1 py-0.5 text-center text-[7px] font-bold uppercase text-muted-foreground">MR</span>
-                                                    <span
-                                                        className="break-all font-mono text-[9px] font-semibold leading-4 text-foreground"
-                                                        title={item.mr_number || undefined}
-                                                    >
-                                                        {item.mr_number || "—"}
-                                                    </span>
-                                                </div>
-                                                <div className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-1.5">
-                                                    <span className="rounded border border-border bg-muted/40 px-1 py-0.5 text-center text-[7px] font-bold uppercase text-muted-foreground">PR</span>
-                                                    <span
-                                                        className="break-all font-mono text-[9px] font-medium leading-4 text-muted-foreground"
-                                                        title={item.pr_number || undefined}
-                                                    >
-                                                        {item.pr_number || "—"}
-                                                    </span>
+                                                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                        {item.emp_id
+                                                            ? [item.department, item.designation]
+                                                                .filter(Boolean)
+                                                                .join(" · ") || "—"
+                                                            : "No employee assigned"}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
                                     )}
 
+                                    {visibleColumns.has("mrpr") && (
+                                        <td className="px-4 py-3">
+                                            <div className="max-w-[210px] break-all text-xs font-medium">
+                                                {item.mr_number || "—"}
+                                            </div>
+                                            <div className="mt-1 max-w-[210px] break-all text-[11px] text-muted-foreground">
+                                                {item.pr_number || "—"}
+                                            </div>
+                                        </td>
+                                    )}
+
                                     {visibleColumns.has("vendor") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
+                                        <td className="px-4 py-3 text-xs font-medium">
                                             {item.vendor_name || "—"}
                                         </td>
                                     )}
 
                                     {visibleColumns.has("assigned") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
+                                        <td className="px-4 py-3 text-xs font-medium">
                                             {formatDate(item.assigned_date)}
                                         </td>
                                     )}
 
                                     {visibleColumns.has("purchase") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
+                                        <td className="px-4 py-3 text-xs font-medium">
                                             {formatDate(item.purchase_date)}
                                         </td>
                                     )}
 
                                     {visibleColumns.has("warranty") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
+                                        <td className="px-4 py-3 text-xs font-medium">
                                             {formatDate(item.warranty_date)}
                                         </td>
                                     )}
 
                                     {visibleColumns.has("assetType") && (
-                                        <td className="px-3 py-2 align-middle text-[9px] font-medium">
+                                        <td className="px-4 py-3 text-xs font-medium">
                                             {item.device_type || "—"}
                                         </td>
                                     )}
 
-                                    <td className="px-2.5 py-2 text-center align-middle">
-                                        <span className={`inline-flex max-w-full items-center justify-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-bold ${statusClass(item.asset_status)}`}>
+                                    <td className="sticky right-[76px] z-20 border-l border-border bg-card px-3 py-3 group-hover:bg-muted/30">
+                                        <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-bold ${statusClass(item.asset_status)}`}>
                                             {item.status_label ||
                                                 STATUS_OPTIONS.find(
                                                     (statusItem) =>
@@ -1188,17 +1090,15 @@ export default function AssetDevicesPage() {
                                         </span>
                                     </td>
 
-                                    <td className="px-2 py-2 text-center align-middle">
+                                    <td className="sticky right-0 z-30 bg-card px-3 py-3 text-right group-hover:bg-muted/30">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button
                                                     type="button"
-                                                    className="inline-flex h-7 items-center justify-center gap-1 rounded-md border border-border bg-background px-2 text-[9px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
                                                     aria-label={`Actions for ${item.device_serial || "asset device"}`}
-                                                    aria-haspopup="menu"
                                                 >
-                                                    Action
-                                                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                                    <MoreHorizontal className="h-4 w-4" />
                                                 </button>
                                             </DropdownMenuTrigger>
 

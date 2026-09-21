@@ -116,10 +116,15 @@ type AssetDevice struct {
 	ID               int64   `json:"id"`
 	StockInventoryID *int64  `json:"stock_inventory_id"`
 	DeviceSerial     *string `json:"device_serial"`
-	Category         *string `json:"category"`
-	Brand            *string `json:"brand"`
-	Model            *string `json:"model"`
-	DeviceType       *string `json:"device_type"`
+
+	CategoryID *int64  `json:"category_id"`
+	Category   *string `json:"category"`
+	BrandID    *int64  `json:"brand_id"`
+	Brand      *string `json:"brand"`
+	ModelID    *int64  `json:"model_id"`
+	Model      *string `json:"model"`
+
+	DeviceType *string `json:"device_type"`
 
 	AssetStatus int16  `json:"asset_status"`
 	StatusLabel string `json:"status_label"`
@@ -2423,7 +2428,7 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 		whereParts = append(
 			whereParts,
 			fmt.Sprintf(
-				"AND LOWER(COALESCE(ad.category, '')) = LOWER($%d)",
+				"AND LOWER(COALESCE(cat.inventory_category_list, NULLIF(BTRIM(ad.category), ''), '')) = LOWER($%d)",
 				placeholder,
 			),
 		)
@@ -2475,10 +2480,10 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 					ad.device_serial ILIKE $%d
 					OR ad.emp_id ILIKE $%d
 					OR ad.emp_name ILIKE $%d
-					OR ad.category ILIKE $%d
-					OR ad.brand ILIKE $%d
-					OR ad.model ILIKE $%d
-					OR v.vendor_name ILIKE $%d
+					OR COALESCE(cat.inventory_category_list, ad.category, '') ILIKE $%d
+					OR COALESCE(br.inventory_category_list, ad.brand, '') ILIKE $%d
+					OR COALESCE(mdl.inventory_category_list, ad.model, '') ILIKE $%d
+					OR COALESCE(v.vendor_name, ad.vendor_name, '') ILIKE $%d
 					OR COALESCE(ad.mr_number, '') ILIKE $%d
 					OR COALESCE(ad.pr_number, '') ILIKE $%d
 					OR ad.id::text ILIKE $%d
@@ -2505,6 +2510,12 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 	countSQL := fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM public.asset_devices ad
+		LEFT JOIN public.inventory_categories cat
+			ON cat.id = ad.category_id
+		LEFT JOIN public.inventory_categories br
+			ON br.id = ad.brand_id
+		LEFT JOIN public.inventory_categories mdl
+			ON mdl.id = ad.model_id
 		LEFT JOIN public.vendors v
 			ON v.id = ad.vendor_id
 		%s
@@ -2528,9 +2539,14 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 			ad.id,
 			ad.legacy_stack_id,
 			ad.device_serial,
-			ad.category,
-			ad.brand,
-			ad.model,
+
+			ad.category_id,
+			COALESCE(cat.inventory_category_list, NULLIF(BTRIM(ad.category), '')) AS category,
+			ad.brand_id,
+			COALESCE(br.inventory_category_list, NULLIF(BTRIM(ad.brand), '')) AS brand,
+			ad.model_id,
+			COALESCE(mdl.inventory_category_list, NULLIF(BTRIM(ad.model), '')) AS model,
+
 			ad.device_type,
 
 			ad.asset_status,
@@ -2570,6 +2586,15 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 
 		FROM public.asset_devices ad
 
+		LEFT JOIN public.inventory_categories cat
+			ON cat.id = ad.category_id
+
+		LEFT JOIN public.inventory_categories br
+			ON br.id = ad.brand_id
+
+		LEFT JOIN public.inventory_categories mdl
+			ON mdl.id = ad.model_id
+
 		LEFT JOIN public.vendors v
 			ON v.id = ad.vendor_id
 
@@ -2603,9 +2628,14 @@ func (h *AssetDeviceHandler) List(c *gin.Context) {
 			&asset.ID,
 			&asset.StockInventoryID,
 			&asset.DeviceSerial,
+
+			&asset.CategoryID,
 			&asset.Category,
+			&asset.BrandID,
 			&asset.Brand,
+			&asset.ModelID,
 			&asset.Model,
+
 			&asset.DeviceType,
 
 			&asset.AssetStatus,
@@ -2662,9 +2692,14 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 			ad.id,
 			ad.legacy_stack_id,
 			ad.device_serial,
-			ad.category,
-			ad.brand,
-			ad.model,
+
+			ad.category_id,
+			COALESCE(cat.inventory_category_list, NULLIF(BTRIM(ad.category), '')) AS category,
+			ad.brand_id,
+			COALESCE(br.inventory_category_list, NULLIF(BTRIM(ad.brand), '')) AS brand,
+			ad.model_id,
+			COALESCE(mdl.inventory_category_list, NULLIF(BTRIM(ad.model), '')) AS model,
+
 			ad.device_type,
 
 			ad.asset_status,
@@ -2704,6 +2739,15 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 
 		FROM public.asset_devices ad
 
+		LEFT JOIN public.inventory_categories cat
+			ON cat.id = ad.category_id
+
+		LEFT JOIN public.inventory_categories br
+			ON br.id = ad.brand_id
+
+		LEFT JOIN public.inventory_categories mdl
+			ON mdl.id = ad.model_id
+
 		LEFT JOIN public.vendors v
 			ON v.id = ad.vendor_id
 
@@ -2724,9 +2768,14 @@ func (h *AssetDeviceHandler) GetByID(c *gin.Context) {
 		&asset.ID,
 		&asset.StockInventoryID,
 		&asset.DeviceSerial,
+
+		&asset.CategoryID,
 		&asset.Category,
+		&asset.BrandID,
 		&asset.Brand,
+		&asset.ModelID,
 		&asset.Model,
+
 		&asset.DeviceType,
 
 		&asset.AssetStatus,

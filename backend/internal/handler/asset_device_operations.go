@@ -117,6 +117,25 @@ func (h *AssetDeviceHandler) UpdateDevice(c *gin.Context) {
 		`
 		UPDATE public.asset_devices
 		SET
+			-- Text fields are compatibility snapshots. Clear the corresponding
+			-- canonical ID when a new label is submitted so the normalization
+			-- trigger resolves/validates the new master-data relationship.
+			category_id = CASE
+				WHEN NULLIF(BTRIM($1), '') IS NOT NULL THEN NULL
+				ELSE category_id
+			END,
+			brand_id = CASE
+				WHEN NULLIF(BTRIM($2), '') IS NOT NULL THEN NULL
+				ELSE brand_id
+			END,
+			model_id = CASE
+				WHEN NULLIF(BTRIM($3), '') IS NOT NULL THEN NULL
+				ELSE model_id
+			END,
+			vendor_id = CASE
+				WHEN NULLIF(BTRIM($5), '') IS NOT NULL THEN NULL
+				ELSE vendor_id
+			END,
 			category = COALESCE(NULLIF(BTRIM($1), ''), category),
 			brand = COALESCE(NULLIF(BTRIM($2), ''), brand),
 			model = COALESCE(NULLIF(BTRIM($3), ''), model),

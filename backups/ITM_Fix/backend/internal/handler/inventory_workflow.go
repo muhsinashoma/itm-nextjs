@@ -519,7 +519,6 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 	currentEmployee := c.GetString("employee_id")
 	imported, updated := 0, 0
 	assetCreated, assetSynchronized := 0, 0
-	assetNormalizedAvailable := 0
 	conflicts := make([]gin.H, 0)
 	ids := make([]int64, 0, len(req.Items))
 
@@ -714,25 +713,15 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 		var serialAssetMR string
 		var serialAssetStatus int
 		var serialAssetRowStatus int
-		var serialAssetHasAssignedDate bool
-		var serialAssetDamageID int64
-		var serialAssetHasHistory bool
 		serialErr := tx.QueryRow(c.Request.Context(), `
             SELECT
-                a.id,
-                COALESCE(a.legacy_stack_id,0)::bigint,
-                COALESCE(a.mr_number,''),
-                COALESCE(a.asset_status,0)::int,
-                COALESCE(a.row_status,1)::int,
-                (a.assigned_date IS NOT NULL),
-                COALESCE(a.damage_inventory_id,0)::bigint,
-                EXISTS (
-                    SELECT 1
-                    FROM public.asset_device_history h
-                    WHERE h.asset_device_id = a.id
-                )
-            FROM public.asset_devices a
-            WHERE a.device_serial_key = UPPER(
+                id,
+                COALESCE(legacy_stack_id,0)::bigint,
+                COALESCE(mr_number,''),
+                COALESCE(asset_status,0)::int,
+                COALESCE(row_status,1)::int
+            FROM public.asset_devices
+            WHERE device_serial_key = UPPER(
                 REGEXP_REPLACE(
                     BTRIM($1),
                     '[^A-Za-z0-9]+',
@@ -750,9 +739,6 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 			&serialAssetMR,
 			&serialAssetStatus,
 			&serialAssetRowStatus,
-			&serialAssetHasAssignedDate,
-			&serialAssetDamageID,
-			&serialAssetHasHistory,
 		)
 
 		if linkedErr != nil && !errors.Is(linkedErr, pgx.ErrNoRows) {
@@ -840,30 +826,6 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 			assetExists = true
 		}
 
-		/*
-			Legacy migrations can leave a same-MR stock asset carrying stale
-			employee/status fields even though it has never had a real lifecycle
-			event.  When SCM is re-importing the exact same MR + stock row, it is
-			safe to normalize ONLY that legacy shadow back to Available.
-
-			Never reset a genuinely assigned/damaged asset: an assignment date,
-			damage link, or asset history is treated as lifecycle evidence.
-		*/
-		normalizeExistingToAvailable := false
-		if assetExists && serialErr == nil && assetID == serialAssetID {
-			sameMR := strings.EqualFold(strings.TrimSpace(serialAssetMR), strings.TrimSpace(req.MRID))
-			sameStock := serialAssetStackID == stockID
-			// Legacy stock-shadow anomaly repair:
-			// asset_status=2 (Damaged) with no assigned date and no damage link
-			// is not a valid current lifecycle state for an SCM stock row.
-			// The history table may contain migration snapshots, so history alone
-			// must not block this very specific same-MR/same-stock repair.
-			normalizeExistingToAvailable = sameMR && sameStock &&
-				serialAssetRowStatus == 1 &&
-				serialAssetStatus == 2 &&
-				!serialAssetHasAssignedDate && serialAssetDamageID == 0
-		}
-
 		var assetErr error
 		if !assetExists {
 			assetErr = tx.QueryRow(c.Request.Context(), `
@@ -889,39 +851,6 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 				mapping.ModelID, classification.Model,
 				deviceType, req.MRID, source.PRID, source.VendorName, purchaseDate, warrantyDate,
 			).Scan(&assetID)
-		} else if normalizeExistingToAvailable {
-			_, assetErr = tx.Exec(c.Request.Context(), `
-                UPDATE public.asset_devices SET
-                    legacy_stack_id=$1,
-                    device_serial=$2,
-                    category_id=$3,
-                    category=$4,
-                    brand_id=$5,
-                    brand=$6,
-                    model_id=$7,
-                    model=$8,
-                    device_type=$9,
-                    mr_number=$10,
-                    pr_number=$11,
-                    vendor_name=$12,
-                    purchase_date=$13,
-                    warranty_date=$14,
-                    asset_status=0,
-                    row_status=1,
-                    emp_id=NULL,
-                    emp_name=NULL,
-                    department=NULL,
-                    designation=NULL,
-                    assigned_date=NULL,
-                    updated_at=NOW()
-                WHERE id=$15`,
-				stockID,
-				serial,
-				mapping.CategoryID, classification.Category,
-				mapping.BrandID, classification.Brand,
-				mapping.ModelID, classification.Model,
-				deviceType, req.MRID, source.PRID, source.VendorName, purchaseDate, warrantyDate, assetID,
-			)
 		} else {
 			_, assetErr = tx.Exec(c.Request.Context(), `
                 UPDATE public.asset_devices SET
@@ -964,19 +893,15 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
                 asset_resolution=$3,
                 asset_conflict_asset_id=NULL,
                 asset_resolution_note=NULL,
-                device_assigned_status = CASE WHEN $5 THEN 0 ELSE device_assigned_status END,
                 edited_by=$4,
                 edited_at=NOW()
-            WHERE id=$1`, stockID, assetID, resolution, currentEmployee, normalizeExistingToAvailable); err != nil {
+            WHERE id=$1`, stockID, assetID, resolution, currentEmployee); err != nil {
 			response.ServerError(c, err)
 			return
 		}
 
 		if assetExists {
 			assetSynchronized++
-			if normalizeExistingToAvailable {
-				assetNormalizedAvailable++
-			}
 		} else {
 			assetCreated++
 		}
@@ -988,17 +913,16 @@ func (h *InventoryWorkflowHandler) ImportSCMStock(c *gin.Context) {
 		return
 	}
 	response.Created(c, gin.H{
-		"mr_id":                      req.MRID,
-		"received":                   len(req.Items),
-		"imported":                   imported,
-		"updated":                    updated,
-		"stock_rows_committed":       len(ids),
-		"asset_created":              assetCreated,
-		"asset_synchronized":         assetSynchronized,
-		"asset_normalized_available": assetNormalizedAvailable,
-		"conflicted":                 len(conflicts),
-		"conflicts":                  conflicts,
-		"stock_ids":                  ids,
+		"mr_id":                req.MRID,
+		"received":             len(req.Items),
+		"imported":             imported,
+		"updated":              updated,
+		"stock_rows_committed": len(ids),
+		"asset_created":        assetCreated,
+		"asset_synchronized":   assetSynchronized,
+		"conflicted":           len(conflicts),
+		"conflicts":            conflicts,
+		"stock_ids":            ids,
 	})
 }
 
