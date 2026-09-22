@@ -2883,6 +2883,13 @@ func NewStockHandler(db *pgxpool.Pool) *StockHandler { return &StockHandler{db: 
 
 func (h *StockHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/stock")
+
+	// Petty Cash stock entry.
+	// Keep these static routes before /:id.
+	g.POST("/petty-cash/validate", h.ValidatePettyCash)
+	g.POST("/petty-cash/import", h.ImportPettyCash)
+
+	// Existing stock routes remain unchanged.
 	g.GET("", h.List)
 	g.GET("/:id", h.Get)
 	g.POST("", h.Create)
@@ -3003,6 +3010,18 @@ func NewVendorHandler(db *pgxpool.Pool) *VendorHandler { return &VendorHandler{d
 
 func (h *VendorHandler) Register(rg *gin.RouterGroup) {
 	g := rg.Group("/vendors")
+
+	// Vendor Master extension. These routes reuse the existing
+	// VendorHandler and warranty_vendors table.
+	g.GET("/master/types", h.MasterTypes)
+	g.GET("/master/ownerships", h.MasterOwnerships)
+	g.GET("/master/options", h.MasterOptions)
+	g.GET("/master", h.MasterList)
+	g.POST("/master", h.MasterCreate)
+	g.PUT("/master/:id", h.MasterUpdate)
+	g.PATCH("/master/:id/status", h.MasterUpdateStatus)
+
+	// Existing Service / Warranty vendor routes remain unchanged.
 	g.GET("", h.List)
 	g.POST("", h.Create)
 	g.PUT("/:id", h.Update)

@@ -9,6 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
     AlertTriangle,
     BadgeCheck,
+    Banknote,
     Boxes,
     ChevronDown,
     ChevronRight,
@@ -95,16 +96,23 @@ const menuGroups: MenuGroup[] = [
                 icon: Boxes,
                 accent: "blue",
                 children: [
-                    {
-                        title: "Asset Devices",
-                        href: "/dashboard/assets/devices",
-                        icon: MonitorSmartphone,
-                    },
+
                     {
                         title: "Stock Entry",
                         href: "/dashboard/stock/stock-entry",
                         icon: Plus,
                     },
+                    {
+                        title: "Petty Cash Entry",
+                        href: "/dashboard/stock/petty-cash-entry",
+                        icon: Banknote,
+                    },
+                    {
+                        title: "Asset Devices",
+                        href: "/dashboard/assets/devices",
+                        icon: MonitorSmartphone,
+                    },
+
                     {
                         title: "All Device Status",
                         href: "/dashboard/stock/all-status",
@@ -112,18 +120,18 @@ const menuGroups: MenuGroup[] = [
                     },
                 ],
             },
-            {
-                title: "Assigned Assets",
-                icon: Layers,
-                accent: "indigo",
-                children: [
-                    {
-                        title: "Employee Asset List",
-                        href: "/dashboard/operations/emp-assets-list",
-                        icon: Users,
-                    },
-                ],
-            },
+            // {
+            //     title: "Assigned Assets",
+            //     icon: Layers,
+            //     accent: "indigo",
+            //     children: [
+            //         {
+            //             title: "Employee Asset List",
+            //             href: "/dashboard/operations/emp-assets-list",
+            //             icon: Users,
+            //         },
+            //     ],
+            // },
             {
                 title: "Non-Operational",
                 icon: Trash2,
@@ -226,13 +234,13 @@ const menuGroups: MenuGroup[] = [
                 ],
             },
             {
-                title: "Master Data",
+                title: "Vendors",
                 icon: Database,
                 accent: "fuchsia",
                 children: [
                     {
-                        title: "Reference Data",
-                        href: "/dashboard/master-data",
+                        title: "List",
+                        href: "/dashboard/vendors",
                         icon: Database,
                     },
                 ],
