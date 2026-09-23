@@ -2894,6 +2894,12 @@ func (h *StockHandler) Register(rg *gin.RouterGroup) {
 	g.GET("/:id", h.Get)
 	g.POST("", h.Create)
 	g.PUT("/:id", h.Update)
+
+	// Asset Device direct-assignment routes.
+	// StockHandler is already registered on the authenticated API group,
+	// so registering the assignment handler here guarantees these routes
+	// use the same authentication middleware without another main/router edit.
+	NewAssetDeviceAssignmentHandler(h.db).Register(rg)
 }
 
 func (h *StockHandler) List(c *gin.Context) {
