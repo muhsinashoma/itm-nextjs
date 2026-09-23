@@ -103,7 +103,7 @@ func (h *AssetDeviceHandler) Register(
 
 	// Keep parameter routes last.
 	g.GET(
-		"/devices/:id/legacy-history",
+		"/devices/:id/history",
 		h.History,
 	)
 	g.GET(

@@ -2450,14 +2450,14 @@ export default function AssetDevicesPage() {
 
             <Dialog open={Boolean(operation && selectedAsset)} onOpenChange={(open) => !open && closeOperation()}>
                 <DialogContent
-                    className={`max-h-[calc(100vh-1.5rem)] w-[calc(100vw-2rem)] overflow-hidden p-0 ${operation === "assign-direct" || operation === "reassign"
-                            ? "sm:max-w-[1180px]"
-                            : operation === "assign-tt"
-                                ? "sm:max-w-4xl"
-                                : "sm:max-w-[1100px]"
+                    className={`max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto p-0 ${operation === "assign-direct" || operation === "reassign"
+                        ? "sm:max-w-[1180px]"
+                        : operation === "assign-tt"
+                            ? "sm:max-w-4xl"
+                            : "sm:max-w-[1100px]"
                         }`}
                 >
-                    <DialogHeader className="border-b border-border bg-muted/20 px-5 py-3">
+                    <DialogHeader className="sticky top-0 z-30 shrink-0 border-b border-border bg-background/95 px-5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/90">
                         <DialogTitle>{operationTitle}</DialogTitle>
                         <DialogDescription>
                             {selectedAsset
@@ -3510,7 +3510,7 @@ export default function AssetDevicesPage() {
                         </div>
                     )}
 
-                    <DialogFooter className="border-t border-border bg-muted/10 px-5 py-3">
+                    <DialogFooter className="sticky bottom-0 z-30 shrink-0 border-t border-border bg-background/95 px-5 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90">
                         <button
                             type="button"
                             disabled={operationBusy}
@@ -3532,8 +3532,8 @@ export default function AssetDevicesPage() {
                                 }
                                 onClick={() => void submitOperation()}
                                 className={`inline-flex h-8 items-center justify-center gap-2 rounded-md px-4 text-xs font-semibold text-white disabled:opacity-50 ${operation === "delete"
-                                        ? "bg-red-600 hover:bg-red-700"
-                                        : "bg-primary hover:opacity-90"
+                                    ? "bg-red-600 hover:bg-red-700"
+                                    : "bg-primary hover:opacity-90"
                                     }`}
                             >
                                 {operationBusy && (

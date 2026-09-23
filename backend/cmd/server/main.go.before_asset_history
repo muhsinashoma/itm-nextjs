@@ -1,4 +1,4 @@
-// itm/backend/cmd/server/main.go
+// backend/cmd/server/main.go
 
 package main
 
@@ -282,15 +282,6 @@ func main() {
 		pool,
 	).Register(
 		protected,
-	)
-
-	/* ============================================================
-	   ASSET DEVICE MAINTENANCE / HISTORY
-	============================================================ */
-
-	handler.RegisterAssetDeviceMaintenanceRoutes(
-		protected,
-		pool,
 	)
 
 	/* ============================================================
