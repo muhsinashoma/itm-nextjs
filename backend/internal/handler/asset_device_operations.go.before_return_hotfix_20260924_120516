@@ -475,18 +475,7 @@ func (h *AssetDeviceHandler) ReturnDevice(c *gin.Context) {
 	}
 
 	actor := strings.TrimSpace(c.GetString("employee_id"))
-
-	// Commit the asset return first. The legacy audit_log insert is kept
-	// outside this transaction so an audit-table compatibility issue cannot
-	// silently abort the actual Return operation.
-	if err = tx.Commit(ctx); err != nil {
-		response.ServerError(c, err)
-		return
-	}
-
-	// Best-effort secondary audit. The authoritative lifecycle/history rows
-	// have already been committed by this point.
-	_, _ = h.db.Exec(
+	_, _ = tx.Exec(
 		ctx,
 		`INSERT INTO public.audit_log (user_id, table_name, record_id, action, new_data)
 		 VALUES ($1, 'asset_devices', $2, 'RETURN_ASSET', jsonb_build_object('previous_employee_id',$3))`,
@@ -494,6 +483,11 @@ func (h *AssetDeviceHandler) ReturnDevice(c *gin.Context) {
 		id,
 		asset.EmpID,
 	)
+
+	if err = tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
+		return
+	}
 
 	response.OK(c, gin.H{"asset_id": id, "asset_status": 4, "status_label": "Returned"})
 }
