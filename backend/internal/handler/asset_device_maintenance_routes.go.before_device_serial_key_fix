@@ -155,6 +155,7 @@ func (h *AssetDeviceMaintenanceHandler) FullUpdate(c *gin.Context) {
         UPDATE public.asset_devices
         SET
             device_serial = NULLIF($2, ''),
+            device_serial_key = UPPER(REGEXP_REPLACE(COALESCE($2, ''), '[^A-Za-z0-9]+', '', 'g')),
             category = NULLIF($3, ''),
             brand = NULLIF($4, ''),
             model = NULLIF($5, ''),
