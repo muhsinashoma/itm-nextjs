@@ -253,13 +253,6 @@ type OperationalAssetDevice = AssetDevice & {
     returned_at?: string | null;
     transferred_at?: string | null;
     remarks?: string | null;
-    // Display-only previous holder information for Returned assets.
-    // Current asset emp_id remains empty so the device is still unassigned.
-    last_emp_id?: string | null;
-    last_emp_name?: string | null;
-    last_employee_image?: string | null;
-    last_department?: string | null;
-    last_designation?: string | null;
 };
 
 type AssetDeviceHistoryEntry = {
@@ -439,102 +432,6 @@ const deviceOperationsApi = {
         api.del(`/assets/devices/${id}`),
 };
 
-const returnedEmployeeProfileCache = new Map<string, Employee | null>();
-
-function cleanEmployeeText(value: string | null | undefined) {
-    return String(value ?? "").trim();
-}
-
-async function returnedEmployeeProfile(employeeID: string) {
-    const key = cleanEmployeeText(employeeID).toLowerCase();
-
-    if (!key) {
-        return null;
-    }
-
-    if (returnedEmployeeProfileCache.has(key)) {
-        return returnedEmployeeProfileCache.get(key) ?? null;
-    }
-
-    try {
-        const response = await employeeApi.get(
-            encodeURIComponent(employeeID),
-        );
-        const employee = response.data ?? null;
-        returnedEmployeeProfileCache.set(key, employee);
-        return employee;
-    } catch {
-        returnedEmployeeProfileCache.set(key, null);
-        return null;
-    }
-}
-
-async function hydrateReturnedLastHolder(
-    item: OperationalAssetDevice,
-): Promise<OperationalAssetDevice> {
-    // Keep the current employee untouched for assigned or legacy rows.
-    if (item.asset_status !== 4 || cleanEmployeeText(item.emp_id)) {
-        return item;
-    }
-
-    try {
-        const history = await deviceOperationsApi.history(item.id);
-
-        const returnedEntry =
-            history.find(
-                (entry) =>
-                    entry.current_status === 4 &&
-                    Boolean(
-                        cleanEmployeeText(entry.emp_id) ||
-                        cleanEmployeeText(entry.from_emp_id),
-                    ),
-            ) ??
-            history.find(
-                (entry) =>
-                    Boolean(
-                        cleanEmployeeText(entry.emp_id) ||
-                        cleanEmployeeText(entry.from_emp_id),
-                    ),
-            );
-
-        if (!returnedEntry) {
-            return item;
-        }
-
-        const lastEmployeeID =
-            cleanEmployeeText(returnedEntry.emp_id) ||
-            cleanEmployeeText(returnedEntry.from_emp_id) ||
-            cleanEmployeeText(returnedEntry.user_return_id);
-
-        if (!lastEmployeeID) {
-            return item;
-        }
-
-        const historyEmployeeName =
-            cleanEmployeeText(returnedEntry.emp_name) ||
-            cleanEmployeeText(returnedEntry.from_emp_name);
-
-        const profile = await returnedEmployeeProfile(lastEmployeeID);
-
-        return {
-            ...item,
-            last_emp_id: lastEmployeeID,
-            last_emp_name:
-                cleanEmployeeText(profile?.employee_name) ||
-                historyEmployeeName ||
-                "Employee",
-            last_employee_image:
-                cleanEmployeeText(profile?.picture) || null,
-            last_department:
-                cleanEmployeeText(profile?.department) || null,
-            last_designation:
-                cleanEmployeeText(profile?.designation) || null,
-        };
-    } catch {
-        // History/profile lookup is display-only and must not block the table.
-        return item;
-    }
-}
 function formatDate(value: string | null | undefined) {
     if (!value) return "—";
 
@@ -1271,14 +1168,7 @@ export default function AssetDevicesPage() {
                 category: category || undefined,
             });
 
-            const pageItems =
-                (response.data ?? []) as OperationalAssetDevice[];
-
-            const hydratedItems = await Promise.all(
-                pageItems.map(hydrateReturnedLastHolder),
-            );
-
-            setItems(hydratedItems);
+            setItems(response.data ?? []);
             setTotal(response.total ?? 0);
         } catch (err) {
             setError(
@@ -2437,49 +2327,24 @@ export default function AssetDevicesPage() {
 
                                     {visibleColumns.has("employee") && (
                                         <td className="min-w-0 px-2 py-1.5 align-middle">
-                                            {item.emp_id || item.last_emp_id ? (
+                                            {item.emp_id ? (
                                                 <div className="flex min-w-0 items-center gap-1.5">
-                                                    <EmployeeAvatar
-                                                        name={item.emp_name || item.last_emp_name || null}
-                                                        image={item.employee_image || item.last_employee_image}
-                                                    />
+                                                    <EmployeeAvatar name={item.emp_name} image={item.employee_image} />
                                                     <div className="min-w-0 flex-1 space-y-0.5">
-                                                        {!item.emp_id && item.last_emp_id && (
-                                                            <div className="mb-0.5">
-                                                                <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-emerald-700">
-                                                                    Last holder
-                                                                </span>
-                                                            </div>
-                                                        )}
                                                         <div className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-1.5">
                                                             <span className="pt-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">ID</span>
-                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">
-                                                                {item.emp_id || item.last_emp_id}
-                                                            </span>
+                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">{item.emp_id}</span>
                                                         </div>
                                                         <div className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-1.5">
                                                             <span className="pt-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">Name</span>
-                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">
-                                                                {item.emp_name || item.last_emp_name || "Employee"}
-                                                            </span>
+                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">{item.emp_name || "Employee"}</span>
                                                         </div>
-                                                        {(
-                                                            item.department ||
-                                                            item.designation ||
-                                                            item.last_department ||
-                                                            item.last_designation
-                                                        ) && (
+                                                        {(item.department || item.designation) && (
                                                             <div
                                                                 className="truncate border-t border-border/60 pt-0.5 text-[9px] leading-4 text-muted-foreground"
-                                                                title={[
-                                                                    item.department || item.last_department,
-                                                                    item.designation || item.last_designation,
-                                                                ].filter(Boolean).join(" / ") || undefined}
+                                                                title={[item.department, item.designation].filter(Boolean).join(" · ") || undefined}
                                                             >
-                                                                {[
-                                                                    item.department || item.last_department,
-                                                                    item.designation || item.last_designation,
-                                                                ].filter(Boolean).join(" / ")}
+                                                                {[item.department, item.designation].filter(Boolean).join(" · ")}
                                                             </div>
                                                         )}
                                                     </div>
@@ -2489,13 +2354,12 @@ export default function AssetDevicesPage() {
                                                     <span className="inline-flex rounded-md border border-border bg-muted/35 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                                                         Unassigned
                                                     </span>
-                                                    <div className="text-[9px] text-muted-foreground">
-                                                        No previous employee history found
-                                                    </div>
+                                                    <div className="text-[9px] text-muted-foreground">No employee assigned</div>
                                                 </div>
                                             )}
                                         </td>
                                     )}
+
                                     {visibleColumns.has("mrpr") && (
                                         <td className="min-w-0 px-2 py-1.5 align-middle">
                                             <div className="space-y-2">

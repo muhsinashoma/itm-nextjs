@@ -1,4 +1,4 @@
-
+﻿
 
 //frontend/app/dashboard/assets/devices/page.tsx
 // v13: at-a-glance status counters + compact assignment/reassignment modal
@@ -253,13 +253,6 @@ type OperationalAssetDevice = AssetDevice & {
     returned_at?: string | null;
     transferred_at?: string | null;
     remarks?: string | null;
-    // Display-only previous holder information for Returned assets.
-    // Current asset emp_id remains empty so the device is still unassigned.
-    last_emp_id?: string | null;
-    last_emp_name?: string | null;
-    last_employee_image?: string | null;
-    last_department?: string | null;
-    last_designation?: string | null;
 };
 
 type AssetDeviceHistoryEntry = {
@@ -439,104 +432,8 @@ const deviceOperationsApi = {
         api.del(`/assets/devices/${id}`),
 };
 
-const returnedEmployeeProfileCache = new Map<string, Employee | null>();
-
-function cleanEmployeeText(value: string | null | undefined) {
-    return String(value ?? "").trim();
-}
-
-async function returnedEmployeeProfile(employeeID: string) {
-    const key = cleanEmployeeText(employeeID).toLowerCase();
-
-    if (!key) {
-        return null;
-    }
-
-    if (returnedEmployeeProfileCache.has(key)) {
-        return returnedEmployeeProfileCache.get(key) ?? null;
-    }
-
-    try {
-        const response = await employeeApi.get(
-            encodeURIComponent(employeeID),
-        );
-        const employee = response.data ?? null;
-        returnedEmployeeProfileCache.set(key, employee);
-        return employee;
-    } catch {
-        returnedEmployeeProfileCache.set(key, null);
-        return null;
-    }
-}
-
-async function hydrateReturnedLastHolder(
-    item: OperationalAssetDevice,
-): Promise<OperationalAssetDevice> {
-    // Keep the current employee untouched for assigned or legacy rows.
-    if (item.asset_status !== 4 || cleanEmployeeText(item.emp_id)) {
-        return item;
-    }
-
-    try {
-        const history = await deviceOperationsApi.history(item.id);
-
-        const returnedEntry =
-            history.find(
-                (entry) =>
-                    entry.current_status === 4 &&
-                    Boolean(
-                        cleanEmployeeText(entry.emp_id) ||
-                        cleanEmployeeText(entry.from_emp_id),
-                    ),
-            ) ??
-            history.find(
-                (entry) =>
-                    Boolean(
-                        cleanEmployeeText(entry.emp_id) ||
-                        cleanEmployeeText(entry.from_emp_id),
-                    ),
-            );
-
-        if (!returnedEntry) {
-            return item;
-        }
-
-        const lastEmployeeID =
-            cleanEmployeeText(returnedEntry.emp_id) ||
-            cleanEmployeeText(returnedEntry.from_emp_id) ||
-            cleanEmployeeText(returnedEntry.user_return_id);
-
-        if (!lastEmployeeID) {
-            return item;
-        }
-
-        const historyEmployeeName =
-            cleanEmployeeText(returnedEntry.emp_name) ||
-            cleanEmployeeText(returnedEntry.from_emp_name);
-
-        const profile = await returnedEmployeeProfile(lastEmployeeID);
-
-        return {
-            ...item,
-            last_emp_id: lastEmployeeID,
-            last_emp_name:
-                cleanEmployeeText(profile?.employee_name) ||
-                historyEmployeeName ||
-                "Employee",
-            last_employee_image:
-                cleanEmployeeText(profile?.picture) || null,
-            last_department:
-                cleanEmployeeText(profile?.department) || null,
-            last_designation:
-                cleanEmployeeText(profile?.designation) || null,
-        };
-    } catch {
-        // History/profile lookup is display-only and must not block the table.
-        return item;
-    }
-}
 function formatDate(value: string | null | undefined) {
-    if (!value) return "—";
+    if (!value) return "â€”";
 
     const date = new Date(value);
 
@@ -552,7 +449,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 function formatDateTime(value: string | null | undefined) {
-    if (!value) return "—";
+    if (!value) return "â€”";
 
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
@@ -567,7 +464,7 @@ function formatDateTime(value: string | null | undefined) {
 }
 
 function historyStatusLabel(value: number | null | undefined) {
-    if (value == null) return "—";
+    if (value == null) return "â€”";
     return (
         STATUS_OPTIONS.find((item) => item.value === String(value))?.label ??
         `Status ${value}`
@@ -610,8 +507,8 @@ function historyEmployee(entry: AssetDeviceHistoryEntry) {
         entry.user_return_id ||
         entry.from_emp_id;
 
-    if (name && id) return `${name} · ${id}`;
-    return name || id || "—";
+    if (name && id) return `${name} Â· ${id}`;
+    return name || id || "â€”";
 }
 
 function historyRemarks(entry: AssetDeviceHistoryEntry) {
@@ -619,7 +516,7 @@ function historyRemarks(entry: AssetDeviceHistoryEntry) {
         entry.remarks ||
         entry.transfer_comment ||
         entry.return_comment ||
-        "—"
+        "â€”"
     );
 }
 
@@ -651,13 +548,13 @@ function formatCompactDuration(
     startValue: string | null | undefined,
     endValue?: string | null,
 ) {
-    if (!startValue) return "—";
+    if (!startValue) return "â€”";
 
     const start = new Date(startValue);
     const end = endValue ? new Date(endValue) : new Date();
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-        return "—";
+        return "â€”";
     }
 
     const milliseconds = Math.max(0, end.getTime() - start.getTime());
@@ -831,7 +728,7 @@ function EmployeeSearchBox({
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {[selected.designation, selected.department]
                                 .filter(Boolean)
-                                .join(" · ") || "Active employee"}
+                                .join(" Â· ") || "Active employee"}
                         </p>
 
                         {(selected.official_cell || selected.personal_cell || selected.email) && (
@@ -841,7 +738,7 @@ function EmployeeSearchBox({
                                     selected.email,
                                 ]
                                     .filter(Boolean)
-                                    .join(" · ")}
+                                    .join(" Â· ")}
                             </p>
                         )}
                     </div>
@@ -904,7 +801,7 @@ function EmployeeSearchBox({
                                             <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                                 {[employee.designation, employee.department]
                                                     .filter(Boolean)
-                                                    .join(" · ") || "—"}
+                                                    .join(" Â· ") || "â€”"}
                                             </p>
                                         </div>
 
@@ -939,7 +836,7 @@ function AssignmentInfo({
 }) {
     const displayValue =
         value === null || value === undefined || String(value).trim() === ""
-            ? "—"
+            ? "â€”"
             : String(value);
 
     return (
@@ -969,7 +866,7 @@ function CompactDeviceInfo({
 }) {
     const displayValue =
         value === null || value === undefined || String(value).trim() === ""
-            ? "—"
+            ? "â€”"
             : String(value);
 
     return (
@@ -991,7 +888,7 @@ function CompactDeviceInfo({
 function assignmentDeviceTypeLabel(value: string | number | null | undefined) {
     if (String(value ?? "") === "1") return "Permanent (1)";
     if (String(value ?? "") === "2") return "Temporary (2)";
-    return "—";
+    return "â€”";
 }
 
 function DeviceDatabaseSnapshot({
@@ -1047,7 +944,7 @@ function DeviceDatabaseSnapshot({
                     label="Department / Designation"
                     value={[asset.department, asset.designation]
                         .filter(Boolean)
-                        .join(" · ")}
+                        .join(" Â· ")}
                 />
 
                 <CompactDeviceInfo label="Assigned Date" value={formatDate(asset.assigned_date)} />
@@ -1056,7 +953,7 @@ function DeviceDatabaseSnapshot({
                 <CompactDeviceInfo label="PR Number" value={asset.pr_number} mono />
                 <CompactDeviceInfo
                     label="Stock Row"
-                    value={stock?.stock_inventory_id ? `#${stock.stock_inventory_id}` : "—"}
+                    value={stock?.stock_inventory_id ? `#${stock.stock_inventory_id}` : "â€”"}
                     mono
                 />
 
@@ -1271,14 +1168,7 @@ export default function AssetDevicesPage() {
                 category: category || undefined,
             });
 
-            const pageItems =
-                (response.data ?? []) as OperationalAssetDevice[];
-
-            const hydratedItems = await Promise.all(
-                pageItems.map(hydrateReturnedLastHolder),
-            );
-
-            setItems(hydratedItems);
+            setItems(response.data ?? []);
             setTotal(response.total ?? 0);
         } catch (err) {
             setError(
@@ -1660,7 +1550,7 @@ export default function AssetDevicesPage() {
                     },
                 );
 
-                message = `Device assigned directly to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
+                message = `Device assigned directly to ${selectedEmployee.employee_id} Â· ${selectedEmployee.employee_name}.`;
             }
 
             if (operation === "assign-tt") {
@@ -1784,7 +1674,7 @@ export default function AssetDevicesPage() {
                     remarks,
                 );
 
-                message = `Device transferred to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
+                message = `Device transferred to ${selectedEmployee.employee_id} Â· ${selectedEmployee.employee_name}.`;
             }
 
             if (operation === "reassign") {
@@ -1844,7 +1734,7 @@ export default function AssetDevicesPage() {
                     );
                 }
 
-                message = `Device reassigned to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
+                message = `Device reassigned to ${selectedEmployee.employee_id} Â· ${selectedEmployee.employee_name}.`;
             }
 
             if (operation === "return") {
@@ -2001,7 +1891,7 @@ export default function AssetDevicesPage() {
             case "return":
                 return "Return Device";
             case "owst":
-                return "OWST · Ownership Transfer";
+                return "OWST Â· Ownership Transfer";
             case "warranty":
                 return "Raise Warranty Claim";
             case "reassign":
@@ -2091,11 +1981,11 @@ export default function AssetDevicesPage() {
                             <p className="mt-0.5 text-xs">
                                 {conflictedCount > 0 ? (
                                     <>
-                                        MR: {importMR || "—"} · {stockCommittedCount || importedCount + updatedCount} stock row(s) committed · {assetsCreatedCount} new asset(s) · {updatedCount} synchronized · {conflictedCount} serial conflict(s). Conflicting serials were not duplicated.
+                                        MR: {importMR || "â€”"} Â· {stockCommittedCount || importedCount + updatedCount} stock row(s) committed Â· {assetsCreatedCount} new asset(s) Â· {updatedCount} synchronized Â· {conflictedCount} serial conflict(s). Conflicting serials were not duplicated.
                                         {conflictSerial ? ` First conflict: ${conflictSerial}.` : ""}
                                     </>
                                 ) : (
-                                    <>MR: {importMR || "—"} · {stockCommittedCount || importedCount + updatedCount} stock row(s) committed · {assetsCreatedCount} new asset(s) · {assetsSynchronizedCount} existing asset(s) synchronized{normalizedAvailableCount > 0 ? ` · ${normalizedAvailableCount} normalized to Available` : ""}. Imported rows are filtered below.</>
+                                    <>MR: {importMR || "â€”"} Â· {stockCommittedCount || importedCount + updatedCount} stock row(s) committed Â· {assetsCreatedCount} new asset(s) Â· {assetsSynchronizedCount} existing asset(s) synchronized{normalizedAvailableCount > 0 ? ` Â· ${normalizedAvailableCount} normalized to Available` : ""}. Imported rows are filtered below.</>
                                 )}
                             </p>
                             {conflictedCount > 0 && conflictAssetID > 0 && (
@@ -2138,7 +2028,7 @@ export default function AssetDevicesPage() {
                             Device Status Overview
                         </p>
                         <p className="text-[10px] text-muted-foreground">
-                            Complete registry totals · click any status to filter the table.
+                            Complete registry totals Â· click any status to filter the table.
                         </p>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -2186,7 +2076,7 @@ export default function AssetDevicesPage() {
                                 </div>
                                 <p className="mt-0.5 text-base font-bold leading-5 tabular-nums">
                                     {statusCountsLoading && statusCounts[option.value] == null
-                                        ? "…"
+                                        ? "â€¦"
                                         : Number(statusCounts[option.value] ?? 0).toLocaleString()}
                                 </p>
                             </button>
@@ -2232,7 +2122,7 @@ export default function AssetDevicesPage() {
                         </div>
 
                         <div className="mt-1 flex min-h-[16px] items-center justify-between gap-3 px-1 text-[10px] text-muted-foreground">
-                            <span>Live search: MR · PR · Employee ID</span>
+                            <span>Live search: MR Â· PR Â· Employee ID</span>
 
                             {searchInput.trim().length >= 2 && !ajaxSearching && !loading && (
                                 <span className="shrink-0 font-medium text-foreground/70">
@@ -2392,7 +2282,7 @@ export default function AssetDevicesPage() {
                                                 className="block max-w-full overflow-hidden rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-4 text-foreground"
                                                 title={item.device_serial || undefined}
                                             >
-                                                <span className="block truncate">{item.device_serial || "—"}</span>
+                                                <span className="block truncate">{item.device_serial || "â€”"}</span>
                                             </div>
                                             <div className="mt-0.5 text-[10px] text-muted-foreground">
                                                 Asset ID <span className="font-semibold text-foreground">#{item.id}</span>
@@ -2410,9 +2300,9 @@ export default function AssetDevicesPage() {
                                             </div>
                                             <div
                                                 className="mt-0.5 truncate text-[10px] leading-4 text-muted-foreground"
-                                                title={[item.brand, item.model].filter(Boolean).join(" · ") || undefined}
+                                                title={[item.brand, item.model].filter(Boolean).join(" Â· ") || undefined}
                                             >
-                                                {[item.brand, item.model].filter(Boolean).join(" · ") || "—"}
+                                                {[item.brand, item.model].filter(Boolean).join(" Â· ") || "â€”"}
                                             </div>
                                         </td>
                                     )}
@@ -2428,7 +2318,7 @@ export default function AssetDevicesPage() {
                                         ) : (
                                             <span
                                                 className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300"
-                                                title="Petty Cash entry — no MR number"
+                                                title="Petty Cash entry â€” no MR number"
                                             >
                                                 Petty Cash
                                             </span>
@@ -2437,49 +2327,24 @@ export default function AssetDevicesPage() {
 
                                     {visibleColumns.has("employee") && (
                                         <td className="min-w-0 px-2 py-1.5 align-middle">
-                                            {item.emp_id || item.last_emp_id ? (
+                                            {item.emp_id ? (
                                                 <div className="flex min-w-0 items-center gap-1.5">
-                                                    <EmployeeAvatar
-                                                        name={item.emp_name || item.last_emp_name || null}
-                                                        image={item.employee_image || item.last_employee_image}
-                                                    />
+                                                    <EmployeeAvatar name={item.emp_name} image={item.employee_image} />
                                                     <div className="min-w-0 flex-1 space-y-0.5">
-                                                        {!item.emp_id && item.last_emp_id && (
-                                                            <div className="mb-0.5">
-                                                                <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-emerald-700">
-                                                                    Last holder
-                                                                </span>
-                                                            </div>
-                                                        )}
                                                         <div className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-1.5">
                                                             <span className="pt-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">ID</span>
-                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">
-                                                                {item.emp_id || item.last_emp_id}
-                                                            </span>
+                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">{item.emp_id}</span>
                                                         </div>
                                                         <div className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-1.5">
                                                             <span className="pt-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">Name</span>
-                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">
-                                                                {item.emp_name || item.last_emp_name || "Employee"}
-                                                            </span>
+                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">{item.emp_name || "Employee"}</span>
                                                         </div>
-                                                        {(
-                                                            item.department ||
-                                                            item.designation ||
-                                                            item.last_department ||
-                                                            item.last_designation
-                                                        ) && (
+                                                        {(item.department || item.designation) && (
                                                             <div
                                                                 className="truncate border-t border-border/60 pt-0.5 text-[9px] leading-4 text-muted-foreground"
-                                                                title={[
-                                                                    item.department || item.last_department,
-                                                                    item.designation || item.last_designation,
-                                                                ].filter(Boolean).join(" / ") || undefined}
+                                                                title={[item.department, item.designation].filter(Boolean).join(" Â· ") || undefined}
                                                             >
-                                                                {[
-                                                                    item.department || item.last_department,
-                                                                    item.designation || item.last_designation,
-                                                                ].filter(Boolean).join(" / ")}
+                                                                {[item.department, item.designation].filter(Boolean).join(" Â· ")}
                                                             </div>
                                                         )}
                                                     </div>
@@ -2489,13 +2354,12 @@ export default function AssetDevicesPage() {
                                                     <span className="inline-flex rounded-md border border-border bg-muted/35 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                                                         Unassigned
                                                     </span>
-                                                    <div className="text-[9px] text-muted-foreground">
-                                                        No previous employee history found
-                                                    </div>
+                                                    <div className="text-[9px] text-muted-foreground">No employee assigned</div>
                                                 </div>
                                             )}
                                         </td>
                                     )}
+
                                     {visibleColumns.has("mrpr") && (
                                         <td className="min-w-0 px-2 py-1.5 align-middle">
                                             <div className="space-y-2">
@@ -2507,7 +2371,7 @@ export default function AssetDevicesPage() {
                                                         className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] font-semibold leading-4 text-foreground"
                                                         title={item.mr_number || undefined}
                                                     >
-                                                        {item.mr_number || "—"}
+                                                        {item.mr_number || "â€”"}
                                                     </span>
                                                 </div>
 
@@ -2519,7 +2383,7 @@ export default function AssetDevicesPage() {
                                                         className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] font-medium leading-4 text-foreground/90"
                                                         title={item.pr_number || undefined}
                                                     >
-                                                        {item.pr_number || "—"}
+                                                        {item.pr_number || "â€”"}
                                                     </span>
                                                 </div>
                                             </div>
@@ -2528,19 +2392,19 @@ export default function AssetDevicesPage() {
 
                                     {visibleColumns.has("department") && (
                                         <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
-                                            <span className="block truncate" title={String(item.department || "—")}>{item.department || "—"}</span>
+                                            <span className="block truncate" title={String(item.department || "â€”")}>{item.department || "â€”"}</span>
                                         </td>
                                     )}
 
                                     {visibleColumns.has("designation") && (
                                         <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
-                                            <span className="block truncate" title={String(item.designation || "—")}>{item.designation || "—"}</span>
+                                            <span className="block truncate" title={String(item.designation || "â€”")}>{item.designation || "â€”"}</span>
                                         </td>
                                     )}
 
                                     {visibleColumns.has("brand") && (
                                         <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
-                                            <span className="block truncate" title={String(item.brand || "—")}>{item.brand || "—"}</span>
+                                            <span className="block truncate" title={String(item.brand || "â€”")}>{item.brand || "â€”"}</span>
                                         </td>
                                     )}
 
@@ -2554,7 +2418,7 @@ export default function AssetDevicesPage() {
 
                                     {visibleColumns.has("vendor") && (
                                         <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
-                                            <span className="block truncate" title={String(item.vendor_name || "—")}>{item.vendor_name || "—"}</span>
+                                            <span className="block truncate" title={String(item.vendor_name || "â€”")}>{item.vendor_name || "â€”"}</span>
                                         </td>
                                     )}
 
@@ -2606,13 +2470,13 @@ export default function AssetDevicesPage() {
 
                                     {visibleColumns.has("remarks") && (
                                         <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
-                                            <span className="block truncate" title={String(item.remarks || "—")}>{item.remarks || "—"}</span>
+                                            <span className="block truncate" title={String(item.remarks || "â€”")}>{item.remarks || "â€”"}</span>
                                         </td>
                                     )}
 
                                     {visibleColumns.has("assetType") && (
                                         <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
-                                            <span className="block truncate" title={String(item.device_type || "—")}>{item.device_type || "—"}</span>
+                                            <span className="block truncate" title={String(item.device_type || "â€”")}>{item.device_type || "â€”"}</span>
                                         </td>
                                     )}
 
@@ -2643,7 +2507,7 @@ export default function AssetDevicesPage() {
 
                                             <DropdownMenuContent align="end" className="w-64">
                                                 <DropdownMenuLabel>
-                                                    {item.status_label} · Device Actions
+                                                    {item.status_label} Â· Device Actions
                                                 </DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem onClick={() => openOperation(item, "history")} className="gap-2">
@@ -2678,7 +2542,7 @@ export default function AssetDevicesPage() {
                                                     <>
                                                         <DropdownMenuItem disabled className="gap-2 text-amber-700 opacity-100">
                                                             <ShieldCheck className="h-4 w-4" />
-                                                            Assignment locked · current holder exists
+                                                            Assignment locked Â· current holder exists
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => openDevice(item)} className="gap-2">
                                                             <Eye className="h-4 w-4" />
@@ -2727,7 +2591,7 @@ export default function AssetDevicesPage() {
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem onClick={() => openOperation(item, "delete")} className="gap-2 text-red-600 focus:text-red-600">
                                                                     <Trash2 className="h-4 w-4" />
-                                                                    Delete · ROOT only
+                                                                    Delete Â· ROOT only
                                                                 </DropdownMenuItem>
                                                             </>
                                                         )}
@@ -2761,7 +2625,7 @@ export default function AssetDevicesPage() {
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem onClick={() => openOperation(item, "delete")} className="gap-2 text-red-600 focus:text-red-600">
                                                                     <Trash2 className="h-4 w-4" />
-                                                                    Delete · ROOT only
+                                                                    Delete Â· ROOT only
                                                                 </DropdownMenuItem>
                                                             </>
                                                         )}
@@ -2787,7 +2651,7 @@ export default function AssetDevicesPage() {
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem onClick={() => openOperation(item, "delete")} className="gap-2 text-red-600 focus:text-red-600">
                                                                     <Trash2 className="h-4 w-4" />
-                                                                    Delete · ROOT only
+                                                                    Delete Â· ROOT only
                                                                 </DropdownMenuItem>
                                                             </>
                                                         )}
@@ -2874,7 +2738,7 @@ export default function AssetDevicesPage() {
                                             ? `Immutable assignment, transfer and return trail for ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`}.`
                                             : operation === "detail"
                                                 ? `Complete at-a-glance database view for ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`}.`
-                                                : `${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} · ${selectedAsset.category || "Device"}`
+                                                : `${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} Â· ${selectedAsset.category || "Device"}`
                                 : "Device operation"}
                         </DialogDescription>
                     </DialogHeader>
@@ -2893,12 +2757,12 @@ export default function AssetDevicesPage() {
                                         Device
                                     </p>
                                     <p className="mt-1 font-mono text-sm font-semibold">
-                                        {selectedAsset?.device_serial || (selectedAsset ? `Asset #${selectedAsset.id}` : "—")}
+                                        {selectedAsset?.device_serial || (selectedAsset ? `Asset #${selectedAsset.id}` : "â€”")}
                                     </p>
                                     <p className="mt-1 text-xs text-muted-foreground">
                                         {[selectedAsset?.category, selectedAsset?.brand, selectedAsset?.model]
                                             .filter(Boolean)
-                                            .join(" · ") || "—"}
+                                            .join(" Â· ") || "â€”"}
                                     </p>
                                 </div>
 
@@ -2948,7 +2812,7 @@ export default function AssetDevicesPage() {
                                 <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
                                     <div>
                                         <p className="text-xs font-semibold">Assignment lifecycle</p>
-                                        <p className="text-[10px] text-muted-foreground">Append-only audit trail · newest first</p>
+                                        <p className="text-[10px] text-muted-foreground">Append-only audit trail Â· newest first</p>
                                     </div>
                                     <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                                         {historyEntries.length} record{historyEntries.length === 1 ? "" : "s"}
@@ -2985,7 +2849,7 @@ export default function AssetDevicesPage() {
                                                         </td>
                                                         <td className="px-3 py-2.5 text-[11px] text-muted-foreground">
                                                             {historyStatusLabel(entry.prev_status)}
-                                                            <span className="mx-1">→</span>
+                                                            <span className="mx-1">â†’</span>
                                                             <span className="font-semibold text-foreground">
                                                                 {historyStatusLabel(entry.current_status)}
                                                             </span>
@@ -2996,7 +2860,7 @@ export default function AssetDevicesPage() {
                                                             </span>
                                                             {entry.from_emp_id && entry.to_emp_id && (
                                                                 <span className="mt-0.5 block truncate font-mono text-[10px] text-muted-foreground">
-                                                                    {entry.from_emp_id} → {entry.to_emp_id}
+                                                                    {entry.from_emp_id} â†’ {entry.to_emp_id}
                                                                 </span>
                                                             )}
                                                         </td>
@@ -3009,7 +2873,7 @@ export default function AssetDevicesPage() {
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2.5 text-[11px] text-muted-foreground">
-                                                            {entry.changed_by_name || entry.changed_by || "—"}
+                                                            {entry.changed_by_name || entry.changed_by || "â€”"}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -3050,7 +2914,7 @@ export default function AssetDevicesPage() {
                                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                             {[selectedAsset.designation, selectedAsset.department]
                                                 .filter(Boolean)
-                                                .join(" · ") || "—"}
+                                                .join(" Â· ") || "â€”"}
                                         </p>
                                     </div>
                                 </section>
@@ -3091,10 +2955,10 @@ export default function AssetDevicesPage() {
                                             label="Serial / Asset"
                                             value={
                                                 selectedAsset?.device_serial
-                                                    ? `${selectedAsset.device_serial} · #${selectedAsset.id}`
+                                                    ? `${selectedAsset.device_serial} Â· #${selectedAsset.id}`
                                                     : selectedAsset
                                                         ? `Asset #${selectedAsset.id}`
-                                                        : "—"
+                                                        : "â€”"
                                             }
                                             mono
                                         />
@@ -3106,7 +2970,7 @@ export default function AssetDevicesPage() {
                                                 selectedAsset?.model,
                                             ]
                                                 .filter(Boolean)
-                                                .join(" · ")}
+                                                .join(" Â· ")}
                                         />
                                         <CompactDeviceInfo
                                             label="Entry"
@@ -3145,7 +3009,7 @@ export default function AssetDevicesPage() {
                                                 assignmentContext?.stock.ram,
                                             ]
                                                 .filter(Boolean)
-                                                .join(" · ")}
+                                                .join(" Â· ")}
                                         />
                                         <CompactDeviceInfo
                                             label="Storage / Monitor"
@@ -3154,14 +3018,14 @@ export default function AssetDevicesPage() {
                                                 assignmentContext?.stock.monitor,
                                             ]
                                                 .filter(Boolean)
-                                                .join(" · ")}
+                                                .join(" Â· ")}
                                         />
                                         <CompactDeviceInfo
                                             label="Stock Row"
                                             value={
                                                 assignmentContext?.stock.stock_inventory_id
                                                     ? `#${assignmentContext.stock.stock_inventory_id}`
-                                                    : "—"
+                                                    : "â€”"
                                             }
                                             mono
                                         />
@@ -3210,7 +3074,7 @@ export default function AssetDevicesPage() {
                                                     authUser?.full_name || authUser?.username,
                                                 ]
                                                     .filter(Boolean)
-                                                    .join(" · ") || "Signed-in IT user"
+                                                    .join(" Â· ") || "Signed-in IT user"
                                             }
                                         />
                                         <CompactDeviceInfo
@@ -3221,13 +3085,13 @@ export default function AssetDevicesPage() {
                                             label="Status"
                                             value={
                                                 operation === "reassign"
-                                                    ? `${selectedAsset?.status_label || "Current"} → Assigned`
-                                                    : "Available → Assigned"
+                                                    ? `${selectedAsset?.status_label || "Current"} â†’ Assigned`
+                                                    : "Available â†’ Assigned"
                                             }
                                         />
                                         <CompactDeviceInfo
                                             label="Stock Sync"
-                                            value="→ Assigned"
+                                            value="â†’ Assigned"
                                         />
                                     </div>
 
@@ -3235,7 +3099,7 @@ export default function AssetDevicesPage() {
                                         <span className="mb-1 flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-[0.04em] text-amber-900 dark:text-amber-100">
                                             <span>Assignment Remarks</span>
                                             <span className="font-normal normal-case tracking-normal text-amber-700 dark:text-amber-300">
-                                                Optional · {remarks.length}/1000
+                                                Optional Â· {remarks.length}/1000
                                             </span>
                                         </span>
                                         <textarea
@@ -3293,7 +3157,7 @@ export default function AssetDevicesPage() {
                                                         {(field.key === "lan_mac_address" ||
                                                             field.key === "wlan_mac_address") && (
                                                                 <span className="ml-1 font-normal text-primary">
-                                                                    · Unique
+                                                                    Â· Unique
                                                                 </span>
                                                             )}
                                                     </span>
@@ -3385,9 +3249,9 @@ export default function AssetDevicesPage() {
                             <div className="rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 text-xs text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/10 dark:text-blue-100">
                                 <span className="font-semibold">Matching:</span>{" "}
                                 {selectedAsset?.category || "Uncategorized"}
-                                {selectedAsset?.category_id ? ` (Category ID ${selectedAsset.category_id})` : " · legacy label fallback"}
-                                {selectedAsset?.brand ? ` · ${selectedAsset.brand}` : ""}
-                                {selectedAsset?.model ? ` · ${selectedAsset.model}` : ""}
+                                {selectedAsset?.category_id ? ` (Category ID ${selectedAsset.category_id})` : " Â· legacy label fallback"}
+                                {selectedAsset?.brand ? ` Â· ${selectedAsset.brand}` : ""}
+                                {selectedAsset?.model ? ` Â· ${selectedAsset.model}` : ""}
                             </div>
 
                             <div>
@@ -3424,23 +3288,23 @@ export default function AssetDevicesPage() {
                                                 <div>
                                                     <p className="text-sm font-semibold">TT {req.tt_no}</p>
                                                     <p className="mt-0.5 text-xs text-muted-foreground">
-                                                        {req.employee_id} · {req.employee_name}
+                                                        {req.employee_id} Â· {req.employee_name}
                                                     </p>
                                                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                                                         {req.category}
-                                                        {req.brand ? ` · ${req.brand}` : ""}
-                                                        {req.model ? ` · ${req.model}` : ""}
+                                                        {req.brand ? ` Â· ${req.brand}` : ""}
+                                                        {req.model ? ` Â· ${req.model}` : ""}
                                                     </p>
                                                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                                                         {req.approval_status || (req.approved_val === 3 ? "PR (Approved)" : "Petty Cash (Approved)")}
                                                         {req.approved_by
-                                                            ? ` · ${req.approved_by}${req.approved_by_name ? ` · ${req.approved_by_name}` : ""}`
+                                                            ? ` Â· ${req.approved_by}${req.approved_by_name ? ` Â· ${req.approved_by_name}` : ""}`
                                                             : ""}
                                                     </p>
                                                     <p className="mt-0.5 text-[10px] text-muted-foreground">
                                                         {req.approved_date ? `Approved ${formatDate(req.approved_date)}` : ""}
-                                                        {req.department ? ` · ${req.department}` : ""}
-                                                        {req.reason_details ? ` · ${req.reason_details}` : ""}
+                                                        {req.department ? ` Â· ${req.department}` : ""}
+                                                        {req.reason_details ? ` Â· ${req.reason_details}` : ""}
                                                     </p>
                                                 </div>
                                                 {selectedRequisition?.id === req.id && (
@@ -3486,14 +3350,14 @@ export default function AssetDevicesPage() {
                                 </div>
 
                                 <div className="grid grid-cols-6 gap-1.5">
-                                    <CompactDeviceInfo label="Asset ID" value={selectedAsset ? `#${selectedAsset.id}` : "—"} mono />
+                                    <CompactDeviceInfo label="Asset ID" value={selectedAsset ? `#${selectedAsset.id}` : "â€”"} mono />
                                     <CompactDeviceInfo label="Employee ID" value={selectedAsset?.emp_id} mono />
                                     <CompactDeviceInfo label="Employee Name" value={selectedAsset?.emp_name} />
                                     <CompactDeviceInfo label="MR Number" value={selectedAsset?.mr_number} mono />
                                     <CompactDeviceInfo label="PR Number" value={selectedAsset?.pr_number} mono />
                                     <CompactDeviceInfo
                                         label="Stock Row"
-                                        value={assignmentContext?.stock.stock_inventory_id ? `#${assignmentContext.stock.stock_inventory_id}` : "—"}
+                                        value={assignmentContext?.stock.stock_inventory_id ? `#${assignmentContext.stock.stock_inventory_id}` : "â€”"}
                                         mono
                                     />
                                 </div>
@@ -3678,12 +3542,12 @@ export default function AssetDevicesPage() {
                                                 {selectedAsset?.emp_name || "Current employee"}
                                             </p>
                                             <p className="font-mono text-[11px] text-primary">
-                                                {selectedAsset?.emp_id || "—"}
+                                                {selectedAsset?.emp_id || "â€”"}
                                             </p>
                                             <p className="truncate text-[10px] text-muted-foreground">
                                                 {[selectedAsset?.designation, selectedAsset?.department]
                                                     .filter(Boolean)
-                                                    .join(" · ") || "—"}
+                                                    .join(" Â· ") || "â€”"}
                                             </p>
                                         </div>
                                     </div>
@@ -3869,7 +3733,7 @@ export default function AssetDevicesPage() {
                                     <div className="mt-2 space-y-1 text-[11px]">
                                         <p>
                                             <span className="font-medium">Vendor:</span>{" "}
-                                            {selectedAsset?.vendor_name || "—"}
+                                            {selectedAsset?.vendor_name || "â€”"}
                                         </p>
                                         <p>
                                             <span className="font-medium">Warranty End:</span>{" "}
@@ -3878,13 +3742,13 @@ export default function AssetDevicesPage() {
                                         <p>
                                             <span className="font-medium">Serial:</span>{" "}
                                             <span className="font-mono">
-                                                {selectedAsset?.device_serial || "—"}
+                                                {selectedAsset?.device_serial || "â€”"}
                                             </span>
                                         </p>
                                         <p>
                                             <span className="font-medium">PR:</span>{" "}
                                             <span className="font-mono">
-                                                {selectedAsset?.pr_number || "—"}
+                                                {selectedAsset?.pr_number || "â€”"}
                                             </span>
                                         </p>
                                     </div>
@@ -4020,7 +3884,7 @@ export default function AssetDevicesPage() {
                                     Device
                                 </p>
                                 <p className="mt-1 truncate font-mono text-xs font-semibold text-foreground">
-                                    {successDialog?.serial || "—"}
+                                    {successDialog?.serial || "â€”"}
                                 </p>
                             </div>
                             <div className="rounded-lg border border-border bg-muted/25 px-3 py-2">
@@ -4056,3 +3920,4 @@ export default function AssetDevicesPage() {
         </div>
     );
 }
+

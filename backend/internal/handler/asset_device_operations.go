@@ -1,4 +1,4 @@
-//backend/internal/handler/asset_device_operations.go
+// backend/internal/handler/asset_device_operations.go
 package handler
 
 import (
@@ -305,7 +305,7 @@ func (h *AssetDeviceHandler) AssignDirect(c *gin.Context) {
 			history_reason, created_at_source, updated_at_source, migrated_at
 		)
 		VALUES (
-			$1, 0, $2,
+			$1, NULL, $2,
 			1, 'Assigned', $3,
 			$4, $5, $6, $7,
 			$8, $9, $10, NOW(),
@@ -450,7 +450,7 @@ func (h *AssetDeviceHandler) ReturnDevice(c *gin.Context) {
 			history_reason, created_at_source, updated_at_source, migrated_at
 		)
 		VALUES (
-			$1, 0, $2,
+			$1, NULL, $2,
 			4, 'Returned', 1,
 			$3, $4, $5, $6,
 			$7, $8, $9, $10, NOW(),
@@ -610,7 +610,7 @@ func (h *AssetDeviceHandler) CreateOWST(c *gin.Context) {
 			mr_number, pr_number, vendor, assigned_date, transferred_at,
 			history_reason, created_at_source, updated_at_source, migrated_at
 		)
-		VALUES ($1,0,$2,7,'Ownership Transfer',1,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),$11,NOW(),NOW(),NOW())
+		VALUES ($1,NULL,$2,7,'Ownership Transfer',1,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),$11,NOW(),NOW(),NOW())
 		`,
 		id,
 		asset.DeviceSerial,
@@ -720,7 +720,7 @@ func (h *AssetDeviceHandler) CreateWarrantyClaim(c *gin.Context) {
 			mr_number, pr_number, vendor, assigned_date,
 			history_reason, created_at_source, updated_at_source, migrated_at
 		)
-		VALUES ($1,0,$2,8,'Claim Raised',1,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW(),NOW())
+		VALUES ($1,NULL,$2,8,'Claim Raised',1,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW(),NOW())
 		`,
 		id,
 		asset.DeviceSerial,

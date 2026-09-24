@@ -362,7 +362,7 @@ func (h *AssetDeviceAssignmentHandler) AssignmentContext(c *gin.Context) {
 }
 
 // AssignDirect assigns an Available asset to an active employee. The same
-// endpoint also supports Transferred/Returned -> Assigned for the existing reassign action.
+// endpoint also supports Returned -> Assigned for the existing reassign action.
 //
 // Current asset state, linked stock state and the immutable assignment event are
 // written in one transaction. The target employee and assigning IT person are
@@ -527,11 +527,11 @@ func (h *AssetDeviceAssignmentHandler) AssignDirect(c *gin.Context) {
 		return
 	}
 
-	// 0 = Available, 3 = Transferred, 4 = Returned. All are eligible for assignment/reassignment.
-	if previousStatus != 0 && previousStatus != 3 && previousStatus != 4 {
+	// 0 = Available. 4 = Returned and is eligible for the existing reassign flow.
+	if previousStatus != 0 && previousStatus != 4 {
 		c.JSON(http.StatusConflict, gin.H{
 			"success":        false,
-			"error":          "only Available, Transferred or Returned devices can be assigned",
+			"error":          "only Available or Returned devices can be assigned",
 			"current_status": previousStatus,
 		})
 		return
