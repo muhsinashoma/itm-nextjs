@@ -34,7 +34,7 @@ func assetStatusActionLabelV21(status int) string {
 	case 5:
 		return "Lost Date"
 	case 7:
-		return "OWST Date"
+		return "Ownership Transfer Date"
 	case 8:
 		return "Claim Raised Date"
 	case 15:
@@ -116,24 +116,13 @@ func (h *AssetDeviceAssignmentHandler) ActivityPageV21(c *gin.Context) {
 						WHEN 3 THEN 'Transferred'
 						WHEN 4 THEN 'Returned'
 						WHEN 5 THEN 'Lost'
-						WHEN 7 THEN CASE COALESCE(owst_info.owst_category, 0)
-							WHEN 1 THEN 'OWST (User)'
-							WHEN 2 THEN 'OWST (Vendor)'
-							ELSE 'OWST'
-						END
+						WHEN 7 THEN 'Ownership Transfer'
 						WHEN 8 THEN 'Claim Raised'
 						WHEN 15 THEN 'Service Request'
 						ELSE 'Unknown'
 					END,
 				'stock_inventory_id', stock_row.id,
 				'employee_image', COALESCE(current_personal.picture, ''),
-				'owst_category', owst_info.owst_category,
-				'owst_type',
-					CASE COALESCE(owst_info.owst_category, 0)
-						WHEN 1 THEN 'user'
-						WHEN 2 THEN 'vendor'
-						ELSE ''
-					END,
 				'status_action_date', action_info.action_at,
 				'status_action_label',
 					CASE COALESCE(ad.asset_status, 0)
@@ -143,7 +132,7 @@ func (h *AssetDeviceAssignmentHandler) ActivityPageV21(c *gin.Context) {
 						WHEN 3 THEN 'Transferred Date'
 						WHEN 4 THEN 'Returned Date'
 						WHEN 5 THEN 'Lost Date'
-						WHEN 7 THEN 'OWST Date'
+						WHEN 7 THEN 'Ownership Transfer Date'
 						WHEN 8 THEN 'Claim Raised Date'
 						WHEN 15 THEN 'Service Request Date'
 						ELSE 'Action Date'
@@ -265,18 +254,6 @@ func (h *AssetDeviceAssignmentHandler) ActivityPageV21(c *gin.Context) {
 			      LOWER(BTRIM(COALESCE(ad.emp_id, '')))
 			LIMIT 1
 		) AS current_personal ON TRUE
-
-		LEFT JOIN LATERAL (
-			SELECT
-				ot.owst_category,
-				ot.receiver_id,
-				ot.vendor_name,
-				ot.created_at
-			FROM public.ownership_transfers AS ot
-			WHERE ot.device_assigned_id = ad.id
-			ORDER BY ot.created_at DESC NULLS LAST, ot.id DESC
-			LIMIT 1
-		) AS owst_info ON TRUE
 
 		LEFT JOIN LATERAL (
 			SELECT aa.assigned_at, COALESCE(aa.assignment_remarks, '') AS assignment_remarks
