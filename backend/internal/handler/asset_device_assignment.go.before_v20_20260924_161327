@@ -29,8 +29,8 @@ func NewAssetDeviceAssignmentHandler(db *pgxpool.Pool) *AssetDeviceAssignmentHan
 func (h *AssetDeviceAssignmentHandler) Register(rg *gin.RouterGroup) {
 	rg.GET("/assets/devices/:id/assignment-context", h.AssignmentContext)
 	rg.POST("/assets/devices/:id/assignment", h.AssignDirect)
-	rg.GET("/assets/devices/activity-page", h.ActivityPageV21)
-	rg.POST("/assets/devices/:id/reassign", h.ReassignV21)
+        rg.POST("/assets/devices/activity-summary", h.ActivitySummaryV20)
+        rg.POST("/assets/devices/:id/reassign", h.ReassignV20)
 }
 
 type assetAssignmentTechnicalDetails struct {
@@ -754,152 +754,13 @@ func (h *AssetDeviceAssignmentHandler) AssignDirect(c *gin.Context) {
 	}
 
 	action := "ASSIGNED"
-	if previousStatus == 3 || previousStatus == 4 {
+	if previousStatus == 4 {
 		action = "REASSIGNED"
 	}
 
 	var stockEventID any
 	if hasStockRow {
 		stockEventID = stockInventoryID
-	}
-
-	// Keep the append-only assignment ledger synchronized with the current
-	// asset snapshot. This is the authoritative current-holder record used by
-	// Return/Reassign history.
-	assignmentSource := "DIRECT"
-	if previousStatus == 3 || previousStatus == 4 {
-		assignmentSource = "REASSIGN"
-	}
-
-	var previousAssignmentID any
-	if previousStatus == 3 || previousStatus == 4 {
-		var latestEndedID int64
-		latestErr := tx.QueryRow(
-			ctx,
-			`
-			SELECT id
-			FROM public.asset_device_assignments
-			WHERE asset_device_id = $1
-			  AND ended_at IS NOT NULL
-			ORDER BY ended_at DESC, id DESC
-			LIMIT 1
-			`,
-			assetID,
-		).Scan(&latestEndedID)
-		if latestErr != nil && latestErr != pgx.ErrNoRows {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error":   "unable to resolve previous assignment history",
-			})
-			return
-		}
-		if latestErr == nil {
-			previousAssignmentID = latestEndedID
-		}
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		`
-		INSERT INTO public.asset_device_assignments (
-			asset_device_id,
-			emp_id,
-			emp_name,
-			department,
-			designation,
-			assignment_source,
-			status_code,
-			assigned_at,
-			assignment_remarks,
-			previous_assignment_id,
-			created_by,
-			created_at,
-			updated_at
-		)
-		VALUES (
-			$1,$2,$3,$4,$5,
-			$6,1,$7,NULLIF($8,''),$9,$10,$7,$7
-		)
-		`,
-		assetID,
-		employeeID,
-		employeeName,
-		department,
-		designation,
-		assignmentSource,
-		assignedAt,
-		req.Remarks,
-		previousAssignmentID,
-		assignedByEmployeeID,
-	)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) &&
-			pgErr.Code == "23505" &&
-			pgErr.ConstraintName == "uq_asset_device_assignments_one_active" {
-			c.JSON(http.StatusConflict, gin.H{
-				"success": false,
-				"error":   "this asset already has an active assignment; refresh and review its current holder",
-			})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "unable to write assignment history",
-		})
-		return
-	}
-
-	historyReason := "Assigned to employee"
-	if previousStatus == 3 || previousStatus == 4 {
-		historyReason = "Device reassigned to employee"
-	}
-	if req.Remarks != "" {
-		historyReason += ": " + req.Remarks
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		`
-		INSERT INTO public.asset_device_history (
-			asset_device_id,
-			legacy_equipment_id,
-			device_serial,
-			status_code,
-			raw_status,
-			previous_status,
-			emp_id,
-			emp_name,
-			department,
-			designation,
-			assigned_date,
-			history_reason,
-			created_at_source,
-			updated_at_source,
-			migrated_at
-		)
-		VALUES (
-			$1,NULL,$2,1,'Assigned',$3,
-			$4,$5,$6,$7,$8,$9,NOW(),NOW(),NOW()
-		)
-		`,
-		assetID,
-		deviceSerial,
-		previousStatus,
-		employeeID,
-		employeeName,
-		department,
-		designation,
-		assignedAt,
-		historyReason,
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "unable to write asset status history",
-		})
-		return
 	}
 
 	_, err = tx.Exec(

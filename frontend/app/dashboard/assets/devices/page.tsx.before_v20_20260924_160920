@@ -1,7 +1,7 @@
-
+﻿
 
 //frontend/app/dashboard/assets/devices/page.tsx
-// v21: sticky status UX + global action-date ordering + reassignment history
+// v13: at-a-glance status counters + compact assignment/reassignment modal
 "use client";
 
 import {
@@ -68,7 +68,7 @@ import {
 } from "@/components/ui/dialog";
 
 const PAGE_SIZE = 50;
-const COLUMN_STORAGE_KEY = "itm:asset-devices:visible-columns:v5";
+const COLUMN_STORAGE_KEY = "itm:asset-devices:visible-columns:v4";
 
 const STATUS_OPTIONS = [
     { value: "", label: "All Status" },
@@ -102,7 +102,9 @@ type ColumnKey =
     | "brand"
     | "deviceType"
     | "vendor"
-    | "actionDate"
+    | "assigned"
+    | "returned"
+    | "transferred"
     | "purchase"
     | "warranty"
     | "deviceAge"
@@ -120,7 +122,9 @@ const COLUMN_OPTIONS: Array<{ key: ColumnKey; label: string }> = [
     { key: "brand", label: "Brand" },
     { key: "deviceType", label: "Device Type" },
     { key: "vendor", label: "Vendor" },
-    { key: "actionDate", label: "Action Date" },
+    { key: "assigned", label: "Assigned Date" },
+    { key: "returned", label: "Returned Date" },
+    { key: "transferred", label: "Transferred Date" },
     { key: "purchase", label: "Purchase Date" },
     { key: "warranty", label: "Warranty Date" },
     { key: "deviceAge", label: "Device Age" },
@@ -134,7 +138,6 @@ const DEFAULT_COLUMNS: ColumnKey[] = [
     "device",
     "employee",
     "mrpr",
-    "actionDate",
 ];
 
 type OperationType =
@@ -229,32 +232,6 @@ type AssignmentContext = {
     };
 };
 
-type PreviousAssignmentV21 = {
-    id: number;
-    employee_id: string;
-    employee_name: string;
-    employee_image: string;
-    department: string;
-    designation: string;
-    status_code: number;
-    status_label: string;
-    assigned_at: string | null;
-    ended_at: string | null;
-    assignment_remarks: string;
-    end_remarks: string;
-    end_reason: string;
-};
-
-type ActivityPageResponseV21 = {
-    success?: boolean;
-    data?: OperationalAssetDevice[];
-    page?: number;
-    limit?: number;
-    total?: number;
-    total_pages?: number;
-    error?: string;
-};
-
 type OperationalAssetDevice = AssetDevice & {
     stock_inventory_id?: number | null;
     category_id?: number | null;
@@ -283,10 +260,6 @@ type OperationalAssetDevice = AssetDevice & {
     last_employee_image?: string | null;
     last_department?: string | null;
     last_designation?: string | null;
-    status_action_date?: string | null;
-    status_action_label?: string | null;
-    history_reason?: string | null;
-    previous_assignment?: PreviousAssignmentV21 | null;
 };
 
 type AssetDeviceHistoryEntry = {
@@ -371,44 +344,6 @@ const deviceOperationsApi = {
             success: boolean;
             data: AssignmentContext;
         }>(`/assets/devices/${id}/assignment-context`),
-
-    activityPage: (params: {
-        page: number;
-        limit: number;
-        search?: string;
-        status?: number;
-        category?: string;
-    }) => {
-        const query = new URLSearchParams();
-
-        Object.entries(params).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && value !== "") {
-                query.set(key, String(value));
-            }
-        });
-
-        return api.get<ActivityPageResponseV21>(
-            `/assets/devices/activity-page?${query.toString()}`,
-        );
-    },
-
-    reassignAsset: (
-        id: number,
-        employee_id: string,
-        remarks: string,
-        technical_details: AssignmentTechnicalForm,
-    ) =>
-        api.post(`/assets/devices/${id}/reassign`, {
-            employee_id,
-            remarks: remarks ?? "",
-            technical_details: {
-                ...technical_details,
-                assignment_device_type:
-                    technical_details.assignment_device_type === ""
-                        ? null
-                        : Number(technical_details.assignment_device_type),
-            },
-        }),
 
     assignDirect: (
         id: number,
@@ -629,37 +564,6 @@ function formatDateTime(value: string | null | undefined) {
         hour: "2-digit",
         minute: "2-digit",
     }).format(date);
-}
-
-function statusActionDateHeader(
-    value: string | number | null | undefined,
-) {
-    if (value === "" || value === null || value === undefined) {
-        return "Action Date";
-    }
-
-    switch (Number(value)) {
-        case 0:
-            return "Available Date";
-        case 1:
-            return "Assigned Date";
-        case 2:
-            return "Damaged Date";
-        case 3:
-            return "Transferred Date";
-        case 4:
-            return "Returned Date";
-        case 5:
-            return "Lost Date";
-        case 7:
-            return "Ownership Transfer Date";
-        case 8:
-            return "Claim Raised Date";
-        case 15:
-            return "Service Request Date";
-        default:
-            return "Action Date";
-    }
 }
 
 function historyStatusLabel(value: number | null | undefined) {
@@ -1146,10 +1050,7 @@ function DeviceDatabaseSnapshot({
                         .join(" · ")}
                 />
 
-                <CompactDeviceInfo
-                    label={asset.status_action_label || statusActionDateHeader(asset.asset_status)}
-                    value={formatDateTime(asset.status_action_date || asset.assigned_date)}
-                />
+                <CompactDeviceInfo label="Assigned Date" value={formatDate(asset.assigned_date)} />
                 <CompactDeviceInfo label="Vendor" value={asset.vendor_name} />
                 <CompactDeviceInfo label="MR Number" value={asset.mr_number} mono />
                 <CompactDeviceInfo label="PR Number" value={asset.pr_number} mono />
@@ -1208,7 +1109,7 @@ function DeviceDatabaseSnapshot({
                 />
                 <CompactDeviceInfo
                     label="Remarks"
-                    value={asset.remarks || asset.history_reason}
+                    value={asset.remarks}
                 />
             </div>
         </section>
@@ -1362,7 +1263,7 @@ export default function AssetDevicesPage() {
             setLoading(true);
             setError("");
 
-            const response = await deviceOperationsApi.activityPage({
+            const response = await assetDeviceApi.list({
                 page,
                 limit: PAGE_SIZE,
                 search: search || undefined,
@@ -1373,17 +1274,8 @@ export default function AssetDevicesPage() {
             const pageItems =
                 (response.data ?? []) as OperationalAssetDevice[];
 
-            // The backend returns the page globally ordered by the date that
-            // produced each device's current status. Older Returned rows that
-            // predate the assignment ledger still get the history fallback.
             const hydratedItems = await Promise.all(
-                pageItems.map((item) =>
-                    item.asset_status === 4 &&
-                    !item.previous_assignment &&
-                    !item.last_emp_id
-                        ? hydrateReturnedLastHolder(item)
-                        : Promise.resolve(item),
-                ),
+                pageItems.map(hydrateReturnedLastHolder),
             );
 
             setItems(hydratedItems);
@@ -1629,7 +1521,7 @@ export default function AssetDevicesPage() {
         setSelectedAsset(item);
         setOperation(next);
         setOperationError("");
-        setShowAssignmentOptional(next === "reassign");
+        setShowAssignmentOptional(false);
         setRemarks(next === "detail" || next === "update" ? item.remarks ?? "" : "");
         setAssignmentContext(null);
         setHistoryEntries([]);
@@ -1886,14 +1778,13 @@ export default function AssetDevicesPage() {
                     return;
                 }
 
-                await deviceOperationsApi.reassignAsset(
+                await deviceOperationsApi.transferAsset(
                     selectedAsset.id,
                     selectedEmployee.employee_id,
                     remarks,
-                    EMPTY_ASSIGNMENT_TECHNICAL_FORM,
                 );
 
-                message = `Previous assignment saved as Transferred and device assigned to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
+                message = `Device transferred to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
             }
 
             if (operation === "reassign") {
@@ -1913,36 +1804,47 @@ export default function AssetDevicesPage() {
                     return;
                 }
 
-                if (!isValidMacAddress(assignmentTechnicalForm.lan_mac_address)) {
-                    setOperationError(
-                        "LAN-MAC must contain exactly 12 hexadecimal characters, e.g. 00:1A:2B:3C:4D:5E.",
+                if (
+                    selectedAsset.asset_status === 3 ||
+                    selectedAsset.asset_status === 4
+                ) {
+                    if (!isValidMacAddress(assignmentTechnicalForm.lan_mac_address)) {
+                        setOperationError(
+                            "LAN-MAC must contain exactly 12 hexadecimal characters, e.g. 00:1A:2B:3C:4D:5E.",
+                        );
+                        return;
+                    }
+
+                    if (!isValidMacAddress(assignmentTechnicalForm.wlan_mac_address)) {
+                        setOperationError(
+                            "WLAN-MAC must contain exactly 12 hexadecimal characters, e.g. 00:1A:2B:3C:4D:5E.",
+                        );
+                        return;
+                    }
+
+                    await deviceOperationsApi.assignDirect(
+                        selectedAsset.id,
+                        selectedEmployee.employee_id,
+                        remarks,
+                        {
+                            ...assignmentTechnicalForm,
+                            lan_mac_address: assignmentTechnicalForm.lan_mac_address
+                                ? formatMacAddress(assignmentTechnicalForm.lan_mac_address)
+                                : "",
+                            wlan_mac_address: assignmentTechnicalForm.wlan_mac_address
+                                ? formatMacAddress(assignmentTechnicalForm.wlan_mac_address)
+                                : "",
+                        },
                     );
-                    return;
+                } else {
+                    await deviceOperationsApi.transferAsset(
+                        selectedAsset.id,
+                        selectedEmployee.employee_id,
+                        remarks,
+                    );
                 }
 
-                if (!isValidMacAddress(assignmentTechnicalForm.wlan_mac_address)) {
-                    setOperationError(
-                        "WLAN-MAC must contain exactly 12 hexadecimal characters, e.g. 00:1A:2B:3C:4D:5E.",
-                    );
-                    return;
-                }
-
-                await deviceOperationsApi.reassignAsset(
-                    selectedAsset.id,
-                    selectedEmployee.employee_id,
-                    remarks,
-                    {
-                        ...assignmentTechnicalForm,
-                        lan_mac_address: assignmentTechnicalForm.lan_mac_address
-                            ? formatMacAddress(assignmentTechnicalForm.lan_mac_address)
-                            : "",
-                        wlan_mac_address: assignmentTechnicalForm.wlan_mac_address
-                            ? formatMacAddress(assignmentTechnicalForm.wlan_mac_address)
-                            : "",
-                    },
-                );
-
-                message = `Previous assignment saved as Transferred and device assigned to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
+                message = `Device reassigned to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
             }
 
             if (operation === "return") {
@@ -2006,10 +1908,13 @@ export default function AssetDevicesPage() {
             const completedStatusLabel =
                 completedOperation === "return"
                     ? "Returned"
-                    : completedOperation === "transfer" ||
-                        completedOperation === "reassign"
-                        ? "Assigned"
-                        : completedOperation === "assign-direct" ||
+                    : completedOperation === "transfer"
+                        ? "Transferred"
+                        : completedOperation === "reassign"
+                            ? selectedAsset.asset_status === 4
+                                ? "Assigned"
+                                : "Transferred"
+                            : completedOperation === "assign-direct" ||
                                 completedOperation === "assign-tt"
                                 ? "Assigned"
                                 : completedOperation === "owst"
@@ -2226,14 +2131,14 @@ export default function AssetDevicesPage() {
                 </div>
             )}
 
-            <div className="sticky top-0 z-30 rounded-xl border border-border bg-background/95 p-2.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/90">
+            <div className="rounded-xl border border-border bg-card p-2.5 shadow-sm">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <p className="text-xs font-semibold text-foreground">
                             Device Status Overview
                         </p>
                         <p className="text-[10px] text-muted-foreground">
-                            Complete registry totals · click any status to filter the table · latest action first.
+                            Complete registry totals · click any status to filter the table.
                         </p>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -2386,35 +2291,35 @@ export default function AssetDevicesPage() {
             </div>
 
             <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                <div className="max-h-[65vh] overflow-auto">
+                <div className="overflow-hidden">
                     <table
                         className="w-full table-fixed text-[11px] leading-4"
                     >
-                        <thead className="sticky top-0 z-20 border-b border-border bg-background/95 shadow-sm backdrop-blur">
+                        <thead className="border-b border-border bg-muted/35">
                             <tr className="text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
                                 <th className={hasExtraColumns ? "px-1.5 py-2 text-center" : "w-[4%] px-1.5 py-2 text-center"}>
                                     SL
                                 </th>
                                 {visibleColumns.has("serial") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[12%] px-2 py-2"}>
+                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[14%] px-2 py-2"}>
                                         Serial / Asset
                                     </th>
                                 )}
                                 {visibleColumns.has("device") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[13%] px-2 py-2"}>
+                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[14%] px-2 py-2"}>
                                         Device
                                     </th>
                                 )}
-                                <th className={hasExtraColumns ? "px-1.5 py-2 text-center" : "w-[7%] px-1.5 py-2 text-center"}>
+                                <th className={hasExtraColumns ? "px-1.5 py-2 text-center" : "w-[8%] px-1.5 py-2 text-center"}>
                                     Entry Type
                                 </th>
                                 {visibleColumns.has("employee") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[18%] px-2 py-2"}>
+                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[15%] px-2 py-2"}>
                                         Emp Info
                                     </th>
                                 )}
                                 {visibleColumns.has("mrpr") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[20%] px-2 py-2"}>
+                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[28%] px-2 py-2"}>
                                         MR / PR Number
                                     </th>
                                 )}
@@ -2423,11 +2328,9 @@ export default function AssetDevicesPage() {
                                 {visibleColumns.has("brand") && <th className="px-2 py-2">Brand</th>}
                                 {visibleColumns.has("deviceType") && <th className="px-2 py-2">Device Type</th>}
                                 {visibleColumns.has("vendor") && <th className="px-2 py-2">Vendor</th>}
-                                {visibleColumns.has("actionDate") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[12%] px-2 py-2"}>
-                                        {statusActionDateHeader(status)}
-                                    </th>
-                                )}
+                                {visibleColumns.has("assigned") && <th className="px-2 py-2">Assigned Date</th>}
+                                {visibleColumns.has("returned") && <th className="px-2 py-2">Returned Date</th>}
+                                {visibleColumns.has("transferred") && <th className="px-2 py-2">Transferred Date</th>}
                                 {visibleColumns.has("purchase") && <th className="px-2 py-2">Purchase Date</th>}
                                 {visibleColumns.has("warranty") && <th className="px-2 py-2">Warranty Date</th>}
                                 {visibleColumns.has("deviceAge") && <th className="px-2 py-2">Device Age</th>}
@@ -2437,7 +2340,7 @@ export default function AssetDevicesPage() {
                                 <th className={hasExtraColumns ? "px-1.5 py-2 text-center" : "w-[8%] px-1.5 py-2 text-center"}>
                                     Status
                                 </th>
-                                <th className={hasExtraColumns ? "px-1.5 py-2 text-center" : "w-[6%] px-1.5 py-2 text-center"}>
+                                <th className={hasExtraColumns ? "px-1.5 py-2 text-center" : "w-[9%] px-1.5 py-2 text-center"}>
                                     Action
                                 </th>
                             </tr>
@@ -2655,19 +2558,21 @@ export default function AssetDevicesPage() {
                                         </td>
                                     )}
 
-                                    {visibleColumns.has("actionDate") && (
-                                        <td className="min-w-0 px-2 py-1.5 align-middle">
-                                            <div className="space-y-0.5">
-                                                <span className="block truncate text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                                    {item.status_action_label || statusActionDateHeader(item.asset_status)}
-                                                </span>
-                                                <span
-                                                    className="block truncate text-[10px] font-semibold text-foreground"
-                                                    title={String(formatDateTime(item.status_action_date))}
-                                                >
-                                                    {formatDateTime(item.status_action_date)}
-                                                </span>
-                                            </div>
+                                    {visibleColumns.has("assigned") && (
+                                        <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
+                                            <span className="block truncate" title={String(formatDate(item.assigned_date))}>{formatDate(item.assigned_date)}</span>
+                                        </td>
+                                    )}
+
+                                    {visibleColumns.has("returned") && (
+                                        <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
+                                            <span className="block truncate" title={String(formatDate(item.returned_at))}>{formatDate(item.returned_at)}</span>
+                                        </td>
+                                    )}
+
+                                    {visibleColumns.has("transferred") && (
+                                        <td className="min-w-0 px-2 py-1.5 text-[10px] font-medium">
+                                            <span className="block truncate" title={String(formatDate(item.transferred_at))}>{formatDate(item.transferred_at)}</span>
                                         </td>
                                     )}
 
@@ -3316,7 +3221,7 @@ export default function AssetDevicesPage() {
                                             label="Status"
                                             value={
                                                 operation === "reassign"
-                                                    ? `${selectedAsset?.status_label || "Current"} → Assigned · previous record → Transferred (3)`
+                                                    ? `${selectedAsset?.status_label || "Current"} → Assigned`
                                                     : "Available → Assigned"
                                             }
                                         />
@@ -3365,7 +3270,7 @@ export default function AssetDevicesPage() {
                                             </span>
                                         </div>
                                         <p className="mt-0.5 text-[9px] text-muted-foreground">
-                                            Previous assignment history plus AGP, battery, OS, IP/MAC, adapter, mouse, UPS, bag and device type.
+                                            AGP, battery, OS, IP/MAC, adapter, mouse, UPS, bag and device type.
                                         </p>
                                     </div>
 
@@ -3380,119 +3285,6 @@ export default function AssetDevicesPage() {
 
                                 {showAssignmentOptional && (
                                     <div className="border-t border-cyan-200/70 px-3 py-2.5 dark:border-cyan-900/50">
-                                        {operation === "reassign" && (
-                                            <div className="mb-2 rounded-lg border border-violet-200 bg-violet-50/70 p-2.5 dark:border-violet-900/50 dark:bg-violet-950/20">
-                                                <div className="mb-2 flex items-center justify-between gap-2">
-                                                    <div>
-                                                        <p className="text-[10px] font-semibold uppercase tracking-[0.04em] text-violet-900 dark:text-violet-100">
-                                                            Previous Assignment History
-                                                        </p>
-                                                        <p className="text-[9px] text-muted-foreground">
-                                                            Saved holder record remains in history after reassignment.
-                                                        </p>
-                                                    </div>
-                                                    <span className="rounded-full border border-violet-200 bg-background px-2 py-0.5 text-[9px] font-semibold text-violet-700 dark:border-violet-800 dark:text-violet-300">
-                                                        {selectedAsset?.previous_assignment?.status_label ||
-                                                            (selectedAsset?.emp_id ? "Current holder" : "Previous holder")}
-                                                    </span>
-                                                </div>
-
-                                                {selectedAsset?.previous_assignment || selectedAsset?.last_emp_id ? (
-                                                    <div className="grid gap-2 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
-                                                        <div className="flex min-w-0 items-center gap-2 rounded-md border border-border/70 bg-background p-2">
-                                                            <EmployeeAvatar
-                                                                name={
-                                                                    selectedAsset?.previous_assignment?.employee_name ||
-                                                                    selectedAsset?.last_emp_name ||
-                                                                    null
-                                                                }
-                                                                image={
-                                                                    selectedAsset?.previous_assignment?.employee_image ||
-                                                                    selectedAsset?.last_employee_image
-                                                                }
-                                                            />
-                                                            <div className="min-w-0">
-                                                                <p className="truncate text-[10px] font-semibold text-foreground">
-                                                                    {selectedAsset?.previous_assignment?.employee_name ||
-                                                                        selectedAsset?.last_emp_name ||
-                                                                        "Previous employee"}
-                                                                </p>
-                                                                <p className="truncate font-mono text-[9px] text-primary">
-                                                                    ID {selectedAsset?.previous_assignment?.employee_id ||
-                                                                        selectedAsset?.last_emp_id ||
-                                                                        "—"}
-                                                                </p>
-                                                                <p className="truncate text-[9px] text-muted-foreground">
-                                                                    {[
-                                                                        selectedAsset?.previous_assignment?.department ||
-                                                                            selectedAsset?.last_department,
-                                                                        selectedAsset?.previous_assignment?.designation ||
-                                                                            selectedAsset?.last_designation,
-                                                                    ]
-                                                                        .filter(Boolean)
-                                                                        .join(" · ") || "—"}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-
-                                                        <CompactDeviceInfo
-                                                            label="Assigned Date"
-                                                            value={formatDateTime(
-                                                                selectedAsset?.previous_assignment?.assigned_at,
-                                                            )}
-                                                        />
-                                                        <CompactDeviceInfo
-                                                            label="Action Date"
-                                                            value={formatDateTime(
-                                                                selectedAsset?.previous_assignment?.ended_at,
-                                                            )}
-                                                        />
-                                                        <CompactDeviceInfo
-                                                            label="Previous Status"
-                                                            value={
-                                                                selectedAsset?.previous_assignment?.status_label ||
-                                                                "Previous holder"
-                                                            }
-                                                        />
-
-                                                        <div className="lg:col-span-4 rounded-md border border-border/70 bg-background px-2 py-1.5">
-                                                            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                                                Previous Remarks
-                                                            </p>
-                                                            <p className="mt-0.5 whitespace-pre-wrap break-words text-[10px] leading-4 text-foreground">
-                                                                {selectedAsset?.previous_assignment?.end_remarks ||
-                                                                    selectedAsset?.previous_assignment?.assignment_remarks ||
-                                                                    selectedAsset?.history_reason ||
-                                                                    "—"}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                ) : selectedAsset?.emp_id ? (
-                                                    <div className="flex items-center gap-2 rounded-md border border-border/70 bg-background p-2">
-                                                        <EmployeeAvatar
-                                                            name={selectedAsset.emp_name}
-                                                            image={selectedAsset.employee_image}
-                                                        />
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-[10px] font-semibold">
-                                                                {selectedAsset.emp_name || "Current employee"}
-                                                            </p>
-                                                            <p className="font-mono text-[9px] text-primary">
-                                                                ID {selectedAsset.emp_id}
-                                                            </p>
-                                                            <p className="text-[9px] text-muted-foreground">
-                                                                On save, this assignment will be closed as Transferred (3).
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-[10px] text-muted-foreground">
-                                                        No previous employee assignment is available for this asset.
-                                                    </p>
-                                                )}
-                                            </div>
-                                        )}
-
                                         <div className="grid gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
                                             {OPTIONAL_ASSIGNMENT_FIELDS.map((field) => (
                                                 <label key={field.key} className="block min-w-0">

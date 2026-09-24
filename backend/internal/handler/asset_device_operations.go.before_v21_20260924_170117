@@ -389,8 +389,6 @@ func (h *AssetDeviceHandler) ReturnDevice(c *gin.Context) {
 		return
 	}
 
-	actor := strings.TrimSpace(c.GetString("employee_id"))
-
 	_, err = tx.Exec(
 		ctx,
 		`
@@ -415,6 +413,7 @@ func (h *AssetDeviceHandler) ReturnDevice(c *gin.Context) {
 	// Keep the SCM stock row synchronized with the asset registry so a
 	// returned device can be reused through later allocation workflows.
 	if asset.StockInventoryID != nil {
+		actor := strings.TrimSpace(c.GetString("employee_id"))
 		_, err = tx.Exec(
 			ctx,
 			`
@@ -432,79 +431,6 @@ func (h *AssetDeviceHandler) ReturnDevice(c *gin.Context) {
 		)
 		if err != nil {
 			response.ServerError(c, err)
-			return
-		}
-	}
-
-	// Close the active assignment ledger row as Returned (4). If this is a
-	// legacy asset that has a current employee snapshot but no ledger row,
-	// create one closed compatibility row so previous-holder history remains
-	// available for later reassignment.
-	assignmentResult, assignmentErr := tx.Exec(
-		ctx,
-		`
-		UPDATE public.asset_device_assignments
-		SET
-			ended_at = NOW(),
-			end_reason = 'RETURNED',
-			status_code = 4,
-			end_remarks = NULLIF($1, ''),
-			ended_by = $2,
-			updated_at = NOW()
-		WHERE asset_device_id = $3
-		  AND ended_at IS NULL
-		`,
-		strings.TrimSpace(req.Remarks),
-		actor,
-		id,
-	)
-	if assignmentErr != nil {
-		response.ServerError(c, assignmentErr)
-		return
-	}
-
-	if assignmentResult.RowsAffected() == 0 && strings.TrimSpace(asset.EmpID) != "" {
-		assignedAt := time.Now()
-		if asset.AssignedDate != nil {
-			assignedAt = *asset.AssignedDate
-		}
-
-		_, assignmentErr = tx.Exec(
-			ctx,
-			`
-			INSERT INTO public.asset_device_assignments (
-				asset_device_id,
-				emp_id,
-				emp_name,
-				department,
-				designation,
-				assignment_source,
-				status_code,
-				assigned_at,
-				ended_at,
-				end_reason,
-				end_remarks,
-				created_by,
-				ended_by,
-				created_at,
-				updated_at
-			)
-			VALUES (
-				$1,$2,$3,$4,$5,
-				'LEGACY',4,$6,NOW(),'RETURNED',NULLIF($7,''),$8,$8,NOW(),NOW()
-			)
-			`,
-			id,
-			asset.EmpID,
-			asset.EmpName,
-			asset.Department,
-			asset.Designation,
-			assignedAt,
-			strings.TrimSpace(req.Remarks),
-			actor,
-		)
-		if assignmentErr != nil {
-			response.ServerError(c, assignmentErr)
 			return
 		}
 	}
@@ -547,6 +473,8 @@ func (h *AssetDeviceHandler) ReturnDevice(c *gin.Context) {
 		response.ServerError(c, err)
 		return
 	}
+
+	actor := strings.TrimSpace(c.GetString("employee_id"))
 
 	// Commit the asset return first. The legacy audit_log insert is kept
 	// outside this transaction so an audit-table compatibility issue cannot

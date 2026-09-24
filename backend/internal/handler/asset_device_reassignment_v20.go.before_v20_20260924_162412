@@ -1,0 +1,868 @@
+package handler
+
+import (
+	"database/sql"
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
+)
+
+type assetReassignRequestV20 struct {
+	EmployeeID       string                          `json:"employee_id" binding:"required"`
+	Remarks          string                          `json:"remarks"`
+	TechnicalDetails assetAssignmentTechnicalDetails `json:"technical_details"`
+}
+
+type assetActivityRequestV20 struct {
+	IDs []int64 `json:"ids"`
+}
+
+type previousAssignmentV20 struct {
+	ID                int64  `json:"id"`
+	EmployeeID        string `json:"employee_id"`
+	EmployeeName      string `json:"employee_name"`
+	EmployeeImage     string `json:"employee_image"`
+	Department        string `json:"department"`
+	Designation       string `json:"designation"`
+	StatusCode        int    `json:"status_code"`
+	StatusLabel       string `json:"status_label"`
+	AssignedAt        string `json:"assigned_at"`
+	EndedAt           string `json:"ended_at"`
+	AssignmentRemarks string `json:"assignment_remarks"`
+	EndRemarks        string `json:"end_remarks"`
+	EndReason         string `json:"end_reason"`
+}
+
+type assetActivitySummaryV20 struct {
+	AssetDeviceID      int64                  `json:"asset_device_id"`
+	AssetStatus        int                    `json:"asset_status"`
+	ActionDate         string                 `json:"action_date"`
+	ActionLabel        string                 `json:"action_label"`
+	HistoryReason      string                 `json:"history_reason"`
+	PreviousAssignment *previousAssignmentV20 `json:"previous_assignment"`
+}
+
+func assetStatusActionLabelV20(status int) string {
+	switch status {
+	case 0:
+		return "Available Date"
+	case 1:
+		return "Assigned Date"
+	case 2:
+		return "Damaged Date"
+	case 3:
+		return "Transferred Date"
+	case 4:
+		return "Returned Date"
+	case 5:
+		return "Lost Date"
+	case 7:
+		return "Ownership Transfer Date"
+	case 8:
+		return "Claim Raised Date"
+	case 15:
+		return "Service Request Date"
+	default:
+		return "Action Date"
+	}
+}
+
+func assignmentStatusLabelV20(status int) string {
+	switch status {
+	case 0:
+		return "Available"
+	case 1:
+		return "Assigned"
+	case 2:
+		return "Damaged"
+	case 3:
+		return "Transferred"
+	case 4:
+		return "Returned"
+	case 5:
+		return "Lost"
+	case 7:
+		return "Ownership Transfer"
+	case 8:
+		return "Claim Raised"
+	case 15:
+		return "Service Request"
+	default:
+		return "Unknown"
+	}
+}
+
+func nullableTimeTextV20(value sql.NullTime) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.Time.Format(time.RFC3339)
+}
+
+// ActivitySummaryV20 enriches the current asset page with one status/action date
+// and the latest ended employee assignment. It does not change asset state.
+func (h *AssetDeviceAssignmentHandler) ActivitySummaryV20(c *gin.Context) {
+	var req assetActivityRequestV20
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "ids are required"})
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": []assetActivitySummaryV20{}})
+		return
+	}
+	if len(req.IDs) > 200 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "a maximum of 200 asset ids can be requested"})
+		return
+	}
+
+	rows, err := h.db.Query(
+		c.Request.Context(),
+		`
+		SELECT
+			ad.id,
+			COALESCE(ad.asset_status, 0),
+			COALESCE(
+				CASE WHEN ad.asset_status = 1 THEN active_assignment.assigned_at END,
+				CASE WHEN ad.asset_status IN (3, 4) THEN status_assignment.ended_at END,
+				status_history.action_at,
+				ad.updated_at,
+				ad.created_at
+			) AS action_at,
+			COALESCE(status_history.history_reason, ''),
+
+			previous_assignment.id,
+			COALESCE(previous_assignment.emp_id, ''),
+			COALESCE(NULLIF(BTRIM(employee_office.employee_name), ''), previous_assignment.emp_name, ''),
+			COALESCE(employee_personal.picture, ''),
+			COALESCE(NULLIF(BTRIM(employee_office.department_name), ''), previous_assignment.department, ''),
+			COALESCE(NULLIF(BTRIM(employee_office.designation), ''), previous_assignment.designation, ''),
+			previous_assignment.status_code,
+			previous_assignment.assigned_at,
+			previous_assignment.ended_at,
+			COALESCE(previous_assignment.assignment_remarks, ''),
+			COALESCE(previous_assignment.end_remarks, ''),
+			COALESCE(previous_assignment.end_reason, '')
+		FROM public.asset_devices AS ad
+		LEFT JOIN LATERAL (
+			SELECT aa.assigned_at
+			FROM public.asset_device_assignments AS aa
+			WHERE aa.asset_device_id = ad.id
+			  AND aa.ended_at IS NULL
+			ORDER BY aa.assigned_at DESC, aa.id DESC
+			LIMIT 1
+		) AS active_assignment ON TRUE
+		LEFT JOIN LATERAL (
+			SELECT aa.ended_at
+			FROM public.asset_device_assignments AS aa
+			WHERE aa.asset_device_id = ad.id
+			  AND aa.ended_at IS NOT NULL
+			  AND aa.status_code = ad.asset_status
+			ORDER BY aa.ended_at DESC, aa.id DESC
+			LIMIT 1
+		) AS status_assignment ON TRUE
+		LEFT JOIN LATERAL (
+			SELECT
+				COALESCE(
+					CASE WHEN ad.asset_status = 4 THEN h.returned_at END,
+					CASE WHEN ad.asset_status = 3 THEN h.transferred_at END,
+					h.updated_at_source,
+					h.created_at_source,
+					h.migrated_at
+				) AS action_at,
+				COALESCE(h.history_reason, '') AS history_reason
+			FROM public.asset_device_history AS h
+			WHERE h.asset_device_id = ad.id
+			  AND h.status_code = ad.asset_status
+			ORDER BY
+				COALESCE(
+					CASE WHEN ad.asset_status = 4 THEN h.returned_at END,
+					CASE WHEN ad.asset_status = 3 THEN h.transferred_at END,
+					h.updated_at_source,
+					h.created_at_source,
+					h.migrated_at
+				) DESC NULLS LAST,
+				h.id DESC
+			LIMIT 1
+		) AS status_history ON TRUE
+		LEFT JOIN LATERAL (
+			SELECT
+				aa.id,
+				aa.emp_id,
+				aa.emp_name,
+				aa.department,
+				aa.designation,
+				COALESCE(aa.status_code, 1) AS status_code,
+				aa.assigned_at,
+				aa.ended_at,
+				aa.assignment_remarks,
+				aa.end_remarks,
+				aa.end_reason
+			FROM public.asset_device_assignments AS aa
+			WHERE aa.asset_device_id = ad.id
+			  AND aa.ended_at IS NOT NULL
+			ORDER BY aa.ended_at DESC, aa.id DESC
+			LIMIT 1
+		) AS previous_assignment ON TRUE
+		LEFT JOIN public.employee_office_info AS employee_office
+			ON LOWER(BTRIM(COALESCE(employee_office.employee_id, ''))) =
+			   LOWER(BTRIM(COALESCE(previous_assignment.emp_id, '')))
+		LEFT JOIN public.employee_personal_info AS employee_personal
+			ON LOWER(BTRIM(COALESCE(employee_personal.employee_id, ''))) =
+			   LOWER(BTRIM(COALESCE(previous_assignment.emp_id, '')))
+		WHERE ad.id = ANY($1::bigint[])
+		ORDER BY action_at DESC NULLS LAST, ad.id DESC
+		`,
+		req.IDs,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	items := make([]assetActivitySummaryV20, 0, len(req.IDs))
+
+	for rows.Next() {
+		var (
+			item                 assetActivitySummaryV20
+			actionAt             time.Time
+			previousID           sql.NullInt64
+			previousEmployeeID   sql.NullString
+			previousEmployeeName sql.NullString
+			previousImage        sql.NullString
+			previousDepartment   sql.NullString
+			previousDesignation  sql.NullString
+			previousStatus       sql.NullInt64
+			previousAssignedAt   sql.NullTime
+			previousEndedAt      sql.NullTime
+			assignmentRemarks    sql.NullString
+			endRemarks           sql.NullString
+			endReason            sql.NullString
+		)
+
+		if err := rows.Scan(
+			&item.AssetDeviceID,
+			&item.AssetStatus,
+			&actionAt,
+			&item.HistoryReason,
+			&previousID,
+			&previousEmployeeID,
+			&previousEmployeeName,
+			&previousImage,
+			&previousDepartment,
+			&previousDesignation,
+			&previousStatus,
+			&previousAssignedAt,
+			&previousEndedAt,
+			&assignmentRemarks,
+			&endRemarks,
+			&endReason,
+		); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+
+		item.ActionDate = actionAt.Format(time.RFC3339)
+		item.ActionLabel = assetStatusActionLabelV20(item.AssetStatus)
+
+		if previousID.Valid {
+			statusCode := 1
+			if previousStatus.Valid {
+				statusCode = int(previousStatus.Int64)
+			}
+			item.PreviousAssignment = &previousAssignmentV20{
+				ID:                previousID.Int64,
+				EmployeeID:        previousEmployeeID.String,
+				EmployeeName:      previousEmployeeName.String,
+				EmployeeImage:     previousImage.String,
+				Department:        previousDepartment.String,
+				Designation:       previousDesignation.String,
+				StatusCode:        statusCode,
+				StatusLabel:       assignmentStatusLabelV20(statusCode),
+				AssignedAt:        nullableTimeTextV20(previousAssignedAt),
+				EndedAt:           nullableTimeTextV20(previousEndedAt),
+				AssignmentRemarks: assignmentRemarks.String,
+				EndRemarks:        endRemarks.String,
+				EndReason:         endReason.String,
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
+}
+
+// ReassignV20 closes the current holder as Transferred (status 3), then creates
+// one new active assignment as Assigned (status 1). Returned assets have no
+// active holder, so their existing Returned history is preserved and a new
+// Assigned record is created without rewriting the Return event.
+func (h *AssetDeviceAssignmentHandler) ReassignV20(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	assetID, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil || assetID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid asset device id"})
+		return
+	}
+
+	var req assetReassignRequestV20
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "employee_id is required"})
+		return
+	}
+
+	req.EmployeeID = strings.TrimSpace(req.EmployeeID)
+	req.Remarks = strings.TrimSpace(req.Remarks)
+	req.TechnicalDetails = normalizeAssignmentTechnicalDetails(req.TechnicalDetails)
+
+	if req.EmployeeID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "employee_id is required"})
+		return
+	}
+	if len(req.Remarks) > 1000 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "remarks cannot exceed 1000 characters"})
+		return
+	}
+	if validationError := validateAssignmentTechnicalDetails(req.TechnicalDetails); validationError != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": validationError})
+		return
+	}
+
+	normalizedLAN, macErr := normalizeMACAddress(req.TechnicalDetails.LANMACAddress)
+	if macErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "LAN-MAC " + macErr.Error()})
+		return
+	}
+	normalizedWLAN, macErr := normalizeMACAddress(req.TechnicalDetails.WLANMACAddress)
+	if macErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "WLAN-MAC " + macErr.Error()})
+		return
+	}
+	if normalizedLAN != "" && normalizedWLAN != "" && normalizedLAN == normalizedWLAN {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "LAN-MAC and WLAN-MAC must be different addresses"})
+		return
+	}
+	req.TechnicalDetails.LANMACAddress = normalizedLAN
+	req.TechnicalDetails.WLANMACAddress = normalizedWLAN
+
+	actor := strings.TrimSpace(c.GetString("employee_id"))
+	if actor == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "authenticated IT employee context is required"})
+		return
+	}
+
+	tx, err := h.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "unable to start reassignment transaction"})
+		return
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var (
+		deviceSerial         string
+		previousStatus       int
+		rowStatus            int
+		previousEmployeeID   string
+		previousEmployeeName string
+		previousDepartment   string
+		previousDesignation  string
+		previousAssignedAt   sql.NullTime
+		legacyStackID        sql.NullInt64
+		mrNumber             string
+		prNumber             string
+		vendorName           string
+	)
+
+	err = tx.QueryRow(
+		ctx,
+		`
+		SELECT
+			COALESCE(device_serial, ''),
+			COALESCE(asset_status, 0),
+			COALESCE(row_status, 1),
+			COALESCE(emp_id, ''),
+			COALESCE(emp_name, ''),
+			COALESCE(department, ''),
+			COALESCE(designation, ''),
+			assigned_date,
+			legacy_stack_id,
+			COALESCE(mr_number, ''),
+			COALESCE(pr_number, ''),
+			COALESCE(vendor_name, '')
+		FROM public.asset_devices
+		WHERE id = $1
+		FOR UPDATE
+		`,
+		assetID,
+	).Scan(
+		&deviceSerial,
+		&previousStatus,
+		&rowStatus,
+		&previousEmployeeID,
+		&previousEmployeeName,
+		&previousDepartment,
+		&previousDesignation,
+		&previousAssignedAt,
+		&legacyStackID,
+		&mrNumber,
+		&prNumber,
+		&vendorName,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "asset device not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	if rowStatus != 1 {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "asset device is not active"})
+		return
+	}
+	if previousStatus != 1 && previousStatus != 3 && previousStatus != 4 {
+		c.JSON(http.StatusConflict, gin.H{
+			"success":        false,
+			"error":          "only Assigned, Transferred or Returned devices can be reassigned",
+			"current_status": previousStatus,
+		})
+		return
+	}
+
+	var (
+		employeeID   string
+		employeeName string
+		department   string
+		designation  string
+	)
+	err = tx.QueryRow(
+		ctx,
+		`
+		SELECT
+			BTRIM(COALESCE(employee_id, '')),
+			BTRIM(COALESCE(employee_name, '')),
+			BTRIM(COALESCE(department_name, '')),
+			BTRIM(COALESCE(designation, ''))
+		FROM public.employee_office_info
+		WHERE LOWER(BTRIM(COALESCE(employee_id, ''))) = LOWER(BTRIM($1::text))
+		  AND LOWER(BTRIM(COALESCE(active, ''))) IN ('active', 'yes')
+		LIMIT 1
+		`,
+		req.EmployeeID,
+	).Scan(&employeeID, &employeeName, &department, &designation)
+	if errors.Is(err, pgx.ErrNoRows) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "selected employee does not exist or is not active"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	var (
+		activeAssignmentID           int64
+		activeAssignmentEmployeeID   string
+		activeAssignmentEmployeeName string
+		activeAssignmentDepartment   string
+		activeAssignmentDesignation  string
+		activeAssignmentAssignedAt   time.Time
+	)
+
+	activeErr := tx.QueryRow(
+		ctx,
+		`
+		SELECT
+			id,
+			COALESCE(emp_id, ''),
+			COALESCE(emp_name, ''),
+			COALESCE(department, ''),
+			COALESCE(designation, ''),
+			assigned_at
+		FROM public.asset_device_assignments
+		WHERE asset_device_id = $1
+		  AND ended_at IS NULL
+		ORDER BY assigned_at DESC, id DESC
+		LIMIT 1
+		FOR UPDATE
+		`,
+		assetID,
+	).Scan(
+		&activeAssignmentID,
+		&activeAssignmentEmployeeID,
+		&activeAssignmentEmployeeName,
+		&activeAssignmentDepartment,
+		&activeAssignmentDesignation,
+		&activeAssignmentAssignedAt,
+	)
+	if activeErr != nil && !errors.Is(activeErr, pgx.ErrNoRows) {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": activeErr.Error()})
+		return
+	}
+
+	if activeErr == nil {
+		if strings.EqualFold(strings.TrimSpace(activeAssignmentEmployeeID), employeeID) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "error": "select a different employee; this employee already holds the device"})
+			return
+		}
+
+		_, err = tx.Exec(
+			ctx,
+			`
+			UPDATE public.asset_device_assignments
+			SET
+				ended_at = NOW(),
+				end_reason = 'TRANSFERRED',
+				status_code = 3,
+				end_remarks = NULLIF($1, ''),
+				ended_by = $2,
+				updated_at = NOW()
+			WHERE id = $3
+			`,
+			req.Remarks,
+			actor,
+			activeAssignmentID,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+
+		previousEmployeeID = activeAssignmentEmployeeID
+		previousEmployeeName = activeAssignmentEmployeeName
+		previousDepartment = activeAssignmentDepartment
+		previousDesignation = activeAssignmentDesignation
+		previousAssignedAt = sql.NullTime{Time: activeAssignmentAssignedAt, Valid: true}
+	} else if previousStatus != 4 && strings.TrimSpace(previousEmployeeID) != "" {
+		// Compatibility path for a legacy snapshot that has a current employee
+		// but no active assignment-ledger row.
+		assignedAt := time.Now()
+		if previousAssignedAt.Valid {
+			assignedAt = previousAssignedAt.Time
+		}
+		err = tx.QueryRow(
+			ctx,
+			`
+			INSERT INTO public.asset_device_assignments (
+				asset_device_id,
+				emp_id,
+				emp_name,
+				department,
+				designation,
+				assignment_source,
+				status_code,
+				assigned_at,
+				ended_at,
+				end_reason,
+				end_remarks,
+				created_by,
+				ended_by,
+				created_at,
+				updated_at
+			)
+			VALUES (
+				$1,$2,$3,$4,$5,
+				'LEGACY',3,$6,NOW(),'TRANSFERRED',NULLIF($7,''),$8,$8,NOW(),NOW()
+			)
+			RETURNING id
+			`,
+			assetID,
+			previousEmployeeID,
+			previousEmployeeName,
+			previousDepartment,
+			previousDesignation,
+			assignedAt,
+			req.Remarks,
+			actor,
+		).Scan(&activeAssignmentID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+	}
+
+	// Returned assets normally have no active assignment. Preserve the latest
+	// ended assignment as the lineage link for the new assignment.
+	if activeAssignmentID == 0 {
+		var latestEndedAssignedAt sql.NullTime
+		latestEndedErr := tx.QueryRow(
+			ctx,
+			`
+			SELECT
+				id,
+				COALESCE(emp_id, ''),
+				COALESCE(emp_name, ''),
+				COALESCE(department, ''),
+				COALESCE(designation, ''),
+				assigned_at
+			FROM public.asset_device_assignments
+			WHERE asset_device_id = $1
+			  AND ended_at IS NOT NULL
+			ORDER BY ended_at DESC, id DESC
+			LIMIT 1
+			`,
+			assetID,
+		).Scan(
+			&activeAssignmentID,
+			&previousEmployeeID,
+			&previousEmployeeName,
+			&previousDepartment,
+			&previousDesignation,
+			&latestEndedAssignedAt,
+		)
+		if latestEndedErr == nil && latestEndedAssignedAt.Valid {
+			previousAssignedAt = latestEndedAssignedAt
+		}
+	}
+
+	// Reassignment creates an explicit Transferred event for the previous
+	// employee, followed by a new Assigned event for the new employee. The
+	// older Return event (when present) stays immutable in history.
+	if strings.TrimSpace(previousEmployeeID) != "" {
+		transferReason := "Previous employee assignment transferred during reassignment"
+		if req.Remarks != "" {
+			transferReason += ": " + req.Remarks
+		}
+
+		_, err = tx.Exec(
+			ctx,
+			`
+			INSERT INTO public.asset_device_history (
+				asset_device_id, legacy_equipment_id, device_serial,
+				status_code, raw_status, previous_status,
+				emp_id, emp_name, department, designation,
+				mr_number, pr_number, vendor, assigned_date, transferred_at,
+				history_reason, created_at_source, updated_at_source, migrated_at
+			)
+			VALUES (
+				$1, NULL, $2,
+				3, 'Transferred', $3,
+				$4, $5, $6, $7,
+				$8, $9, $10, $11, NOW(),
+				$12, NOW(), NOW(), NOW()
+			)
+			`,
+			assetID,
+			deviceSerial,
+			previousStatus,
+			previousEmployeeID,
+			previousEmployeeName,
+			previousDepartment,
+			previousDesignation,
+			mrNumber,
+			prNumber,
+			vendorName,
+			previousAssignedAt,
+			transferReason,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+	}
+
+	_, err = tx.Exec(
+		ctx,
+		`
+		UPDATE public.asset_devices
+		SET
+			agp = COALESCE(NULLIF($1, ''), agp),
+			battery = COALESCE(NULLIF($2, ''), battery),
+			removal_drive = COALESCE(NULLIF($3, ''), removal_drive),
+			operating_system = COALESCE(NULLIF($4, ''), operating_system),
+			os_key = COALESCE(NULLIF($5, ''), os_key),
+			ip_address = COALESCE(NULLIF($6, ''), ip_address),
+			lan_mac_address = COALESCE(NULLIF($7, ''), lan_mac_address),
+			wlan_mac_address = COALESCE(NULLIF($8, ''), wlan_mac_address),
+			adapter = COALESCE(NULLIF($9, ''), adapter),
+			mouse = COALESCE(NULLIF($10, ''), mouse),
+			ups = COALESCE(NULLIF($11, ''), ups),
+			bag = COALESCE(NULLIF($12, ''), bag),
+			assignment_device_type = COALESCE($13, assignment_device_type),
+			asset_status = 1,
+			emp_id = $14,
+			emp_name = $15,
+			department = $16,
+			designation = $17,
+			assigned_date = NOW(),
+			updated_at = NOW()
+		WHERE id = $18
+		`,
+		req.TechnicalDetails.AGP,
+		req.TechnicalDetails.Battery,
+		req.TechnicalDetails.RemovalDrive,
+		req.TechnicalDetails.OperatingSystem,
+		req.TechnicalDetails.OSKey,
+		req.TechnicalDetails.IPAddress,
+		req.TechnicalDetails.LANMACAddress,
+		req.TechnicalDetails.WLANMACAddress,
+		req.TechnicalDetails.Adapter,
+		req.TechnicalDetails.Mouse,
+		req.TechnicalDetails.UPS,
+		req.TechnicalDetails.Bag,
+		req.TechnicalDetails.AssignmentDeviceType,
+		employeeID,
+		employeeName,
+		department,
+		designation,
+		assetID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	var previousAssignmentID any
+	if activeAssignmentID > 0 {
+		previousAssignmentID = activeAssignmentID
+	}
+
+	var newAssignmentID int64
+	err = tx.QueryRow(
+		ctx,
+		`
+		INSERT INTO public.asset_device_assignments (
+			asset_device_id,
+			emp_id,
+			emp_name,
+			department,
+			designation,
+			assignment_source,
+			status_code,
+			assigned_at,
+			assignment_remarks,
+			previous_assignment_id,
+			created_by,
+			created_at,
+			updated_at
+		)
+		VALUES (
+			$1,$2,$3,$4,$5,
+			'REASSIGN',1,NOW(),NULLIF($6,''),$7,$8,NOW(),NOW()
+		)
+		RETURNING id
+		`,
+		assetID,
+		employeeID,
+		employeeName,
+		department,
+		designation,
+		req.Remarks,
+		previousAssignmentID,
+		actor,
+	).Scan(&newAssignmentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	assignedReason := "Device reassigned to employee"
+	if req.Remarks != "" {
+		assignedReason += ": " + req.Remarks
+	}
+	assignedPreviousStatus := previousStatus
+	if strings.TrimSpace(previousEmployeeID) != "" {
+		assignedPreviousStatus = 3
+	}
+
+	_, err = tx.Exec(
+		ctx,
+		`
+		INSERT INTO public.asset_device_history (
+			asset_device_id, legacy_equipment_id, device_serial,
+			status_code, raw_status, previous_status,
+			emp_id, emp_name, department, designation,
+			mr_number, pr_number, vendor, assigned_date,
+			history_reason, created_at_source, updated_at_source, migrated_at
+		)
+		VALUES (
+			$1, NULL, $2,
+			1, 'Assigned', $3,
+			$4, $5, $6, $7,
+			$8, $9, $10, NOW(),
+			$11, NOW(), NOW(), NOW()
+		)
+		`,
+		assetID,
+		deviceSerial,
+		assignedPreviousStatus,
+		employeeID,
+		employeeName,
+		department,
+		designation,
+		mrNumber,
+		prNumber,
+		vendorName,
+		assignedReason,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	if legacyStackID.Valid {
+		_, err = tx.Exec(
+			ctx,
+			`
+			UPDATE public.stack_inventory
+			SET
+				device_assigned_status = 1,
+				device_assiged_date = NOW(),
+				device_assiged_by = $1,
+				edited_by = $1,
+				edited_at = NOW()
+			WHERE id = $2
+			`,
+			actor,
+			legacyStackID.Int64,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	_, _ = h.db.Exec(
+		ctx,
+		`INSERT INTO public.audit_log (user_id, table_name, record_id, action, new_data)
+		 VALUES ($1, 'asset_devices', $2, 'REASSIGN_ASSET',
+		 jsonb_build_object('employee_id',$3,'previous_status',$4,'new_assignment_id',$5))`,
+		actor,
+		assetID,
+		employeeID,
+		previousStatus,
+		newAssignmentID,
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":                true,
+		"asset_id":               assetID,
+		"asset_status":           1,
+		"status_label":           "Assigned",
+		"employee_id":            employeeID,
+		"employee_name":          employeeName,
+		"new_assignment_id":      newAssignmentID,
+		"previous_assignment_id": previousAssignmentID,
+		"previous_status":        previousStatus,
+		"previous_employee_id":   previousEmployeeID,
+		"device_serial":          deviceSerial,
+	})
+}
