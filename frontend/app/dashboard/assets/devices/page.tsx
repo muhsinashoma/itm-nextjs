@@ -20,18 +20,36 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
+    BadgeCheck,
+    Box,
+    BriefcaseBusiness,
+    Building2,
+    CalendarClock,
+    CircleDollarSign,
     ClipboardCheck,
     Columns3,
     Eye,
+    FileText,
     FileWarning,
     Filter,
+    Hash,
     History as HistoryIcon,
+    Laptop2,
+    MapPin,
+    MoreHorizontal,
+    PackageCheck,
+    Paperclip,
     Pencil,
+    Printer,
     RefreshCw,
     RotateCcw,
     Search,
     ShieldCheck,
+    Store,
+    Tag,
     Trash2,
+    Truck,
+    UserCheck,
     UserPlus,
     UserRound,
     X,
@@ -43,6 +61,7 @@ import {
     employeeApi,
     getUser,
     inventoryWorkflowApi,
+    vendorApi,
     type AllocatableRequisition,
     type AssetDevice,
     type Employee,
@@ -92,14 +111,81 @@ type OperationSuccessDialog = {
     statusLabel: string;
 };
 
+type OWSTVendor = {
+    id: number;
+    name: string;
+    address: string;
+    mobile: string;
+    email: string;
+};
+
+type OWSTPrintSnapshot = {
+    referenceNo: string;
+    ownershipType: "user" | "vendor";
+    ownershipLabel: string;
+    raisedBy: string;
+    submissionDate: string;
+    employeeName: string;
+    employeeID: string;
+    designation: string;
+    department: string;
+    mobile: string;
+    vendorName: string;
+    vendorAddress: string;
+    vendorMobile: string;
+    deviceCategory: string;
+    deviceSerial: string;
+    brand: string;
+    model: string;
+    deviceType: string;
+    deviceAge: string;
+    amount: string;
+    receiverAddress: string;
+    gatePassDate: string;
+    unit: string;
+    quantity: string;
+    remarks: string;
+    attachmentName: string;
+    companyMaterial: boolean;
+    nonRefundable: boolean;
+};
+
+type OWSTPrintRecord = {
+    id: number;
+    reference_no: number;
+    owst_category: number;
+    employee_id: string;
+    deducted_amount: string;
+    device_age: string;
+    receiver_id: string;
+    gate_pass_date: string;
+    item_name: string;
+    item_description: string;
+    unit: string;
+    quantity: string;
+    device_sl_no: string;
+    remarks: string;
+    created_by: string;
+    created_at: string;
+    company_material: number;
+    non_refundable: number;
+    receiver_address: string;
+    vendor_name: string;
+    vendor_address: string;
+    vendor_mobile: string;
+    vendor_deducted_amount: string;
+    vendor_others: string;
+    attach_file: string;
+};
+
 type ColumnKey =
     | "serial"
     | "device"
     | "employee"
     | "mrpr"
-    | "department"
     | "designation"
     | "brand"
+    | "model"
     | "deviceType"
     | "vendor"
     | "actionDate"
@@ -115,9 +201,9 @@ const COLUMN_OPTIONS: Array<{ key: ColumnKey; label: string }> = [
     { key: "device", label: "Device" },
     { key: "employee", label: "Employee" },
     { key: "mrpr", label: "MR / PR" },
-    { key: "department", label: "Department" },
     { key: "designation", label: "Designation" },
     { key: "brand", label: "Brand" },
+    { key: "model", label: "Model" },
     { key: "deviceType", label: "Device Type" },
     { key: "vendor", label: "Vendor" },
     { key: "actionDate", label: "Action Date" },
@@ -443,16 +529,75 @@ const deviceOperationsApi = {
             remarks: remarks ?? "",
         }),
 
+    owstPrintData: (id: number) =>
+        api.get<{
+            success: boolean;
+            data: OWSTPrintRecord;
+        }>(`/assets/devices/${id}/owst/print-data`),
+
     createOWST: (
         id: number,
         body: {
-            ownership_type: "employee" | "vendor";
-            receiver_id?: string;
-            vendor_name?: string;
+            ownership_type: "user" | "vendor";
+            vendor_id?: number;
             deducted_amount?: number;
-            remarks?: string;
+            vendor_deducted_amount?: number;
+            vendor_others?: string;
+            receiver_address: string;
+            gate_pass_date: string;
+            unit: string;
+            quantity: number;
+            remarks: string;
+            company_material: boolean;
+            non_refundable: boolean;
+            attachment?: File | null;
         },
-    ) => api.post(`/assets/devices/${id}/owst`, body),
+    ) => {
+        const formData = new FormData();
+
+        formData.append("ownership_type", body.ownership_type);
+        formData.append("deducted_amount", String(body.deducted_amount ?? 0));
+        formData.append(
+            "vendor_deducted_amount",
+            String(body.vendor_deducted_amount ?? 0),
+        );
+        formData.append(
+            "vendor_id",
+            body.vendor_id ? String(body.vendor_id) : "",
+        );
+        formData.append("vendor_others", body.vendor_others ?? "");
+        formData.append("receiver_address", body.receiver_address);
+        formData.append("gate_pass_date", body.gate_pass_date);
+        formData.append("unit", body.unit);
+        formData.append("quantity", String(body.quantity));
+        formData.append("remarks", body.remarks);
+        formData.append(
+            "company_material",
+            body.company_material ? "1" : "0",
+        );
+        formData.append(
+            "non_refundable",
+            body.non_refundable ? "1" : "0",
+        );
+
+        if (body.attachment) {
+            formData.append(
+                "attachment",
+                body.attachment,
+                body.attachment.name,
+            );
+        }
+
+        return api.postForm<{
+            success: boolean;
+            data: {
+                reference_no?: number;
+                owst_id?: number;
+                owst_category?: number;
+                status_label?: string;
+            };
+        }>(`/assets/devices/${id}/owst`, formData);
+    },
 
     createWarrantyClaim: (
         id: number,
@@ -600,6 +745,35 @@ async function hydrateReturnedLastHolder(
         return item;
     }
 }
+function columnIcon(key: ColumnKey) {
+    const iconClass = "h-3.5 w-3.5 shrink-0 text-muted-foreground";
+
+    switch (key) {
+        case "serial":
+            return <Hash className={iconClass} />;
+        case "device":
+            return <Laptop2 className={iconClass} />;
+        case "employee":
+            return <UserRound className={iconClass} />;
+        case "mrpr":
+            return <FileText className={iconClass} />;
+        case "designation":
+            return <BriefcaseBusiness className={iconClass} />;
+        case "brand":
+            return <Tag className={iconClass} />;
+        case "model":
+            return <Box className={iconClass} />;
+        case "deviceType":
+            return <PackageCheck className={iconClass} />;
+        case "vendor":
+            return <Store className={iconClass} />;
+        case "actionDate":
+            return <CalendarClock className={iconClass} />;
+        default:
+            return <Columns3 className={iconClass} />;
+    }
+}
+
 function formatDate(value: string | null | undefined) {
     if (!value) return "—";
 
@@ -1283,9 +1457,22 @@ export default function AssetDevicesPage() {
         monitor: "",
     });
 
-    const [owstType, setOWSTType] = useState<"employee" | "vendor">("employee");
-    const [owstVendor, setOWSTVendor] = useState("");
+    const [owstType, setOWSTType] = useState<"user" | "vendor">("user");
+    const [owstVendors, setOWSTVendors] = useState<OWSTVendor[]>([]);
+    const [owstVendorsLoading, setOWSTVendorsLoading] = useState(false);
+    const [owstVendorID, setOWSTVendorID] = useState("");
+    const [owstVendorOthers, setOWSTVendorOthers] = useState("");
     const [owstAmount, setOWSTAmount] = useState("");
+    const [owstReceiverAddress, setOWSTReceiverAddress] = useState("");
+    const [owstGatePassDate, setOWSTGatePassDate] = useState("");
+    const [owstUnit, setOWSTUnit] = useState("Nos");
+    const [owstQuantity, setOWSTQuantity] = useState("1");
+    const [owstAttachment, setOWSTAttachment] = useState<File | null>(null);
+    const [owstCompanyMaterial, setOWSTCompanyMaterial] = useState(true);
+    const [owstNonRefundable, setOWSTNonRefundable] = useState(true);
+    const [owstEmployeeProfile, setOWSTEmployeeProfile] = useState<Employee | null>(null);
+    const [owstEmployeeLoading, setOWSTEmployeeLoading] = useState(false);
+    const [owstPrintSnapshot, setOWSTPrintSnapshot] = useState<OWSTPrintSnapshot | null>(null);
     const [warrantyProblems, setWarrantyProblems] = useState("");
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -1293,6 +1480,124 @@ export default function AssetDevicesPage() {
     const isRoot =
         authUser?.role_code?.trim().toUpperCase() === "ROOT" ||
         Number(authUser?.user_type) === 0;
+
+    const selectedOWSTVendor = useMemo(
+        () =>
+            owstVendors.find(
+                (vendor) => String(vendor.id) === owstVendorID,
+            ) ?? null,
+        [owstVendors, owstVendorID],
+    );
+
+    function buildOWSTPrintSnapshot(
+        referenceNo = "Pending",
+    ): OWSTPrintSnapshot | null {
+        if (!selectedAsset) {
+            return null;
+        }
+
+        return {
+            referenceNo,
+            ownershipType: owstType,
+            ownershipLabel:
+                owstType === "user"
+                    ? "User OWST"
+                    : "Vendor OWST",
+            raisedBy:
+                authUser?.full_name ||
+                authUser?.username ||
+                authUser?.employee_id ||
+                "Current user",
+            submissionDate: formatDateTime(
+                new Date().toISOString(),
+            ),
+            employeeName:
+                owstEmployeeProfile?.employee_name ||
+                selectedAsset.emp_name ||
+                "—",
+            employeeID:
+                owstEmployeeProfile?.employee_id ||
+                selectedAsset.emp_id ||
+                "—",
+            designation:
+                owstEmployeeProfile?.designation ||
+                selectedAsset.designation ||
+                "—",
+            department:
+                owstEmployeeProfile?.department ||
+                selectedAsset.department ||
+                "—",
+            mobile:
+                owstEmployeeProfile?.official_cell ||
+                owstEmployeeProfile?.personal_cell ||
+                "—",
+            vendorName:
+                selectedOWSTVendor?.name || "—",
+            vendorAddress:
+                selectedOWSTVendor?.address || "—",
+            vendorMobile:
+                selectedOWSTVendor?.mobile || "—",
+            deviceCategory:
+                selectedAsset.category || "Device",
+            deviceSerial:
+                selectedAsset.device_serial || "—",
+            brand:
+                selectedAsset.brand || "—",
+            model:
+                selectedAsset.model || "—",
+            deviceType:
+                selectedAsset.device_type || "—",
+            deviceAge:
+                formatCompactDuration(
+                    selectedAsset.assigned_date,
+                ),
+            amount:
+                owstAmount.trim() || "0",
+            receiverAddress:
+                owstReceiverAddress.trim() || "—",
+            gatePassDate:
+                owstGatePassDate
+                    ? formatDate(owstGatePassDate)
+                    : "—",
+            unit:
+                owstUnit.trim() || "Nos",
+            quantity:
+                owstQuantity.trim() || "1",
+            remarks:
+                remarks.trim() || "—",
+            attachmentName:
+                owstAttachment?.name || "—",
+            companyMaterial:
+                owstCompanyMaterial,
+            nonRefundable:
+                owstNonRefundable,
+        };
+    }
+
+    function printOWST(
+        snapshot?: OWSTPrintSnapshot | null,
+    ) {
+        const next =
+            snapshot ??
+            buildOWSTPrintSnapshot(
+                owstPrintSnapshot?.referenceNo || "Pending",
+            );
+
+        if (!next) {
+            setOperationError(
+                "Open an OWST device before printing.",
+            );
+            return;
+        }
+
+        setOWSTPrintSnapshot(next);
+
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                window.print();
+            });
+        });
+    }
 
     const importSuccess = searchParams.get("import") === "success";
     const importMR = searchParams.get("mr") ?? "";
@@ -1312,6 +1617,172 @@ export default function AssetDevicesPage() {
             importedCount > 0 ||
             updatedCount > 0 ||
             conflictedCount > 0);
+    async function printExistingOWST(
+        item: OperationalAssetDevice,
+    ) {
+        try {
+            const response =
+                await deviceOperationsApi.owstPrintData(item.id);
+
+            const record = response.data;
+
+            let holderProfile: Employee | null = null;
+            if (record.employee_id?.trim()) {
+                try {
+                    const holderResponse =
+                        await employeeApi.get(
+                            encodeURIComponent(
+                                record.employee_id.trim(),
+                            ),
+                        );
+                    holderProfile =
+                        holderResponse.data ?? null;
+                } catch {
+                    holderProfile = null;
+                }
+            }
+
+            let raisedBy =
+                record.created_by?.trim() ||
+                "ITM User";
+
+            if (record.created_by?.trim()) {
+                try {
+                    const raisedByResponse =
+                        await employeeApi.get(
+                            encodeURIComponent(
+                                record.created_by.trim(),
+                            ),
+                        );
+
+                    raisedBy =
+                        raisedByResponse.data?.employee_name ||
+                        raisedBy;
+                } catch {
+                    // Keep the saved employee/user ID when a profile is unavailable.
+                }
+            }
+
+            const category =
+                Number(record.owst_category) === 2
+                    ? "vendor"
+                    : "user";
+
+            const snapshot: OWSTPrintSnapshot = {
+                referenceNo: String(
+                    record.reference_no ||
+                    record.id ||
+                    "—",
+                ),
+                ownershipType: category,
+                ownershipLabel:
+                    category === "vendor"
+                        ? "Vendor OWST"
+                        : "User OWST",
+                raisedBy,
+                submissionDate:
+                    formatDateTime(record.created_at),
+
+                employeeName:
+                    holderProfile?.employee_name ||
+                    item.emp_name ||
+                    "—",
+                employeeID:
+                    record.employee_id ||
+                    holderProfile?.employee_id ||
+                    item.emp_id ||
+                    "—",
+                designation:
+                    holderProfile?.designation ||
+                    item.designation ||
+                    "—",
+                department:
+                    holderProfile?.department ||
+                    item.department ||
+                    "—",
+                mobile:
+                    holderProfile?.official_cell ||
+                    holderProfile?.personal_cell ||
+                    "—",
+
+                vendorName:
+                    record.vendor_name || "—",
+                vendorAddress:
+                    record.vendor_address || "—",
+                vendorMobile:
+                    record.vendor_mobile || "—",
+
+                deviceCategory:
+                    record.item_name ||
+                    item.category ||
+                    "Device",
+                deviceSerial:
+                    record.device_sl_no ||
+                    item.device_serial ||
+                    "—",
+                brand:
+                    item.brand || "—",
+                model:
+                    item.model || "—",
+                deviceType:
+                    item.device_type || "—",
+                deviceAge:
+                    record.device_age ||
+                    formatCompactDuration(
+                        item.assigned_date,
+                    ),
+
+                amount:
+                    category === "vendor"
+                        ? String(
+                              record.vendor_deducted_amount ||
+                              "0",
+                          )
+                        : String(
+                              record.deducted_amount ||
+                              "0",
+                          ),
+                receiverAddress:
+                    record.receiver_address || "—",
+                gatePassDate:
+                    record.gate_pass_date
+                        ? formatDate(
+                              record.gate_pass_date,
+                          )
+                        : "—",
+                unit:
+                    record.unit || "Nos",
+                quantity:
+                    String(record.quantity || "1"),
+                remarks:
+                    record.remarks || "—",
+                attachmentName:
+                    record.attach_file
+                        ? record.attach_file
+                              .split(/[\\/]/)
+                              .filter(Boolean)
+                              .pop() || record.attach_file
+                        : "—",
+
+                companyMaterial:
+                    Number(record.company_material) > 0,
+                nonRefundable:
+                    Number(record.non_refundable) > 0,
+            };
+
+            printOWST(snapshot);
+        } catch (reason) {
+            const message =
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to load OWST print data.";
+
+            window.alert(
+                `OWST Print Preview: ${message}`,
+            );
+        }
+    }
+
 
     useEffect(() => {
         try {
@@ -1444,8 +1915,7 @@ export default function AssetDevicesPage() {
         const needsEmployeeSearch =
             operation === "assign-direct" ||
             operation === "reassign" ||
-            operation === "transfer" ||
-            (operation === "owst" && owstType === "employee");
+            operation === "transfer";
 
         if (!needsEmployeeSearch || selectedEmployee) {
             setEmployeeResults([]);
@@ -1484,7 +1954,132 @@ export default function AssetDevicesPage() {
         }, 300);
 
         return () => window.clearTimeout(timer);
-    }, [employeeQuery, operation, owstType, selectedEmployee]);
+    }, [employeeQuery, operation, selectedEmployee]);
+
+    useEffect(() => {
+        if (operation !== "owst" || owstType !== "vendor") {
+            return;
+        }
+
+        let active = true;
+
+        async function loadOWSTVendors() {
+            try {
+                setOWSTVendorsLoading(true);
+                const response = await vendorApi.list();
+                const rows = Array.isArray(response.data)
+                    ? response.data
+                    : [];
+
+                const normalized = rows
+                    .map((row: any): OWSTVendor | null => {
+                        const id = Number(
+                            row?.id ??
+                            row?.ID ??
+                            0,
+                        );
+                        const name = String(
+                            row?.vendor_name ??
+                            row?.name ??
+                            row?.Name ??
+                            "",
+                        ).trim();
+
+                        if (!id || !name) {
+                            return null;
+                        }
+
+                        return {
+                            id,
+                            name,
+                            address: String(
+                                row?.vendor_address ??
+                                row?.addr ??
+                                row?.Addr ??
+                                "",
+                            ).trim(),
+                            mobile: String(
+                                row?.vendor_mobile ??
+                                row?.mobile ??
+                                row?.Mobile ??
+                                "",
+                            ).trim(),
+                            email: String(
+                                row?.vendor_email ??
+                                row?.email ??
+                                row?.Email ??
+                                "",
+                            ).trim(),
+                        };
+                    })
+                    .filter(
+                        (vendor): vendor is OWSTVendor =>
+                            Boolean(vendor),
+                    );
+
+                if (active) {
+                    setOWSTVendors(normalized);
+                }
+            } catch (reason) {
+                if (active) {
+                    setOWSTVendors([]);
+                    setOperationError(
+                        reason instanceof Error
+                            ? reason.message
+                            : "Unable to load active vendors.",
+                    );
+                }
+            } finally {
+                if (active) {
+                    setOWSTVendorsLoading(false);
+                }
+            }
+        }
+
+        void loadOWSTVendors();
+
+        return () => {
+            active = false;
+        };
+    }, [operation, owstType]);
+
+    useEffect(() => {
+        if (
+            operation !== "owst" ||
+            !selectedAsset?.emp_id?.trim()
+        ) {
+            setOWSTEmployeeProfile(null);
+            return;
+        }
+
+        let active = true;
+
+        async function loadOWSTCurrentEmployee() {
+            try {
+                setOWSTEmployeeLoading(true);
+                const response = await employeeApi.get(
+                    encodeURIComponent(selectedAsset!.emp_id!.trim()),
+                );
+                if (active) {
+                    setOWSTEmployeeProfile(response.data ?? null);
+                }
+            } catch {
+                if (active) {
+                    setOWSTEmployeeProfile(null);
+                }
+            } finally {
+                if (active) {
+                    setOWSTEmployeeLoading(false);
+                }
+            }
+        }
+
+        void loadOWSTCurrentEmployee();
+
+        return () => {
+            active = false;
+        };
+    }, [operation, selectedAsset?.id, selectedAsset?.emp_id]);
 
     useEffect(() => {
         if (operation !== "assign-tt" || !selectedAsset) {
@@ -1662,9 +2257,19 @@ export default function AssetDevicesPage() {
         setRequisitionQuery("");
         setRequisitionResults([]);
         setSelectedRequisition(null);
-        setOWSTType("employee");
-        setOWSTVendor("");
+        setOWSTType("user");
+        setOWSTVendorID("");
+        setOWSTVendorOthers("");
         setOWSTAmount("");
+        setOWSTReceiverAddress("");
+        setOWSTGatePassDate(dateInputValue(new Date().toISOString()));
+        setOWSTUnit("Nos");
+        setOWSTQuantity("1");
+        setOWSTAttachment(null);
+        setOWSTCompanyMaterial(true);
+        setOWSTNonRefundable(true);
+        setOWSTEmployeeProfile(null);
+        setOWSTPrintSnapshot(null);
         setWarrantyProblems("");
         setUpdateForm({
             device_serial: item.device_serial ?? "",
@@ -1958,29 +2563,109 @@ export default function AssetDevicesPage() {
             }
 
             if (operation === "owst") {
-                if (owstType === "employee" && !selectedEmployee) {
-                    setOperationError("Select the ownership receiver employee.");
-                    return;
-                }
-                if (owstType === "vendor" && !owstVendor.trim()) {
-                    setOperationError("Enter the receiving vendor name.");
+                if (!selectedAsset.emp_id?.trim()) {
+                    setOperationError(
+                        "The device must have a current assigned employee before OWST.",
+                    );
                     return;
                 }
 
-                await deviceOperationsApi.createOWST(selectedAsset.id, {
-                    ownership_type: owstType,
-                    receiver_id:
-                        owstType === "employee"
-                            ? selectedEmployee?.employee_id
-                            : undefined,
-                    vendor_name:
-                        owstType === "vendor"
-                            ? owstVendor.trim()
-                            : undefined,
-                    deducted_amount: Number(owstAmount || 0),
-                    remarks,
-                });
-                message = `OWST (${owstType === "employee" ? "User" : "Vendor"}) created successfully.`;
+                const amount = Number(owstAmount || 0);
+                if (!Number.isFinite(amount) || amount <= 0) {
+                    setOperationError(
+                        owstType === "user"
+                            ? "Enter a deducted amount greater than 0 for User OWST."
+                            : "Enter a deducted amount greater than 0 for Vendor OWST.",
+                    );
+                    return;
+                }
+
+                if (
+                    owstType === "vendor" &&
+                    !selectedOWSTVendor
+                ) {
+                    setOperationError("Select an active vendor.");
+                    return;
+                }
+
+                if (!owstReceiverAddress.trim()) {
+                    setOperationError("Receiver address is required for the gate pass.");
+                    return;
+                }
+
+                if (!owstGatePassDate) {
+                    setOperationError("Gate pass date is required.");
+                    return;
+                }
+
+                const quantity = Number(owstQuantity || 0);
+                if (!Number.isInteger(quantity) || quantity < 1) {
+                    setOperationError("Quantity must be at least 1.");
+                    return;
+                }
+
+                if (!remarks.trim()) {
+                    setOperationError("OWST / gate-pass remarks are required.");
+                    return;
+                }
+
+                if (
+                    owstAttachment &&
+                    owstAttachment.size > 4 * 1024 * 1024
+                ) {
+                    setOperationError("Attachment must be 4 MB or smaller.");
+                    return;
+                }
+
+                const owstResponse =
+                    await deviceOperationsApi.createOWST(
+                        selectedAsset.id,
+                        {
+                            ownership_type: owstType,
+                            vendor_id:
+                                owstType === "vendor"
+                                    ? selectedOWSTVendor?.id
+                                    : undefined,
+                            deducted_amount:
+                                owstType === "user"
+                                    ? amount
+                                    : 0,
+                            vendor_deducted_amount:
+                                owstType === "vendor"
+                                    ? amount
+                                    : 0,
+                            vendor_others:
+                                owstType === "vendor"
+                                    ? owstVendorOthers.trim()
+                                    : "",
+                            receiver_address:
+                                owstReceiverAddress.trim(),
+                            gate_pass_date: owstGatePassDate,
+                            unit: owstUnit.trim() || "Nos",
+                            quantity,
+                            remarks: remarks.trim(),
+                            company_material:
+                                owstCompanyMaterial,
+                            non_refundable:
+                                owstNonRefundable,
+                            attachment: owstAttachment,
+                        },
+                    );
+
+                const generatedReference =
+                    String(
+                        owstResponse?.data?.reference_no ??
+                        owstResponse?.data?.owst_id ??
+                        "Pending",
+                    );
+
+                setOWSTPrintSnapshot(
+                    buildOWSTPrintSnapshot(
+                        generatedReference,
+                    ),
+                );
+
+                message = `OWST (${owstType === "user" ? "User" : "Vendor"}) created successfully. Reference #${generatedReference}.`;
             }
 
             if (operation === "warranty") {
@@ -2020,7 +2705,7 @@ export default function AssetDevicesPage() {
                                 completedOperation === "assign-tt"
                                 ? "Assigned"
                                 : completedOperation === "owst"
-                                    ? `OWST (${owstType === "employee" ? "User" : "Vendor"})`
+                                    ? `OWST (${owstType === "user" ? "User" : "Vendor"})`
                                     : completedOperation === "warranty"
                                         ? "Claim Raised"
                                         : completedOperation === "delete"
@@ -2040,7 +2725,7 @@ export default function AssetDevicesPage() {
                                 : completedOperation === "update"
                                     ? "Device Update Completed"
                                     : completedOperation === "owst"
-                                        ? `OWST (${owstType === "employee" ? "User" : "Vendor"}) Completed`
+                                        ? `OWST (${owstType === "user" ? "User" : "Vendor"}) Completed`
                                         : completedOperation === "warranty"
                                             ? "Warranty Claim Submitted"
                                             : completedOperation === "delete"
@@ -2156,7 +2841,10 @@ export default function AssetDevicesPage() {
                                     checked={visibleColumns.has(column.key)}
                                     onCheckedChange={() => toggleColumn(column.key)}
                                 >
-                                    {column.label}
+                                    <span className="flex items-center gap-2">
+                                        {columnIcon(column.key)}
+                                        <span>{column.label}</span>
+                                    </span>
                                 </DropdownMenuCheckboxItem>
                             ))}
                         </DropdownMenuContent>
@@ -2392,44 +3080,86 @@ export default function AssetDevicesPage() {
             <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div className="max-h-[65vh] overflow-auto">
                     <table
-                        className="w-full min-w-[1120px] table-fixed text-[11px] leading-4"
+                        className="w-full min-w-[1280px] table-fixed text-[11px] leading-4"
                     >
                         <thead className="sticky top-0 z-20 border-b border-border bg-background/95 shadow-sm backdrop-blur">
                             <tr className="text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
                                 <th className={hasExtraColumns ? "px-2 py-2.5 text-center" : "w-[4%] px-2 py-2.5 text-center"}>
-                                    SL
+                                    <span className="inline-flex items-center justify-center gap-1">
+                                        <Hash className="h-3 w-3" />
+                                        SL
+                                    </span>
                                 </th>
                                 {visibleColumns.has("serial") && (
                                     <th className={hasExtraColumns ? "px-2 py-2" : "w-[11%] px-2.5 py-2.5"}>
-                                        Serial / Asset
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <Hash className="h-3.5 w-3.5" />
+                                            Serial / Asset
+                                        </span>
                                     </th>
                                 )}
                                 {visibleColumns.has("device") && (
                                     <th className={hasExtraColumns ? "px-2 py-2" : "w-[13%] px-2.5 py-2.5"}>
-                                        Device
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <Laptop2 className="h-3.5 w-3.5" />
+                                            Device
+                                        </span>
                                     </th>
                                 )}
                                 <th className={hasExtraColumns ? "px-2 py-2.5 text-center" : "w-[7%] px-2 py-2.5 text-center"}>
-                                    Entry Type
+                                    <span className="inline-flex items-center justify-center gap-1.5">
+                                        <PackageCheck className="h-3.5 w-3.5" />
+                                        Entry
+                                    </span>
                                 </th>
                                 {visibleColumns.has("employee") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[17%] px-2.5 py-2.5"}>
-                                        Emp Info
+                                    <th className={hasExtraColumns ? "min-w-[250px] px-2.5 py-2.5" : "w-[22%] min-w-[250px] px-2.5 py-2.5"}>
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <UserRound className="h-3.5 w-3.5" />
+                                            Employee
+                                        </span>
                                     </th>
                                 )}
                                 {visibleColumns.has("mrpr") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[18%] px-2.5 py-2.5"}>
-                                        MR / PR Number
+                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[17%] px-2.5 py-2.5"}>
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <FileText className="h-3.5 w-3.5" />
+                                            MR / PR
+                                        </span>
                                     </th>
                                 )}
-                                {visibleColumns.has("department") && <th className="px-2 py-2">Department</th>}
-                                {visibleColumns.has("designation") && <th className="px-2 py-2">Designation</th>}
-                                {visibleColumns.has("brand") && <th className="px-2 py-2">Brand</th>}
+                                {visibleColumns.has("designation") && (
+                                    <th className="px-2 py-2">
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <BriefcaseBusiness className="h-3.5 w-3.5" />
+                                            Designation
+                                        </span>
+                                    </th>
+                                )}
+                                {visibleColumns.has("brand") && (
+                                    <th className="px-2 py-2">
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <Tag className="h-3.5 w-3.5" />
+                                            Brand
+                                        </span>
+                                    </th>
+                                )}
+                                {visibleColumns.has("model") && (
+                                    <th className="px-2 py-2">
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <Box className="h-3.5 w-3.5" />
+                                            Model
+                                        </span>
+                                    </th>
+                                )}
                                 {visibleColumns.has("deviceType") && <th className="px-2 py-2">Device Type</th>}
                                 {visibleColumns.has("vendor") && <th className="px-2 py-2">Vendor</th>}
                                 {visibleColumns.has("actionDate") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[12%] px-2.5 py-2.5 whitespace-nowrap"}>
-                                        {statusActionDateHeader(status)}
+                                    <th className="sticky right-[220px] z-30 w-[156px] min-w-[156px] border-l border-border bg-background/95 px-2.5 py-2.5 shadow-[-4px_0_8px_-8px_rgba(0,0,0,0.18)]">
+                                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                            <CalendarClock className="h-3.5 w-3.5" />
+                                            Action Date
+                                        </span>
                                     </th>
                                 )}
                                 {visibleColumns.has("purchase") && <th className="px-2 py-2">Purchase Date</th>}
@@ -2438,11 +3168,17 @@ export default function AssetDevicesPage() {
                                 {visibleColumns.has("usageDuration") && <th className="px-2 py-2">Usage Duration</th>}
                                 {visibleColumns.has("remarks") && <th className="px-2 py-2">Remarks</th>}
                                 {visibleColumns.has("assetType") && <th className="px-2 py-2">Asset Type</th>}
-                                <th className={hasExtraColumns ? "px-2.5 py-2.5 text-center" : "w-[9%] px-2.5 py-2.5 text-center"}>
-                                    Status
+                                <th className="sticky right-[96px] z-30 w-[124px] min-w-[124px] border-l border-border bg-background/95 px-2.5 py-2.5 text-center shadow-[-4px_0_8px_-8px_rgba(0,0,0,0.25)]">
+                                    <span className="inline-flex items-center justify-center gap-1.5">
+                                        <BadgeCheck className="h-3.5 w-3.5" />
+                                        Status
+                                    </span>
                                 </th>
-                                <th className="sticky right-0 z-30 w-[9%] min-w-[92px] border-l border-border bg-background/95 px-3 py-2.5 text-center shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.35)]">
-                                    Action
+                                <th className="sticky right-0 z-40 w-[96px] min-w-[96px] border-l border-border bg-background/95 px-2 py-2.5 text-center shadow-[-8px_0_12px_-9px_rgba(0,0,0,0.35)]">
+                                    <span className="inline-flex items-center justify-center gap-1.5">
+                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                        Actions
+                                    </span>
                                 </th>
                             </tr>
                         </thead>
@@ -2479,7 +3215,7 @@ export default function AssetDevicesPage() {
                                 <tr
                                     key={item.id}
                                     onDoubleClick={() => openDevice(item)}
-                                    className={`group border-b border-border/70 align-middle transition-colors last:border-b-0 hover:bg-muted/30 ${loading ? "opacity-70" : ""}`}
+                                    className={`group min-h-[62px] border-b border-border/70 align-middle transition-colors last:border-b-0 hover:bg-muted/30 ${loading ? "opacity-70" : ""}`}
                                 >
                                     <td className="px-2.5 py-2 text-center align-middle">
                                         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-border bg-muted/40 px-1 text-[10px] font-semibold tabular-nums text-foreground">
@@ -2503,17 +3239,17 @@ export default function AssetDevicesPage() {
 
                                     {visibleColumns.has("device") && (
                                         <td className="min-w-0 px-2.5 py-2 align-middle">
-                                            <div
-                                                className="truncate text-[11px] font-semibold leading-4 text-foreground"
-                                                title={item.category || "Uncategorized"}
-                                            >
-                                                {item.category || "Uncategorized"}
+                                            <div className="flex min-w-0 items-center gap-1.5">
+                                                <Laptop2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                <span
+                                                    className="truncate text-[11px] font-semibold leading-4 text-foreground"
+                                                    title={item.category || "Uncategorized"}
+                                                >
+                                                    {item.category || "Uncategorized"}
+                                                </span>
                                             </div>
-                                            <div
-                                                className="mt-0.5 truncate text-[10px] leading-4 text-muted-foreground"
-                                                title={[item.brand, item.model].filter(Boolean).join(" · ") || undefined}
-                                            >
-                                                {[item.brand, item.model].filter(Boolean).join(" · ") || "—"}
+                                            <div className="mt-0.5 pl-5 text-[9px] text-muted-foreground">
+                                                Device category
                                             </div>
                                         </td>
                                     )}
@@ -2539,64 +3275,73 @@ export default function AssetDevicesPage() {
                                     {visibleColumns.has("employee") && (
                                         <td className="min-w-0 px-2.5 py-2 align-middle">
                                             {item.emp_id || item.last_emp_id ? (
-                                                <div className="flex min-w-0 items-center gap-1.5">
+                                                <div className="flex min-w-0 items-center gap-2">
                                                     <EmployeeAvatar
                                                         name={item.emp_name || item.last_emp_name || null}
                                                         image={item.employee_image || item.last_employee_image}
                                                     />
-                                                    <div className="min-w-0 flex-1 space-y-0.5">
-                                                        {!item.emp_id && item.last_emp_id && (
-                                                            <div className="mb-0.5">
-                                                                <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-emerald-700">
-                                                                    Last holder
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        <div className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-1.5">
-                                                            <span className="pt-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">ID</span>
-                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">
-                                                                {item.emp_id || item.last_emp_id}
-                                                            </span>
-                                                        </div>
-                                                        <div className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-1.5">
-                                                            <span className="pt-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">Name</span>
-                                                            <span className="break-words text-[10px] font-semibold leading-4 text-foreground">
+
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex min-w-0 items-center gap-1.5">
+                                                            <span
+                                                                className="truncate text-[10px] font-semibold text-foreground"
+                                                                title={item.emp_name || item.last_emp_name || "Employee"}
+                                                            >
                                                                 {item.emp_name || item.last_emp_name || "Employee"}
                                                             </span>
+                                                            <BadgeCheck className="h-3 w-3 shrink-0 text-blue-600" />
                                                         </div>
-                                                        {(
-                                                            item.department ||
-                                                            item.designation ||
-                                                            item.last_department ||
-                                                            item.last_designation
-                                                        ) && (
-                                                            <div
-                                                                className="truncate border-t border-border/60 pt-0.5 text-[9px] leading-4 text-muted-foreground"
-                                                                title={[
-                                                                    item.department || item.last_department,
-                                                                    item.designation || item.last_designation,
-                                                                ].filter(Boolean).join(" / ") || undefined}
-                                                            >
-                                                                {[
-                                                                    item.department || item.last_department,
-                                                                    item.designation || item.last_designation,
-                                                                ].filter(Boolean).join(" / ")}
+
+                                                        <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[9px]">
+                                                            <span className="inline-flex shrink-0 items-center gap-1 rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-mono font-semibold text-blue-700">
+                                                                <Hash className="h-2.5 w-2.5" />
+                                                                {item.emp_id || item.last_emp_id}
+                                                            </span>
+
+                                                            {!item.emp_id && item.last_emp_id && (
+                                                                <span className="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-semibold uppercase text-emerald-700">
+                                                                    Last holder
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="mt-1 space-y-0.5 text-[9px] leading-3 text-muted-foreground">
+                                                            <div className="flex min-w-0 items-start gap-1">
+                                                                <BriefcaseBusiness className="mt-0.5 h-3 w-3 shrink-0" />
+                                                                <span
+                                                                    className="min-w-0 whitespace-normal break-words font-medium text-foreground/75"
+                                                                    title={item.designation || item.last_designation || "Employee"}
+                                                                >
+                                                                    {item.designation || item.last_designation || "Employee"}
+                                                                </span>
                                                             </div>
-                                                        )}
+                                                            <div className="flex min-w-0 items-start gap-1">
+                                                                <Building2 className="mt-0.5 h-3 w-3 shrink-0" />
+                                                                <span className="min-w-0 whitespace-normal break-words" title="Fiber@Home Global Ltd.">
+                                                                    Fiber@Home Global Ltd.
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="space-y-0.5">
-                                                    <span className="inline-flex rounded-md border border-border bg-muted/35 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                                        Unassigned
-                                                    </span>
-                                                    <div className="text-[9px] text-muted-foreground">
-                                                        No previous employee history found
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40">
+                                                        <UserRound className="h-4 w-4 text-muted-foreground" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="text-[10px] font-semibold text-muted-foreground">
+                                                            Unassigned
+                                                        </div>
+                                                        <div className="truncate text-[9px] text-muted-foreground">
+                                                            No previous employee history found
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
                                         </td>
                                     )}
+
                                     {visibleColumns.has("mrpr") && (
                                         <td className="min-w-0 px-2.5 py-2 align-middle">
                                             <div className="space-y-2">
@@ -2627,12 +3372,6 @@ export default function AssetDevicesPage() {
                                         </td>
                                     )}
 
-                                    {visibleColumns.has("department") && (
-                                        <td className="min-w-0 px-2.5 py-2 text-[10px] font-medium">
-                                            <span className="block truncate" title={String(item.department || "—")}>{item.department || "—"}</span>
-                                        </td>
-                                    )}
-
                                     {visibleColumns.has("designation") && (
                                         <td className="min-w-0 px-2.5 py-2 text-[10px] font-medium">
                                             <span className="block truncate" title={String(item.designation || "—")}>{item.designation || "—"}</span>
@@ -2641,7 +3380,19 @@ export default function AssetDevicesPage() {
 
                                     {visibleColumns.has("brand") && (
                                         <td className="min-w-0 px-2.5 py-2 text-[10px] font-medium">
-                                            <span className="block truncate" title={String(item.brand || "—")}>{item.brand || "—"}</span>
+                                            <span className="flex min-w-0 items-center gap-1.5">
+                                                <Tag className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                                <span className="block truncate" title={String(item.brand || "—")}>{item.brand || "—"}</span>
+                                            </span>
+                                        </td>
+                                    )}
+
+                                    {visibleColumns.has("model") && (
+                                        <td className="min-w-0 px-2.5 py-2 text-[10px] font-medium">
+                                            <span className="flex min-w-0 items-center gap-1.5">
+                                                <Box className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                                <span className="block truncate" title={String(item.model || "—")}>{item.model || "—"}</span>
+                                            </span>
                                         </td>
                                     )}
 
@@ -2660,13 +3411,16 @@ export default function AssetDevicesPage() {
                                     )}
 
                                     {visibleColumns.has("actionDate") && (
-                                        <td className="min-w-0 px-2.5 py-2 align-middle">
+                                        <td className="sticky right-[220px] z-20 w-[156px] min-w-[156px] border-l border-border bg-card px-2.5 py-2 align-middle shadow-[-4px_0_8px_-8px_rgba(0,0,0,0.14)] group-hover:bg-muted/30">
                                             <div className="space-y-0.5">
-                                                <span className="block truncate text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                <span
+                                                    className="block whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.04em] text-muted-foreground"
+                                                    title={item.status_action_label || statusActionDateHeader(item.asset_status)}
+                                                >
                                                     {item.status_action_label || statusActionDateHeader(item.asset_status)}
                                                 </span>
                                                 <span
-                                                    className="block truncate text-[10px] font-semibold text-foreground"
+                                                    className="block whitespace-nowrap text-[10px] font-semibold text-foreground"
                                                     title={String(formatDateTime(item.status_action_date))}
                                                 >
                                                     {formatDateTime(item.status_action_date)}
@@ -2715,8 +3469,18 @@ export default function AssetDevicesPage() {
                                         </td>
                                     )}
 
-                                    <td className="px-2.5 py-2 text-center align-middle">
-                                        <span className={`inline-flex max-w-full items-center justify-center whitespace-nowrap rounded-full border px-2.5 py-1 text-[9px] font-semibold ${statusClass(item.asset_status)}`}>
+                                    <td className="sticky right-[96px] z-20 w-[124px] min-w-[124px] border-l border-border bg-card px-2 py-2 text-center align-middle shadow-[-4px_0_8px_-8px_rgba(0,0,0,0.20)] group-hover:bg-muted/30">
+                                        <span
+                                            className={`inline-flex max-w-[116px] items-center justify-center truncate whitespace-nowrap rounded-full border px-2 py-1 text-[9px] font-semibold ${statusClass(item.asset_status)}`}
+                                            title={
+                                                item.status_label ||
+                                                STATUS_OPTIONS.find(
+                                                    (statusItem) =>
+                                                        statusItem.value === String(item.asset_status)
+                                                )?.label ||
+                                                `Status ${item.asset_status}`
+                                            }
+                                        >
                                             {item.status_label ||
                                                 STATUS_OPTIONS.find(
                                                     (statusItem) =>
@@ -2726,7 +3490,7 @@ export default function AssetDevicesPage() {
                                         </span>
                                     </td>
 
-                                    <td className="sticky right-0 z-10 border-l border-border bg-card px-3 py-2 text-center align-middle shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.25)] group-hover:bg-muted/30">
+                                    <td className="sticky right-0 z-30 w-[96px] min-w-[96px] border-l border-border bg-card px-2 py-2 text-center align-middle shadow-[-8px_0_12px_-9px_rgba(0,0,0,0.25)] group-hover:bg-muted/30">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button
@@ -2735,7 +3499,7 @@ export default function AssetDevicesPage() {
                                                     aria-label={`Actions for ${item.device_serial || "asset device"}`}
                                                     aria-haspopup="menu"
                                                 >
-                                                    Action
+                                                    Actions
                                                     <ChevronDown className="h-3 w-3 text-muted-foreground" />
                                                 </button>
                                             </DropdownMenuTrigger>
@@ -2893,7 +3657,23 @@ export default function AssetDevicesPage() {
                                                     </>
                                                 )}
 
-                                                {![0, 1, 3, 4].includes(item.asset_status) && (
+                                                {item.asset_status === 7 && (
+                                                    <>
+                                                        <DropdownMenuItem onClick={() => openDevice(item)} className="gap-2">
+                                                            <Eye className="h-4 w-4" />
+                                                            Detail
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => void printExistingOWST(item)}
+                                                            className="gap-2"
+                                                        >
+                                                            <Printer className="h-4 w-4 text-teal-600" />
+                                                            Print Preview
+                                                        </DropdownMenuItem>
+                                                    </>
+                                                )}
+
+                                                {![0, 1, 3, 4, 7].includes(item.asset_status) && (
                                                     <>
                                                         <DropdownMenuItem onClick={() => openDevice(item)} className="gap-2">
                                                             <Eye className="h-4 w-4" />
@@ -2954,9 +3734,11 @@ export default function AssetDevicesPage() {
 
             <Dialog open={Boolean(operation && selectedAsset)} onOpenChange={(open) => !open && closeOperation()}>
                 <DialogContent
-                    className={`max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto p-0 ${operation === "assign-direct" || operation === "reassign"
-                        ? "sm:max-w-[1240px]"
-                        : operation === "assign-tt"
+                    className={`max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto p-0 ${operation === "owst"
+                        ? "sm:max-w-[1320px]"
+                        : operation === "assign-direct" || operation === "reassign"
+                            ? "sm:max-w-[1240px]"
+                            : operation === "assign-tt"
                             ? "sm:max-w-4xl"
                             : "sm:max-w-[1100px]"
                         }`}
@@ -3975,95 +4757,366 @@ export default function AssetDevicesPage() {
                     )}
 
                     {operation === "owst" && (
-                        <div className="space-y-3 px-5 py-3">
-                            <DeviceDatabaseSnapshot
-                                asset={selectedAsset}
-                                context={assignmentContext}
-                            />
+                        <div className="space-y-2.5 px-4 py-2.5">
+                            <section className="rounded-xl border border-teal-200 bg-teal-50/45 p-2.5 dark:border-teal-900/50 dark:bg-teal-950/10">
+                                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-xs font-semibold text-teal-950 dark:text-teal-100">
+                                            OWST At-a-Glance
+                                        </p>
+                                        <p className="text-[9px] text-muted-foreground">
+                                            User OWST = 1 · Vendor OWST = 2 · final device status = OWST
+                                        </p>
+                                    </div>
 
-                            <section className="rounded-xl border border-teal-200/80 bg-teal-50/45 p-3 dark:border-teal-900/50 dark:bg-teal-950/10">
-                                <div className="grid grid-cols-4 gap-2">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="rounded-md border border-teal-200 bg-background px-2 py-1 text-[9px] font-semibold text-teal-800">
+                                            Asset #{selectedAsset?.id ?? "—"}
+                                        </span>
+                                        <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold ${statusClass(selectedAsset?.asset_status ?? 1)}`}>
+                                            {selectedAsset?.status_label || "Assigned"}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-2 md:grid-cols-4">
                                     <label className="block">
-                                        <span className="mb-1 block text-[10px] font-semibold text-teal-950 dark:text-teal-100">
-                                            Ownership Transfer To
+                                        <span className="mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            OWST Type <span className="text-red-500">*</span>
                                         </span>
                                         <select
                                             value={owstType}
                                             onChange={(event) => {
-                                                setOWSTType(event.target.value as "employee" | "vendor");
-                                                setSelectedEmployee(null);
-                                                setEmployeeQuery("");
+                                                setOWSTType(
+                                                    event.target.value as "user" | "vendor",
+                                                );
+                                                setOWSTVendorID("");
+                                                setOWSTAmount("");
+                                                setOperationError("");
                                             }}
-                                            className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+                                            className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-[11px] font-semibold"
                                         >
-                                            <option value="employee">Employee / User</option>
-                                            <option value="vendor">Vendor</option>
+                                            <option value="user">User OWST</option>
+                                            <option value="vendor">Vendor OWST</option>
                                         </select>
                                     </label>
 
-                                    <label className="block">
-                                        <span className="mb-1 block text-[10px] font-semibold">
-                                            Deducted Amount
+                                    <CompactDeviceInfo
+                                        label="Current Holder"
+                                        value={
+                                            selectedAsset?.emp_id
+                                                ? `${selectedAsset.emp_id} · ${selectedAsset.emp_name || "Employee"}`
+                                                : "—"
+                                        }
+                                    />
+
+                                    <CompactDeviceInfo
+                                        label="Device"
+                                        value={`${selectedAsset?.category || "Device"} · ${selectedAsset?.device_serial || "—"}`}
+                                    />
+
+                                    <CompactDeviceInfo
+                                        label="Raised By / Date"
+                                        value={`${
+                                            authUser?.full_name ||
+                                            authUser?.username ||
+                                            authUser?.employee_id ||
+                                            "Current user"
+                                        } · ${formatDateTime(new Date().toISOString())}`}
+                                    />
+                                </div>
+                            </section>
+
+                            <div className="grid gap-2.5 xl:grid-cols-2">
+                                <section className={`rounded-xl border p-2.5 ${
+                                    owstType === "user"
+                                        ? "border-blue-200 bg-blue-50/45 dark:border-blue-900/50 dark:bg-blue-950/10"
+                                        : "border-violet-200 bg-violet-50/45 dark:border-violet-900/50 dark:bg-violet-950/10"
+                                }`}>
+                                    <div className="mb-2 flex items-center gap-2">
+                                        {owstType === "user" ? (
+                                            <UserCheck className="h-4 w-4 text-blue-700" />
+                                        ) : (
+                                            <Truck className="h-4 w-4 text-violet-700" />
+                                        )}
+                                        <div>
+                                            <p className="text-[11px] font-semibold">
+                                                {owstType === "user"
+                                                    ? "User OWST · Receiver"
+                                                    : "Vendor OWST · Receiver"}
+                                            </p>
+                                            <p className="text-[9px] text-muted-foreground">
+                                                {owstType === "user"
+                                                    ? "The currently assigned employee receives ownership."
+                                                    : "Choose the receiving vendor from the active vendor master."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {owstType === "user" ? (
+                                        <div className="grid gap-2 sm:grid-cols-[1.25fr_0.75fr]">
+                                            <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-blue-200 bg-background p-2.5">
+                                                <EmployeeAvatar
+                                                    name={owstEmployeeProfile?.employee_name || selectedAsset?.emp_name || null}
+                                                    image={owstEmployeeProfile?.picture || selectedAsset?.employee_image}
+                                                    size="lg"
+                                                />
+
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-xs font-semibold text-foreground">
+                                                        {owstEmployeeProfile?.employee_name || selectedAsset?.emp_name || "Employee"}
+                                                    </p>
+                                                    <p className="mt-0.5 font-mono text-[9px] font-semibold text-blue-700">
+                                                        {owstEmployeeProfile?.employee_id || selectedAsset?.emp_id || "—"}
+                                                    </p>
+                                                    <p className="mt-1 text-[9px] leading-3 text-muted-foreground">
+                                                        {[
+                                                            owstEmployeeProfile?.designation || selectedAsset?.designation,
+                                                            owstEmployeeProfile?.department || selectedAsset?.department,
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(" · ") || "—"}
+                                                    </p>
+                                                    <p className="mt-0.5 text-[9px] text-muted-foreground">
+                                                        {owstEmployeeLoading
+                                                            ? "Loading employee contact…"
+                                                            : owstEmployeeProfile?.official_cell ||
+                                                              owstEmployeeProfile?.personal_cell ||
+                                                              "Mobile —"}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <label className="rounded-lg border border-amber-200 bg-amber-50/75 p-2.5">
+                                                <span className="mb-1 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wide text-amber-800">
+                                                    <CircleDollarSign className="h-3 w-3" />
+                                                    Deducted Amount <span className="text-red-500">*</span>
+                                                </span>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    step={1}
+                                                    value={owstAmount}
+                                                    onChange={(event) => setOWSTAmount(event.target.value)}
+                                                    className="h-8 w-full rounded-md border border-amber-200 bg-white px-2.5 text-xs font-semibold"
+                                                    placeholder="Amount"
+                                                />
+                                                <p className="mt-1 text-[8px] text-amber-700">
+                                                    Device age: {formatCompactDuration(selectedAsset?.assigned_date)}
+                                                </p>
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <label className="block">
+                                                <span className="mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                    Vendor <span className="text-red-500">*</span>
+                                                </span>
+                                                <select
+                                                    value={owstVendorID}
+                                                    onChange={(event) => setOWSTVendorID(event.target.value)}
+                                                    disabled={owstVendorsLoading}
+                                                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-[10px] font-medium"
+                                                >
+                                                    <option value="">
+                                                        {owstVendorsLoading ? "Loading vendors…" : "Select active vendor"}
+                                                    </option>
+                                                    {owstVendors.map((vendor) => (
+                                                        <option key={vendor.id} value={String(vendor.id)}>
+                                                            {vendor.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
+
+                                            <label className="rounded-lg border border-amber-200 bg-amber-50/75 p-2">
+                                                <span className="mb-1 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wide text-amber-800">
+                                                    <CircleDollarSign className="h-3 w-3" />
+                                                    Deducted Amount <span className="text-red-500">*</span>
+                                                </span>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    step={1}
+                                                    value={owstAmount}
+                                                    onChange={(event) => setOWSTAmount(event.target.value)}
+                                                    className="h-8 w-full rounded-md border border-amber-200 bg-white px-2 text-xs font-semibold"
+                                                    placeholder="Amount"
+                                                />
+                                            </label>
+
+                                            <CompactDeviceInfo
+                                                label="Vendor Address"
+                                                value={selectedOWSTVendor?.address || "Select a vendor"}
+                                            />
+
+                                            <CompactDeviceInfo
+                                                label="Vendor Mobile / Email"
+                                                value={
+                                                    [selectedOWSTVendor?.mobile, selectedOWSTVendor?.email]
+                                                        .filter(Boolean)
+                                                        .join(" · ") || "—"
+                                                }
+                                            />
+
+                                            <label className="sm:col-span-2 block">
+                                                <span className="mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                    Vendor Notes / Others
+                                                </span>
+                                                <input
+                                                    value={owstVendorOthers}
+                                                    onChange={(event) => setOWSTVendorOthers(event.target.value)}
+                                                    maxLength={1000}
+                                                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-[10px]"
+                                                    placeholder="Auction / disposal / vendor reference"
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
+                                </section>
+
+                                <section className="rounded-xl border border-sky-200 bg-sky-50/35 p-2.5 dark:border-sky-900/50 dark:bg-sky-950/10">
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <Laptop2 className="h-4 w-4 text-sky-700" />
+                                        <div>
+                                            <p className="text-[11px] font-semibold">Device / Material</p>
+                                            <p className="text-[9px] text-muted-foreground">
+                                                Database values used in the OWST record and gate pass.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                                        <CompactDeviceInfo label="Item" value={selectedAsset?.category || "—"} />
+                                        <CompactDeviceInfo label="Serial" value={selectedAsset?.device_serial || "—"} mono />
+                                        <CompactDeviceInfo label="Brand" value={selectedAsset?.brand || "—"} />
+                                        <CompactDeviceInfo label="Model" value={selectedAsset?.model || "—"} />
+                                        <CompactDeviceInfo label="Device Type" value={selectedAsset?.device_type || "—"} />
+                                        <CompactDeviceInfo label="Device Age" value={formatCompactDuration(selectedAsset?.assigned_date)} />
+                                    </div>
+                                </section>
+                            </div>
+
+                            <section className="rounded-xl border border-cyan-200 bg-cyan-50/35 p-2.5 dark:border-cyan-900/50 dark:bg-cyan-950/10">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <MapPin className="h-4 w-4 text-cyan-700" />
+                                        <div>
+                                            <p className="text-[11px] font-semibold">Gate Pass & Handover</p>
+                                            <p className="text-[9px] text-muted-foreground">
+                                                Complete the handover information before creating OWST.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <span className="hidden text-[8px] font-medium text-muted-foreground md:inline">
+                                        One-page A4 landscape print preview
+                                    </span>
+                                </div>
+
+                                <div className="grid gap-2 md:grid-cols-6">
+                                    <label className="md:col-span-3 block">
+                                        <span className="mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Receiver Address <span className="text-red-500">*</span>
                                         </span>
                                         <input
-                                            type="number"
-                                            min={0}
-                                            value={owstAmount}
-                                            onChange={(event) => setOWSTAmount(event.target.value)}
-                                            className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
-                                            placeholder="0"
+                                            value={owstReceiverAddress}
+                                            onChange={(event) => setOWSTReceiverAddress(event.target.value)}
+                                            className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-[10px]"
+                                            placeholder="Receiver / destination address"
                                         />
                                     </label>
 
-                                    {owstType === "vendor" && (
-                                        <label className="col-span-2 block">
-                                            <span className="mb-1 block text-[10px] font-semibold">
-                                                Vendor Name <span className="text-red-500">*</span>
-                                            </span>
-                                            <input
-                                                value={owstVendor}
-                                                onChange={(event) => setOWSTVendor(event.target.value)}
-                                                className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
-                                                placeholder="Receiving vendor"
-                                            />
-                                        </label>
-                                    )}
+                                    <label className="block">
+                                        <span className="mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Gate Pass Date <span className="text-red-500">*</span>
+                                        </span>
+                                        <input
+                                            type="date"
+                                            value={owstGatePassDate}
+                                            onChange={(event) => setOWSTGatePassDate(event.target.value)}
+                                            className="h-8 w-full rounded-md border border-input bg-background px-2 text-[10px]"
+                                        />
+                                    </label>
+
+                                    <label className="block">
+                                        <span className="mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Unit
+                                        </span>
+                                        <input
+                                            value={owstUnit}
+                                            onChange={(event) => setOWSTUnit(event.target.value)}
+                                            className="h-8 w-full rounded-md border border-input bg-background px-2 text-[10px]"
+                                        />
+                                    </label>
+
+                                    <label className="block">
+                                        <span className="mb-1 block text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Qty <span className="text-red-500">*</span>
+                                        </span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            step={1}
+                                            value={owstQuantity}
+                                            onChange={(event) => setOWSTQuantity(event.target.value)}
+                                            className="h-8 w-full rounded-md border border-input bg-background px-2 text-[10px]"
+                                        />
+                                    </label>
+
+                                    <label className="md:col-span-2 block">
+                                        <span className="mb-1 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            <Paperclip className="h-3 w-3" />
+                                            Attachment
+                                        </span>
+                                        <input
+                                            type="file"
+                                            accept=".jpg,.jpeg,.png,.gif,.pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                                            onChange={(event) => setOWSTAttachment(event.target.files?.[0] ?? null)}
+                                            className="block h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-[9px] file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-[8px] file:font-semibold"
+                                        />
+                                    </label>
+
+                                    <label className="md:col-span-4 block">
+                                        <span className="mb-1 flex items-center justify-between text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            <span>Remarks <span className="text-red-500">*</span></span>
+                                            <span>{remarks.length}/1000</span>
+                                        </span>
+                                        <input
+                                            value={remarks}
+                                            onChange={(event) => setRemarks(event.target.value)}
+                                            maxLength={1000}
+                                            className="h-8 w-full rounded-md border border-amber-200 bg-amber-50/50 px-2.5 text-[10px]"
+                                            placeholder="Ownership transfer / receiver / gate-pass remarks"
+                                        />
+                                    </label>
                                 </div>
 
-                                {owstType === "employee" && (
-                                    <div className="mt-2">
-                                        <EmployeeSearchBox
-                                            query={employeeQuery}
-                                            onQueryChange={(value) => {
-                                                setEmployeeQuery(value);
-                                                if (!value) setSelectedEmployee(null);
-                                            }}
-                                            results={employeeResults}
-                                            selected={selectedEmployee}
-                                            onSelect={(employee) => {
-                                                setSelectedEmployee(employee);
-                                                setEmployeeResults([]);
-                                                setEmployeeQuery("");
-                                            }}
-                                            searching={employeeSearching}
+                                <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-border bg-background px-3 py-1.5">
+                                    <label className="inline-flex items-center gap-1.5 text-[9px] font-medium">
+                                        <input
+                                            type="checkbox"
+                                            checked={owstCompanyMaterial}
+                                            onChange={(event) => setOWSTCompanyMaterial(event.target.checked)}
+                                            className="h-3.5 w-3.5 rounded border-input"
                                         />
-                                    </div>
-                                )}
+                                        Company Material
+                                    </label>
 
-                                <label className="mt-2 block rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 dark:border-amber-900/50 dark:bg-amber-950/10">
-                                    <span className="mb-1 flex items-center justify-between text-[10px] font-semibold text-amber-900 dark:text-amber-100">
-                                        <span>OWST Remarks</span>
-                                        <span className="font-normal text-amber-700 dark:text-amber-300">{remarks.length}/1000</span>
+                                    <label className="inline-flex items-center gap-1.5 text-[9px] font-medium">
+                                        <input
+                                            type="checkbox"
+                                            checked={owstNonRefundable}
+                                            onChange={(event) => setOWSTNonRefundable(event.target.checked)}
+                                            className="h-3.5 w-3.5 rounded border-input"
+                                        />
+                                        Non-Refundable
+                                    </label>
+
+                                    <span className="text-[8px] text-muted-foreground">
+                                        Purpose: Old Device Ownership Transfer according to IT Policy
                                     </span>
-                                    <textarea
-                                        value={remarks}
-                                        onChange={(event) => setRemarks(event.target.value)}
-                                        rows={2}
-                                        maxLength={1000}
-                                        className="w-full resize-none rounded-md border border-amber-200 bg-white px-3 py-2 text-xs dark:border-amber-900/60 dark:bg-background"
-                                        placeholder="Ownership transfer / gate-pass / receiver note"
-                                    />
-                                </label>
+                                </div>
                             </section>
                         </div>
                     )}
@@ -4151,6 +5204,18 @@ export default function AssetDevicesPage() {
                     )}
 
                     <DialogFooter className="sticky bottom-0 z-30 shrink-0 border-t border-border bg-background/95 px-4 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90">
+                        {operation === "owst" && (
+                            <button
+                                type="button"
+                                disabled={operationBusy}
+                                onClick={() => printOWST()}
+                                className="mr-auto inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-800 hover:bg-teal-100 disabled:opacity-50"
+                            >
+                                <Printer className="h-3.5 w-3.5" />
+                                Print Preview
+                            </button>
+                        )}
+
                         <button
                             type="button"
                             disabled={operationBusy}
@@ -4255,6 +5320,18 @@ export default function AssetDevicesPage() {
                     </div>
 
                     <DialogFooter className="border-t border-border bg-muted/15 px-6 py-4">
+                        {successDialog?.statusLabel?.startsWith("OWST") &&
+                            owstPrintSnapshot && (
+                                <button
+                                    type="button"
+                                    onClick={() => printOWST(owstPrintSnapshot)}
+                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-teal-200 bg-teal-50 px-4 text-sm font-semibold text-teal-800 hover:bg-teal-100"
+                                >
+                                    <Printer className="h-4 w-4" />
+                                    Print OWST
+                                </button>
+                            )}
+
                         <button
                             type="button"
                             onClick={() => setSuccessDialog(null)}
@@ -4265,6 +5342,327 @@ export default function AssetDevicesPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {owstPrintSnapshot && (
+                <div id="owst-print-sheet" className="hidden">
+                    <div className="owst-print-header">
+                        <div>
+                            <div className="owst-print-company">Fiber@Home Global Ltd.</div>
+                            <div className="owst-print-subtitle">IT Management System</div>
+                        </div>
+                        <div className="owst-print-title">
+                            DEVICE OWNERSHIP TRANSFER / GATE PASS
+                        </div>
+                        <div className="owst-print-ref">
+                            <div>Reference No.</div>
+                            <strong>{owstPrintSnapshot.referenceNo}</strong>
+                        </div>
+                    </div>
+
+                    <table className="owst-print-table owst-print-meta">
+                        <tbody>
+                            <tr>
+                                <th>OWST Type</th>
+                                <td>{owstPrintSnapshot.ownershipLabel}</td>
+                                <th>Raised By</th>
+                                <td>{owstPrintSnapshot.raisedBy}</td>
+                                <th>Submission Date</th>
+                                <td>{owstPrintSnapshot.submissionDate}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div className="owst-print-section-title">Employee / Current Holder Information</div>
+                    <table className="owst-print-table">
+                        <tbody>
+                            <tr>
+                                <th>Employee Name</th>
+                                <td>{owstPrintSnapshot.employeeName}</td>
+                                <th>Employee ID</th>
+                                <td>{owstPrintSnapshot.employeeID}</td>
+                                <th>Designation</th>
+                                <td>{owstPrintSnapshot.designation}</td>
+                            </tr>
+                            <tr>
+                                <th>Department</th>
+                                <td>{owstPrintSnapshot.department}</td>
+                                <th>Mobile</th>
+                                <td>{owstPrintSnapshot.mobile}</td>
+                                <th>Deducted Amount</th>
+                                <td>{owstPrintSnapshot.amount}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    {owstPrintSnapshot.ownershipType === "vendor" && (
+                        <>
+                            <div className="owst-print-section-title">Vendor Recipient Information</div>
+                            <table className="owst-print-table">
+                                <tbody>
+                                    <tr>
+                                        <th>Vendor Name</th>
+                                        <td>{owstPrintSnapshot.vendorName}</td>
+                                        <th>Vendor Mobile</th>
+                                        <td>{owstPrintSnapshot.vendorMobile}</td>
+                                        <th>Vendor Address</th>
+                                        <td>{owstPrintSnapshot.vendorAddress}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </>
+                    )}
+
+                    <div className="owst-print-section-title">Device Information</div>
+                    <table className="owst-print-table">
+                        <tbody>
+                            <tr>
+                                <th>Device Type</th>
+                                <td>{owstPrintSnapshot.deviceCategory}</td>
+                                <th>Device Serial No.</th>
+                                <td>{owstPrintSnapshot.deviceSerial}</td>
+                                <th>Device Age</th>
+                                <td>{owstPrintSnapshot.deviceAge}</td>
+                            </tr>
+                            <tr>
+                                <th>Brand</th>
+                                <td>{owstPrintSnapshot.brand}</td>
+                                <th>Model</th>
+                                <td>{owstPrintSnapshot.model}</td>
+                                <th>Assignment Type</th>
+                                <td>{owstPrintSnapshot.deviceType}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div className="owst-print-section-title">Gate Pass</div>
+                    <table className="owst-print-table">
+                        <tbody>
+                            <tr>
+                                <th>Receiver Address</th>
+                                <td colSpan={3}>{owstPrintSnapshot.receiverAddress}</td>
+                                <th>Gate Pass Date</th>
+                                <td>{owstPrintSnapshot.gatePassDate}</td>
+                            </tr>
+                            <tr>
+                                <th>Attached File</th>
+                                <td colSpan={5}>{owstPrintSnapshot.attachmentName}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table className="owst-print-table owst-print-item-table">
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Device Serial No.</th>
+                                <th>Item Description</th>
+                                <th>Unit / PCs</th>
+                                <th>Quantity</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{owstPrintSnapshot.deviceCategory}</td>
+                                <td>{owstPrintSnapshot.deviceSerial}</td>
+                                <td>
+                                    {[
+                                        owstPrintSnapshot.brand,
+                                        owstPrintSnapshot.model,
+                                        owstPrintSnapshot.deviceType,
+                                    ]
+                                        .filter((value) => value && value !== "—")
+                                        .join(" · ") || "—"}
+                                </td>
+                                <td>{owstPrintSnapshot.unit}</td>
+                                <td>{owstPrintSnapshot.quantity}</td>
+                                <td>{owstPrintSnapshot.remarks}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div className="owst-print-policy">
+                        <span>{owstPrintSnapshot.companyMaterial ? "☑" : "☐"} Company Material</span>
+                        <span>{owstPrintSnapshot.nonRefundable ? "☑" : "☐"} Non-Refundable</span>
+                        <strong>Purpose: Old Device Ownership Transfer according to IT Policy</strong>
+                    </div>
+
+                    <div className="owst-print-signatures">
+                        <div><span>Received By</span><div /></div>
+                        <div><span>Prepared By</span><div /></div>
+                        <div><span>Checked By</span><div /></div>
+                    </div>
+
+                    <div className="owst-print-footer">
+                        Generated from ITM · Fiber@Home Global Ltd. · One-page OWST / Gate Pass
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @media print {
+                    @page {
+                        size: A4 landscape;
+                        margin: 7mm;
+                    }
+
+                    html,
+                    body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                    }
+
+                    body * {
+                        visibility: hidden !important;
+                    }
+
+                    #owst-print-sheet,
+                    #owst-print-sheet * {
+                        visibility: visible !important;
+                    }
+
+                    #owst-print-sheet {
+                        display: block !important;
+                        position: absolute !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 100% !important;
+                        color: #111827 !important;
+                        background: #ffffff !important;
+                        font-family: Arial, Helvetica, sans-serif !important;
+                        font-size: 8.3pt !important;
+                        line-height: 1.15 !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
+
+                    .owst-print-header {
+                        display: grid !important;
+                        grid-template-columns: 1fr 1.6fr 0.7fr !important;
+                        align-items: center !important;
+                        gap: 8px !important;
+                        border: 1.4px solid #111827 !important;
+                        padding: 6px 8px !important;
+                        margin-bottom: 5px !important;
+                    }
+
+                    .owst-print-company {
+                        font-size: 12pt !important;
+                        font-weight: 800 !important;
+                    }
+
+                    .owst-print-subtitle {
+                        margin-top: 2px !important;
+                        font-size: 7.5pt !important;
+                        color: #4b5563 !important;
+                    }
+
+                    .owst-print-title {
+                        text-align: center !important;
+                        font-size: 12.5pt !important;
+                        font-weight: 800 !important;
+                        letter-spacing: 0.04em !important;
+                    }
+
+                    .owst-print-ref {
+                        border-left: 1px solid #9ca3af !important;
+                        padding-left: 8px !important;
+                        text-align: right !important;
+                        font-size: 7.5pt !important;
+                    }
+
+                    .owst-print-ref strong {
+                        display: block !important;
+                        margin-top: 2px !important;
+                        font-size: 10pt !important;
+                    }
+
+                    .owst-print-section-title {
+                        border: 1px solid #9ca3af !important;
+                        border-bottom: 0 !important;
+                        background: #e5e7eb !important;
+                        padding: 3px 6px !important;
+                        margin-top: 5px !important;
+                        font-weight: 800 !important;
+                        font-size: 8pt !important;
+                    }
+
+                    .owst-print-table {
+                        width: 100% !important;
+                        table-layout: fixed !important;
+                        border-collapse: collapse !important;
+                    }
+
+                    .owst-print-table th,
+                    .owst-print-table td {
+                        border: 1px solid #9ca3af !important;
+                        padding: 3px 5px !important;
+                        vertical-align: top !important;
+                        overflow-wrap: anywhere !important;
+                    }
+
+                    .owst-print-table th {
+                        width: 11% !important;
+                        background: #f3f4f6 !important;
+                        text-align: left !important;
+                        font-size: 7.2pt !important;
+                        font-weight: 700 !important;
+                    }
+
+                    .owst-print-table td {
+                        font-size: 8pt !important;
+                        font-weight: 600 !important;
+                    }
+
+                    .owst-print-item-table {
+                        margin-top: 5px !important;
+                    }
+
+                    .owst-print-item-table thead th {
+                        width: auto !important;
+                        text-align: center !important;
+                    }
+
+                    .owst-print-policy {
+                        display: grid !important;
+                        grid-template-columns: 0.75fr 0.75fr 2.5fr !important;
+                        gap: 8px !important;
+                        align-items: center !important;
+                        border: 1px solid #111827 !important;
+                        margin-top: 5px !important;
+                        padding: 5px 7px !important;
+                        font-size: 7.5pt !important;
+                    }
+
+                    .owst-print-signatures {
+                        display: grid !important;
+                        grid-template-columns: repeat(3, 1fr) !important;
+                        gap: 30px !important;
+                        border: 1px solid #111827 !important;
+                        border-top: 0 !important;
+                        padding: 9px 18px 6px !important;
+                    }
+
+                    .owst-print-signatures span {
+                        display: block !important;
+                        font-size: 7.5pt !important;
+                        font-weight: 700 !important;
+                    }
+
+                    .owst-print-signatures div > div {
+                        height: 18px !important;
+                        border-bottom: 1px dashed #6b7280 !important;
+                    }
+
+                    .owst-print-footer {
+                        margin-top: 4px !important;
+                        text-align: center !important;
+                        font-size: 6.5pt !important;
+                        color: #6b7280 !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

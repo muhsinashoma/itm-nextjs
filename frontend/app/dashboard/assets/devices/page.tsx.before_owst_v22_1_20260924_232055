@@ -25,6 +25,7 @@ import {
     BriefcaseBusiness,
     Building2,
     CalendarClock,
+    CircleDollarSign,
     ClipboardCheck,
     Columns3,
     Eye,
@@ -34,8 +35,10 @@ import {
     Hash,
     History as HistoryIcon,
     Laptop2,
+    MapPin,
     MoreHorizontal,
     PackageCheck,
+    Paperclip,
     Pencil,
     RefreshCw,
     RotateCcw,
@@ -44,6 +47,8 @@ import {
     Store,
     Tag,
     Trash2,
+    Truck,
+    UserCheck,
     UserPlus,
     UserRound,
     X,
@@ -55,6 +60,7 @@ import {
     employeeApi,
     getUser,
     inventoryWorkflowApi,
+    vendorApi,
     type AllocatableRequisition,
     type AssetDevice,
     type Employee,
@@ -102,6 +108,14 @@ type OperationSuccessDialog = {
     message: string;
     serial: string;
     statusLabel: string;
+};
+
+type OWSTVendor = {
+    id: number;
+    name: string;
+    address: string;
+    mobile: string;
+    email: string;
 };
 
 type ColumnKey =
@@ -458,13 +472,58 @@ const deviceOperationsApi = {
     createOWST: (
         id: number,
         body: {
-            ownership_type: "employee" | "vendor";
-            receiver_id?: string;
-            vendor_name?: string;
+            ownership_type: "user" | "vendor";
+            vendor_id?: number;
             deducted_amount?: number;
-            remarks?: string;
+            vendor_deducted_amount?: number;
+            vendor_others?: string;
+            receiver_address: string;
+            gate_pass_date: string;
+            unit: string;
+            quantity: number;
+            remarks: string;
+            company_material: boolean;
+            non_refundable: boolean;
+            attachment?: File | null;
         },
-    ) => api.post(`/assets/devices/${id}/owst`, body),
+    ) => {
+        const formData = new FormData();
+
+        formData.append("ownership_type", body.ownership_type);
+        formData.append("deducted_amount", String(body.deducted_amount ?? 0));
+        formData.append(
+            "vendor_deducted_amount",
+            String(body.vendor_deducted_amount ?? 0),
+        );
+        formData.append(
+            "vendor_id",
+            body.vendor_id ? String(body.vendor_id) : "",
+        );
+        formData.append("vendor_others", body.vendor_others ?? "");
+        formData.append("receiver_address", body.receiver_address);
+        formData.append("gate_pass_date", body.gate_pass_date);
+        formData.append("unit", body.unit);
+        formData.append("quantity", String(body.quantity));
+        formData.append("remarks", body.remarks);
+        formData.append(
+            "company_material",
+            body.company_material ? "1" : "0",
+        );
+        formData.append(
+            "non_refundable",
+            body.non_refundable ? "1" : "0",
+        );
+
+        if (body.attachment) {
+            formData.append(
+                "attachment",
+                body.attachment,
+                body.attachment.name,
+            );
+        }
+
+        return api.postForm(`/assets/devices/${id}/owst`, formData);
+    },
 
     createWarrantyClaim: (
         id: number,
@@ -1324,9 +1383,21 @@ export default function AssetDevicesPage() {
         monitor: "",
     });
 
-    const [owstType, setOWSTType] = useState<"employee" | "vendor">("employee");
-    const [owstVendor, setOWSTVendor] = useState("");
+    const [owstType, setOWSTType] = useState<"user" | "vendor">("user");
+    const [owstVendors, setOWSTVendors] = useState<OWSTVendor[]>([]);
+    const [owstVendorsLoading, setOWSTVendorsLoading] = useState(false);
+    const [owstVendorID, setOWSTVendorID] = useState("");
+    const [owstVendorOthers, setOWSTVendorOthers] = useState("");
     const [owstAmount, setOWSTAmount] = useState("");
+    const [owstReceiverAddress, setOWSTReceiverAddress] = useState("");
+    const [owstGatePassDate, setOWSTGatePassDate] = useState("");
+    const [owstUnit, setOWSTUnit] = useState("Nos");
+    const [owstQuantity, setOWSTQuantity] = useState("1");
+    const [owstAttachment, setOWSTAttachment] = useState<File | null>(null);
+    const [owstCompanyMaterial, setOWSTCompanyMaterial] = useState(true);
+    const [owstNonRefundable, setOWSTNonRefundable] = useState(true);
+    const [owstEmployeeProfile, setOWSTEmployeeProfile] = useState<Employee | null>(null);
+    const [owstEmployeeLoading, setOWSTEmployeeLoading] = useState(false);
     const [warrantyProblems, setWarrantyProblems] = useState("");
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -1334,6 +1405,14 @@ export default function AssetDevicesPage() {
     const isRoot =
         authUser?.role_code?.trim().toUpperCase() === "ROOT" ||
         Number(authUser?.user_type) === 0;
+
+    const selectedOWSTVendor = useMemo(
+        () =>
+            owstVendors.find(
+                (vendor) => String(vendor.id) === owstVendorID,
+            ) ?? null,
+        [owstVendors, owstVendorID],
+    );
 
     const importSuccess = searchParams.get("import") === "success";
     const importMR = searchParams.get("mr") ?? "";
@@ -1427,8 +1506,8 @@ export default function AssetDevicesPage() {
             const hydratedItems = await Promise.all(
                 pageItems.map((item) =>
                     item.asset_status === 4 &&
-                    !item.previous_assignment &&
-                    !item.last_emp_id
+                        !item.previous_assignment &&
+                        !item.last_emp_id
                         ? hydrateReturnedLastHolder(item)
                         : Promise.resolve(item),
                 ),
@@ -1485,8 +1564,7 @@ export default function AssetDevicesPage() {
         const needsEmployeeSearch =
             operation === "assign-direct" ||
             operation === "reassign" ||
-            operation === "transfer" ||
-            (operation === "owst" && owstType === "employee");
+            operation === "transfer";
 
         if (!needsEmployeeSearch || selectedEmployee) {
             setEmployeeResults([]);
@@ -1525,7 +1603,132 @@ export default function AssetDevicesPage() {
         }, 300);
 
         return () => window.clearTimeout(timer);
-    }, [employeeQuery, operation, owstType, selectedEmployee]);
+    }, [employeeQuery, operation, selectedEmployee]);
+
+    useEffect(() => {
+        if (operation !== "owst" || owstType !== "vendor") {
+            return;
+        }
+
+        let active = true;
+
+        async function loadOWSTVendors() {
+            try {
+                setOWSTVendorsLoading(true);
+                const response = await vendorApi.list();
+                const rows = Array.isArray(response.data)
+                    ? response.data
+                    : [];
+
+                const normalized = rows
+                    .map((row: any): OWSTVendor | null => {
+                        const id = Number(
+                            row?.id ??
+                            row?.ID ??
+                            0,
+                        );
+                        const name = String(
+                            row?.vendor_name ??
+                            row?.name ??
+                            row?.Name ??
+                            "",
+                        ).trim();
+
+                        if (!id || !name) {
+                            return null;
+                        }
+
+                        return {
+                            id,
+                            name,
+                            address: String(
+                                row?.vendor_address ??
+                                row?.addr ??
+                                row?.Addr ??
+                                "",
+                            ).trim(),
+                            mobile: String(
+                                row?.vendor_mobile ??
+                                row?.mobile ??
+                                row?.Mobile ??
+                                "",
+                            ).trim(),
+                            email: String(
+                                row?.vendor_email ??
+                                row?.email ??
+                                row?.Email ??
+                                "",
+                            ).trim(),
+                        };
+                    })
+                    .filter(
+                        (vendor): vendor is OWSTVendor =>
+                            Boolean(vendor),
+                    );
+
+                if (active) {
+                    setOWSTVendors(normalized);
+                }
+            } catch (reason) {
+                if (active) {
+                    setOWSTVendors([]);
+                    setOperationError(
+                        reason instanceof Error
+                            ? reason.message
+                            : "Unable to load active vendors.",
+                    );
+                }
+            } finally {
+                if (active) {
+                    setOWSTVendorsLoading(false);
+                }
+            }
+        }
+
+        void loadOWSTVendors();
+
+        return () => {
+            active = false;
+        };
+    }, [operation, owstType]);
+
+    useEffect(() => {
+        if (
+            operation !== "owst" ||
+            !selectedAsset?.emp_id?.trim()
+        ) {
+            setOWSTEmployeeProfile(null);
+            return;
+        }
+
+        let active = true;
+
+        async function loadOWSTCurrentEmployee() {
+            try {
+                setOWSTEmployeeLoading(true);
+                const response = await employeeApi.get(
+                    encodeURIComponent(selectedAsset!.emp_id!.trim()),
+                );
+                if (active) {
+                    setOWSTEmployeeProfile(response.data ?? null);
+                }
+            } catch {
+                if (active) {
+                    setOWSTEmployeeProfile(null);
+                }
+            } finally {
+                if (active) {
+                    setOWSTEmployeeLoading(false);
+                }
+            }
+        }
+
+        void loadOWSTCurrentEmployee();
+
+        return () => {
+            active = false;
+        };
+    }, [operation, selectedAsset?.id, selectedAsset?.emp_id]);
 
     useEffect(() => {
         if (operation !== "assign-tt" || !selectedAsset) {
@@ -1703,9 +1906,18 @@ export default function AssetDevicesPage() {
         setRequisitionQuery("");
         setRequisitionResults([]);
         setSelectedRequisition(null);
-        setOWSTType("employee");
-        setOWSTVendor("");
+        setOWSTType("user");
+        setOWSTVendorID("");
+        setOWSTVendorOthers("");
         setOWSTAmount("");
+        setOWSTReceiverAddress("");
+        setOWSTGatePassDate(dateInputValue(new Date().toISOString()));
+        setOWSTUnit("Nos");
+        setOWSTQuantity("1");
+        setOWSTAttachment(null);
+        setOWSTCompanyMaterial(true);
+        setOWSTNonRefundable(true);
+        setOWSTEmployeeProfile(null);
         setWarrantyProblems("");
         setUpdateForm({
             device_serial: item.device_serial ?? "",
@@ -1999,29 +2211,95 @@ export default function AssetDevicesPage() {
             }
 
             if (operation === "owst") {
-                if (owstType === "employee" && !selectedEmployee) {
-                    setOperationError("Select the ownership receiver employee.");
-                    return;
-                }
-                if (owstType === "vendor" && !owstVendor.trim()) {
-                    setOperationError("Enter the receiving vendor name.");
+                if (!selectedAsset.emp_id?.trim()) {
+                    setOperationError(
+                        "The device must have a current assigned employee before OWST.",
+                    );
                     return;
                 }
 
-                await deviceOperationsApi.createOWST(selectedAsset.id, {
-                    ownership_type: owstType,
-                    receiver_id:
-                        owstType === "employee"
-                            ? selectedEmployee?.employee_id
-                            : undefined,
-                    vendor_name:
-                        owstType === "vendor"
-                            ? owstVendor.trim()
-                            : undefined,
-                    deducted_amount: Number(owstAmount || 0),
-                    remarks,
-                });
-                message = `OWST (${owstType === "employee" ? "User" : "Vendor"}) created successfully.`;
+                const amount = Number(owstAmount || 0);
+                if (!Number.isFinite(amount) || amount <= 0) {
+                    setOperationError(
+                        owstType === "user"
+                            ? "Enter a deducted amount greater than 0 for User OWST."
+                            : "Enter a deducted amount greater than 0 for Vendor OWST.",
+                    );
+                    return;
+                }
+
+                if (
+                    owstType === "vendor" &&
+                    !selectedOWSTVendor
+                ) {
+                    setOperationError("Select an active vendor.");
+                    return;
+                }
+
+                if (!owstReceiverAddress.trim()) {
+                    setOperationError("Receiver address is required for the gate pass.");
+                    return;
+                }
+
+                if (!owstGatePassDate) {
+                    setOperationError("Gate pass date is required.");
+                    return;
+                }
+
+                const quantity = Number(owstQuantity || 0);
+                if (!Number.isInteger(quantity) || quantity < 1) {
+                    setOperationError("Quantity must be at least 1.");
+                    return;
+                }
+
+                if (!remarks.trim()) {
+                    setOperationError("OWST / gate-pass remarks are required.");
+                    return;
+                }
+
+                if (
+                    owstAttachment &&
+                    owstAttachment.size > 4 * 1024 * 1024
+                ) {
+                    setOperationError("Attachment must be 4 MB or smaller.");
+                    return;
+                }
+
+                await deviceOperationsApi.createOWST(
+                    selectedAsset.id,
+                    {
+                        ownership_type: owstType,
+                        vendor_id:
+                            owstType === "vendor"
+                                ? selectedOWSTVendor?.id
+                                : undefined,
+                        deducted_amount:
+                            owstType === "user"
+                                ? amount
+                                : 0,
+                        vendor_deducted_amount:
+                            owstType === "vendor"
+                                ? amount
+                                : 0,
+                        vendor_others:
+                            owstType === "vendor"
+                                ? owstVendorOthers.trim()
+                                : "",
+                        receiver_address:
+                            owstReceiverAddress.trim(),
+                        gate_pass_date: owstGatePassDate,
+                        unit: owstUnit.trim() || "Nos",
+                        quantity,
+                        remarks: remarks.trim(),
+                        company_material:
+                            owstCompanyMaterial,
+                        non_refundable:
+                            owstNonRefundable,
+                        attachment: owstAttachment,
+                    },
+                );
+
+                message = `OWST (${owstType === "user" ? "User" : "Vendor"}) created successfully.`;
             }
 
             if (operation === "warranty") {
@@ -2058,15 +2336,15 @@ export default function AssetDevicesPage() {
                         completedOperation === "reassign"
                         ? "Assigned"
                         : completedOperation === "assign-direct" ||
-                                completedOperation === "assign-tt"
-                                ? "Assigned"
-                                : completedOperation === "owst"
-                                    ? `OWST (${owstType === "employee" ? "User" : "Vendor"})`
-                                    : completedOperation === "warranty"
-                                        ? "Claim Raised"
-                                        : completedOperation === "delete"
-                                            ? "Removed"
-                                            : selectedAsset.status_label || "Updated";
+                            completedOperation === "assign-tt"
+                            ? "Assigned"
+                            : completedOperation === "owst"
+                                ? `OWST (${owstType === "user" ? "User" : "Vendor"})`
+                                : completedOperation === "warranty"
+                                    ? "Claim Raised"
+                                    : completedOperation === "delete"
+                                        ? "Removed"
+                                        : selectedAsset.status_label || "Updated";
 
             const completedTitle =
                 completedOperation === "return"
@@ -2081,7 +2359,7 @@ export default function AssetDevicesPage() {
                                 : completedOperation === "update"
                                     ? "Device Update Completed"
                                     : completedOperation === "owst"
-                                        ? `OWST (${owstType === "employee" ? "User" : "Vendor"}) Completed`
+                                        ? `OWST (${owstType === "user" ? "User" : "Vendor"}) Completed`
                                         : completedOperation === "warranty"
                                             ? "Warranty Claim Submitted"
                                             : completedOperation === "delete"
@@ -2436,7 +2714,7 @@ export default function AssetDevicesPage() {
             <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div className="max-h-[65vh] overflow-auto">
                     <table
-                        className="w-full min-w-[1180px] table-fixed text-[11px] leading-4"
+                        className="w-full min-w-[1280px] table-fixed text-[11px] leading-4"
                     >
                         <thead className="sticky top-0 z-20 border-b border-border bg-background/95 shadow-sm backdrop-blur">
                             <tr className="text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
@@ -2469,7 +2747,7 @@ export default function AssetDevicesPage() {
                                     </span>
                                 </th>
                                 {visibleColumns.has("employee") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[18%] px-2.5 py-2.5"}>
+                                    <th className={hasExtraColumns ? "min-w-[250px] px-2.5 py-2.5" : "w-[22%] min-w-[250px] px-2.5 py-2.5"}>
                                         <span className="inline-flex items-center gap-1.5">
                                             <UserRound className="h-3.5 w-3.5" />
                                             Employee
@@ -2511,10 +2789,10 @@ export default function AssetDevicesPage() {
                                 {visibleColumns.has("deviceType") && <th className="px-2 py-2">Device Type</th>}
                                 {visibleColumns.has("vendor") && <th className="px-2 py-2">Vendor</th>}
                                 {visibleColumns.has("actionDate") && (
-                                    <th className={hasExtraColumns ? "px-2 py-2" : "w-[12%] px-2.5 py-2.5 whitespace-nowrap"}>
-                                        <span className="inline-flex items-center gap-1.5">
+                                    <th className="sticky right-[220px] z-30 w-[156px] min-w-[156px] border-l border-border bg-background/95 px-2.5 py-2.5 shadow-[-4px_0_8px_-8px_rgba(0,0,0,0.18)]">
+                                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                                             <CalendarClock className="h-3.5 w-3.5" />
-                                            {statusActionDateHeader(status)}
+                                            Action Date
                                         </span>
                                     </th>
                                 )}
@@ -2533,7 +2811,7 @@ export default function AssetDevicesPage() {
                                 <th className="sticky right-0 z-40 w-[96px] min-w-[96px] border-l border-border bg-background/95 px-2 py-2.5 text-center shadow-[-8px_0_12px_-9px_rgba(0,0,0,0.35)]">
                                     <span className="inline-flex items-center justify-center gap-1.5">
                                         <MoreHorizontal className="h-3.5 w-3.5" />
-                                        Action
+                                        Actions
                                     </span>
                                 </th>
                             </tr>
@@ -2571,7 +2849,7 @@ export default function AssetDevicesPage() {
                                 <tr
                                     key={item.id}
                                     onDoubleClick={() => openDevice(item)}
-                                    className={`group border-b border-border/70 align-middle transition-colors last:border-b-0 hover:bg-muted/30 ${loading ? "opacity-70" : ""}`}
+                                    className={`group min-h-[62px] border-b border-border/70 align-middle transition-colors last:border-b-0 hover:bg-muted/30 ${loading ? "opacity-70" : ""}`}
                                 >
                                     <td className="px-2.5 py-2 text-center align-middle">
                                         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-border bg-muted/40 px-1 text-[10px] font-semibold tabular-nums text-foreground">
@@ -2661,19 +2939,17 @@ export default function AssetDevicesPage() {
                                                             )}
                                                         </div>
 
-                                                        <div className="mt-1 flex min-w-0 items-center gap-1 text-[9px] text-muted-foreground">
-                                                            <BriefcaseBusiness className="h-3 w-3 shrink-0" />
-                                                            <span
-                                                                className="truncate"
-                                                                title={item.designation || item.last_designation || "Employee"}
-                                                            >
-                                                                {item.designation || item.last_designation || "Employee"}
-                                                            </span>
-                                                            <span className="shrink-0 text-border">·</span>
-                                                            <Building2 className="h-3 w-3 shrink-0" />
-                                                            <span className="truncate" title="Fiber@Home Global Ltd">
-                                                                Fiber@Home Global Ltd
-                                                            </span>
+                                                        <div className="mt-1 space-y-0.5 text-[9px] leading-3 text-muted-foreground">
+                                                            <div className="flex min-w-0 items-start gap-1">
+                                                                <BriefcaseBusiness className="mt-0.5 h-3 w-3 shrink-0" />
+                                                                <span
+                                                                    className="min-w-0 whitespace-normal break-words font-medium text-foreground/75"
+                                                                    title={item.designation || item.last_designation || "Employee"}
+                                                                >
+                                                                    {item.designation || item.last_designation || "Employee"}
+                                                                </span>
+                                                            </div>
+
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2764,13 +3040,16 @@ export default function AssetDevicesPage() {
                                     )}
 
                                     {visibleColumns.has("actionDate") && (
-                                        <td className="min-w-0 px-2.5 py-2 align-middle">
+                                        <td className="sticky right-[220px] z-20 w-[156px] min-w-[156px] border-l border-border bg-card px-2.5 py-2 align-middle shadow-[-4px_0_8px_-8px_rgba(0,0,0,0.14)] group-hover:bg-muted/30">
                                             <div className="space-y-0.5">
-                                                <span className="block truncate text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                <span
+                                                    className="block whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.04em] text-muted-foreground"
+                                                    title={item.status_action_label || statusActionDateHeader(item.asset_status)}
+                                                >
                                                     {item.status_action_label || statusActionDateHeader(item.asset_status)}
                                                 </span>
                                                 <span
-                                                    className="block truncate text-[10px] font-semibold text-foreground"
+                                                    className="block whitespace-nowrap text-[10px] font-semibold text-foreground"
                                                     title={String(formatDateTime(item.status_action_date))}
                                                 >
                                                     {formatDateTime(item.status_action_date)}
@@ -2849,7 +3128,7 @@ export default function AssetDevicesPage() {
                                                     aria-label={`Actions for ${item.device_serial || "asset device"}`}
                                                     aria-haspopup="menu"
                                                 >
-                                                    Action
+                                                    Actions
                                                     <ChevronDown className="h-3 w-3 text-muted-foreground" />
                                                 </button>
                                             </DropdownMenuTrigger>
@@ -3068,7 +3347,7 @@ export default function AssetDevicesPage() {
 
             <Dialog open={Boolean(operation && selectedAsset)} onOpenChange={(open) => !open && closeOperation()}>
                 <DialogContent
-                    className={`max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto p-0 ${operation === "assign-direct" || operation === "reassign"
+                    className={`max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto p-0 ${operation === "assign-direct" || operation === "reassign" || operation === "owst"
                         ? "sm:max-w-[1240px]"
                         : operation === "assign-tt"
                             ? "sm:max-w-4xl"
@@ -3543,9 +3822,9 @@ export default function AssetDevicesPage() {
                                                                 <p className="truncate text-[9px] text-muted-foreground">
                                                                     {[
                                                                         selectedAsset?.previous_assignment?.department ||
-                                                                            selectedAsset?.last_department,
+                                                                        selectedAsset?.last_department,
                                                                         selectedAsset?.previous_assignment?.designation ||
-                                                                            selectedAsset?.last_designation,
+                                                                        selectedAsset?.last_designation,
                                                                     ]
                                                                         .filter(Boolean)
                                                                         .join(" · ") || "—"}
@@ -4095,79 +4374,411 @@ export default function AssetDevicesPage() {
                                 context={assignmentContext}
                             />
 
-                            <section className="rounded-xl border border-teal-200/80 bg-teal-50/45 p-3 dark:border-teal-900/50 dark:bg-teal-950/10">
-                                <div className="grid grid-cols-4 gap-2">
+                            <section className="rounded-xl border border-teal-200 bg-teal-50/45 p-3 dark:border-teal-900/50 dark:bg-teal-950/10">
+                                <div className="mb-2 flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-semibold text-teal-950 dark:text-teal-100">
+                                            OWST Category
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            User OWST = 1 · Vendor OWST = 2 · current asset status becomes OWST.
+                                        </p>
+                                    </div>
+                                    <span className="rounded-md border border-teal-200 bg-white/80 px-2 py-1 text-[9px] font-semibold text-teal-800 dark:border-teal-900/60 dark:bg-background">
+                                        Reference #{selectedAsset?.id ?? "—"}
+                                    </span>
+                                </div>
+
+                                <div className="grid gap-2 md:grid-cols-4">
                                     <label className="block">
-                                        <span className="mb-1 block text-[10px] font-semibold text-teal-950 dark:text-teal-100">
-                                            Ownership Transfer To
+                                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            OWST Type <span className="text-red-500">*</span>
                                         </span>
                                         <select
                                             value={owstType}
                                             onChange={(event) => {
-                                                setOWSTType(event.target.value as "employee" | "vendor");
-                                                setSelectedEmployee(null);
-                                                setEmployeeQuery("");
+                                                setOWSTType(
+                                                    event.target.value as "user" | "vendor",
+                                                );
+                                                setOWSTVendorID("");
+                                                setOWSTAmount("");
+                                                setOperationError("");
                                             }}
-                                            className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs font-medium"
                                         >
-                                            <option value="employee">Employee / User</option>
-                                            <option value="vendor">Vendor</option>
+                                            <option value="user">User OWST</option>
+                                            <option value="vendor">Vendor OWST</option>
                                         </select>
                                     </label>
 
-                                    <label className="block">
-                                        <span className="mb-1 block text-[10px] font-semibold">
-                                            Deducted Amount
+                                    <CompactDeviceInfo
+                                        label="Raised By"
+                                        value={
+                                            authUser?.full_name ||
+                                            authUser?.username ||
+                                            authUser?.employee_id ||
+                                            "Current user"
+                                        }
+                                    />
+
+                                    <CompactDeviceInfo
+                                        label="Submission Date"
+                                        value={formatDateTime(new Date().toISOString())}
+                                    />
+
+                                    <div className="rounded-lg border border-border bg-background px-2.5 py-2">
+                                        <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Current Status
+                                        </p>
+                                        <div className="mt-1">
+                                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold ${statusClass(selectedAsset?.asset_status ?? 1)}`}>
+                                                {selectedAsset?.status_label || "Assigned"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {owstType === "user" ? (
+                                <section className="rounded-xl border border-blue-200 bg-blue-50/45 p-3 dark:border-blue-900/50 dark:bg-blue-950/10">
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <UserCheck className="h-4 w-4 text-blue-700" />
+                                        <div>
+                                            <p className="text-xs font-semibold text-blue-950 dark:text-blue-100">
+                                                Employee OWST Information
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Ownership transfers to the employee who currently holds this Assigned device.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-3 lg:grid-cols-[1.15fr_1fr]">
+                                        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-blue-200 bg-background p-3">
+                                            <EmployeeAvatar
+                                                name={
+                                                    owstEmployeeProfile?.employee_name ||
+                                                    selectedAsset?.emp_name ||
+                                                    null
+                                                }
+                                                image={
+                                                    owstEmployeeProfile?.picture ||
+                                                    selectedAsset?.employee_image
+                                                }
+                                                size="lg"
+                                            />
+
+                                            <div className="min-w-0">
+                                                <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-700">
+                                                    Current Employee / OWST Receiver
+                                                </p>
+                                                <p className="truncate text-sm font-semibold text-foreground">
+                                                    {owstEmployeeProfile?.employee_name ||
+                                                        selectedAsset?.emp_name ||
+                                                        "Employee"}
+                                                </p>
+                                                <p className="mt-0.5 font-mono text-[10px] font-semibold text-blue-700">
+                                                    {owstEmployeeProfile?.employee_id ||
+                                                        selectedAsset?.emp_id ||
+                                                        "—"}
+                                                </p>
+                                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                                    {[
+                                                        owstEmployeeProfile?.designation ||
+                                                        selectedAsset?.designation,
+                                                        owstEmployeeProfile?.department ||
+                                                        selectedAsset?.department,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(" · ") || "—"}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <CompactDeviceInfo
+                                                label="Function"
+                                                value={
+                                                    owstEmployeeLoading
+                                                        ? "Loading…"
+                                                        : owstEmployeeProfile?.work_field || "—"
+                                                }
+                                            />
+                                            <CompactDeviceInfo
+                                                label="Mobile"
+                                                value={
+                                                    owstEmployeeLoading
+                                                        ? "Loading…"
+                                                        : owstEmployeeProfile?.official_cell ||
+                                                        owstEmployeeProfile?.personal_cell ||
+                                                        "—"
+                                                }
+                                            />
+                                            <CompactDeviceInfo
+                                                label="Device Age"
+                                                value={formatCompactDuration(
+                                                    selectedAsset?.assigned_date,
+                                                )}
+                                            />
+
+                                            <label className="block rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-2">
+                                                <span className="mb-1 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wide text-amber-800">
+                                                    <CircleDollarSign className="h-3 w-3" />
+                                                    Deducted Amount <span className="text-red-500">*</span>
+                                                </span>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    step={1}
+                                                    value={owstAmount}
+                                                    onChange={(event) =>
+                                                        setOWSTAmount(event.target.value)
+                                                    }
+                                                    className="h-8 w-full rounded-md border border-amber-200 bg-white px-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-200"
+                                                    placeholder="Enter amount"
+                                                />
+                                            </label>
+                                        </div>
+                                    </div>
+                                </section>
+                            ) : (
+                                <section className="rounded-xl border border-violet-200 bg-violet-50/45 p-3 dark:border-violet-900/50 dark:bg-violet-950/10">
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <Truck className="h-4 w-4 text-violet-700" />
+                                        <div>
+                                            <p className="text-xs font-semibold text-violet-950 dark:text-violet-100">
+                                                Vendor OWST Information
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Select the receiving vendor. Address and mobile are stored as an OWST snapshot.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-2 md:grid-cols-4">
+                                        <label className="md:col-span-2 block">
+                                            <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                Vendor <span className="text-red-500">*</span>
+                                            </span>
+                                            <select
+                                                value={owstVendorID}
+                                                onChange={(event) =>
+                                                    setOWSTVendorID(event.target.value)
+                                                }
+                                                disabled={owstVendorsLoading}
+                                                className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+                                            >
+                                                <option value="">
+                                                    {owstVendorsLoading
+                                                        ? "Loading vendors…"
+                                                        : "Select active vendor"}
+                                                </option>
+                                                {owstVendors.map((vendor) => (
+                                                    <option
+                                                        key={vendor.id}
+                                                        value={String(vendor.id)}
+                                                    >
+                                                        {vendor.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+
+                                        <label className="block rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-2">
+                                            <span className="mb-1 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wide text-amber-800">
+                                                <CircleDollarSign className="h-3 w-3" />
+                                                Deducted Amount <span className="text-red-500">*</span>
+                                            </span>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                step={1}
+                                                value={owstAmount}
+                                                onChange={(event) =>
+                                                    setOWSTAmount(event.target.value)
+                                                }
+                                                className="h-8 w-full rounded-md border border-amber-200 bg-white px-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-200"
+                                                placeholder="Enter amount"
+                                            />
+                                        </label>
+
+                                        <label className="block">
+                                            <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                Mobile
+                                            </span>
+                                            <input
+                                                readOnly
+                                                value={selectedOWSTVendor?.mobile || ""}
+                                                className="h-9 w-full rounded-md border border-input bg-muted/30 px-2.5 text-xs"
+                                                placeholder="Auto-filled"
+                                            />
+                                        </label>
+
+                                        <div className="md:col-span-2">
+                                            <CompactDeviceInfo
+                                                label="Vendor Address"
+                                                value={selectedOWSTVendor?.address || "Select a vendor"}
+                                            />
+                                        </div>
+
+                                        <div className="md:col-span-2">
+                                            <CompactDeviceInfo
+                                                label="Vendor Email"
+                                                value={selectedOWSTVendor?.email || "—"}
+                                            />
+                                        </div>
+
+                                        <label className="md:col-span-4 block">
+                                            <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                Others
+                                            </span>
+                                            <textarea
+                                                value={owstVendorOthers}
+                                                onChange={(event) =>
+                                                    setOWSTVendorOthers(event.target.value)
+                                                }
+                                                rows={2}
+                                                maxLength={1000}
+                                                className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-2 text-xs"
+                                                placeholder="Vendor OWST notes / auction reference / other information"
+                                            />
+                                        </label>
+                                    </div>
+                                </section>
+                            )}
+
+                            <section className="rounded-xl border border-cyan-200 bg-cyan-50/35 p-3 dark:border-cyan-900/50 dark:bg-cyan-950/10">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-cyan-700" />
+                                    <div>
+                                        <p className="text-xs font-semibold text-cyan-950 dark:text-cyan-100">
+                                            Gate Pass
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Receiver, date, material item and supporting attachment.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-2 md:grid-cols-3">
+                                    <label className="md:col-span-2 block">
+                                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Receiver Address <span className="text-red-500">*</span>
                                         </span>
                                         <input
-                                            type="number"
-                                            min={0}
-                                            value={owstAmount}
-                                            onChange={(event) => setOWSTAmount(event.target.value)}
-                                            className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
-                                            placeholder="0"
+                                            value={owstReceiverAddress}
+                                            onChange={(event) =>
+                                                setOWSTReceiverAddress(event.target.value)
+                                            }
+                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+                                            placeholder="Receiver / destination address"
                                         />
                                     </label>
 
-                                    {owstType === "vendor" && (
-                                        <label className="col-span-2 block">
-                                            <span className="mb-1 block text-[10px] font-semibold">
-                                                Vendor Name <span className="text-red-500">*</span>
-                                            </span>
-                                            <input
-                                                value={owstVendor}
-                                                onChange={(event) => setOWSTVendor(event.target.value)}
-                                                className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
-                                                placeholder="Receiving vendor"
-                                            />
-                                        </label>
-                                    )}
-                                </div>
-
-                                {owstType === "employee" && (
-                                    <div className="mt-2">
-                                        <EmployeeSearchBox
-                                            query={employeeQuery}
-                                            onQueryChange={(value) => {
-                                                setEmployeeQuery(value);
-                                                if (!value) setSelectedEmployee(null);
-                                            }}
-                                            results={employeeResults}
-                                            selected={selectedEmployee}
-                                            onSelect={(employee) => {
-                                                setSelectedEmployee(employee);
-                                                setEmployeeResults([]);
-                                                setEmployeeQuery("");
-                                            }}
-                                            searching={employeeSearching}
+                                    <label className="block">
+                                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Gate Pass Date <span className="text-red-500">*</span>
+                                        </span>
+                                        <input
+                                            type="date"
+                                            value={owstGatePassDate}
+                                            onChange={(event) =>
+                                                setOWSTGatePassDate(event.target.value)
+                                            }
+                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs"
                                         />
+                                    </label>
+
+                                    <div className="rounded-lg border border-border bg-background px-2.5 py-2">
+                                        <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Item Name
+                                        </p>
+                                        <p className="mt-1 truncate text-[10px] font-semibold">
+                                            {selectedAsset?.category || "Device"}
+                                        </p>
                                     </div>
-                                )}
+
+                                    <div className="rounded-lg border border-border bg-background px-2.5 py-2">
+                                        <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Device Serial
+                                        </p>
+                                        <p className="mt-1 truncate font-mono text-[10px] font-semibold">
+                                            {selectedAsset?.device_serial || "—"}
+                                        </p>
+                                    </div>
+
+                                    <div className="rounded-lg border border-border bg-background px-2.5 py-2">
+                                        <p className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Item Description
+                                        </p>
+                                        <p className="mt-1 truncate text-[10px] font-medium">
+                                            {[
+                                                selectedAsset?.brand,
+                                                selectedAsset?.model,
+                                                selectedAsset?.device_type,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(" · ") || "—"}
+                                        </p>
+                                    </div>
+
+                                    <label className="block">
+                                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Unit / PCs
+                                        </span>
+                                        <input
+                                            value={owstUnit}
+                                            onChange={(event) =>
+                                                setOWSTUnit(event.target.value)
+                                            }
+                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+                                            placeholder="Nos"
+                                        />
+                                    </label>
+
+                                    <label className="block">
+                                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Quantity <span className="text-red-500">*</span>
+                                        </span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            step={1}
+                                            value={owstQuantity}
+                                            onChange={(event) =>
+                                                setOWSTQuantity(event.target.value)
+                                            }
+                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+                                        />
+                                    </label>
+
+                                    <label className="block">
+                                        <span className="mb-1 flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            <Paperclip className="h-3 w-3" />
+                                            Attachment
+                                        </span>
+                                        <input
+                                            type="file"
+                                            accept=".jpg,.jpeg,.png,.gif,.pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                                            onChange={(event) =>
+                                                setOWSTAttachment(
+                                                    event.target.files?.[0] ?? null,
+                                                )
+                                            }
+                                            className="block h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-[10px] file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-[9px] file:font-semibold"
+                                        />
+                                        <p className="mt-1 text-[8px] text-muted-foreground">
+                                            JPG/PNG/PDF/Office/Text · maximum 4 MB
+                                        </p>
+                                    </label>
+                                </div>
 
                                 <label className="mt-2 block rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 dark:border-amber-900/50 dark:bg-amber-950/10">
                                     <span className="mb-1 flex items-center justify-between text-[10px] font-semibold text-amber-900 dark:text-amber-100">
-                                        <span>OWST Remarks</span>
-                                        <span className="font-normal text-amber-700 dark:text-amber-300">{remarks.length}/1000</span>
+                                        <span>Remarks <span className="text-red-500">*</span></span>
+                                        <span className="font-normal text-amber-700 dark:text-amber-300">
+                                            {remarks.length}/1000
+                                        </span>
                                     </span>
                                     <textarea
                                         value={remarks}
@@ -4175,9 +4786,39 @@ export default function AssetDevicesPage() {
                                         rows={2}
                                         maxLength={1000}
                                         className="w-full resize-none rounded-md border border-amber-200 bg-white px-3 py-2 text-xs dark:border-amber-900/60 dark:bg-background"
-                                        placeholder="Ownership transfer / gate-pass / receiver note"
+                                        placeholder="Ownership transfer / gate-pass / receiver remarks"
                                     />
                                 </label>
+
+                                <div className="mt-2 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-background px-3 py-2">
+                                    <label className="inline-flex items-center gap-2 text-[10px] font-medium">
+                                        <input
+                                            type="checkbox"
+                                            checked={owstCompanyMaterial}
+                                            onChange={(event) =>
+                                                setOWSTCompanyMaterial(event.target.checked)
+                                            }
+                                            className="h-3.5 w-3.5 rounded border-input"
+                                        />
+                                        Company Material
+                                    </label>
+
+                                    <label className="inline-flex items-center gap-2 text-[10px] font-medium">
+                                        <input
+                                            type="checkbox"
+                                            checked={owstNonRefundable}
+                                            onChange={(event) =>
+                                                setOWSTNonRefundable(event.target.checked)
+                                            }
+                                            className="h-3.5 w-3.5 rounded border-input"
+                                        />
+                                        Non-Refundable
+                                    </label>
+
+                                    <span className="text-[9px] text-muted-foreground">
+                                        Purpose: Old Device Ownership Transfer according to IT policy.
+                                    </span>
+                                </div>
                             </section>
                         </div>
                     )}
