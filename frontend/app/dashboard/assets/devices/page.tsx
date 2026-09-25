@@ -233,6 +233,8 @@ type OperationType =
     | "return"
     | "owst"
     | "warranty"
+    | "damaged"
+    | "lost"
     | "reassign"
     | "delete"
     | null;
@@ -526,6 +528,16 @@ const deviceOperationsApi = {
 
     returnAsset: (id: number, remarks?: string) =>
         api.post(`/assets/devices/${id}/return`, {
+            remarks: remarks ?? "",
+        }),
+
+    markDamaged: (id: number, remarks: string) =>
+        api.post(`/assets/devices/${id}/damaged`, {
+            remarks: remarks ?? "",
+        }),
+
+    markLost: (id: number, remarks: string) =>
+        api.post(`/assets/devices/${id}/lost`, {
             remarks: remarks ?? "",
         }),
 
@@ -2294,7 +2306,9 @@ export default function AssetDevicesPage() {
             next === "transfer" ||
             next === "return" ||
             next === "owst" ||
-            next === "warranty"
+            next === "warranty" ||
+            next === "damaged" ||
+            next === "lost"
         ) {
             void loadAssignmentContext(item.id);
         }
@@ -2668,6 +2682,40 @@ export default function AssetDevicesPage() {
                 message = `OWST (${owstType === "user" ? "User" : "Vendor"}) created successfully. Reference #${generatedReference}.`;
             }
 
+            if (operation === "damaged") {
+                if (!remarks.trim()) {
+                    setOperationError(
+                        "Enter damage remarks before marking the device as Damaged.",
+                    );
+                    return;
+                }
+
+                await deviceOperationsApi.markDamaged(
+                    selectedAsset.id,
+                    remarks.trim(),
+                );
+
+                message =
+                    "Device status changed to Damaged. The responsible employee snapshot and audit history were preserved.";
+            }
+
+            if (operation === "lost") {
+                if (!remarks.trim()) {
+                    setOperationError(
+                        "Enter lost-device remarks before marking the device as Lost.",
+                    );
+                    return;
+                }
+
+                await deviceOperationsApi.markLost(
+                    selectedAsset.id,
+                    remarks.trim(),
+                );
+
+                message =
+                    "Device status changed to Lost. The responsible employee snapshot and audit history were preserved.";
+            }
+
             if (operation === "warranty") {
                 if (!warrantyProblems.trim()) {
                     setOperationError("Describe the warranty problem first.");
@@ -2708,7 +2756,11 @@ export default function AssetDevicesPage() {
                                     ? `OWST (${owstType === "user" ? "User" : "Vendor"})`
                                     : completedOperation === "warranty"
                                         ? "Claim Raised"
-                                        : completedOperation === "delete"
+                                        : completedOperation === "damaged"
+                                            ? "Damaged"
+                                            : completedOperation === "lost"
+                                                ? "Lost"
+                                                : completedOperation === "delete"
                                             ? "Removed"
                                             : selectedAsset.status_label || "Updated";
 
@@ -2728,7 +2780,11 @@ export default function AssetDevicesPage() {
                                         ? `OWST (${owstType === "user" ? "User" : "Vendor"}) Completed`
                                         : completedOperation === "warranty"
                                             ? "Warranty Claim Submitted"
-                                            : completedOperation === "delete"
+                                            : completedOperation === "damaged"
+                                                ? "Device Marked as Damaged"
+                                                : completedOperation === "lost"
+                                                    ? "Device Marked as Lost"
+                                                    : completedOperation === "delete"
                                                 ? "Device Removed"
                                                 : "Operation Completed";
 
@@ -2791,6 +2847,10 @@ export default function AssetDevicesPage() {
                 return "OWST · Ownership Transfer";
             case "warranty":
                 return "Raise Warranty Claim";
+            case "damaged":
+                return "Mark Device as Damaged";
+            case "lost":
+                return "Mark Device as Lost";
             case "reassign":
                 return "Reassign / Correct Employee";
             case "delete":
@@ -3534,6 +3594,21 @@ export default function AssetDevicesPage() {
                                                             <Pencil className="h-4 w-4 text-amber-600" />
                                                             Update
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "damaged")}
+                                                            className="gap-2 text-orange-700 focus:text-orange-700"
+                                                        >
+                                                            <FileWarning className="h-4 w-4" />
+                                                            Mark as Damaged
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "lost")}
+                                                            className="gap-2 text-red-700 focus:text-red-700"
+                                                        >
+                                                            <Search className="h-4 w-4" />
+                                                            Mark as Lost
+                                                        </DropdownMenuItem>
                                                     </>
                                                 )}
 
@@ -3550,6 +3625,21 @@ export default function AssetDevicesPage() {
                                                         <DropdownMenuItem onClick={() => openOperation(item, "update")} className="gap-2">
                                                             <Pencil className="h-4 w-4 text-amber-600" />
                                                             Update
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "damaged")}
+                                                            className="gap-2 text-orange-700 focus:text-orange-700"
+                                                        >
+                                                            <FileWarning className="h-4 w-4" />
+                                                            Mark as Damaged
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "lost")}
+                                                            className="gap-2 text-red-700 focus:text-red-700"
+                                                        >
+                                                            <Search className="h-4 w-4" />
+                                                            Mark as Lost
                                                         </DropdownMenuItem>
                                                     </>
                                                 )}
@@ -3585,6 +3675,21 @@ export default function AssetDevicesPage() {
                                                             <ShieldCheck className="h-4 w-4 text-violet-600" />
                                                             Warranty Claim
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "damaged")}
+                                                            className="gap-2 text-orange-700 focus:text-orange-700"
+                                                        >
+                                                            <FileWarning className="h-4 w-4" />
+                                                            Mark as Damaged
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "lost")}
+                                                            className="gap-2 text-red-700 focus:text-red-700"
+                                                        >
+                                                            <Search className="h-4 w-4" />
+                                                            Mark as Lost
+                                                        </DropdownMenuItem>
                                                         {isRoot && (
                                                             <>
                                                                 <DropdownMenuSeparator />
@@ -3619,6 +3724,21 @@ export default function AssetDevicesPage() {
                                                             <RotateCcw className="h-4 w-4 text-emerald-600" />
                                                             Return
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "damaged")}
+                                                            className="gap-2 text-orange-700 focus:text-orange-700"
+                                                        >
+                                                            <FileWarning className="h-4 w-4" />
+                                                            Mark as Damaged
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "lost")}
+                                                            className="gap-2 text-red-700 focus:text-red-700"
+                                                        >
+                                                            <Search className="h-4 w-4" />
+                                                            Mark as Lost
+                                                        </DropdownMenuItem>
                                                         {isRoot && (
                                                             <>
                                                                 <DropdownMenuSeparator />
@@ -3644,6 +3764,21 @@ export default function AssetDevicesPage() {
                                                         <DropdownMenuItem onClick={() => openOperation(item, "reassign")} className="gap-2">
                                                             <ArrowRightLeft className="h-4 w-4 text-primary" />
                                                             Reassign / Assign Again
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "damaged")}
+                                                            className="gap-2 text-orange-700 focus:text-orange-700"
+                                                        >
+                                                            <FileWarning className="h-4 w-4" />
+                                                            Mark as Damaged
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => openOperation(item, "lost")}
+                                                            className="gap-2 text-red-700 focus:text-red-700"
+                                                        >
+                                                            <Search className="h-4 w-4" />
+                                                            Mark as Lost
                                                         </DropdownMenuItem>
                                                         {isRoot && (
                                                             <>
@@ -5121,6 +5256,114 @@ export default function AssetDevicesPage() {
                         </div>
                     )}
 
+                    {(operation === "damaged" || operation === "lost") && (
+                        <div className="space-y-3 px-5 py-3">
+                            <DeviceDatabaseSnapshot
+                                asset={selectedAsset}
+                                context={assignmentContext}
+                            />
+
+                            <section
+                                className={`rounded-xl border p-4 ${
+                                    operation === "damaged"
+                                        ? "border-orange-200 bg-orange-50/60 dark:border-orange-900/50 dark:bg-orange-950/10"
+                                        : "border-red-200 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/10"
+                                }`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div
+                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                                            operation === "damaged"
+                                                ? "bg-orange-100 text-orange-700"
+                                                : "bg-red-100 text-red-700"
+                                        }`}
+                                    >
+                                        {operation === "damaged" ? (
+                                            <FileWarning className="h-5 w-5" />
+                                        ) : (
+                                            <Search className="h-5 w-5" />
+                                        )}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-semibold text-foreground">
+                                            {operation === "damaged"
+                                                ? "Confirm Damaged Status"
+                                                : "Confirm Lost Status"}
+                                        </p>
+                                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                            {operation === "damaged"
+                                                ? "The device will move to Damaged (2). Current holder information is retained for accountability and the active assignment is closed in history."
+                                                : "The device will move to Lost (5). Current holder information is retained for accountability and the active assignment is closed in history."}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                    <CompactDeviceInfo
+                                        label="Current Status"
+                                        value={
+                                            selectedAsset?.status_label ||
+                                            historyStatusLabel(
+                                                selectedAsset?.asset_status,
+                                            )
+                                        }
+                                    />
+                                    <CompactDeviceInfo
+                                        label="Responsible Employee"
+                                        value={
+                                            selectedAsset?.emp_id
+                                                ? `${selectedAsset.emp_id} · ${selectedAsset.emp_name || "Employee"}`
+                                                : "IT Stock / No employee"
+                                        }
+                                    />
+                                    <CompactDeviceInfo
+                                        label="New Status"
+                                        value={
+                                            operation === "damaged"
+                                                ? "Damaged (2)"
+                                                : "Lost (5)"
+                                        }
+                                    />
+                                </div>
+
+                                <label className="mt-3 block">
+                                    <span
+                                        className={`mb-1 flex items-center justify-between text-[10px] font-semibold ${
+                                            operation === "damaged"
+                                                ? "text-orange-900 dark:text-orange-100"
+                                                : "text-red-900 dark:text-red-100"
+                                        }`}
+                                    >
+                                        <span>
+                                            {operation === "damaged"
+                                                ? "Damage Remarks"
+                                                : "Lost Device Remarks"}{" "}
+                                            <span className="text-red-500">*</span>
+                                        </span>
+                                        <span className="font-normal">
+                                            {remarks.length}/1000
+                                        </span>
+                                    </span>
+                                    <textarea
+                                        value={remarks}
+                                        onChange={(event) =>
+                                            setRemarks(event.target.value)
+                                        }
+                                        rows={3}
+                                        maxLength={1000}
+                                        className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                        placeholder={
+                                            operation === "damaged"
+                                                ? "Describe damage, condition, location and required action..."
+                                                : "Describe when/where the device was last seen, responsible user and follow-up action..."
+                                        }
+                                    />
+                                </label>
+                            </section>
+                        </div>
+                    )}
+
                     {operation === "warranty" && (
                         <div className="space-y-3 px-5 py-3">
                             <DeviceDatabaseSnapshot
@@ -5260,7 +5503,11 @@ export default function AssetDevicesPage() {
                                                             ? "Create OWST"
                                                             : operation === "warranty"
                                                                 ? "Raise Claim"
-                                                                : "Submit"}
+                                                                : operation === "damaged"
+                                                                    ? "Confirm Damaged"
+                                                                    : operation === "lost"
+                                                                        ? "Confirm Lost"
+                                                                        : "Submit"}
                             </button>
                         )}
                     </DialogFooter>
@@ -5345,156 +5592,218 @@ export default function AssetDevicesPage() {
 
             {owstPrintSnapshot && (
                 <div id="owst-print-sheet" className="hidden">
-                    <div className="owst-print-header">
-                        <div>
-                            <div className="owst-print-company">Fiber@Home Global Ltd.</div>
-                            <div className="owst-print-subtitle">IT Management System</div>
+                    <div className="owst-print-document">
+                        <header className="owst-print-letterhead">
+                            <div className="owst-print-company">
+                                Fiber@Home Ltd
+                            </div>
+                            <div className="owst-print-address">
+                                House # 8/B, Road # 13, Gulshan -1, Dhaka -1212
+                            </div>
+                            <div className="owst-print-title">
+                                DEVICE OWNERSHIP TRANSFER / GATE PASS
+                            </div>
+                            <div className="owst-print-gate-date">
+                                <strong>Gate Pass Date :</strong>{" "}
+                                {owstPrintSnapshot.gatePassDate}
+                            </div>
+                        </header>
+
+                        <div className="owst-print-reference-row">
+                            <div>
+                                <span>Reference No.</span>
+                                <strong>{owstPrintSnapshot.referenceNo}</strong>
+                            </div>
+                            <div>
+                                <span>OWST Type</span>
+                                <strong>{owstPrintSnapshot.ownershipLabel}</strong>
+                            </div>
+                            <div>
+                                <span>Date Submitted</span>
+                                <strong>{owstPrintSnapshot.submissionDate}</strong>
+                            </div>
                         </div>
-                        <div className="owst-print-title">
-                            DEVICE OWNERSHIP TRANSFER / GATE PASS
+
+                        <div className="owst-print-section-title">
+                            User / Current Holder Information
                         </div>
-                        <div className="owst-print-ref">
-                            <div>Reference No.</div>
-                            <strong>{owstPrintSnapshot.referenceNo}</strong>
+                        <table className="owst-print-table owst-print-pair-table">
+                            <tbody>
+                                <tr>
+                                    <th>User Name</th>
+                                    <td>{owstPrintSnapshot.employeeName}</td>
+                                    <th>Employee ID</th>
+                                    <td>{owstPrintSnapshot.employeeID}</td>
+                                </tr>
+                                <tr>
+                                    <th>Designation</th>
+                                    <td>{owstPrintSnapshot.designation}</td>
+                                    <th>Department</th>
+                                    <td>{owstPrintSnapshot.department}</td>
+                                </tr>
+                                <tr>
+                                    <th>Mobile</th>
+                                    <td>{owstPrintSnapshot.mobile}</td>
+                                    <th>Processed By</th>
+                                    <td>{owstPrintSnapshot.raisedBy}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        {owstPrintSnapshot.ownershipType === "vendor" && (
+                            <>
+                                <div className="owst-print-section-title">
+                                    Vendor Recipient Information
+                                </div>
+                                <table className="owst-print-table owst-print-pair-table">
+                                    <tbody>
+                                        <tr>
+                                            <th>Vendor Name</th>
+                                            <td>{owstPrintSnapshot.vendorName}</td>
+                                            <th>Vendor Mobile</th>
+                                            <td>{owstPrintSnapshot.vendorMobile}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Vendor Address</th>
+                                            <td colSpan={3}>
+                                                {owstPrintSnapshot.vendorAddress}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+
+                        <div className="owst-print-section-title">
+                            Device Information
                         </div>
-                    </div>
+                        <table className="owst-print-table owst-print-pair-table">
+                            <tbody>
+                                <tr>
+                                    <th>Device Type</th>
+                                    <td>{owstPrintSnapshot.deviceCategory}</td>
+                                    <th>Serial No.</th>
+                                    <td>{owstPrintSnapshot.deviceSerial}</td>
+                                </tr>
+                                <tr>
+                                    <th>Brand</th>
+                                    <td>{owstPrintSnapshot.brand}</td>
+                                    <th>Model</th>
+                                    <td>{owstPrintSnapshot.model}</td>
+                                </tr>
+                                <tr>
+                                    <th>Assignment Type</th>
+                                    <td>{owstPrintSnapshot.deviceType}</td>
+                                    <th>Device Age</th>
+                                    <td>{owstPrintSnapshot.deviceAge}</td>
+                                </tr>
+                            </tbody>
+                        </table>
 
-                    <table className="owst-print-table owst-print-meta">
-                        <tbody>
-                            <tr>
-                                <th>OWST Type</th>
-                                <td>{owstPrintSnapshot.ownershipLabel}</td>
-                                <th>Raised By</th>
-                                <td>{owstPrintSnapshot.raisedBy}</td>
-                                <th>Submission Date</th>
-                                <td>{owstPrintSnapshot.submissionDate}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                        <div className="owst-print-section-title">
+                            Ownership Transfer Information
+                        </div>
+                        <table className="owst-print-table owst-print-pair-table">
+                            <tbody>
+                                <tr>
+                                    <th>Deducted Amount</th>
+                                    <td>{owstPrintSnapshot.amount}</td>
+                                    <th>Receiver Address</th>
+                                    <td>{owstPrintSnapshot.receiverAddress}</td>
+                                </tr>
+                                <tr>
+                                    <th>Attached File</th>
+                                    <td>{owstPrintSnapshot.attachmentName}</td>
+                                    <th>Remarks</th>
+                                    <td>{owstPrintSnapshot.remarks}</td>
+                                </tr>
+                            </tbody>
+                        </table>
 
-                    <div className="owst-print-section-title">Employee / Current Holder Information</div>
-                    <table className="owst-print-table">
-                        <tbody>
-                            <tr>
-                                <th>Employee Name</th>
-                                <td>{owstPrintSnapshot.employeeName}</td>
-                                <th>Employee ID</th>
-                                <td>{owstPrintSnapshot.employeeID}</td>
-                                <th>Designation</th>
-                                <td>{owstPrintSnapshot.designation}</td>
-                            </tr>
-                            <tr>
-                                <th>Department</th>
-                                <td>{owstPrintSnapshot.department}</td>
-                                <th>Mobile</th>
-                                <td>{owstPrintSnapshot.mobile}</td>
-                                <th>Deducted Amount</th>
-                                <td>{owstPrintSnapshot.amount}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                        <div className="owst-print-gatepass-heading">
+                            <strong>Fiber@Home Ltd</strong>
+                            <span>
+                                House # 8/B, Road # 13, Gulshan -1, Dhaka -1212
+                            </span>
+                            <span>
+                                <strong>Gate Pass Date :</strong>{" "}
+                                {owstPrintSnapshot.gatePassDate}
+                            </span>
+                        </div>
 
-                    {owstPrintSnapshot.ownershipType === "vendor" && (
-                        <>
-                            <div className="owst-print-section-title">Vendor Recipient Information</div>
-                            <table className="owst-print-table">
-                                <tbody>
-                                    <tr>
-                                        <th>Vendor Name</th>
-                                        <td>{owstPrintSnapshot.vendorName}</td>
-                                        <th>Vendor Mobile</th>
-                                        <td>{owstPrintSnapshot.vendorMobile}</td>
-                                        <th>Vendor Address</th>
-                                        <td>{owstPrintSnapshot.vendorAddress}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </>
-                    )}
+                        <table className="owst-print-table owst-print-item-table">
+                            <thead>
+                                <tr>
+                                    <th>SL</th>
+                                    <th>Item Name</th>
+                                    <th>Device Serial No.</th>
+                                    <th>Item Description</th>
+                                    <th>Unit / PCs</th>
+                                    <th>Qty</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td>{owstPrintSnapshot.deviceCategory}</td>
+                                    <td>{owstPrintSnapshot.deviceSerial}</td>
+                                    <td>
+                                        {[
+                                            owstPrintSnapshot.brand,
+                                            owstPrintSnapshot.model,
+                                            owstPrintSnapshot.deviceType,
+                                        ]
+                                            .filter(
+                                                (value) =>
+                                                    value &&
+                                                    value !== "—",
+                                            )
+                                            .join(" · ") || "—"}
+                                    </td>
+                                    <td>{owstPrintSnapshot.unit}</td>
+                                    <td>{owstPrintSnapshot.quantity}</td>
+                                    <td>{owstPrintSnapshot.remarks}</td>
+                                </tr>
+                            </tbody>
+                        </table>
 
-                    <div className="owst-print-section-title">Device Information</div>
-                    <table className="owst-print-table">
-                        <tbody>
-                            <tr>
-                                <th>Device Type</th>
-                                <td>{owstPrintSnapshot.deviceCategory}</td>
-                                <th>Device Serial No.</th>
-                                <td>{owstPrintSnapshot.deviceSerial}</td>
-                                <th>Device Age</th>
-                                <td>{owstPrintSnapshot.deviceAge}</td>
-                            </tr>
-                            <tr>
-                                <th>Brand</th>
-                                <td>{owstPrintSnapshot.brand}</td>
-                                <th>Model</th>
-                                <td>{owstPrintSnapshot.model}</td>
-                                <th>Assignment Type</th>
-                                <td>{owstPrintSnapshot.deviceType}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                        <div className="owst-print-policy">
+                            <span>
+                                {owstPrintSnapshot.companyMaterial ? "☑" : "☐"}{" "}
+                                Company Material
+                            </span>
+                            <span>
+                                {owstPrintSnapshot.nonRefundable ? "☑" : "☐"}{" "}
+                                Non-Refundable
+                            </span>
+                        </div>
 
-                    <div className="owst-print-section-title">Gate Pass</div>
-                    <table className="owst-print-table">
-                        <tbody>
-                            <tr>
-                                <th>Receiver Address</th>
-                                <td colSpan={3}>{owstPrintSnapshot.receiverAddress}</td>
-                                <th>Gate Pass Date</th>
-                                <td>{owstPrintSnapshot.gatePassDate}</td>
-                            </tr>
-                            <tr>
-                                <th>Attached File</th>
-                                <td colSpan={5}>{owstPrintSnapshot.attachmentName}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                        <div className="owst-print-purpose">
+                            <strong>For (Purpose)</strong>
+                            <span>
+                                Old Device Ownership Transferred according to IT Policy
+                            </span>
+                        </div>
 
-                    <table className="owst-print-table owst-print-item-table">
-                        <thead>
-                            <tr>
-                                <th>Item Name</th>
-                                <th>Device Serial No.</th>
-                                <th>Item Description</th>
-                                <th>Unit / PCs</th>
-                                <th>Quantity</th>
-                                <th>Remarks</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>{owstPrintSnapshot.deviceCategory}</td>
-                                <td>{owstPrintSnapshot.deviceSerial}</td>
-                                <td>
-                                    {[
-                                        owstPrintSnapshot.brand,
-                                        owstPrintSnapshot.model,
-                                        owstPrintSnapshot.deviceType,
-                                    ]
-                                        .filter((value) => value && value !== "—")
-                                        .join(" · ") || "—"}
-                                </td>
-                                <td>{owstPrintSnapshot.unit}</td>
-                                <td>{owstPrintSnapshot.quantity}</td>
-                                <td>{owstPrintSnapshot.remarks}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                        <div className="owst-print-signatures">
+                            <div>
+                                <span>Received By</span>
+                                <div />
+                            </div>
+                            <div>
+                                <span>Prepared By</span>
+                                <div />
+                            </div>
+                            <div>
+                                <span>Checked By</span>
+                                <div />
+                            </div>
+                        </div>
 
-                    <div className="owst-print-policy">
-                        <span>{owstPrintSnapshot.companyMaterial ? "☑" : "☐"} Company Material</span>
-                        <span>{owstPrintSnapshot.nonRefundable ? "☑" : "☐"} Non-Refundable</span>
-                        <strong>Purpose: Old Device Ownership Transfer according to IT Policy</strong>
-                    </div>
-
-                    <div className="owst-print-signatures">
-                        <div><span>Received By</span><div /></div>
-                        <div><span>Prepared By</span><div /></div>
-                        <div><span>Checked By</span><div /></div>
-                    </div>
-
-                    <div className="owst-print-footer">
-                        Generated from ITM · Fiber@Home Global Ltd. · One-page OWST / Gate Pass
+                        <div className="owst-print-footer">
+                            Fiber@Home Ltd · IT Management System · OWST / Gate Pass
+                        </div>
                     </div>
                 </div>
             )}
@@ -5502,8 +5811,8 @@ export default function AssetDevicesPage() {
             <style>{`
                 @media print {
                     @page {
-                        size: A4 landscape;
-                        margin: 7mm;
+                        size: A4 portrait;
+                        margin: 8mm;
                     }
 
                     html,
@@ -5525,141 +5834,241 @@ export default function AssetDevicesPage() {
                     #owst-print-sheet {
                         display: block !important;
                         position: absolute !important;
-                        left: 0 !important;
-                        top: 0 !important;
+                        inset: 0 auto auto 0 !important;
                         width: 100% !important;
                         color: #111827 !important;
                         background: #ffffff !important;
                         font-family: Arial, Helvetica, sans-serif !important;
-                        font-size: 8.3pt !important;
-                        line-height: 1.15 !important;
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
                     }
 
-                    .owst-print-header {
-                        display: grid !important;
-                        grid-template-columns: 1fr 1.6fr 0.7fr !important;
-                        align-items: center !important;
-                        gap: 8px !important;
-                        border: 1.4px solid #111827 !important;
-                        padding: 6px 8px !important;
-                        margin-bottom: 5px !important;
+                    .owst-print-document {
+                        width: 194mm !important;
+                        margin: 0 auto !important;
+                        font-size: 7.2pt !important;
+                        line-height: 1.18 !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid-page !important;
+                    }
+
+                    .owst-print-letterhead {
+                        border: 1.3px solid #111827 !important;
+                        padding: 5px 7px !important;
+                        text-align: center !important;
                     }
 
                     .owst-print-company {
-                        font-size: 12pt !important;
+                        font-size: 13pt !important;
                         font-weight: 800 !important;
+                        letter-spacing: 0.01em !important;
                     }
 
-                    .owst-print-subtitle {
+                    .owst-print-address {
                         margin-top: 2px !important;
-                        font-size: 7.5pt !important;
-                        color: #4b5563 !important;
+                        font-size: 7.8pt !important;
+                        font-weight: 600 !important;
                     }
 
                     .owst-print-title {
-                        text-align: center !important;
-                        font-size: 12.5pt !important;
+                        margin-top: 5px !important;
+                        padding-top: 4px !important;
+                        border-top: 1px solid #d1d5db !important;
+                        font-size: 10.5pt !important;
                         font-weight: 800 !important;
-                        letter-spacing: 0.04em !important;
+                        letter-spacing: 0.035em !important;
                     }
 
-                    .owst-print-ref {
-                        border-left: 1px solid #9ca3af !important;
-                        padding-left: 8px !important;
-                        text-align: right !important;
-                        font-size: 7.5pt !important;
+                    .owst-print-gate-date {
+                        margin-top: 3px !important;
+                        font-size: 8pt !important;
                     }
 
-                    .owst-print-ref strong {
+                    .owst-print-reference-row {
+                        display: grid !important;
+                        grid-template-columns: 0.8fr 1fr 1.15fr !important;
+                        border: 1px solid #9ca3af !important;
+                        border-top: 0 !important;
+                    }
+
+                    .owst-print-reference-row > div {
+                        padding: 4px 5px !important;
+                        border-right: 1px solid #d1d5db !important;
+                    }
+
+                    .owst-print-reference-row > div:last-child {
+                        border-right: 0 !important;
+                    }
+
+                    .owst-print-reference-row span {
                         display: block !important;
-                        margin-top: 2px !important;
-                        font-size: 10pt !important;
+                        color: #4b5563 !important;
+                        font-size: 6.5pt !important;
+                        text-transform: uppercase !important;
+                        font-weight: 700 !important;
+                    }
+
+                    .owst-print-reference-row strong {
+                        display: block !important;
+                        margin-top: 1px !important;
+                        font-size: 7.5pt !important;
                     }
 
                     .owst-print-section-title {
                         border: 1px solid #9ca3af !important;
                         border-bottom: 0 !important;
                         background: #e5e7eb !important;
-                        padding: 3px 6px !important;
+                        padding: 3px 5px !important;
                         margin-top: 5px !important;
+                        font-size: 7.4pt !important;
                         font-weight: 800 !important;
-                        font-size: 8pt !important;
+                        text-align: center !important;
                     }
 
                     .owst-print-table {
                         width: 100% !important;
-                        table-layout: fixed !important;
                         border-collapse: collapse !important;
+                        table-layout: fixed !important;
                     }
 
                     .owst-print-table th,
                     .owst-print-table td {
                         border: 1px solid #9ca3af !important;
-                        padding: 3px 5px !important;
+                        padding: 3px 4px !important;
                         vertical-align: top !important;
                         overflow-wrap: anywhere !important;
                     }
 
-                    .owst-print-table th {
-                        width: 11% !important;
-                        background: #f3f4f6 !important;
+                    .owst-print-pair-table th {
+                        width: 18% !important;
+                        background: #f9fafb !important;
                         text-align: left !important;
-                        font-size: 7.2pt !important;
-                        font-weight: 700 !important;
+                        font-size: 6.7pt !important;
+                        font-weight: 800 !important;
+                        text-transform: uppercase !important;
                     }
 
-                    .owst-print-table td {
-                        font-size: 8pt !important;
+                    .owst-print-pair-table td {
+                        width: 32% !important;
+                        font-size: 7.3pt !important;
                         font-weight: 600 !important;
                     }
 
-                    .owst-print-item-table {
-                        margin-top: 5px !important;
-                    }
-
-                    .owst-print-item-table thead th {
-                        width: auto !important;
+                    .owst-print-gatepass-heading {
+                        margin-top: 6px !important;
+                        border: 1px solid #111827 !important;
+                        padding: 5px 6px !important;
                         text-align: center !important;
                     }
 
+                    .owst-print-gatepass-heading strong {
+                        display: block !important;
+                        font-size: 9pt !important;
+                    }
+
+                    .owst-print-gatepass-heading span {
+                        display: block !important;
+                        margin-top: 2px !important;
+                        font-size: 7pt !important;
+                    }
+
+                    .owst-print-item-table {
+                        margin-top: 4px !important;
+                    }
+
+                    .owst-print-item-table th {
+                        background: #f3f4f6 !important;
+                        text-align: center !important;
+                        font-size: 6.2pt !important;
+                        font-weight: 800 !important;
+                    }
+
+                    .owst-print-item-table td {
+                        font-size: 6.7pt !important;
+                        min-height: 23px !important;
+                    }
+
+                    .owst-print-item-table th:nth-child(1),
+                    .owst-print-item-table td:nth-child(1) {
+                        width: 5% !important;
+                        text-align: center !important;
+                    }
+
+                    .owst-print-item-table th:nth-child(2),
+                    .owst-print-item-table td:nth-child(2) {
+                        width: 15% !important;
+                    }
+
+                    .owst-print-item-table th:nth-child(3),
+                    .owst-print-item-table td:nth-child(3) {
+                        width: 16% !important;
+                    }
+
+                    .owst-print-item-table th:nth-child(4),
+                    .owst-print-item-table td:nth-child(4) {
+                        width: 29% !important;
+                    }
+
+                    .owst-print-item-table th:nth-child(5),
+                    .owst-print-item-table td:nth-child(5) {
+                        width: 10% !important;
+                        text-align: center !important;
+                    }
+
+                    .owst-print-item-table th:nth-child(6),
+                    .owst-print-item-table td:nth-child(6) {
+                        width: 7% !important;
+                        text-align: center !important;
+                    }
+
+                    .owst-print-item-table th:nth-child(7),
+                    .owst-print-item-table td:nth-child(7) {
+                        width: 18% !important;
+                    }
+
                     .owst-print-policy {
-                        display: grid !important;
-                        grid-template-columns: 0.75fr 0.75fr 2.5fr !important;
-                        gap: 8px !important;
-                        align-items: center !important;
+                        display: flex !important;
+                        gap: 24px !important;
                         border: 1px solid #111827 !important;
-                        margin-top: 5px !important;
-                        padding: 5px 7px !important;
-                        font-size: 7.5pt !important;
+                        border-top: 0 !important;
+                        padding: 4px 6px !important;
+                        font-size: 6.8pt !important;
+                        font-weight: 700 !important;
+                    }
+
+                    .owst-print-purpose {
+                        display: grid !important;
+                        grid-template-columns: 78px 1fr !important;
+                        gap: 6px !important;
+                        border: 1px solid #111827 !important;
+                        border-top: 0 !important;
+                        padding: 4px 6px !important;
+                        font-size: 6.8pt !important;
                     }
 
                     .owst-print-signatures {
                         display: grid !important;
                         grid-template-columns: repeat(3, 1fr) !important;
-                        gap: 30px !important;
+                        gap: 22px !important;
                         border: 1px solid #111827 !important;
                         border-top: 0 !important;
-                        padding: 9px 18px 6px !important;
+                        padding: 9px 15px 5px !important;
                     }
 
                     .owst-print-signatures span {
                         display: block !important;
-                        font-size: 7.5pt !important;
+                        font-size: 6.8pt !important;
                         font-weight: 700 !important;
                     }
 
                     .owst-print-signatures div > div {
-                        height: 18px !important;
+                        height: 17px !important;
                         border-bottom: 1px dashed #6b7280 !important;
                     }
 
                     .owst-print-footer {
-                        margin-top: 4px !important;
+                        margin-top: 3px !important;
                         text-align: center !important;
-                        font-size: 6.5pt !important;
                         color: #6b7280 !important;
+                        font-size: 6pt !important;
                     }
                 }
             `}</style>

@@ -294,8 +294,6 @@ func main() {
 	)
 
 	handler.RegisterAssetDeviceOWSTPrintRoutes(protected, pool)
-
-	handler.RegisterAssetDeviceConditionRoutes(protected, pool)
 	/* ============================================================
 	   EMPLOYEE
 	============================================================ */
