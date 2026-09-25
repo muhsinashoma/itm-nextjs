@@ -957,21 +957,6 @@ function formatCompactDuration(
     return parts.join(" ");
 }
 
-function formatAssignedDeviceAge(
-    assignedDate: string | null | undefined,
-    endValue?: string | null,
-) {
-    if (!assignedDate) {
-        return "No Assigned Date";
-    }
-
-    return formatCompactDuration(
-        assignedDate,
-        endValue,
-    );
-}
-
-
 function usageEndDate(item: OperationalAssetDevice) {
     if (item.returned_at) return item.returned_at;
     if (item.transferred_at) return item.transferred_at;
@@ -1363,7 +1348,7 @@ function DeviceDatabaseSnapshot({
                 <CompactDeviceInfo label="Purchase Date" value={formatDate(asset.purchase_date)} />
                 <CompactDeviceInfo
                     label="Device Age"
-                    value={formatAssignedDeviceAge(asset.assigned_date)}
+                    value={formatCompactDuration(asset.purchase_date)}
                 />
                 <CompactDeviceInfo label="Warranty End" value={formatDate(asset.warranty_date)} />
                 <CompactDeviceInfo label="CPU / Processor" value={stock?.cpu} />
@@ -1579,8 +1564,8 @@ export default function AssetDevicesPage() {
             deviceType:
                 selectedAsset.device_type || "—",
             deviceAge:
-                formatAssignedDeviceAge(
-                    selectedAsset.assigned_date,
+                formatCompactDuration(
+                    selectedAsset.purchase_date,
                 ),
             amount:
                 owstAmount.trim() || "0",
@@ -1758,9 +1743,8 @@ export default function AssetDevicesPage() {
                 deviceType:
                     item.device_type || "—",
                 deviceAge:
-                    record.device_age ||
-                    formatAssignedDeviceAge(
-                        item.assigned_date,
+                    formatCompactDuration(
+                        item.purchase_date,
                         record.created_at || undefined,
                     ),
 
@@ -3523,18 +3507,16 @@ export default function AssetDevicesPage() {
 
                                     {visibleColumns.has("deviceAge") && (
                                         <td className="min-w-0 px-2.5 py-2 text-[10px] font-medium">
-                                            {item.assigned_date ? (
-                                                <span
-                                                    className="block truncate"
-                                                    title={`From assigned date ${formatDate(item.assigned_date)}`}
-                                                >
-                                                    {formatAssignedDeviceAge(item.assigned_date)}
-                                                </span>
-                                            ) : (
-                                                <span className="text-[10px] text-gray-500">
-                                                    No Assigned Date
-                                                </span>
-                                            )}
+                                            <span
+                                                className="block truncate"
+                                                title={
+                                                    item.purchase_date
+                                                        ? `From purchase date ${formatDate(item.purchase_date)}`
+                                                        : "Purchase date not available"
+                                                }
+                                            >
+                                                {formatCompactDuration(item.purchase_date)}
+                                            </span>
                                         </td>
                                     )}
 
@@ -4184,7 +4166,7 @@ export default function AssetDevicesPage() {
                                         />
                                         <CompactDeviceInfo
                                             label="Device Age"
-                                            value={formatAssignedDeviceAge(selectedAsset?.assigned_date)}
+                                            value={formatCompactDuration(selectedAsset?.purchase_date)}
                                         />
 
                                         <CompactDeviceInfo
@@ -5070,7 +5052,7 @@ export default function AssetDevicesPage() {
                                                     placeholder="Amount"
                                                 />
                                                 <p className="mt-1 text-[8px] text-amber-700">
-                                                    Device age: {formatAssignedDeviceAge(selectedAsset?.assigned_date)}
+                                                    Device age: {formatCompactDuration(selectedAsset?.purchase_date)}
                                                 </p>
                                             </label>
                                         </div>
@@ -5160,7 +5142,7 @@ export default function AssetDevicesPage() {
                                         <CompactDeviceInfo label="Brand" value={selectedAsset?.brand || "—"} />
                                         <CompactDeviceInfo label="Model" value={selectedAsset?.model || "—"} />
                                         <CompactDeviceInfo label="Device Type" value={selectedAsset?.device_type || "—"} />
-                                        <CompactDeviceInfo label="Device Age" value={formatAssignedDeviceAge(selectedAsset?.assigned_date)} />
+                                        <CompactDeviceInfo label="Device Age" value={formatCompactDuration(selectedAsset?.purchase_date)} />
                                     </div>
                                 </section>
                             </div>
