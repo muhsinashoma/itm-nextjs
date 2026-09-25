@@ -32,6 +32,9 @@ func (h *ClaimHandler) RegisterLifecycleRoutes(g *gin.RouterGroup) {
 	g.POST("/:id/send-vendor", h.SendToVendor)
 	g.POST("/:id/receive", h.ReceiveFromVendor)
 	g.POST("/:id/close", h.CloseLifecycle)
+	g.GET("/vendor-recipients", h.VendorRecipients)
+	g.POST("/:id/workflow", h.WarrantyWorkflow)
+	g.GET("/:id/history/:history_id/attachment", h.DownloadClaimAttachment)
 }
 
 func parsePathID(c *gin.Context, key string) (int64, bool) {
@@ -616,6 +619,538 @@ func (h *ClaimHandler) SendToVendor(c *gin.Context) {
 	})
 }
 
+func (h *ClaimHandler) VendorRecipients(c *gin.Context) {
+	query := strings.TrimSpace(c.Query("q"))
+
+	rows, err := h.db.Query(
+		c.Request.Context(),
+		`
+		WITH recipient_source AS (
+			SELECT
+				BTRIM(COALESCE(vendor_personnel_name, '')) AS name,
+				BTRIM(COALESCE(vendor_mobile::text, '')) AS mobile,
+				created_at
+			FROM public.device_claim_histories
+			WHERE BTRIM(COALESCE(vendor_personnel_name, '')) <> ''
+
+			UNION ALL
+
+			SELECT
+				BTRIM(COALESCE(vendor_receiver, '')) AS name,
+				BTRIM(COALESCE(vndr_receiver_mobile::text, '')) AS mobile,
+				COALESCE(edited_at, created_at)
+			FROM public.device_claims
+			WHERE BTRIM(COALESCE(vendor_receiver, '')) <> ''
+		),
+		latest AS (
+			SELECT DISTINCT ON (LOWER(name))
+				name,
+				mobile,
+				created_at
+			FROM recipient_source
+			WHERE $1::text = ''
+			   OR name ILIKE '%' || $1::text || '%'
+			ORDER BY
+				LOWER(name),
+				created_at DESC NULLS LAST
+		)
+		SELECT name, mobile
+		FROM latest
+		ORDER BY name
+		LIMIT 100
+		`,
+		query,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer rows.Close()
+
+	items := make([]gin.H, 0)
+	for rows.Next() {
+		var name, mobile string
+		if err := rows.Scan(&name, &mobile); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+		items = append(items, gin.H{
+			"name":   name,
+			"mobile": mobile,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	response.OK(c, items)
+}
+
+func (h *ClaimHandler) DownloadClaimAttachment(c *gin.Context) {
+	claimID, ok := parsePathID(c, "id")
+	if !ok {
+		return
+	}
+	historyID, ok := parsePathID(c, "history_id")
+	if !ok {
+		return
+	}
+
+	var storedPath string
+	err := h.db.QueryRow(
+		c.Request.Context(),
+		`SELECT COALESCE(attach_file,'')
+		 FROM public.device_claim_histories
+		 WHERE id=$1 AND claim_id=$2`,
+		historyID,
+		claimID,
+	).Scan(&storedPath)
+	if err == pgx.ErrNoRows {
+		response.NotFound(c, "claim attachment not found")
+		return
+	}
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	storedPath = filepath.ToSlash(strings.TrimSpace(storedPath))
+	if storedPath == "" || !strings.HasPrefix(storedPath, "uploads/claims/") {
+		response.NotFound(c, "claim attachment not found")
+		return
+	}
+
+	fullPath := filepath.Clean(filepath.FromSlash(storedPath))
+	claimsRoot := filepath.Clean(filepath.Join("uploads", "claims"))
+	relative, err := filepath.Rel(claimsRoot, fullPath)
+	if err != nil ||
+		relative == ".." ||
+		strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		response.BadRequest(c, "invalid attachment path")
+		return
+	}
+
+	if _, err := os.Stat(fullPath); err != nil {
+		if os.IsNotExist(err) {
+			response.NotFound(c, "claim attachment file is missing")
+			return
+		}
+		response.ServerError(c, err)
+		return
+	}
+
+	c.FileAttachment(fullPath, filepath.Base(fullPath))
+}
+
+func (h *ClaimHandler) WarrantyWorkflow(c *gin.Context) {
+	claimID, ok := parsePathID(c, "id")
+	if !ok {
+		return
+	}
+
+	if err := c.Request.ParseMultipartForm(5 << 20); err != nil {
+		response.BadRequest(c, "invalid multipart form: "+err.Error())
+		return
+	}
+
+	targetStatus := strings.TrimSpace(c.PostForm("target_status"))
+	feedback := strings.TrimSpace(c.PostForm("feedback"))
+	vendorReceiver := strings.TrimSpace(c.PostForm("vendor_receiver"))
+	vendorMobile := strings.TrimSpace(c.PostForm("vendor_mobile"))
+	gatePassDate := strings.TrimSpace(c.PostForm("gate_pass_date"))
+	gatePassRemarks := strings.TrimSpace(c.PostForm("gate_pass_remarks"))
+
+	if targetStatus != "9" && targetStatus != "10" {
+		response.BadRequest(c, "target_status must be 9 (Transferred to Vendor) or 10 (Closed)")
+		return
+	}
+	if feedback == "" {
+		response.BadRequest(c, "IT feedback is required")
+		return
+	}
+	if len(feedback) > 1500 {
+		response.BadRequest(c, "IT feedback cannot exceed 1500 characters")
+		return
+	}
+	if vendorReceiver == "" {
+		response.BadRequest(c, "vendor recipient / delivery-man name is required")
+		return
+	}
+	if len(vendorReceiver) > 255 || len(vendorMobile) > 50 {
+		response.BadRequest(c, "vendor recipient information is too long")
+		return
+	}
+	mobileDigits := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, vendorMobile)
+	if len(mobileDigits) != 11 {
+		response.BadRequest(c, "vendor recipient mobile must contain exactly 11 digits")
+		return
+	}
+	ctx := c.Request.Context()
+	tx, err := h.db.Begin(ctx)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	var (
+		assetID    int64
+		serial     string
+		status     int
+		lifecycle  string
+		claimNo    string
+		restore    *int
+		restoreEmp *string
+	)
+
+	err = tx.QueryRow(
+		ctx,
+		`SELECT
+			asset_device_id,
+			COALESCE(device_sl_no,''),
+			claim_status,
+			COALESCE(lifecycle_state,''),
+			COALESCE(claim_no,'LEG-'||id::text),
+			restore_asset_status,
+			restore_emp_id
+		 FROM public.device_claims
+		 WHERE id=$1
+		 FOR UPDATE`,
+		claimID,
+	).Scan(
+		&assetID,
+		&serial,
+		&status,
+		&lifecycle,
+		&claimNo,
+		&restore,
+		&restoreEmp,
+	)
+	if err == pgx.ErrNoRows {
+		response.NotFound(c, "claim not found")
+		return
+	}
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	if status == claimClosed || lifecycle == "CLOSED" {
+		response.BadRequest(c, "claim is already closed")
+		return
+	}
+	if status != claimWithVendor && lifecycle != "WITH_VENDOR" {
+		response.BadRequest(c, "Warranty Claim Workflow is available only after Transfer To Vendor")
+		return
+	}
+
+	attachmentPath, cleanupAttachment, err := saveClaimAttachment(c, claimID)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	keepAttachment := false
+	defer func() {
+		if !keepAttachment {
+			cleanupAttachment()
+		}
+	}()
+
+	actor := currentEmployeeID(c)
+
+	if targetStatus == "9" {
+		_, err = tx.Exec(
+			ctx,
+			`
+			UPDATE public.device_claims
+			SET
+				claim_status=9,
+				lifecycle_state='WITH_VENDOR',
+				remarks=$2,
+				vendor_receiver=$3,
+				vndr_receiver_mobile=$4,
+				gate_pass_date=$5::date,
+				gate_pass_remarks=$6,
+				attach_file=COALESCE(NULLIF($7,''),attach_file),
+				edited_by=$8,
+				edited_at=NOW()
+			WHERE id=$1
+			`,
+			claimID,
+			feedback,
+			vendorReceiver,
+			mobileDigits,
+			gatePassDate,
+			gatePassRemarks,
+			attachmentPath,
+			actor,
+		)
+		if err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		_, err = tx.Exec(
+			ctx,
+			`
+			INSERT INTO public.device_claim_histories (
+				claim_id,
+				asset_device_id,
+				claim_reference_no,
+				device_sl_no,
+				previous_status,
+				current_status,
+				remarks,
+				vendor_personnel_name,
+				vendor_mobile,
+				attach_file,
+				created_by,
+				created_at,
+				status,
+				service_type,
+				event_type,
+				metadata
+			)
+			VALUES (
+				$1,
+				$2::bigint,
+				$2::bigint::text,
+				$3,
+				9,
+				9,
+				$4,
+				$5,
+				$6,
+				NULLIF($7,''),
+				$8,
+				NOW(),
+				1,
+				2,
+				'VENDOR_FOLLOWUP',
+				jsonb_build_object(
+					'claim_no',$9::text,
+					'workflow_status','WITH_VENDOR',
+					'gate_pass_date',$10::text,
+					'gate_pass_remarks',$11::text
+				)
+			)
+			`,
+			claimID,
+			assetID,
+			serial,
+			feedback,
+			vendorReceiver,
+			mobileDigits,
+			attachmentPath,
+			actor,
+			claimNo,
+			gatePassDate,
+			gatePassRemarks,
+		)
+		if err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		if err = appendClaimAssetHistory(
+			ctx,
+			tx,
+			assetID,
+			claimOpen,
+			"Claim: With Vendor",
+			claimOpen,
+			fmt.Sprintf(
+				"Warranty workflow transferred to vendor recipient %s (%s): %s",
+				vendorReceiver,
+				mobileDigits,
+				feedback,
+			),
+		); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+
+		if err = tx.Commit(ctx); err != nil {
+			response.ServerError(c, err)
+			return
+		}
+		keepAttachment = true
+
+		response.OK(c, gin.H{
+			"claim_status":    9,
+			"lifecycle_state": "WITH_VENDOR",
+		})
+		return
+	}
+
+	if restore == nil || (*restore != 0 && *restore != 1 && *restore != 4) {
+		response.BadRequest(c, "restore asset status is missing for this claim")
+		return
+	}
+
+	_, err = tx.Exec(
+		ctx,
+		`UPDATE public.device_claims
+		 SET previous_status=claim_status,
+		     claim_status=10,
+		     lifecycle_state='CLOSED',
+		     resolution=$2,
+		     return_issue=$2,
+		     return_date=NOW(),
+		     return_by_it_person=$3,
+		     vendor_receiver=$4,
+		     vndr_receiver_mobile=$5,
+		     closed_by=$3,
+		     closed_at=NOW(),
+		     attach_file=COALESCE(NULLIF($6,''),attach_file),
+		     edited_by=$3,
+		     edited_at=NOW()
+		 WHERE id=$1`,
+		claimID,
+		feedback,
+		actor,
+		vendorReceiver,
+		mobileDigits,
+		attachmentPath,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	if *restore == 1 {
+		_, err = tx.Exec(
+			ctx,
+			`UPDATE public.asset_devices
+			 SET asset_status=1,
+			     emp_id=COALESCE(NULLIF(emp_id,''),NULLIF($2,'')),
+			     updated_at=NOW()
+			 WHERE id=$1`,
+			assetID,
+			restoreEmp,
+		)
+	} else {
+		_, err = tx.Exec(
+			ctx,
+			`UPDATE public.asset_devices
+			 SET asset_status=$2,
+			     emp_id=NULL,
+			     emp_name=NULL,
+			     department=NULL,
+			     designation=NULL,
+			     updated_at=NOW()
+			 WHERE id=$1`,
+			assetID,
+			*restore,
+		)
+	}
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	_, err = tx.Exec(
+		ctx,
+		`INSERT INTO public.device_claim_histories (
+			claim_id,
+			asset_device_id,
+			claim_reference_no,
+			device_sl_no,
+			previous_status,
+			current_status,
+			remarks,
+			vendor_personnel_name,
+			vendor_mobile,
+			attach_file,
+			created_by,
+			created_at,
+			status,
+			service_type,
+			event_type,
+			metadata
+		 ) VALUES (
+			$1,
+			$2::bigint,
+			$2::bigint::text,
+			$3,
+			9,
+			10,
+			$4,
+			$5,
+			$6,
+			NULLIF($7,''),
+			$8,
+			NOW(),
+			1,
+			2,
+			'CLAIM_CLOSED',
+			jsonb_build_object(
+				'restored_asset_status',$9::integer,
+				'claim_no',$10::text
+			)
+		 )`,
+		claimID,
+		assetID,
+		serial,
+		feedback,
+		vendorReceiver,
+		mobileDigits,
+		attachmentPath,
+		actor,
+		*restore,
+		claimNo,
+	)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	label := map[int]string{
+		0: "Available",
+		1: "Assigned",
+		4: "Returned",
+	}[*restore]
+
+	if err = appendClaimAssetHistory(
+		ctx,
+		tx,
+		assetID,
+		*restore,
+		"Warranty Claim Closed",
+		claimOpen,
+		fmt.Sprintf(
+			"Warranty claim %s closed and device restored to %s. Vendor recipient: %s (%s) | IT feedback: %s",
+			claimNo,
+			label,
+			vendorReceiver,
+			mobileDigits,
+			feedback,
+		),
+	); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	keepAttachment = true
+
+	response.OK(c, gin.H{
+		"claim_status":          10,
+		"lifecycle_state":       "CLOSED",
+		"restored_asset_status": *restore,
+		"restored_status_label": label,
+	})
+}
+
 func (h *ClaimHandler) ReceiveFromVendor(c *gin.Context) {
 	claimID, ok := parsePathID(c, "id")
 	if !ok {
@@ -768,7 +1303,7 @@ func (h *ClaimHandler) Lifecycle(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rows, err := h.db.Query(c.Request.Context(), `SELECT id,COALESCE(event_type,''),previous_status,current_status,COALESCE(remarks,''),COALESCE(vendor_personnel_name,''),COALESCE(vendor_mobile::text,''),COALESCE(created_by,''),created_at::text,metadata FROM public.device_claim_histories WHERE claim_id=$1 ORDER BY created_at,id`, claimID)
+	rows, err := h.db.Query(c.Request.Context(), `SELECT id,COALESCE(event_type,''),previous_status,current_status,COALESCE(remarks,''),COALESCE(vendor_personnel_name,''),COALESCE(vendor_mobile::text,''),COALESCE(created_by,''),created_at::text,COALESCE(attach_file,''),metadata FROM public.device_claim_histories WHERE claim_id=$1 ORDER BY created_at,id`, claimID)
 	if err != nil {
 		response.ServerError(c, err)
 		return
@@ -777,14 +1312,14 @@ func (h *ClaimHandler) Lifecycle(c *gin.Context) {
 	items := []gin.H{}
 	for rows.Next() {
 		var id int64
-		var event, remarks, vendor, mobile, actor, at string
+		var event, remarks, vendor, mobile, actor, at, attachFile string
 		var prev, curr int
 		var meta any
-		if err := rows.Scan(&id, &event, &prev, &curr, &remarks, &vendor, &mobile, &actor, &at, &meta); err != nil {
+		if err := rows.Scan(&id, &event, &prev, &curr, &remarks, &vendor, &mobile, &actor, &at, &attachFile, &meta); err != nil {
 			response.ServerError(c, err)
 			return
 		}
-		items = append(items, gin.H{"id": id, "event": event, "previous_status": prev, "current_status": curr, "remarks": remarks, "vendor_personnel_name": vendor, "vendor_mobile": mobile, "changed_by": actor, "changed_at": at, "metadata": meta})
+		items = append(items, gin.H{"id": id, "event": event, "previous_status": prev, "current_status": curr, "remarks": remarks, "vendor_personnel_name": vendor, "vendor_mobile": mobile, "changed_by": actor, "changed_at": at, "attach_file": attachFile, "metadata": meta})
 	}
 	response.OK(c, items)
 }

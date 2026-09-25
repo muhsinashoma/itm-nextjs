@@ -1,6 +1,7 @@
 
 //frontend/app/dashboard/assets/devices/page.tsx
 // v21: sticky status UX + global action-date ordering + reassignment history
+// warranty compact modal: dense enterprise presentation
 "use client";
 
 import {
@@ -58,6 +59,7 @@ import {
     api,
     assetDeviceApi,
     employeeApi,
+    getToken,
     getUser,
     inventoryWorkflowApi,
     vendorApi,
@@ -267,6 +269,7 @@ type WarrantyClaimHistoryEntry = {
     vendor_mobile?: string;
     changed_by?: string;
     changed_at?: string;
+    attach_file?: string | null;
     metadata?: Record<string, unknown> | null;
 };
 
@@ -709,6 +712,52 @@ const deviceOperationsApi = {
         }>(`/claims/${claimID}/send-vendor`, formData);
     },
 
+    vendorRecipients: (query = "") =>
+        api.get<{
+            success: boolean;
+            data: Array<{
+                name: string;
+                mobile: string;
+            }>;
+        }>(
+            `/claims/vendor-recipients?q=${encodeURIComponent(query)}`,
+        ),
+
+    submitWarrantyWorkflow: (
+        claimID: number,
+        body: {
+            target_status: "9" | "10";
+            feedback: string;
+            vendor_receiver: string;
+            vendor_mobile: string;
+            gate_pass_date: string;
+            gate_pass_remarks: string;
+            attachment?: File | null;
+        },
+    ) => {
+        const formData = new FormData();
+        formData.append("target_status", body.target_status);
+        formData.append("feedback", body.feedback);
+        formData.append("vendor_receiver", body.vendor_receiver);
+        formData.append("vendor_mobile", body.vendor_mobile);
+        formData.append("gate_pass_date", body.gate_pass_date);
+        formData.append("gate_pass_remarks", body.gate_pass_remarks);
+
+        if (body.attachment) {
+            formData.append("attachment", body.attachment, body.attachment.name);
+        }
+
+        return api.postForm<{
+            success: boolean;
+            data: {
+                claim_status: number;
+                lifecycle_state: string;
+                restored_asset_status?: number;
+                restored_status_label?: string;
+            };
+        }>(`/claims/${claimID}/workflow`, formData);
+    },
+
     history: async (id: number): Promise<AssetDeviceHistoryEntry[]> => {
         const endpoints = [
             `/assets/devices/${id}/history`,
@@ -748,6 +797,52 @@ const deviceOperationsApi = {
     delete: (id: number) =>
         api.del(`/assets/devices/${id}`),
 };
+
+
+async function downloadWarrantyAttachment(
+    claimID: number,
+    historyID: number,
+    filename: string,
+) {
+    const base = (
+        process.env.NEXT_PUBLIC_API_URL ??
+        "http://localhost:8080/api/v1"
+    ).replace(/\/+$/, "");
+
+    const token = getToken();
+    const response = await fetch(
+        `${base}/claims/${claimID}/history/${historyID}/attachment`,
+        {
+            method: "GET",
+            headers: token
+                ? { Authorization: `Bearer ${token}` }
+                : undefined,
+            credentials: "include",
+            cache: "no-store",
+        },
+    );
+
+    if (!response.ok) {
+        let message = `Unable to download attachment (HTTP ${response.status})`;
+        try {
+            const payload = await response.json();
+            message = payload?.error || payload?.message || message;
+        } catch {
+            // Keep HTTP fallback.
+        }
+        throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename || "warranty-attachment";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+}
 
 const returnedEmployeeProfileCache = new Map<string, Employee | null>();
 
@@ -1615,6 +1710,21 @@ export default function AssetDevicesPage() {
     const [vendorCompanyMaterial, setVendorCompanyMaterial] = useState(true);
     const [vendorReturnable, setVendorReturnable] = useState(true);
 
+    const [warrantyWorkflowStatus, setWarrantyWorkflowStatus] =
+        useState<"9" | "10">("9");
+    const [warrantyWorkflowFeedback, setWarrantyWorkflowFeedback] = useState("");
+    const [warrantyWorkflowAttachment, setWarrantyWorkflowAttachment] =
+        useState<File | null>(null);
+    const [warrantyWorkflowAttachmentPreview, setWarrantyWorkflowAttachmentPreview] =
+        useState("");
+
+    const [workflowRecipientName, setWorkflowRecipientName] = useState("");
+    const [workflowRecipientMobile, setWorkflowRecipientMobile] = useState("");
+    const [workflowGatePassDate, setWorkflowGatePassDate] = useState("");
+    const [workflowGatePassRemarks, setWorkflowGatePassRemarks] = useState("");
+    const [workflowRecipientSuggestions, setWorkflowRecipientSuggestions] =
+        useState<Array<{ name: string; mobile: string }>>([]);
+
     useEffect(() => {
         if (!vendorTransferAttachment || !vendorTransferAttachment.type.startsWith("image/")) {
             setVendorTransferAttachmentPreview("");
@@ -1626,6 +1736,21 @@ export default function AssetDevicesPage() {
 
         return () => URL.revokeObjectURL(previewURL);
     }, [vendorTransferAttachment]);
+
+    useEffect(() => {
+        if (
+            !warrantyWorkflowAttachment ||
+            !warrantyWorkflowAttachment.type.startsWith("image/")
+        ) {
+            setWarrantyWorkflowAttachmentPreview("");
+            return;
+        }
+
+        const previewURL = URL.createObjectURL(warrantyWorkflowAttachment);
+        setWarrantyWorkflowAttachmentPreview(previewURL);
+
+        return () => URL.revokeObjectURL(previewURL);
+    }, [warrantyWorkflowAttachment]);
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const authUser = getUser();
@@ -1648,6 +1773,91 @@ export default function AssetDevicesPage() {
             ) ?? null,
         [owstVendors, warrantyVendorID],
     );
+
+    const effectiveWarrantyLifecycle = useMemo<
+        "OPEN" | "WITH_VENDOR" | "RECEIVED" | "CLOSED"
+    >(() => {
+        if (!activeWarrantyClaim) {
+            return "OPEN";
+        }
+
+        const normalizedEvents = warrantyClaimHistory.map((entry) =>
+            String(entry.event || "").trim().toUpperCase(),
+        );
+
+        if (normalizedEvents.includes("CLAIM_CLOSED")) {
+            return "CLOSED";
+        }
+        if (normalizedEvents.includes("RECEIVED_FROM_VENDOR")) {
+            return "RECEIVED";
+        }
+        if (normalizedEvents.includes("SENT_TO_VENDOR")) {
+            return "WITH_VENDOR";
+        }
+
+        const lifecycle = String(
+            activeWarrantyClaim.lifecycle_state || "OPEN",
+        ).toUpperCase();
+
+        if (
+            lifecycle === "WITH_VENDOR" ||
+            lifecycle === "RECEIVED" ||
+            lifecycle === "CLOSED"
+        ) {
+            return lifecycle;
+        }
+
+        return "OPEN";
+    }, [activeWarrantyClaim, warrantyClaimHistory]);
+
+    useEffect(() => {
+        if (
+            operation !== "warranty-transfer" ||
+            effectiveWarrantyLifecycle !== "WITH_VENDOR"
+        ) {
+            return;
+        }
+
+        let cancelled = false;
+
+        void deviceOperationsApi
+            .vendorRecipients()
+            .then((response) => {
+                if (!cancelled) {
+                    setWorkflowRecipientSuggestions(
+                        Array.isArray(response?.data) ? response.data : [],
+                    );
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setWorkflowRecipientSuggestions([]);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [operation, effectiveWarrantyLifecycle]);
+
+    const warrantyTransferLocked =
+        !activeWarrantyClaim || effectiveWarrantyLifecycle !== "OPEN";
+
+    const previousVendorHandover = useMemo(() => {
+        return [...warrantyClaimHistory]
+            .reverse()
+            .find(
+                (entry) =>
+                    String(entry.event || "").trim().toUpperCase() ===
+                    "SENT_TO_VENDOR",
+            ) ?? null;
+    }, [warrantyClaimHistory]);
+
+    const previousVendorMetadata =
+        previousVendorHandover?.metadata &&
+            typeof previousVendorHandover.metadata === "object"
+            ? previousVendorHandover.metadata
+            : {};
 
     function buildOWSTPrintSnapshot(
         referenceNo = "Pending",
@@ -2120,6 +2330,7 @@ export default function AssetDevicesPage() {
     useEffect(() => {
         const needsVendorDirectory =
             operation === "warranty" ||
+            operation === "warranty-transfer" ||
             (operation === "owst" && owstType === "vendor");
 
         if (!needsVendorDirectory) {
@@ -2369,7 +2580,30 @@ export default function AssetDevicesPage() {
             if (claim?.id) {
                 const historyResponse =
                     await deviceOperationsApi.warrantyClaimLifecycle(claim.id);
-                setWarrantyClaimHistory(historyResponse?.data ?? []);
+                const historyRows = [...(historyResponse?.data ?? [])].sort((a, b) => {
+                    const aTime = Date.parse(a.changed_at || "") || 0;
+                    const bTime = Date.parse(b.changed_at || "") || 0;
+                    if (aTime !== bTime) {
+                        return aTime - bTime;
+                    }
+                    return Number(a.id || 0) - Number(b.id || 0);
+                });
+                setWarrantyClaimHistory(historyRows);
+
+                const vendorTransfer = [...historyRows]
+                    .reverse()
+                    .find((entry) => entry.event === "SENT_TO_VENDOR");
+
+                if (vendorTransfer) {
+                    const meta = vendorTransfer.metadata ?? {};
+                    setVendorReceiver(vendorTransfer.vendor_personnel_name ?? "");
+                    setVendorReceiverMobile(vendorTransfer.vendor_mobile ?? "");
+                    setVendorGatePassDate(String(meta["gate_pass_date"] ?? ""));
+                    setVendorGatePassRemarks(String(meta["gate_pass_remarks"] ?? ""));
+                    setVendorTransferRemarks(vendorTransfer.remarks ?? "");
+                    setVendorCompanyMaterial(Boolean(meta["company_material"] ?? true));
+                    setVendorReturnable(Boolean(meta["returnable"] ?? true));
+                }
             } else {
                 setWarrantyClaimHistory([]);
             }
@@ -2513,6 +2747,15 @@ export default function AssetDevicesPage() {
         setVendorTransferAttachmentPreview("");
         setVendorCompanyMaterial(true);
         setVendorReturnable(true);
+        setWarrantyWorkflowStatus("9");
+        setWarrantyWorkflowFeedback("");
+        setWarrantyWorkflowAttachment(null);
+        setWarrantyWorkflowAttachmentPreview("");
+        setWorkflowRecipientName("");
+        setWorkflowRecipientMobile("");
+        setWorkflowGatePassDate(dateInputValue(new Date().toISOString()));
+        setWorkflowGatePassRemarks("");
+        setWorkflowRecipientSuggestions([]);
 
         if (next === "warranty-transfer") {
             void loadActiveWarrantyClaim(item.id);
@@ -3000,13 +3243,126 @@ export default function AssetDevicesPage() {
                     return;
                 }
 
-                if (
-                    activeWarrantyClaim.claim_status !== 8 ||
-                    activeWarrantyClaim.lifecycle_state !== "OPEN"
-                ) {
-                    setOperationError(
-                        "Only an open Claim Raised record can be transferred to the vendor.",
-                    );
+                if (effectiveWarrantyLifecycle !== "OPEN") {
+                    if (!workflowRecipientName.trim()) {
+                        setOperationError(
+                            "Vendor recipient / delivery-man name is required.",
+                        );
+                        return;
+                    }
+
+                    const workflowMobileDigits =
+                        workflowRecipientMobile.replace(/\D/g, "");
+
+                    if (workflowMobileDigits.length !== 11) {
+                        setOperationError(
+                            "Vendor recipient mobile must contain exactly 11 digits.",
+                        );
+                        return;
+                    }
+
+                    if (
+                        warrantyWorkflowStatus === "9" &&
+                        !workflowGatePassDate
+                    ) {
+                        setOperationError("Gate pass date is required.");
+                        return;
+                    }
+
+                    if (
+                        warrantyWorkflowStatus === "9" &&
+                        !workflowGatePassRemarks.trim()
+                    ) {
+                        setOperationError(
+                            "Gate pass remarks are required when status is Transferred to Vendor.",
+                        );
+                        return;
+                    }
+
+                    if (!warrantyWorkflowFeedback.trim()) {
+                        setOperationError(
+                            "Enter IT Feedback before submitting the Warranty Claim Workflow.",
+                        );
+                        return;
+                    }
+
+                    if (
+                        warrantyWorkflowAttachment &&
+                        warrantyWorkflowAttachment.size > 4 * 1024 * 1024
+                    ) {
+                        setOperationError("Attachment must be 4 MB or smaller.");
+                        return;
+                    }
+
+                    const workflowResponse =
+                        await deviceOperationsApi.submitWarrantyWorkflow(
+                            activeWarrantyClaim.id,
+                            {
+                                target_status: warrantyWorkflowStatus,
+                                feedback: warrantyWorkflowFeedback.trim(),
+                                vendor_receiver:
+                                    workflowRecipientName.trim(),
+                                vendor_mobile: workflowMobileDigits,
+                                gate_pass_date:
+                                    warrantyWorkflowStatus === "9"
+                                        ? workflowGatePassDate
+                                        : "",
+                                gate_pass_remarks:
+                                    warrantyWorkflowStatus === "9"
+                                        ? workflowGatePassRemarks.trim()
+                                        : "",
+                                attachment: warrantyWorkflowAttachment,
+                            },
+                        );
+
+                    const restoredStatus =
+                        workflowResponse?.data?.restored_asset_status;
+
+                    const workflowMessage =
+                        warrantyWorkflowStatus === "10"
+                            ? `Warranty claim ${activeWarrantyClaim.claim_no} closed. Device restored to ${workflowResponse?.data?.restored_status_label || "its previous status"}.`
+                            : `Warranty claim ${activeWarrantyClaim.claim_no} remains Transferred to Vendor. Feedback was added to Warranty History.`;
+
+                    setOperation(null);
+                    setSelectedAsset(null);
+                    setOperationError("");
+                    setNotice("");
+                    setAjaxSearching(false);
+                    setSearchInput("");
+                    setSearch("");
+                    setCategoryInput("");
+                    setCategory("");
+
+                    if (warrantyWorkflowStatus === "10") {
+                        setStatus(
+                            restoredStatus === 0 ||
+                                restoredStatus === 1 ||
+                                restoredStatus === 4
+                                ? String(restoredStatus)
+                                : "",
+                        );
+                    } else {
+                        setStatus("8");
+                    }
+
+                    setPage(1);
+                    setSuccessDialog({
+                        title:
+                            warrantyWorkflowStatus === "10"
+                                ? "Warranty Claim Closed"
+                                : "Warranty Workflow Updated",
+                        message: workflowMessage,
+                        serial:
+                            selectedAsset.device_serial ||
+                            `Asset #${selectedAsset.id}`,
+                        statusLabel:
+                            warrantyWorkflowStatus === "10"
+                                ? workflowResponse?.data?.restored_status_label ||
+                                "Restored"
+                                : "Transferred to Vendor",
+                    });
+
+                    await loadStatusCounts();
                     return;
                 }
 
@@ -3243,7 +3599,7 @@ export default function AssetDevicesPage() {
             case "warranty":
                 return "Raise Warranty Claim";
             case "warranty-transfer":
-                return "Transfer Warranty Device to Vendor";
+                return "Warranty Claim Workflow";
             case "damaged":
                 return "Mark Device as Damaged";
             case "lost":
@@ -3975,11 +4331,15 @@ export default function AssetDevicesPage() {
                                                     {item.status_label} · Device Actions
                                                 </DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => openOperation(item, "history")} className="gap-2">
-                                                    <HistoryIcon className="h-4 w-4 text-violet-600" />
-                                                    Assignment History
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
+                                                {item.asset_status !== 8 && (
+                                                    <>
+                                                        <DropdownMenuItem onClick={() => openOperation(item, "history")} className="gap-2">
+                                                            <HistoryIcon className="h-4 w-4 text-violet-600" />
+                                                            Assignment / Device History
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                    </>
+                                                )}
 
                                                 {canAssignNewEmployee(item) && (
                                                     <>
@@ -4222,7 +4582,7 @@ export default function AssetDevicesPage() {
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => openOperation(item, "history")} className="gap-2">
                                                             <HistoryIcon className="h-4 w-4 text-violet-600" />
-                                                            Assignment / Device History
+                                                            Device History
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
@@ -4230,7 +4590,7 @@ export default function AssetDevicesPage() {
                                                             className="gap-2 text-blue-700 focus:text-blue-700"
                                                         >
                                                             <Truck className="h-4 w-4" />
-                                                            Transfer to Vendor
+                                                            Warranty Claim Workflow
                                                         </DropdownMenuItem>
                                                     </>
                                                 )}
@@ -4314,7 +4674,7 @@ export default function AssetDevicesPage() {
                                     : operation === "transfer"
                                         ? `Transfer ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} from the current employee to another active employee.`
                                         : operation === "warranty-transfer"
-                                            ? `Send ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} to the warranty vendor with a controlled gate-pass and audit trail.`
+                                            ? `Review ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} warranty lifecycle, vendor handover record and next-step workflow.`
                                             : operation === "history"
                                                 ? `Immutable assignment, transfer and return trail for ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`}.`
                                                 : operation === "detail"
@@ -6020,7 +6380,7 @@ export default function AssetDevicesPage() {
                     )}
 
                     {operation === "warranty-transfer" && (
-                        <div className="space-y-3 px-4 py-3">
+                        <div className="space-y-2 px-3 py-2">
                             {warrantyClaimLoading ? (
                                 <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/20 px-4 py-10 text-xs text-muted-foreground">
                                     <RefreshCw className="h-4 w-4 animate-spin" />
@@ -6032,8 +6392,8 @@ export default function AssetDevicesPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <section className="grid gap-2 lg:grid-cols-[1.1fr_1fr]">
-                                        <div className="rounded-xl border border-violet-200/80 bg-violet-50/40 p-3 dark:border-violet-900/50 dark:bg-violet-950/10">
+                                    <section className="grid gap-2 lg:grid-cols-2">
+                                        <div className="rounded-lg border border-violet-200/80 bg-violet-50/40 p-2.5 dark:border-violet-900/50 dark:bg-violet-950/10">
                                             <div className="mb-2 flex items-start justify-between gap-3">
                                                 <div>
                                                     <p className="text-xs font-semibold">Warranty Claim</p>
@@ -6041,11 +6401,22 @@ export default function AssetDevicesPage() {
                                                         {activeWarrantyClaim.claim_no}
                                                     </p>
                                                 </div>
-                                                <span className="rounded-full border border-pink-200 bg-pink-50 px-2 py-0.5 text-[10px] font-semibold text-pink-700">
-                                                    Claim Raised
+                                                <span
+                                                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${effectiveWarrantyLifecycle === "WITH_VENDOR"
+                                                        ? "border-blue-200 bg-blue-50 text-blue-700"
+                                                        : effectiveWarrantyLifecycle === "RECEIVED"
+                                                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                                            : "border-pink-200 bg-pink-50 text-pink-700"
+                                                        }`}
+                                                >
+                                                    {effectiveWarrantyLifecycle === "WITH_VENDOR"
+                                                        ? "Transferred to Vendor"
+                                                        : effectiveWarrantyLifecycle === "RECEIVED"
+                                                            ? "Received from Vendor"
+                                                            : "Claim Raised"}
                                                 </span>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-1.5">
+                                            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                                                 <CompactDeviceInfo
                                                     label="Claim Raised"
                                                     value={formatDateTime(activeWarrantyClaim.created_at)}
@@ -6068,7 +6439,7 @@ export default function AssetDevicesPage() {
                                                     }
                                                 />
                                             </div>
-                                            <div className="mt-2 rounded-lg border border-border bg-background px-3 py-2">
+                                            <div className="mt-2 border-t border-border pt-2">
                                                 <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                                                     Problem / Claim Reason
                                                 </p>
@@ -6078,181 +6449,533 @@ export default function AssetDevicesPage() {
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border border-sky-200/80 bg-sky-50/40 p-3 dark:border-sky-900/50 dark:bg-sky-950/10">
-                                            <p className="text-xs font-semibold">Vendor Recipient Information</p>
-                                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                                These fields become part of the warranty audit trail and gate-pass record.
-                                            </p>
+                                        {effectiveWarrantyLifecycle === "OPEN" && (
+                                            <div className="rounded-lg border border-sky-200/80 bg-sky-50/40 p-2.5 dark:border-sky-900/50 dark:bg-sky-950/10">
+                                                <p className="text-xs font-semibold">Vendor Recipient Information</p>
+                                                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                                    These fields become part of the warranty audit trail and gate-pass record.
+                                                </p>
 
-                                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                                <label className="block">
-                                                    <span className="mb-1 block text-[10px] font-semibold">
-                                                        Recipient Name <span className="text-red-500">*</span>
-                                                    </span>
-                                                    <input
-                                                        value={vendorReceiver}
-                                                        onChange={(event) => setVendorReceiver(event.target.value)}
-                                                        maxLength={150}
-                                                        placeholder="Vendor receiving person"
-                                                        className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                                                    />
-                                                </label>
+                                                <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-[10px] font-semibold">
+                                                            Recipient Name <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <input
+                                                            value={vendorReceiver}
+                                                            disabled={effectiveWarrantyLifecycle !== "OPEN"}
+                                                            onChange={(event) => setVendorReceiver(event.target.value)}
+                                                            maxLength={150}
+                                                            placeholder="Vendor receiving person"
+                                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                                        />
+                                                    </label>
 
-                                                <label className="block">
-                                                    <span className="mb-1 block text-[10px] font-semibold">
-                                                        Recipient Mobile <span className="text-red-500">*</span>
-                                                    </span>
-                                                    <input
-                                                        value={vendorReceiverMobile}
-                                                        onChange={(event) =>
-                                                            setVendorReceiverMobile(
-                                                                event.target.value.replace(/\D/g, "").slice(0, 11),
-                                                            )
-                                                        }
-                                                        inputMode="numeric"
-                                                        maxLength={11}
-                                                        placeholder="01XXXXXXXXX"
-                                                        className="h-9 w-full rounded-md border border-input bg-background px-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                                                    />
-                                                </label>
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-[10px] font-semibold">
+                                                            Recipient Mobile <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <input
+                                                            value={vendorReceiverMobile}
+                                                            disabled={effectiveWarrantyLifecycle !== "OPEN"}
+                                                            onChange={(event) =>
+                                                                setVendorReceiverMobile(
+                                                                    event.target.value.replace(/\D/g, "").slice(0, 11),
+                                                                )
+                                                            }
+                                                            inputMode="numeric"
+                                                            maxLength={11}
+                                                            placeholder="01XXXXXXXXX"
+                                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                                        />
+                                                    </label>
 
-                                                <label className="block">
-                                                    <span className="mb-1 block text-[10px] font-semibold">
-                                                        Gate Pass Date <span className="text-red-500">*</span>
-                                                    </span>
-                                                    <input
-                                                        type="date"
-                                                        value={vendorGatePassDate}
-                                                        onChange={(event) => setVendorGatePassDate(event.target.value)}
-                                                        className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                                                    />
-                                                </label>
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-[10px] font-semibold">
+                                                            Gate Pass Date <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <input
+                                                            type="date"
+                                                            value={vendorGatePassDate}
+                                                            disabled={effectiveWarrantyLifecycle !== "OPEN"}
+                                                            onChange={(event) => setVendorGatePassDate(event.target.value)}
+                                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                                        />
+                                                    </label>
 
-                                                <div className="rounded-lg border border-border bg-background p-2">
-                                                    <p className="text-[10px] font-semibold">IT Responsible Personnel</p>
-                                                    <p className="mt-1 text-xs font-medium">
-                                                        {authUser?.full_name || authUser?.username || "Current IT user"}
-                                                    </p>
-                                                    <p className="font-mono text-[10px] text-primary">
-                                                        {authUser?.employee_id || "Signed-in user"}
-                                                    </p>
+                                                    <div className="rounded-md border border-border bg-background p-2">
+                                                        <p className="text-[10px] font-semibold">IT Responsible Personnel</p>
+                                                        <p className="mt-1 text-xs font-medium">
+                                                            {authUser?.full_name || authUser?.username || "Current IT user"}
+                                                        </p>
+                                                        <p className="font-mono text-[10px] text-primary">
+                                                            {authUser?.employee_id || "Signed-in user"}
+                                                        </p>
+                                                    </div>
+
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </section>
 
-                                    <section className="rounded-xl border border-amber-200/80 bg-amber-50/35 p-3 dark:border-amber-900/50 dark:bg-amber-950/10">
-                                        <div className="grid gap-2 lg:grid-cols-2">
-                                            <label className="block">
-                                                <span className="mb-1 block text-[10px] font-semibold">
-                                                    Gate Pass Remarks <span className="text-red-500">*</span>
-                                                </span>
-                                                <textarea
-                                                    value={vendorGatePassRemarks}
-                                                    onChange={(event) => setVendorGatePassRemarks(event.target.value)}
-                                                    rows={3}
-                                                    maxLength={1000}
-                                                    placeholder="Purpose, accessories, physical handover note..."
-                                                    className="min-h-[82px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                                                />
-                                            </label>
+                                    {effectiveWarrantyLifecycle === "WITH_VENDOR" && (
+                                        <>
+                                            <section className="rounded-lg border border-violet-200 bg-violet-50/35 p-2.5 dark:border-violet-900/50 dark:bg-violet-950/10">
+                                                <div className="mb-2 flex items-center justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-xs font-semibold">
+                                                            Claimed Information
+                                                        </p>
+                                                        <p className="text-[9px] text-muted-foreground">
+                                                            Step 3 · choose the warranty result and add IT feedback.
+                                                        </p>
+                                                    </div>
+                                                    <span className="rounded-full border border-violet-200 bg-background px-2 py-0.5 text-[9px] font-semibold text-violet-700">
+                                                        Warranty Workflow
+                                                    </span>
+                                                </div>
 
-                                            <label className="block">
-                                                <span className="mb-1 block text-[10px] font-semibold">
-                                                    IT Transfer Remarks
-                                                </span>
-                                                <textarea
-                                                    value={vendorTransferRemarks}
-                                                    onChange={(event) => setVendorTransferRemarks(event.target.value)}
-                                                    rows={3}
-                                                    maxLength={1000}
-                                                    placeholder="Internal IT note for this vendor transfer"
-                                                    className="min-h-[82px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                                                />
-                                            </label>
-                                        </div>
+                                                <div className="grid gap-2 md:grid-cols-2">
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-[10px] font-semibold">
+                                                            IT Feedback <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <textarea
+                                                            value={warrantyWorkflowFeedback}
+                                                            onChange={(event) =>
+                                                                setWarrantyWorkflowFeedback(event.target.value)
+                                                            }
+                                                            rows={2}
+                                                            maxLength={1500}
+                                                            placeholder="Write IT feedback..."
+                                                            className="min-h-[58px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                                        />
+                                                    </label>
 
-                                        <div className="mt-2 grid gap-2 lg:grid-cols-[1fr_auto]">
-                                            <div className="rounded-lg border border-border bg-background p-2.5">
-                                                <span className="mb-1 block text-[10px] font-semibold">
-                                                    Attachment
-                                                </span>
-                                                <input
-                                                    type="file"
-                                                    accept=".jpg,.jpeg,.png,.gif,.pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
-                                                    onChange={(event) =>
-                                                        setVendorTransferAttachment(
-                                                            event.target.files?.[0] ?? null,
-                                                        )
-                                                    }
-                                                    className="block w-full text-xs"
-                                                />
-
-                                                {vendorTransferAttachment && (
-                                                    <div className="mt-2 flex items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50/70 p-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-                                                        {vendorTransferAttachmentPreview ? (
-                                                            <img
-                                                                src={vendorTransferAttachmentPreview}
-                                                                alt="Selected warranty attachment preview"
-                                                                className="h-16 w-20 shrink-0 rounded-md border border-border object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-md border border-border bg-background">
-                                                                <Paperclip className="h-5 w-5 text-muted-foreground" />
-                                                            </div>
-                                                        )}
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="truncate text-[11px] font-semibold text-foreground" title={vendorTransferAttachment.name}>
-                                                                {vendorTransferAttachment.name}
-                                                            </p>
-                                                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                                                {(vendorTransferAttachment.size / 1024).toFixed(1)} KB · ready to upload
-                                                            </p>
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setVendorTransferAttachment(null)}
-                                                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                            title="Remove attachment"
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-[10px] font-semibold">
+                                                            Status <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <select
+                                                            value={warrantyWorkflowStatus}
+                                                            onChange={(event) =>
+                                                                setWarrantyWorkflowStatus(
+                                                                    event.target.value as "9" | "10",
+                                                                )
+                                                            }
+                                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
                                                         >
-                                                            <X className="h-3.5 w-3.5" />
-                                                        </button>
+                                                            <option value="10">Closed</option>
+                                                            <option value="9">Transferred to Vendor</option>
+                                                        </select>
+                                                        <p className="mt-1 text-[9px] text-muted-foreground">
+                                                            Closed restores the saved pre-claim device status automatically.
+                                                        </p>
+                                                    </label>
+                                                </div>
+                                            </section>
+
+                                            <section className="rounded-lg border border-sky-200 bg-sky-50/35 p-2.5 dark:border-sky-900/50 dark:bg-sky-950/10">
+                                                <div className="mb-2">
+                                                    <p className="text-xs font-semibold">
+                                                        Vendor Recipient/Delivery-Man Information
+                                                    </p>
+                                                    <p className="text-[9px] text-muted-foreground">
+                                                        Enter a new recipient or select an existing name from suggestions.
+                                                    </p>
+                                                </div>
+
+                                                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                                                    <label className="block xl:col-span-2">
+                                                        <span className="mb-1 block text-[10px] font-semibold">
+                                                            Recipient / Delivery-Man Name <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <input
+                                                            list="warranty-recipient-suggestions"
+                                                            value={workflowRecipientName}
+                                                            onChange={(event) => {
+                                                                const value = event.target.value;
+                                                                setWorkflowRecipientName(value);
+
+                                                                const match =
+                                                                    workflowRecipientSuggestions.find(
+                                                                        (item) =>
+                                                                            item.name
+                                                                                .trim()
+                                                                                .toLowerCase() ===
+                                                                            value
+                                                                                .trim()
+                                                                                .toLowerCase(),
+                                                                    );
+
+                                                                if (match?.mobile) {
+                                                                    setWorkflowRecipientMobile(
+                                                                        match.mobile,
+                                                                    );
+                                                                }
+                                                            }}
+                                                            placeholder="Type name or select suggestion"
+                                                            autoComplete="off"
+                                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                                        />
+                                                        <datalist id="warranty-recipient-suggestions">
+                                                            {workflowRecipientSuggestions.map(
+                                                                (item) => (
+                                                                    <option
+                                                                        key={`${item.name}-${item.mobile}`}
+                                                                        value={item.name}
+                                                                    >
+                                                                        {item.mobile || "Previous recipient"}
+                                                                    </option>
+                                                                ),
+                                                            )}
+                                                        </datalist>
+                                                        <p className="mt-1 text-[9px] text-muted-foreground">
+                                                            Existing names appear automatically. A new name can be typed directly.
+                                                        </p>
+                                                    </label>
+
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-[10px] font-semibold">
+                                                            Mobile <span className="text-red-500">*</span>
+                                                        </span>
+                                                        <input
+                                                            value={workflowRecipientMobile}
+                                                            onChange={(event) =>
+                                                                setWorkflowRecipientMobile(
+                                                                    event.target.value
+                                                                        .replace(/\D/g, "")
+                                                                        .slice(0, 11),
+                                                                )
+                                                            }
+                                                            inputMode="numeric"
+                                                            placeholder="01XXXXXXXXX"
+                                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                                        />
+                                                    </label>
+
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-[10px] font-semibold">
+                                                            Gate Pass Date
+                                                            {warrantyWorkflowStatus === "9" && (
+                                                                <span className="text-red-500"> *</span>
+                                                            )}
+                                                        </span>
+                                                        <input
+                                                            type="date"
+                                                            value={workflowGatePassDate}
+                                                            onChange={(event) =>
+                                                                setWorkflowGatePassDate(event.target.value)
+                                                            }
+                                                            disabled={warrantyWorkflowStatus === "10"}
+                                                            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs outline-none disabled:bg-muted/40"
+                                                        />
+                                                    </label>
+                                                </div>
+
+                                                {warrantyWorkflowStatus === "9" && (
+                                                    <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                                                        <label className="block">
+                                                            <span className="mb-1 block text-[10px] font-semibold">
+                                                                Gate Pass Remarks <span className="text-red-500">*</span>
+                                                            </span>
+                                                            <textarea
+                                                                value={workflowGatePassRemarks}
+                                                                onChange={(event) =>
+                                                                    setWorkflowGatePassRemarks(event.target.value)
+                                                                }
+                                                                rows={2}
+                                                                maxLength={1000}
+                                                                placeholder="Write gate pass / vendor handover remarks..."
+                                                                className="min-h-[58px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                                            />
+                                                        </label>
+
+                                                        <div className="rounded-md border-2 border-dashed border-sky-200 bg-background p-2.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <Paperclip className="h-4 w-4 text-sky-700" />
+                                                                <div>
+                                                                    <p className="text-[10px] font-semibold">
+                                                                        Attached File
+                                                                    </p>
+                                                                    <p className="text-[9px] text-muted-foreground">
+                                                                        JPG, PNG, PDF, TXT, DOCX, PPTX, XLSX · maximum 4 MB
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            <input
+                                                                type="file"
+                                                                accept=".jpg,.jpeg,.png,.gif,.pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                                                                onChange={(event) =>
+                                                                    setWarrantyWorkflowAttachment(
+                                                                        event.target.files?.[0] ?? null,
+                                                                    )
+                                                                }
+                                                                className="mt-2 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                                                            />
+
+                                                            {warrantyWorkflowAttachment && (
+                                                                <div className="mt-2 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50/70 px-2.5 py-2">
+                                                                    <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <p className="truncate text-[10px] font-semibold">
+                                                                            {warrantyWorkflowAttachment.name}
+                                                                        </p>
+                                                                        <p className="text-[9px] text-muted-foreground">
+                                                                            {(warrantyWorkflowAttachment.size / 1024).toFixed(1)} KB · ready to upload
+                                                                        </p>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setWarrantyWorkflowAttachment(null)
+                                                                        }
+                                                                        className="text-[9px] font-semibold text-red-600 hover:underline"
+                                                                    >
+                                                                        Remove
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 )}
 
-                                                <p className="mt-1 text-[9px] text-muted-foreground">
-                                                    JPG, PNG, GIF, PDF, TXT, DOC/DOCX, PPT/PPTX or XLS/XLSX · maximum 4 MB.
-                                                    Stored in backend/uploads/claims/.
-                                                </p>
+                                                {warrantyWorkflowStatus === "10" && (
+                                                    <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] text-emerald-800">
+                                                        Closing the claim will restore the device to its saved previous status.
+                                                    </div>
+                                                )}
+                                            </section>
+                                        </>
+                                    )}
+
+                                    {effectiveWarrantyLifecycle === "WITH_VENDOR" && previousVendorHandover && (
+                                        <section className="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-950/20">
+                                            <div className="mb-2 flex items-center justify-between gap-2">
+                                                <div>
+                                                    <p className="text-xs font-semibold">Previous Vendor Handover</p>
+                                                    <p className="text-[9px] text-muted-foreground">
+                                                        Read-only snapshot from Step 2 · shown for quick comparison.
+                                                    </p>
+                                                </div>
+                                                <span className="rounded-full border border-slate-200 bg-background px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                                                    {formatDateTime(previousVendorHandover.changed_at)}
+                                                </span>
                                             </div>
 
-                                            <div className="flex items-center gap-4 rounded-lg border border-border bg-background px-3 py-2">
-                                                <label className="inline-flex items-center gap-2 text-xs font-medium">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={vendorCompanyMaterial}
-                                                        onChange={(event) => setVendorCompanyMaterial(event.target.checked)}
+                                            <div className="grid gap-x-3 gap-y-1 md:grid-cols-2 xl:grid-cols-4">
+                                                <CompactDeviceInfo
+                                                    label="Vendor"
+                                                    value={String(
+                                                        previousVendorMetadata?.vendor_name ||
+                                                        activeWarrantyClaim.vendor_name ||
+                                                        "—",
+                                                    )}
+                                                />
+                                                <CompactDeviceInfo
+                                                    label="Receiver"
+                                                    value={previousVendorHandover.vendor_personnel_name || "—"}
+                                                />
+                                                <CompactDeviceInfo
+                                                    label="Receiver Mobile"
+                                                    value={previousVendorHandover.vendor_mobile || "—"}
+                                                    mono
+                                                />
+                                                <CompactDeviceInfo
+                                                    label="Gate Pass Date"
+                                                    value={String(previousVendorMetadata?.gate_pass_date || "—")}
+                                                />
+                                            </div>
+
+                                            <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                                                <div className="rounded-md border border-border bg-background px-2.5 py-2">
+                                                    <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                        Gate Pass / Vendor Handover Comment
+                                                    </p>
+                                                    <p className="mt-1 whitespace-pre-wrap text-[11px]">
+                                                        {String(
+                                                            previousVendorMetadata?.gate_pass_remarks ||
+                                                            previousVendorHandover.remarks ||
+                                                            "—",
+                                                        )}
+                                                    </p>
+                                                </div>
+
+                                                <div className="rounded-md border border-border bg-background px-2.5 py-2">
+                                                    <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                        IT Transfer Comment
+                                                    </p>
+                                                    <p className="mt-1 whitespace-pre-wrap text-[11px]">
+                                                        {previousVendorHandover.remarks || "—"}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {previousVendorHandover.attach_file && activeWarrantyClaim && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const attachmentName =
+                                                            previousVendorHandover.attach_file
+                                                                ?.split(/[\\/]/)
+                                                                .pop() || "attachment";
+
+                                                        void downloadWarrantyAttachment(
+                                                            activeWarrantyClaim.id,
+                                                            previousVendorHandover.id,
+                                                            attachmentName,
+                                                        ).catch((reason) => {
+                                                            setOperationError(
+                                                                reason instanceof Error
+                                                                    ? reason.message
+                                                                    : "Unable to download previous attachment.",
+                                                            );
+                                                        });
+                                                    }}
+                                                    className="mt-2 flex w-full items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-2.5 py-2 text-left text-blue-800 hover:bg-blue-100"
+                                                >
+                                                    <Paperclip className="h-4 w-4 shrink-0" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-[10px] font-semibold">
+                                                            {previousVendorHandover.attach_file
+                                                                .split(/[\\/]/)
+                                                                .pop()}
+                                                        </p>
+                                                        <p className="text-[9px] opacity-75">
+                                                            Previous vendor attachment · click to download
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-[9px] font-semibold underline">
+                                                        Download
+                                                    </span>
+                                                </button>
+                                            )}
+                                        </section>
+                                    )}
+
+                                    {effectiveWarrantyLifecycle === "OPEN" && (
+                                        <section className="rounded-lg border border-amber-200/80 bg-amber-50/35 p-2.5 dark:border-amber-900/50 dark:bg-amber-950/10">
+                                            <div className="grid gap-2 lg:grid-cols-2">
+                                                <label className="block">
+                                                    <span className="mb-1 block text-[10px] font-semibold">
+                                                        Gate Pass Remarks <span className="text-red-500">*</span>
+                                                    </span>
+                                                    <textarea
+                                                        value={vendorGatePassRemarks}
+                                                        disabled={effectiveWarrantyLifecycle !== "OPEN"}
+                                                        onChange={(event) => setVendorGatePassRemarks(event.target.value)}
+                                                        rows={2}
+                                                        maxLength={1000}
+                                                        placeholder="Purpose, accessories, physical handover note..."
+                                                        className="min-h-[58px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
                                                     />
-                                                    Company Material
                                                 </label>
-                                                <label className="inline-flex items-center gap-2 text-xs font-medium">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={vendorReturnable}
-                                                        onChange={(event) => setVendorReturnable(event.target.checked)}
+
+                                                <label className="block">
+                                                    <span className="mb-1 block text-[10px] font-semibold">
+                                                        IT Transfer Remarks
+                                                    </span>
+                                                    <textarea
+                                                        value={vendorTransferRemarks}
+                                                        disabled={effectiveWarrantyLifecycle !== "OPEN"}
+                                                        onChange={(event) => setVendorTransferRemarks(event.target.value)}
+                                                        rows={2}
+                                                        maxLength={1000}
+                                                        placeholder="Internal IT note for this vendor transfer"
+                                                        className="min-h-[58px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
                                                     />
-                                                    Returnable
                                                 </label>
                                             </div>
-                                        </div>
-                                    </section>
 
-                                    <section className="overflow-hidden rounded-xl border border-border">
-                                        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
+                                            <div className="mt-2 grid gap-2 lg:grid-cols-[1fr_auto]">
+                                                <div className="rounded-lg border border-border bg-background p-2.5">
+                                                    <span className="mb-1 block text-[10px] font-semibold">
+                                                        Attachment
+                                                    </span>
+                                                    <input
+                                                        type="file"
+                                                        disabled={effectiveWarrantyLifecycle !== "OPEN"}
+                                                        accept=".jpg,.jpeg,.png,.gif,.pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                                                        onChange={(event) =>
+                                                            setVendorTransferAttachment(
+                                                                event.target.files?.[0] ?? null,
+                                                            )
+                                                        }
+                                                        className="block w-full text-xs"
+                                                    />
+
+                                                    {vendorTransferAttachment && (
+                                                        <div className="mt-2 flex items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50/70 p-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                                                            {vendorTransferAttachmentPreview ? (
+                                                                <img
+                                                                    src={vendorTransferAttachmentPreview}
+                                                                    alt="Selected warranty attachment preview"
+                                                                    className="h-16 w-20 shrink-0 rounded-md border border-border object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+                                                                    <Paperclip className="h-5 w-5 text-muted-foreground" />
+                                                                </div>
+                                                            )}
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="truncate text-[11px] font-semibold text-foreground" title={vendorTransferAttachment.name}>
+                                                                    {vendorTransferAttachment.name}
+                                                                </p>
+                                                                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                                                    {(vendorTransferAttachment.size / 1024).toFixed(1)} KB · ready to upload
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setVendorTransferAttachment(null)}
+                                                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                title="Remove attachment"
+                                                            >
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+
+                                                    <p className="mt-1 text-[9px] text-muted-foreground">
+                                                        JPG, PNG, GIF, PDF, TXT, DOC/DOCX, PPT/PPTX or XLS/XLSX · maximum 4 MB.
+                                                        Stored in backend/uploads/claims/.
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 rounded-md border border-border bg-background px-2.5 py-2">
+                                                    <label className="inline-flex items-center gap-2 text-xs font-medium">
+                                                        <input
+                                                            type="checkbox"
+                                                            disabled={effectiveWarrantyLifecycle !== "OPEN"}
+                                                            checked={vendorCompanyMaterial}
+                                                            onChange={(event) => setVendorCompanyMaterial(event.target.checked)}
+                                                        />
+                                                        Company Material
+                                                    </label>
+                                                    <label className="inline-flex items-center gap-2 text-xs font-medium">
+                                                        <input
+                                                            type="checkbox"
+                                                            disabled={effectiveWarrantyLifecycle !== "OPEN"}
+                                                            checked={vendorReturnable}
+                                                            onChange={(event) => setVendorReturnable(event.target.checked)}
+                                                        />
+                                                        Returnable
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    <section className="overflow-hidden rounded-lg border border-border">
+                                        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-2.5 py-1.5">
                                             <div>
                                                 <p className="text-xs font-semibold">Warranty History</p>
                                                 <p className="text-[10px] text-muted-foreground">
-                                                    Claim lifecycle events are stored separately and mirrored to the device history.
+                                                    Chronological audit trail. Previous and current vendor responses, comments and attachments remain visible at a glance.
+                                                </p>
+                                                <p className="mt-0.5 text-[9px] text-muted-foreground">
+                                                    Flow: Claim Opened → Sent to Vendor → Received from Vendor → Claim Closed
                                                 </p>
                                             </div>
                                             <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
@@ -6265,28 +6988,93 @@ export default function AssetDevicesPage() {
                                                 No claim history event is available yet.
                                             </div>
                                         ) : (
-                                            <div className="max-h-48 overflow-auto">
-                                                {warrantyClaimHistory.map((entry) => (
-                                                    <div
-                                                        key={entry.id}
-                                                        className="grid gap-1 border-b border-border px-3 py-2 text-xs last:border-b-0 md:grid-cols-[160px_1fr_170px]"
-                                                    >
-                                                        <div className="font-semibold">
-                                                            {String(entry.event || "Claim Event")
-                                                                .replace(/_/g, " ")
-                                                                .replace(/\b\w/g, (character) => character.toUpperCase())}
+                                            <div className="max-h-64 overflow-auto px-3 py-2">
+                                                {warrantyClaimHistory.map((entry, index) => {
+                                                    const attachmentPath =
+                                                        entry.attach_file ||
+                                                        String(entry.metadata?.["attachment"] ?? "");
+                                                    const attachmentName = attachmentPath
+                                                        ? attachmentPath.split(/[\\/]/).filter(Boolean).pop() || attachmentPath
+                                                        : "";
+
+                                                    return (
+                                                        <div key={entry.id} className="relative grid grid-cols-[28px_minmax(0,1fr)] gap-2 pb-3 last:pb-0">
+                                                            {index < warrantyClaimHistory.length - 1 && (
+                                                                <span className="absolute left-[13px] top-7 h-[calc(100%-18px)] w-px bg-border" />
+                                                            )}
+                                                            <div className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-violet-200 bg-violet-50 text-[10px] font-bold text-violet-700">
+                                                                {index + 1}
+                                                            </div>
+                                                            <div className="rounded-lg border border-border bg-background px-3 py-2">
+                                                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                                                    <div>
+                                                                        <p className="text-[11px] font-semibold text-foreground">
+                                                                            {String(entry.event || "Claim Event")
+                                                                                .replace(/_/g, " ")
+                                                                                .replace(/\b\w/g, (character) => character.toUpperCase())}
+                                                                        </p>
+                                                                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                                                            {formatDateTime(entry.changed_at)}
+                                                                            {entry.changed_by ? ` · By ${entry.changed_by}` : ""}
+                                                                        </p>
+                                                                    </div>
+                                                                    <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                                                                        {entry.previous_status} → {entry.current_status}
+                                                                    </span>
+                                                                </div>
+
+                                                                <p className="mt-1.5 whitespace-pre-wrap text-[11px] text-foreground/85">
+                                                                    {entry.remarks || "—"}
+                                                                </p>
+
+                                                                {(entry.vendor_personnel_name || entry.vendor_mobile) && (
+                                                                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                                                                        {entry.vendor_personnel_name && (
+                                                                            <span><strong className="text-foreground">Receiver:</strong> {entry.vendor_personnel_name}</span>
+                                                                        )}
+                                                                        {entry.vendor_mobile && (
+                                                                            <span><strong className="text-foreground">Mobile:</strong> {entry.vendor_mobile}</span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {attachmentName && activeWarrantyClaim && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            void downloadWarrantyAttachment(
+                                                                                activeWarrantyClaim.id,
+                                                                                entry.id,
+                                                                                attachmentName,
+                                                                            ).catch((reason) => {
+                                                                                setOperationError(
+                                                                                    reason instanceof Error
+                                                                                        ? reason.message
+                                                                                        : "Unable to download attachment.",
+                                                                                );
+                                                                            });
+                                                                        }}
+                                                                        className="mt-2 flex w-full items-center gap-2 rounded-md border border-blue-200 bg-blue-50/60 px-2.5 py-2 text-left text-blue-800 transition-colors hover:bg-blue-100"
+                                                                        title="Download attachment"
+                                                                    >
+                                                                        <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <p className="truncate text-[10px] font-semibold">
+                                                                                {attachmentName}
+                                                                            </p>
+                                                                            <p className="truncate text-[9px] opacity-75">
+                                                                                Click to download · {attachmentPath}
+                                                                            </p>
+                                                                        </div>
+                                                                        <span className="shrink-0 text-[9px] font-semibold underline">
+                                                                            Download
+                                                                        </span>
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div className="text-muted-foreground">
-                                                            {entry.remarks || "—"}
-                                                            {entry.vendor_personnel_name
-                                                                ? ` · ${entry.vendor_personnel_name}`
-                                                                : ""}
-                                                        </div>
-                                                        <div className="text-muted-foreground">
-                                                            {formatDateTime(entry.changed_at)}
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </section>
@@ -6341,7 +7129,9 @@ export default function AssetDevicesPage() {
                                         operation === "transfer") &&
                                         !selectedEmployee) ||
                                     (operation === "warranty-transfer" &&
-                                        (warrantyClaimLoading || !activeWarrantyClaim))
+                                        (warrantyClaimLoading ||
+                                            !activeWarrantyClaim ||
+                                            effectiveWarrantyLifecycle === "CLOSED"))
                                 }
                                 onClick={() => void submitOperation()}
                                 className={`inline-flex h-8 items-center justify-center gap-2 rounded-md px-4 text-xs font-semibold text-white disabled:opacity-50 ${operation === "delete"
@@ -6369,7 +7159,11 @@ export default function AssetDevicesPage() {
                                                             : operation === "warranty"
                                                                 ? "Raise Claim"
                                                                 : operation === "warranty-transfer"
-                                                                    ? "Transfer to Vendor"
+                                                                    ? effectiveWarrantyLifecycle === "WITH_VENDOR"
+                                                                        ? "Submit Workflow"
+                                                                        : effectiveWarrantyLifecycle === "RECEIVED"
+                                                                            ? "Received from Vendor"
+                                                                            : "Transfer to Vendor"
                                                                     : operation === "damaged"
                                                                         ? "Confirm Damaged"
                                                                         : operation === "lost"
