@@ -2741,12 +2741,23 @@ type ClaimHandler struct{ db *pgxpool.Pool }
 
 func NewClaimHandler(db *pgxpool.Pool) *ClaimHandler { return &ClaimHandler{db: db} }
 
+// func (h *ClaimHandler) Register(rg *gin.RouterGroup) {
+// 	g := rg.Group("/claims")
+// 	g.GET("", h.List)
+// 	g.GET("/:id", h.Get)
+// 	g.POST("", h.Create)
+// 	g.PUT("/:id/status", h.UpdateStatus)
+// }
+
 func (h *ClaimHandler) Register(rg *gin.RouterGroup) {
-	g := rg.Group("/claims")
-	g.GET("", h.List)
-	g.GET("/:id", h.Get)
-	g.POST("", h.Create)
-	g.PUT("/:id/status", h.UpdateStatus)
+    g := rg.Group("/claims")
+
+    g.GET("", h.List)
+    g.GET("/:id", h.Get)
+    g.POST("", h.Create)
+    g.PUT("/:id/status", h.UpdateStatus)
+
+    h.RegisterLifecycleRoutes(g)
 }
 
 func (h *ClaimHandler) List(c *gin.Context) {
