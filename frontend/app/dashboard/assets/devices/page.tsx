@@ -1767,20 +1767,20 @@ export default function AssetDevicesPage() {
                 amount:
                     category === "vendor"
                         ? String(
-                              record.vendor_deducted_amount ||
-                              "0",
-                          )
+                            record.vendor_deducted_amount ||
+                            "0",
+                        )
                         : String(
-                              record.deducted_amount ||
-                              "0",
-                          ),
+                            record.deducted_amount ||
+                            "0",
+                        ),
                 receiverAddress:
                     record.receiver_address || "—",
                 gatePassDate:
                     record.gate_pass_date
                         ? formatDate(
-                              record.gate_pass_date,
-                          )
+                            record.gate_pass_date,
+                        )
                         : "—",
                 unit:
                     record.unit || "Nos",
@@ -1791,9 +1791,9 @@ export default function AssetDevicesPage() {
                 attachmentName:
                     record.attach_file
                         ? record.attach_file
-                              .split(/[\\/]/)
-                              .filter(Boolean)
-                              .pop() || record.attach_file
+                            .split(/[\\/]/)
+                            .filter(Boolean)
+                            .pop() || record.attach_file
                         : "—",
 
                 companyMaterial:
@@ -1889,8 +1889,8 @@ export default function AssetDevicesPage() {
             const hydratedItems = await Promise.all(
                 pageItems.map((item) =>
                     item.asset_status === 4 &&
-                    !item.previous_assignment &&
-                    !item.last_emp_id
+                        !item.previous_assignment &&
+                        !item.last_emp_id
                         ? hydrateReturnedLastHolder(item)
                         : Promise.resolve(item),
                 ),
@@ -2770,19 +2770,19 @@ export default function AssetDevicesPage() {
                         completedOperation === "reassign"
                         ? "Assigned"
                         : completedOperation === "assign-direct" ||
-                                completedOperation === "assign-tt"
-                                ? "Assigned"
-                                : completedOperation === "owst"
-                                    ? `OWST (${owstType === "user" ? "User" : "Vendor"})`
-                                    : completedOperation === "warranty"
-                                        ? "Claim Raised"
-                                        : completedOperation === "damaged"
-                                            ? "Damaged"
-                                            : completedOperation === "lost"
-                                                ? "Lost"
-                                                : completedOperation === "delete"
-                                            ? "Removed"
-                                            : selectedAsset.status_label || "Updated";
+                            completedOperation === "assign-tt"
+                            ? "Assigned"
+                            : completedOperation === "owst"
+                                ? `OWST (${owstType === "user" ? "User" : "Vendor"})`
+                                : completedOperation === "warranty"
+                                    ? "Claim Raised"
+                                    : completedOperation === "damaged"
+                                        ? "Damaged"
+                                        : completedOperation === "lost"
+                                            ? "Lost"
+                                            : completedOperation === "delete"
+                                                ? "Removed"
+                                                : selectedAsset.status_label || "Updated";
 
             const completedTitle =
                 completedOperation === "return"
@@ -2805,8 +2805,8 @@ export default function AssetDevicesPage() {
                                                 : completedOperation === "lost"
                                                     ? "Device Marked as Lost"
                                                     : completedOperation === "delete"
-                                                ? "Device Removed"
-                                                : "Operation Completed";
+                                                        ? "Device Removed"
+                                                        : "Operation Completed";
 
             setOperation(null);
             setSelectedAsset(null);
@@ -3702,7 +3702,7 @@ export default function AssetDevicesPage() {
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => openOperation(item, "warranty")} className="gap-2">
                                                             <ShieldCheck className="h-4 w-4 text-violet-600" />
-                                                            Warranty Claim
+                                                            Warranty Claim Open
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
@@ -3903,8 +3903,8 @@ export default function AssetDevicesPage() {
                         : operation === "assign-direct" || operation === "reassign"
                             ? "sm:max-w-[1240px]"
                             : operation === "assign-tt"
-                            ? "sm:max-w-4xl"
-                            : "sm:max-w-[1100px]"
+                                ? "sm:max-w-4xl"
+                                : "sm:max-w-[1100px]"
                         }`}
                 >
                     <DialogHeader className="sticky top-0 z-30 shrink-0 border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/90">
@@ -4379,9 +4379,9 @@ export default function AssetDevicesPage() {
                                                                 <p className="truncate text-[9px] text-muted-foreground">
                                                                     {[
                                                                         selectedAsset?.previous_assignment?.department ||
-                                                                            selectedAsset?.last_department,
+                                                                        selectedAsset?.last_department,
                                                                         selectedAsset?.previous_assignment?.designation ||
-                                                                            selectedAsset?.last_designation,
+                                                                        selectedAsset?.last_designation,
                                                                     ]
                                                                         .filter(Boolean)
                                                                         .join(" · ") || "—"}
@@ -4985,22 +4985,20 @@ export default function AssetDevicesPage() {
 
                                     <CompactDeviceInfo
                                         label="Raised By / Date"
-                                        value={`${
-                                            authUser?.full_name ||
+                                        value={`${authUser?.full_name ||
                                             authUser?.username ||
                                             authUser?.employee_id ||
                                             "Current user"
-                                        } · ${formatDateTime(new Date().toISOString())}`}
+                                            } · ${formatDateTime(new Date().toISOString())}`}
                                     />
                                 </div>
                             </section>
 
                             <div className="grid gap-2.5 xl:grid-cols-2">
-                                <section className={`rounded-xl border p-2.5 ${
-                                    owstType === "user"
-                                        ? "border-blue-200 bg-blue-50/45 dark:border-blue-900/50 dark:bg-blue-950/10"
-                                        : "border-violet-200 bg-violet-50/45 dark:border-violet-900/50 dark:bg-violet-950/10"
-                                }`}>
+                                <section className={`rounded-xl border p-2.5 ${owstType === "user"
+                                    ? "border-blue-200 bg-blue-50/45 dark:border-blue-900/50 dark:bg-blue-950/10"
+                                    : "border-violet-200 bg-violet-50/45 dark:border-violet-900/50 dark:bg-violet-950/10"
+                                    }`}>
                                     <div className="mb-2 flex items-center gap-2">
                                         {owstType === "user" ? (
                                             <UserCheck className="h-4 w-4 text-blue-700" />
@@ -5049,8 +5047,8 @@ export default function AssetDevicesPage() {
                                                         {owstEmployeeLoading
                                                             ? "Loading employee contact…"
                                                             : owstEmployeeProfile?.official_cell ||
-                                                              owstEmployeeProfile?.personal_cell ||
-                                                              "Mobile —"}
+                                                            owstEmployeeProfile?.personal_cell ||
+                                                            "Mobile —"}
                                                     </p>
                                                 </div>
                                             </div>
@@ -5297,19 +5295,17 @@ export default function AssetDevicesPage() {
                             />
 
                             <section
-                                className={`rounded-xl border p-4 ${
-                                    operation === "damaged"
-                                        ? "border-orange-200 bg-orange-50/60 dark:border-orange-900/50 dark:bg-orange-950/10"
-                                        : "border-red-200 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/10"
-                                }`}
+                                className={`rounded-xl border p-4 ${operation === "damaged"
+                                    ? "border-orange-200 bg-orange-50/60 dark:border-orange-900/50 dark:bg-orange-950/10"
+                                    : "border-red-200 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/10"
+                                    }`}
                             >
                                 <div className="flex items-start gap-3">
                                     <div
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                                            operation === "damaged"
-                                                ? "bg-orange-100 text-orange-700"
-                                                : "bg-red-100 text-red-700"
-                                        }`}
+                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${operation === "damaged"
+                                            ? "bg-orange-100 text-orange-700"
+                                            : "bg-red-100 text-red-700"
+                                            }`}
                                     >
                                         {operation === "damaged" ? (
                                             <FileWarning className="h-5 w-5" />
@@ -5362,11 +5358,10 @@ export default function AssetDevicesPage() {
 
                                 <label className="mt-3 block">
                                     <span
-                                        className={`mb-1 flex items-center justify-between text-[10px] font-semibold ${
-                                            operation === "damaged"
-                                                ? "text-orange-900 dark:text-orange-100"
-                                                : "text-red-900 dark:text-red-100"
-                                        }`}
+                                        className={`mb-1 flex items-center justify-between text-[10px] font-semibold ${operation === "damaged"
+                                            ? "text-orange-900 dark:text-orange-100"
+                                            : "text-red-900 dark:text-red-100"
+                                            }`}
                                     >
                                         <span>
                                             {operation === "damaged"
