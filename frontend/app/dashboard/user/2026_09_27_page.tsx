@@ -1,4 +1,4 @@
-﻿// frontend/app/dashboard/user/page.tsx
+// frontend/app/dashboard/user/page.tsx
 
 "use client";
 
@@ -171,30 +171,11 @@ export default function UserDashboardPage() {
     ] =
         useState("");
 
-    
+
     /* ==================================================
        PROFESSIONAL QUERY ANALYTICS
        Default: Horizontal Bar + Last 3 Months
     ================================================== */
-    const [
-        queryReportingYear,
-        setQueryReportingYear,
-    ] = useState<number>(() => {
-        if (typeof window === "undefined") {
-            return new Date().getFullYear();
-        }
-
-        const savedYear = Number(
-            window.localStorage.getItem(
-                "itm_selected_year"
-            )
-        );
-
-        return Number.isFinite(savedYear) &&
-            savedYear > 2000
-            ? savedYear
-            : new Date().getFullYear();
-    });
 
     const [queryChartType, setQueryChartType] = useState<QueryChartType>("bar");
     const [queryChartRange, setQueryChartRange] = useState<QueryChartRange>("3m");
@@ -236,7 +217,7 @@ export default function UserDashboardPage() {
             setQueryChartLoading(false);
         }
     }, []);
-const loadDashboard =
+    const loadDashboard =
         useCallback(
             async () => {
                 try {
@@ -353,49 +334,11 @@ const loadDashboard =
             loadTickets,
         ]
     );
-    useEffect(() => {
-        const handleQueryYearChange = (
-            event: Event
-        ) => {
-            const customEvent =
-                event as CustomEvent<{
-                    year?: number;
-                }>;
-
-            const nextYear = Number(
-                customEvent.detail?.year ??
-                    window.localStorage.getItem(
-                        "itm_selected_year"
-                    )
-            );
-
-            if (
-                Number.isFinite(nextYear) &&
-                nextYear > 2000
-            ) {
-                setQueryReportingYear(
-                    nextYear
-                );
-            }
-        };
-
-        window.addEventListener(
-            "itm-year-change",
-            handleQueryYearChange
-        );
-
-        return () => {
-            window.removeEventListener(
-                "itm-year-change",
-                handleQueryYearChange
-            );
-        };
-    }, []);
 
     useEffect(() => {
         void loadQueryChart();
     }, [loadQueryChart]);
-function handleSearch() {
+    function handleSearch() {
         setPage(
             1
         );
@@ -525,79 +468,14 @@ function handleSearch() {
             employee.employee_id
         );
 
-    const queryRangeMonths =
-        getRangeMonths(
-            queryChartRange
-        );
+    const queryRangeStart = getRangeStart(queryChartRange);
 
-    const queryRangeEnd =
-        (() => {
-            const now =
-                new Date();
+    const filteredQueryChartRows = queryChartRows.filter((item) => {
+        const createdAt = new Date(item.created_at);
+        return !Number.isNaN(createdAt.getTime()) && createdAt >= queryRangeStart;
+    });
 
-            if (
-                queryReportingYear ===
-                now.getFullYear()
-            ) {
-                return new Date(
-                    queryReportingYear,
-                    now.getMonth() + 1,
-                    1,
-                    0,
-                    0,
-                    0,
-                    0
-                );
-            }
-
-            return new Date(
-                queryReportingYear + 1,
-                0,
-                1,
-                0,
-                0,
-                0,
-                0
-            );
-        })();
-
-    const queryRangeStart =
-        new Date(
-            queryRangeEnd.getFullYear(),
-            queryRangeEnd.getMonth() -
-                queryRangeMonths,
-            1,
-            0,
-            0,
-            0,
-            0
-        );
-
-    const filteredQueryChartRows =
-        queryChartRows.filter(
-            (
-                item
-            ) => {
-                const createdAt =
-                    new Date(
-                        item.created_at
-                    );
-
-                return (
-                    !Number.isNaN(
-                        createdAt.getTime()
-                    ) &&
-                    createdAt.getFullYear() ===
-                        queryReportingYear &&
-                    createdAt >=
-                        queryRangeStart &&
-                    createdAt <
-                        queryRangeEnd
-                );
-            }
-        );
-
-const queryTypeData = Array.from(
+    const queryTypeData = Array.from(
         filteredQueryChartRows.reduce((map, item) => {
             const queryType = (item.query_type ?? "").trim() || "Uncategorized";
             map.set(queryType, (map.get(queryType) ?? 0) + 1);
@@ -638,8 +516,8 @@ const queryTypeData = Array.from(
 
     const queryRangeLabel =
         queryChartRange === "1m" ? "1 Month" :
-        queryChartRange === "2m" ? "2 Months" : "3 Months";
-return (
+            queryChartRange === "2m" ? "2 Months" : "3 Months";
+    return (
         <div className="min-w-0 space-y-3 p-2 sm:p-3 lg:p-4">
             {/* ==================================================
                 COMPACT HERO / EMPLOYEE OVERVIEW
@@ -913,12 +791,12 @@ return (
                             </h2>
 
                             <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[9px] font-semibold text-indigo-700 ring-1 ring-indigo-100">
-                                {queryReportingYear} Â· {queryRangeLabel}
+                                {queryRangeLabel}
                             </span>
                         </div>
 
                         <p className="mt-0.5 text-[10px] text-slate-500">
-                            Your Trouble Ticket query mix and weekly trend for the selected reporting year
+                            Your Trouble Ticket query mix and weekly trend for the selected period
                         </p>
                     </div>
 
@@ -1069,8 +947,8 @@ return (
                                                                 key={`${item.query_type}-column-${index}`}
                                                                 fill={
                                                                     QUERY_CHART_COLORS[
-                                                                        index %
-                                                                            QUERY_CHART_COLORS.length
+                                                                    index %
+                                                                    QUERY_CHART_COLORS.length
                                                                     ]
                                                                 }
                                                             />
@@ -1111,8 +989,8 @@ return (
                                                             key={`${item.query_type}-${index}`}
                                                             fill={
                                                                 QUERY_CHART_COLORS[
-                                                                    index %
-                                                                        QUERY_CHART_COLORS.length
+                                                                index %
+                                                                QUERY_CHART_COLORS.length
                                                                 ]
                                                             }
                                                         />
@@ -1140,8 +1018,8 @@ return (
                                                         style={{
                                                             backgroundColor:
                                                                 QUERY_CHART_COLORS[
-                                                                    index %
-                                                                        QUERY_CHART_COLORS.length
+                                                                index %
+                                                                QUERY_CHART_COLORS.length
                                                                 ],
                                                         }}
                                                     />
@@ -1204,8 +1082,8 @@ return (
                                                     dataKey={queryType}
                                                     stroke={
                                                         QUERY_CHART_COLORS[
-                                                            index %
-                                                                QUERY_CHART_COLORS.length
+                                                        index %
+                                                        QUERY_CHART_COLORS.length
                                                         ]
                                                     }
                                                     strokeWidth={2}
@@ -1223,7 +1101,7 @@ return (
                 </div>
             </section>
 
-{/* ==================================================
+            {/* ==================================================
                 TROUBLE TICKET TABLE - 10 ROWS AT A GLANCE
             ================================================== */}
 
@@ -2107,11 +1985,4 @@ function getAvatarText(
         )
     ).toUpperCase();
 }
-
-
-
-
-
-
-
 
