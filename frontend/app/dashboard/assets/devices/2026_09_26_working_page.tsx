@@ -1,4 +1,6 @@
 
+
+
 //frontend/app/dashboard/assets/devices/page.tsx
 // v21: sticky status UX + global action-date ordering + reassignment history
 // warranty compact modal: dense enterprise presentation
@@ -89,7 +91,7 @@ import {
 } from "@/components/ui/dialog";
 
 const PAGE_SIZE = 100;
-const COLUMN_STORAGE_KEY = "itm:asset-devices:visible-columns:v5";
+const COLUMN_STORAGE_KEY = "itm:asset-devices:visible-columns:v6";
 
 const STATUS_OPTIONS = [
     { value: "", label: "All Status", compactLabel: "All" },
@@ -184,8 +186,9 @@ type OWSTPrintRecord = {
 type ColumnKey =
     | "serial"
     | "device"
-    | "employee"
     | "mrpr"
+    | "employee"
+    | "assignedDate"
     | "designation"
     | "brand"
     | "model"
@@ -197,33 +200,38 @@ type ColumnKey =
     | "deviceAge"
     | "usageDuration"
     | "remarks"
-    | "assetType";
+    | "assetType"
+    | "status";
 
 const COLUMN_OPTIONS: Array<{ key: ColumnKey; label: string }> = [
     { key: "serial", label: "Serial / Asset ID" },
     { key: "device", label: "Device" },
+    { key: "mrpr", label: "Entry Type · MR / PR" },
     { key: "employee", label: "Employee" },
-    { key: "mrpr", label: "MR / PR" },
-    { key: "designation", label: "Designation" },
+    { key: "assignedDate", label: "Assigned Date" },
+    { key: "designation", label: "Designation / Department" },
     { key: "brand", label: "Brand" },
     { key: "model", label: "Model" },
-    { key: "deviceType", label: "Device Type" },
+    { key: "deviceType", label: "Assignment Device Type" },
     { key: "vendor", label: "Vendor" },
-    { key: "actionDate", label: "Action Date" },
+    { key: "actionDate", label: "Status Action Date" },
     { key: "purchase", label: "Purchase Date" },
     { key: "warranty", label: "Warranty Date" },
     { key: "deviceAge", label: "Device Age" },
     { key: "usageDuration", label: "Usage Duration" },
     { key: "remarks", label: "Remarks" },
     { key: "assetType", label: "Asset Type" },
+    { key: "status", label: "Status" },
 ];
 
 const DEFAULT_COLUMNS: ColumnKey[] = [
     "serial",
     "device",
-    "employee",
     "mrpr",
-    "actionDate",
+    "employee",
+    "assignedDate",
+    "warranty",
+    "status",
 ];
 
 type OperationType =
@@ -972,6 +980,10 @@ function columnIcon(key: ColumnKey) {
             return <UserRound className={iconClass} />;
         case "mrpr":
             return <FileText className={iconClass} />;
+        case "assignedDate":
+        case "actionDate":
+        case "purchase":
+            return <CalendarClock className={iconClass} />;
         case "designation":
             return <BriefcaseBusiness className={iconClass} />;
         case "brand":
@@ -979,11 +991,19 @@ function columnIcon(key: ColumnKey) {
         case "model":
             return <Box className={iconClass} />;
         case "deviceType":
+        case "assetType":
             return <PackageCheck className={iconClass} />;
         case "vendor":
             return <Store className={iconClass} />;
-        case "actionDate":
+        case "warranty":
+            return <ShieldCheck className={iconClass} />;
+        case "deviceAge":
+        case "usageDuration":
             return <CalendarClock className={iconClass} />;
+        case "remarks":
+            return <FileText className={iconClass} />;
+        case "status":
+            return <BadgeCheck className={iconClass} />;
         default:
             return <Columns3 className={iconClass} />;
     }
@@ -1130,6 +1150,12 @@ function dateInputValue(value: string | null | undefined) {
     if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function todayInputValue() {
+    const now = new Date();
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 function isWarrantyExpired(value: string | null | undefined) {
@@ -1745,8 +1771,10 @@ export default function AssetDevicesPage() {
     const [owstPrintSnapshot, setOWSTPrintSnapshot] = useState<OWSTPrintSnapshot | null>(null);
     const [warrantyProblems, setWarrantyProblems] = useState("");
     const [warrantyVendorID, setWarrantyVendorID] = useState("");
-    const [warrantyEmailTo, setWarrantyEmailTo] = useState("nabila.binte@fiberathome.net");
+    const [warrantyEmailTo, setWarrantyEmailTo] = useState("");
     const [warrantyEmailCC, setWarrantyEmailCC] = useState("itm@fiberathome.net");
+    const [incidentDate, setIncidentDate] = useState(todayInputValue());
+    const [returnDate, setReturnDate] = useState(todayInputValue());
 
     const [activeWarrantyClaim, setActiveWarrantyClaim] =
         useState<ActiveWarrantyClaim | null>(null);
@@ -1829,6 +1857,23 @@ export default function AssetDevicesPage() {
             ) ?? null,
         [owstVendors, warrantyVendorID],
     );
+
+    const vendorEmailOptions = useMemo(() => {
+        const seen = new Set<string>();
+
+        return owstVendors
+            .map((vendor) => ({
+                vendorID: vendor.id,
+                vendorName: vendor.name,
+                email: vendor.email.trim(),
+            }))
+            .filter((item) => {
+                const key = item.email.toLowerCase();
+                if (!key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+    }, [owstVendors]);
 
     const effectiveWarrantyLifecycle = useMemo<
         "OPEN" | "WITH_VENDOR" | "RECEIVED" | "CLOSED"
@@ -2524,6 +2569,24 @@ export default function AssetDevicesPage() {
 
     useEffect(() => {
         if (
+            operation !== "warranty" &&
+            operation !== "service"
+        ) {
+            return;
+        }
+
+        if (!selectedWarrantyVendor) {
+            setWarrantyEmailTo("");
+            return;
+        }
+
+        // Vendor email is the default recipient, but IT can search/select
+        // another email from the loaded vendor directory.
+        setWarrantyEmailTo(selectedWarrantyVendor.email || "");
+    }, [operation, selectedWarrantyVendor]);
+
+    useEffect(() => {
+        if (
             operation !== "owst" ||
             !selectedAsset?.emp_id?.trim()
         ) {
@@ -2805,7 +2868,7 @@ export default function AssetDevicesPage() {
                 ? String(item.vendor_id)
                 : "",
         );
-        setWarrantyEmailTo("nabila.binte@fiberathome.net");
+        setWarrantyEmailTo("");
         setWarrantyEmailCC("itm@fiberathome.net");
 
         setActiveWarrantyClaim(null);
@@ -2827,6 +2890,8 @@ export default function AssetDevicesPage() {
         setWorkflowRecipientMobile("");
         setWorkflowGatePassDate(dateInputValue(new Date().toISOString()));
         setWorkflowGatePassRemarks("");
+        setIncidentDate(todayInputValue());
+        setReturnDate(todayInputValue());
         setWorkflowRecipientSuggestions([]);
 
         if (next === "warranty-transfer" || next === "service-transfer") {
@@ -3125,8 +3190,14 @@ export default function AssetDevicesPage() {
             }
 
             if (operation === "return") {
-                await deviceOperationsApi.returnAsset(selectedAsset.id, remarks);
-                message = "Device returned successfully. The current assignment has been closed.";
+                const returnRemarks = `[Return date: ${returnDate}] ${remarks.trim()}`.trim();
+
+                await deviceOperationsApi.returnAsset(
+                    selectedAsset.id,
+                    returnRemarks,
+                );
+
+                message = `Device returned successfully on ${formatDate(returnDate)}. The current assignment has been closed.`;
             }
 
             if (operation === "owst") {
@@ -3243,9 +3314,11 @@ export default function AssetDevicesPage() {
                     return;
                 }
 
+                const damageRemarks = `[Incident date: ${incidentDate}] ${remarks.trim()}`;
+
                 await deviceOperationsApi.markDamaged(
                     selectedAsset.id,
-                    remarks.trim(),
+                    damageRemarks,
                 );
 
                 message =
@@ -3260,9 +3333,11 @@ export default function AssetDevicesPage() {
                     return;
                 }
 
+                const lostRemarks = `[Incident date: ${incidentDate}] ${remarks.trim()}`;
+
                 await deviceOperationsApi.markLost(
                     selectedAsset.id,
-                    remarks.trim(),
+                    lostRemarks,
                 );
 
                 message =
@@ -3698,10 +3773,6 @@ export default function AssetDevicesPage() {
         }
     }
 
-    const hasExtraColumns = Array.from(visibleColumns).some(
-        (key) => !DEFAULT_COLUMNS.includes(key),
-    );
-    const visibleCount = visibleColumns.size + 4;
     const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
     const endItem = Math.min(page * PAGE_SIZE, total);
 
@@ -3766,6 +3837,48 @@ export default function AssetDevicesPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted"
+                            >
+                                <Columns3 className="h-4 w-4" />
+                                Columns
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="max-h-[70vh] w-64 overflow-y-auto">
+                            <DropdownMenuLabel>Show / hide columns</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {COLUMN_OPTIONS.map((column) => (
+                                <DropdownMenuCheckboxItem
+                                    key={column.key}
+                                    checked={visibleColumns.has(column.key)}
+                                    onCheckedChange={() => toggleColumn(column.key)}
+                                    onSelect={(event) => event.preventDefault()}
+                                    className="gap-2"
+                                >
+                                    {columnIcon(column.key)}
+                                    {column.label}
+                                </DropdownMenuCheckboxItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    const next = new Set(DEFAULT_COLUMNS);
+                                    setVisibleColumns(next);
+                                    window.localStorage.setItem(
+                                        COLUMN_STORAGE_KEY,
+                                        JSON.stringify(Array.from(next)),
+                                    );
+                                }}
+                            >
+                                Reset standard view
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                     <button
                         type="button"
                         onClick={() => {
@@ -3988,26 +4101,96 @@ export default function AssetDevicesPage() {
             </div>
 
             <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-                <div className="max-h-[68vh] overflow-auto">
-                    <table className="w-full min-w-[1120px] table-fixed text-[11px] leading-4">
+                <div className="max-h-[68vh] overflow-y-auto overflow-x-hidden">
+                    <table className="w-full table-fixed text-[11px] leading-4">
                         <thead className="sticky top-0 z-20 border-b border-border bg-background/95 shadow-sm backdrop-blur">
-                            <tr className="text-left text-[9px] font-semibold uppercase tracking-[0.035em] text-muted-foreground">
-                                <th className="w-[48px] px-2 py-2 text-center">SL</th>
-                                <th className="w-[155px] px-2 py-2">Serial</th>
-                                <th className="w-[160px] px-2 py-2">Device</th>
-                                <th className="w-[205px] px-2 py-2">Entry Type</th>
-                                <th className="w-[245px] px-2 py-2">Employee</th>
-                                <th className="w-[120px] px-2 py-2">Assigned Date</th>
-                                <th className="w-[145px] px-2 py-2">Warranty Date</th>
-                                <th className="sticky right-[92px] z-30 w-[125px] border-l border-border bg-background/95 px-2 py-2 text-center">Status</th>
-                                <th className="sticky right-0 z-40 w-[92px] border-l border-border bg-background/95 px-2 py-2 text-center">Actions</th>
+                            <tr className="text-left text-[10px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
+                                <th className="w-[44px] px-2 py-2.5 text-center">SL</th>
+
+                                {visibleColumns.has("serial") && (
+                                    <th className="w-[11%] px-2.5 py-2.5">Serial</th>
+                                )}
+
+                                {visibleColumns.has("device") && (
+                                    <th className="w-[12%] px-2.5 py-2.5">Device</th>
+                                )}
+
+                                {visibleColumns.has("mrpr") && (
+                                    <th className="w-[15%] px-2.5 py-2.5">Entry Type</th>
+                                )}
+
+                                {visibleColumns.has("employee") && (
+                                    <th className="w-[16%] px-2.5 py-2.5">Employee</th>
+                                )}
+
+                                {visibleColumns.has("assignedDate") && (
+                                    <th className="w-[9%] px-2.5 py-2.5">Assigned Date</th>
+                                )}
+
+                                {visibleColumns.has("designation") && (
+                                    <th className="px-2 py-2.5">Designation / Dept.</th>
+                                )}
+
+                                {visibleColumns.has("brand") && (
+                                    <th className="px-2 py-2.5">Brand</th>
+                                )}
+
+                                {visibleColumns.has("model") && (
+                                    <th className="px-2 py-2.5">Model</th>
+                                )}
+
+                                {visibleColumns.has("deviceType") && (
+                                    <th className="px-2 py-2.5">Device Type</th>
+                                )}
+
+                                {visibleColumns.has("vendor") && (
+                                    <th className="px-2 py-2.5">Vendor</th>
+                                )}
+
+                                {visibleColumns.has("actionDate") && (
+                                    <th className="px-2 py-2.5">Action Date</th>
+                                )}
+
+                                {visibleColumns.has("purchase") && (
+                                    <th className="px-2 py-2.5">Purchase Date</th>
+                                )}
+
+                                {visibleColumns.has("warranty") && (
+                                    <th className="w-[11%] px-2.5 py-2.5">Warranty Date</th>
+                                )}
+
+                                {visibleColumns.has("deviceAge") && (
+                                    <th className="px-2 py-2.5">Device Age</th>
+                                )}
+
+                                {visibleColumns.has("usageDuration") && (
+                                    <th className="px-2 py-2.5">Usage</th>
+                                )}
+
+                                {visibleColumns.has("remarks") && (
+                                    <th className="px-2 py-2.5">Remarks</th>
+                                )}
+
+                                {visibleColumns.has("assetType") && (
+                                    <th className="px-2 py-2.5">Asset Type</th>
+                                )}
+
+                                {visibleColumns.has("status") && (
+                                    <th className="sticky right-[92px] z-30 w-[9%] border-l border-border bg-background/95 px-2 py-2.5 text-center">
+                                        Status
+                                    </th>
+                                )}
+
+                                <th className="sticky right-0 z-40 w-[92px] border-l border-border bg-background/95 px-2 py-2.5 text-center">
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
 
                         <tbody>
                             {loading && items.length === 0 && (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                                    <td colSpan={visibleColumns.size + 2} className="px-4 py-12 text-center text-muted-foreground">
                                         <div className="flex items-center justify-center gap-2">
                                             <RefreshCw className="h-4 w-4 animate-spin text-primary" />
                                             Loading devices...
@@ -4018,7 +4201,7 @@ export default function AssetDevicesPage() {
 
                             {!loading && error && (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-12 text-center text-red-600">
+                                    <td colSpan={visibleColumns.size + 2} className="px-4 py-12 text-center text-red-600">
                                         {error}
                                     </td>
                                 </tr>
@@ -4026,7 +4209,7 @@ export default function AssetDevicesPage() {
 
                             {!loading && !error && items.length === 0 && (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                                    <td colSpan={visibleColumns.size + 2} className="px-4 py-12 text-center text-muted-foreground">
                                         No asset devices found.
                                     </td>
                                 </tr>
@@ -4044,129 +4227,227 @@ export default function AssetDevicesPage() {
                                         onDoubleClick={() => openDevice(item)}
                                         className={`group border-b border-border/70 align-middle transition-colors last:border-b-0 hover:bg-muted/25 ${loading ? "opacity-70" : ""}`}
                                     >
-                                        <td className="px-2 py-1.5 text-center">
-                                            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-muted/30 px-1 text-[9px] font-semibold tabular-nums">
+                                        <td className="px-2 py-2 text-center">
+                                            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-muted/30 px-1 text-[10px] font-semibold tabular-nums">
                                                 {startItem + index}
                                             </span>
                                         </td>
 
-                                        <td className="px-2 py-1.5">
-                                            <div className="truncate font-mono text-[10px] font-semibold text-foreground" title={item.device_serial || undefined}>
-                                                {item.device_serial || "—"}
-                                            </div>
-                                            <div className="mt-0.5 text-[9px] text-muted-foreground">
-                                                Asset #{item.id}
-                                            </div>
-                                        </td>
-
-                                        <td className="px-2 py-1.5">
-                                            <div className="truncate text-[10px] font-semibold text-foreground" title={item.category || undefined}>
-                                                {item.category || "Uncategorized"}
-                                            </div>
-                                            <div className="truncate text-[9px] text-muted-foreground">
-                                                {[item.brand, item.model].filter(Boolean).join(" · ") || "—"}
-                                            </div>
-                                        </td>
-
-                                        <td className="px-2 py-1.5">
-                                            <div className="space-y-1">
-                                                <div className="flex min-w-0 items-center gap-1.5">
-                                                    <span className={`inline-flex h-4 shrink-0 items-center rounded border px-1 text-[8px] font-bold uppercase ${item.mr_number?.trim()
-                                                        ? "border-blue-200 bg-blue-50 text-blue-700"
-                                                        : "border-amber-200 bg-amber-50 text-amber-700"
-                                                        }`}>
-                                                        {item.mr_number?.trim() ? "MR" : "Petty"}
-                                                    </span>
-                                                    <span
-                                                        className="min-w-0 truncate font-mono text-[9px] font-semibold text-foreground"
-                                                        title={item.mr_number || undefined}
-                                                    >
-                                                        {item.mr_number?.trim() || "Petty Cash"}
-                                                    </span>
+                                        {visibleColumns.has("serial") && (
+                                            <td className="px-2.5 py-2">
+                                                <div className="truncate font-mono text-[11px] font-semibold text-foreground" title={item.device_serial || undefined}>
+                                                    {item.device_serial || "—"}
                                                 </div>
-
-                                                <div className="flex min-w-0 items-center gap-1.5">
-                                                    <span className="inline-flex h-4 shrink-0 items-center rounded border border-violet-200 bg-violet-50 px-1 text-[8px] font-bold uppercase text-violet-700">
-                                                        PR
-                                                    </span>
-                                                    <span
-                                                        className="min-w-0 truncate font-mono text-[9px] text-foreground/85"
-                                                        title={item.pr_number || undefined}
-                                                    >
-                                                        {item.pr_number?.trim() || "—"}
-                                                    </span>
+                                                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                                                    Asset #{item.id}
                                                 </div>
-                                            </div>
-                                        </td>
+                                            </td>
+                                        )}
 
-                                        <td className="px-2 py-1.5">
-                                            {employeeID ? (
-                                                <div className="flex min-w-0 items-center gap-2">
-                                                    <EmployeeAvatar
-                                                        name={employeeName || null}
-                                                        image={employeeImage}
-                                                    />
-                                                    <div className="min-w-0">
-                                                        <div className="truncate text-[10px] font-semibold text-foreground" title={employeeName || "Employee"}>
-                                                            {employeeName || "Employee"}
-                                                        </div>
-                                                        <div className="mt-0.5 truncate font-mono text-[9px] font-semibold text-blue-700">
-                                                            {employeeID}
-                                                        </div>
+                                        {visibleColumns.has("device") && (
+                                            <td className="px-2.5 py-2">
+                                                <div className="truncate text-[11px] font-semibold text-foreground" title={item.category || undefined}>
+                                                    {item.category || "Uncategorized"}
+                                                </div>
+                                                <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                                                    {[item.brand, item.model].filter(Boolean).join(" · ") || "—"}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("mrpr") && (
+                                            <td className="px-2.5 py-2">
+                                                <div className="space-y-1">
+                                                    <div className="flex min-w-0 items-center gap-1.5">
+                                                        <span className={`inline-flex h-4 shrink-0 items-center rounded border px-1 text-[8px] font-bold uppercase ${item.mr_number?.trim()
+                                                            ? "border-blue-200 bg-blue-50 text-blue-700"
+                                                            : "border-amber-200 bg-amber-50 text-amber-700"
+                                                            }`}>
+                                                            {item.mr_number?.trim() ? "MR" : "Petty"}
+                                                        </span>
+                                                        <span className="min-w-0 truncate font-mono text-[10px] font-semibold text-foreground" title={item.mr_number || undefined}>
+                                                            {item.mr_number?.trim() || "Petty Cash"}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex min-w-0 items-center gap-1.5">
+                                                        <span className="inline-flex h-4 shrink-0 items-center rounded border border-violet-200 bg-violet-50 px-1 text-[8px] font-bold uppercase text-violet-700">
+                                                            PR
+                                                        </span>
+                                                        <span className="min-w-0 truncate font-mono text-[10px] text-foreground/85" title={item.pr_number || undefined}>
+                                                            {item.pr_number?.trim() || "—"}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2 text-muted-foreground">
-                                                    <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/30">
-                                                        <UserRound className="h-3.5 w-3.5" />
-                                                    </div>
-                                                    <span className="text-[10px] font-medium">Unassigned</span>
-                                                </div>
-                                            )}
-                                        </td>
+                                            </td>
+                                        )}
 
-                                        <td className="px-2 py-1.5 whitespace-nowrap text-[10px] font-medium">
-                                            {formatDate(item.assigned_date)}
-                                        </td>
-
-                                        <td className="px-2 py-1.5">
-                                            {item.warranty_date ? (
-                                                warrantyExpired ? (
-                                                    <div className="text-red-700">
-                                                        <div className="flex items-center gap-1 whitespace-nowrap text-[10px] font-semibold">
-                                                            <FileWarning className="h-3.5 w-3.5 shrink-0" />
-                                                            {formatDate(item.warranty_date)}
-                                                        </div>
-                                                        <div className="mt-0.5 text-[8px] font-bold uppercase tracking-wide">
-                                                            Warranty Expired
+                                        {visibleColumns.has("employee") && (
+                                            <td className="px-2.5 py-2">
+                                                {employeeID ? (
+                                                    <div className="flex min-w-0 items-center gap-2">
+                                                        <EmployeeAvatar
+                                                            name={employeeName || null}
+                                                            image={employeeImage}
+                                                        />
+                                                        <div className="min-w-0">
+                                                            <div className="truncate text-[11px] font-semibold text-foreground" title={employeeName || "Employee"}>
+                                                                {employeeName || "Employee"}
+                                                            </div>
+                                                            <div className="mt-0.5 truncate font-mono text-[10px] font-semibold text-blue-700">
+                                                                {employeeID}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center gap-1 whitespace-nowrap text-[10px] font-medium">
-                                                        <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                                                        {formatDate(item.warranty_date)}
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/30">
+                                                            <UserRound className="h-3.5 w-3.5" />
+                                                        </div>
+                                                        <span className="text-[11px] font-medium">Unassigned</span>
                                                     </div>
-                                                )
-                                            ) : (
-                                                <span className="text-[10px] text-muted-foreground">—</span>
-                                            )}
-                                        </td>
+                                                )}
+                                            </td>
+                                        )}
 
-                                        <td className="sticky right-[92px] z-10 border-l border-border bg-card px-2 py-1.5 text-center group-hover:bg-muted/25">
-                                            <span
-                                                className={`inline-flex max-w-[112px] items-center justify-center truncate whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold ${statusClass(item.asset_status)}`}
-                                                title={item.status_label || historyStatusLabel(item.asset_status)}
-                                            >
-                                                {item.status_label || historyStatusLabel(item.asset_status)}
-                                            </span>
-                                        </td>
+                                        {visibleColumns.has("assignedDate") && (
+                                            <td className="px-2.5 py-2 whitespace-nowrap text-[11px] font-medium">
+                                                {formatDate(item.assigned_date)}
+                                            </td>
+                                        )}
 
-                                        <td className="sticky right-0 z-20 border-l border-border bg-card px-2 py-1.5 text-center group-hover:bg-muted/25">
+                                        {visibleColumns.has("designation") && (
+                                            <td className="px-2 py-2">
+                                                <div
+                                                    className="truncate text-[10px]"
+                                                    title={[item.designation, item.department].filter(Boolean).join(" · ") || undefined}
+                                                >
+                                                    {[item.designation, item.department].filter(Boolean).join(" · ") || "—"}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("brand") && (
+                                            <td className="px-2 py-2">
+                                                <div className="truncate text-[10px]" title={item.brand || undefined}>
+                                                    {item.brand || "—"}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("model") && (
+                                            <td className="px-2 py-2">
+                                                <div className="truncate text-[10px]" title={item.model || undefined}>
+                                                    {item.model || "—"}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("deviceType") && (
+                                            <td className="px-2 py-2">
+                                                <div className="truncate text-[10px]" title={assignmentDeviceTypeLabel(item.assignment_device_type)}>
+                                                    {assignmentDeviceTypeLabel(item.assignment_device_type)}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("vendor") && (
+                                            <td className="px-2 py-2">
+                                                <div className="truncate text-[10px]" title={item.vendor_name || undefined}>
+                                                    {item.vendor_name || "—"}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("actionDate") && (
+                                            <td className="px-2 py-2 whitespace-nowrap text-[10px]">
+                                                {formatDate(item.status_action_date || item.assigned_date)}
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("purchase") && (
+                                            <td className="px-2 py-2 whitespace-nowrap text-[10px]">
+                                                {formatDate(item.purchase_date)}
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("warranty") && (
+                                            <td className="px-2.5 py-2">
+                                                {item.warranty_date ? (
+                                                    warrantyExpired ? (
+                                                        <div className="text-red-700">
+                                                            <div className="flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold">
+                                                                <FileWarning className="h-3.5 w-3.5 shrink-0" />
+                                                                {formatDate(item.warranty_date)}
+                                                            </div>
+                                                            <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide">
+                                                                Warranty Expired
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1 whitespace-nowrap text-[11px] font-medium">
+                                                            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                                                            {formatDate(item.warranty_date)}
+                                                        </div>
+                                                    )
+                                                ) : (
+                                                    <span className="text-[11px] text-muted-foreground">—</span>
+                                                )}
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("deviceAge") && (
+                                            <td className="px-2 py-2">
+                                                <div className="truncate text-[10px]">
+                                                    {formatAssignedDeviceAge(item.assigned_date)}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("usageDuration") && (
+                                            <td className="px-2 py-2">
+                                                <div className="truncate text-[10px]">
+                                                    {formatCompactDuration(item.assigned_date, usageEndDate(item))}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("remarks") && (
+                                            <td className="px-2 py-2">
+                                                <div
+                                                    className="truncate text-[10px]"
+                                                    title={(item.remarks || item.history_reason || undefined) as string | undefined}
+                                                >
+                                                    {item.remarks || item.history_reason || "—"}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("assetType") && (
+                                            <td className="px-2 py-2">
+                                                <div className="truncate text-[10px]" title={item.device_type || undefined}>
+                                                    {item.device_type || "—"}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {visibleColumns.has("status") && (
+                                            <td className="sticky right-[92px] z-10 border-l border-border bg-card px-2 py-2 text-center group-hover:bg-muted/25">
+                                                <span
+                                                    className={`inline-flex max-w-[108px] items-center justify-center truncate whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusClass(item.asset_status)}`}
+                                                    title={item.status_label || historyStatusLabel(item.asset_status)}
+                                                >
+                                                    {item.status_label || historyStatusLabel(item.asset_status)}
+                                                </span>
+                                            </td>
+                                        )}
+
+                                        <td className="sticky right-0 z-20 border-l border-border bg-card px-2 py-2 text-center group-hover:bg-muted/25">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <button
                                                         type="button"
-                                                        className="inline-flex h-7 min-w-[70px] items-center justify-center gap-1 rounded-md border border-border bg-background px-2 text-[9px] font-semibold shadow-sm hover:bg-muted"
+                                                        className="inline-flex h-8 min-w-[76px] items-center justify-center gap-1 rounded-md border border-border bg-background px-2.5 text-[11px] font-semibold shadow-sm hover:bg-muted"
                                                         aria-label={`Actions for ${item.device_serial || "asset device"}`}
                                                     >
                                                         Actions
@@ -4401,7 +4682,9 @@ export default function AssetDevicesPage() {
                                         ? "sm:max-w-[900px]"
                                         : operation === "detail" || operation === "history"
                                             ? "sm:max-w-[980px]"
-                                            : "sm:max-w-[760px]"
+                                            : operation === "damaged" || operation === "lost"
+                                                ? "sm:max-w-[820px]"
+                                                : "sm:max-w-[760px]"
                         }`}
                 >
                     <DialogHeader className="sticky top-0 z-30 shrink-0 border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/90">
@@ -5390,30 +5673,74 @@ export default function AssetDevicesPage() {
                         <div className="space-y-2.5 px-4 py-2.5">
                             <CompactOperationSummary asset={selectedAsset} />
 
-                            <div className="grid gap-3 lg:grid-cols-[1fr_1.2fr]">
-                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
-                                    <p className="text-xs font-semibold">Return workflow</p>
-                                    <p className="mt-1 text-[11px] leading-4">
-                                        The current employee assignment will be cleared and the asset will move to Returned.
-                                        It can then be reassigned or transferred according to the next workflow.
-                                    </p>
+                            <section className="rounded-lg border border-emerald-200 bg-emerald-50/45 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/10">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                                            Return Device
+                                        </p>
+                                        <p className="mt-0.5 text-[11px] leading-4 text-emerald-800/80 dark:text-emerald-200/80">
+                                            Close the current employee assignment and move the device to Returned. The employee and assignment history remain preserved for audit and future reassignment.
+                                        </p>
+                                    </div>
+
+                                    <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                        New status · Returned (4)
+                                    </span>
                                 </div>
 
-                                <label className="block rounded-xl border border-amber-200 bg-amber-50/65 p-3 dark:border-amber-900/50 dark:bg-amber-950/10">
+                                <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                                    <CompactDeviceInfo
+                                        label="Current Employee"
+                                        value={
+                                            selectedAsset?.emp_id
+                                                ? `${selectedAsset.emp_name || "Employee"} · ${selectedAsset.emp_id}`
+                                                : "IT Stock / No employee"
+                                        }
+                                    />
+                                    <CompactDeviceInfo
+                                        label="Assigned Date"
+                                        value={formatDate(selectedAsset?.assigned_date)}
+                                    />
+                                    <CompactDeviceInfo
+                                        label="Current Status"
+                                        value={
+                                            selectedAsset?.status_label ||
+                                            historyStatusLabel(selectedAsset?.asset_status)
+                                        }
+                                    />
+
+                                    <label className="min-w-0 rounded-md border border-emerald-200 bg-background px-2 py-1.5">
+                                        <span className="block truncate text-[9px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                                            Return Date
+                                        </span>
+                                        <input
+                                            type="date"
+                                            value={returnDate}
+                                            max={todayInputValue()}
+                                            onChange={(event) => setReturnDate(event.target.value)}
+                                            className="mt-0.5 h-6 w-full bg-transparent text-[11px] font-medium text-foreground outline-none"
+                                        />
+                                    </label>
+                                </div>
+
+                                <label className="mt-3 block rounded-lg border border-amber-200 bg-amber-50/65 p-2.5 dark:border-amber-900/50 dark:bg-amber-950/10">
                                     <span className="mb-1 flex items-center justify-between text-[10px] font-semibold text-amber-900 dark:text-amber-100">
                                         <span>Return Remarks</span>
-                                        <span className="font-normal text-amber-700 dark:text-amber-300">{remarks.length}/1000</span>
+                                        <span className="font-normal text-amber-700 dark:text-amber-300">
+                                            {remarks.length}/1000
+                                        </span>
                                     </span>
                                     <textarea
                                         value={remarks}
                                         onChange={(event) => setRemarks(event.target.value)}
                                         rows={3}
                                         maxLength={1000}
-                                        placeholder="Condition, accessories returned, location or return note"
-                                        className="w-full resize-none rounded-md border border-amber-200 bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-amber-200 dark:border-amber-900/60 dark:bg-background"
+                                        placeholder="Condition, accessories returned, location, handover details or return note..."
+                                        className="min-h-[78px] w-full resize-none rounded-md border border-amber-200 bg-white px-3 py-2 text-[12px] outline-none focus:ring-2 focus:ring-amber-200 dark:border-amber-900/60 dark:bg-background"
                                     />
                                 </label>
-                            </div>
+                            </section>
                         </div>
                     )}
 
@@ -5781,69 +6108,100 @@ export default function AssetDevicesPage() {
                     )}
 
                     {(operation === "damaged" || operation === "lost") && (
-                        <div className="space-y-2.5 px-4 py-2.5">
+                        <div className="space-y-2 px-4 py-2.5">
                             <CompactOperationSummary asset={selectedAsset} />
 
                             <section
                                 className={`rounded-lg border p-3 ${operation === "damaged"
-                                    ? "border-orange-200 bg-orange-50/60 dark:border-orange-900/50 dark:bg-orange-950/10"
-                                    : "border-red-200 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/10"
+                                    ? "border-orange-200 bg-orange-50/45 dark:border-orange-900/50 dark:bg-orange-950/10"
+                                    : "border-red-200 bg-red-50/45 dark:border-red-900/50 dark:bg-red-950/10"
                                     }`}
                             >
                                 <div className="flex items-start gap-3">
                                     <div
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${operation === "damaged"
+                                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${operation === "damaged"
                                             ? "bg-orange-100 text-orange-700"
                                             : "bg-red-100 text-red-700"
                                             }`}
                                     >
                                         {operation === "damaged" ? (
-                                            <FileWarning className="h-5 w-5" />
+                                            <FileWarning className="h-4.5 w-4.5" />
                                         ) : (
-                                            <Search className="h-5 w-5" />
+                                            <Search className="h-4.5 w-4.5" />
                                         )}
                                     </div>
 
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-semibold text-foreground">
-                                            {operation === "damaged"
-                                                ? "Confirm Damaged Status"
-                                                : "Confirm Lost Status"}
-                                        </p>
-                                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                                            {operation === "damaged"
-                                                ? "The device will move to Damaged (2). Current holder information is retained for accountability and the active assignment is closed in history."
-                                                : "The device will move to Lost (5). Current holder information is retained for accountability and the active assignment is closed in history."}
-                                        </p>
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div>
+                                                <p className="text-sm font-semibold text-foreground">
+                                                    {operation === "damaged"
+                                                        ? "Record Damaged Device"
+                                                        : "Record Lost Device"}
+                                                </p>
+                                                <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                                                    {operation === "damaged"
+                                                        ? "Record the observed date and a concise condition note. Employee accountability and device history remain preserved."
+                                                        : "Record the reported/lost date and the last-known details. Employee accountability and device history remain preserved."}
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${operation === "damaged"
+                                                    ? "border-orange-200 bg-white text-orange-700"
+                                                    : "border-red-200 bg-white text-red-700"
+                                                    }`}
+                                            >
+                                                {operation === "damaged" ? "New status · Damaged (2)" : "New status · Lost (5)"}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                <div className="mt-3 grid gap-2 sm:grid-cols-4">
                                     <CompactDeviceInfo
                                         label="Current Status"
                                         value={
                                             selectedAsset?.status_label ||
-                                            historyStatusLabel(
-                                                selectedAsset?.asset_status,
-                                            )
+                                            historyStatusLabel(selectedAsset?.asset_status)
                                         }
                                     />
                                     <CompactDeviceInfo
                                         label="Responsible Employee"
                                         value={
                                             selectedAsset?.emp_id
-                                                ? `${selectedAsset.emp_id} · ${selectedAsset.emp_name || "Employee"}`
+                                                ? `${selectedAsset.emp_name || "Employee"} · ${selectedAsset.emp_id}`
                                                 : "IT Stock / No employee"
                                         }
                                     />
                                     <CompactDeviceInfo
-                                        label="New Status"
-                                        value={
-                                            operation === "damaged"
-                                                ? "Damaged (2)"
-                                                : "Lost (5)"
-                                        }
+                                        label="Assigned Date"
+                                        value={formatDate(selectedAsset?.assigned_date)}
                                     />
+
+                                    <label className="min-w-0 rounded-md border border-border/70 bg-background px-2 py-1.5">
+                                        <span className="block truncate text-[9px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                                            {operation === "damaged" ? "Damage Date" : "Lost / Reported Date"}
+                                        </span>
+                                        <input
+                                            type="date"
+                                            value={incidentDate}
+                                            max={todayInputValue()}
+                                            onChange={(event) => setIncidentDate(event.target.value)}
+                                            className="mt-0.5 h-6 w-full bg-transparent text-[11px] font-medium text-foreground outline-none"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div
+                                    className={`mt-3 rounded-md border px-2.5 py-2 text-[10px] leading-4 ${operation === "damaged"
+                                        ? "border-orange-200 bg-white/70 text-orange-900"
+                                        : "border-red-200 bg-white/70 text-red-900"
+                                        }`}
+                                >
+                                    {operation === "damaged"
+                                        ? "Use the remarks for physical condition, affected parts, present location and required follow-up. The selected date is saved with the audit remarks."
+                                        : "Use the remarks for last-known location, responsible user, report/reference details and follow-up. The selected date is saved with the audit remarks."}
                                 </div>
 
                                 <label className="mt-3 block">
@@ -5855,26 +6213,24 @@ export default function AssetDevicesPage() {
                                     >
                                         <span>
                                             {operation === "damaged"
-                                                ? "Damage Remarks"
-                                                : "Lost Device Remarks"}{" "}
+                                                ? "Damage Details"
+                                                : "Lost Device Details"}{" "}
                                             <span className="text-red-500">*</span>
                                         </span>
-                                        <span className="font-normal">
+                                        <span className="font-normal text-muted-foreground">
                                             {remarks.length}/1000
                                         </span>
                                     </span>
                                     <textarea
                                         value={remarks}
-                                        onChange={(event) =>
-                                            setRemarks(event.target.value)
-                                        }
+                                        onChange={(event) => setRemarks(event.target.value)}
                                         rows={3}
                                         maxLength={1000}
-                                        className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                        className="min-h-[78px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-[12px] outline-none focus:ring-2 focus:ring-primary/20"
                                         placeholder={
                                             operation === "damaged"
-                                                ? "Describe damage, condition, location and required action..."
-                                                : "Describe when/where the device was last seen, responsible user and follow-up action..."
+                                                ? "Condition, affected parts, location, responsible person and required action..."
+                                                : "Last-known location/time, responsible person, report/reference and follow-up action..."
                                         }
                                     />
                                 </label>
@@ -5974,28 +6330,48 @@ export default function AssetDevicesPage() {
 
                                 <div className="mt-2 grid gap-2 md:grid-cols-2">
                                     <label className="block">
-                                        <span className="mb-1 block text-[10px] font-semibold text-foreground">
-                                            Email To <span className="text-red-500">*</span>
+                                        <span className="mb-1 flex items-center justify-between gap-2 text-[10px] font-semibold text-foreground">
+                                            <span>
+                                                Designated Email (To) <span className="text-red-500">*</span>
+                                            </span>
+                                            <span className="font-normal text-muted-foreground">
+                                                Vendor directory
+                                            </span>
                                         </span>
                                         <input
                                             type="email"
-                                            list="designated-email-to-options"
+                                            list="vendor-designated-email-options"
                                             value={warrantyEmailTo}
                                             onChange={(event) => setWarrantyEmailTo(event.target.value)}
-                                            placeholder="Select or type email"
+                                            placeholder={
+                                                owstVendorsLoading
+                                                    ? "Loading vendor emails..."
+                                                    : "Search or select vendor email"
+                                            }
+                                            autoComplete="off"
                                             className="h-8 w-full rounded-md border border-input bg-background px-2 text-[11px] outline-none focus:ring-2 focus:ring-primary/20"
                                         />
-                                        <datalist id="designated-email-to-options">
-                                            <option value="servicemscomouters@gmail.com" />
-                                            <option value="numericbd@gmail.com" />
-                                            <option value="itsolutions_bd@hotmail.com" />
-                                            <option value="famoustechbd@gmail.com" />
+                                        <datalist id="vendor-designated-email-options">
+                                            {vendorEmailOptions.map((item) => (
+                                                <option
+                                                    key={`${item.vendorID}-${item.email}`}
+                                                    value={item.email}
+                                                    label={item.vendorName}
+                                                />
+                                            ))}
                                         </datalist>
+                                        <p className="mt-1 truncate text-[9px] text-muted-foreground">
+                                            {selectedWarrantyVendor?.email
+                                                ? `Selected vendor: ${selectedWarrantyVendor.name} · ${selectedWarrantyVendor.email}`
+                                                : vendorEmailOptions.length > 0
+                                                    ? `${vendorEmailOptions.length} vendor email${vendorEmailOptions.length === 1 ? "" : "s"} available`
+                                                    : "No vendor email is available in the vendor master."}
+                                        </p>
                                     </label>
 
                                     <label className="block">
                                         <span className="mb-1 block text-[10px] font-semibold text-foreground">
-                                            Email CC <span className="text-red-500">*</span>
+                                            Designated Email (CC) <span className="text-red-500">*</span>
                                         </span>
                                         <input
                                             type="text"
@@ -7408,3 +7784,6 @@ export default function AssetDevicesPage() {
         </div>
     );
 }
+
+
+
