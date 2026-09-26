@@ -1598,7 +1598,7 @@ func (h *InventoryWorkflowHandler) AssignStockToRequisition(c *gin.Context) {
 		INSERT INTO public.audit_log (
 			user_id,table_name,record_id,action,new_data
 		) VALUES (
-			$1,'tt_reasons',$2::bigint,'ASSIGN_DELIVER_ASSET',
+			$1,'tt_reasons',$2::bigint,'ASSIGN_AND_DELIVER_ASSET',
 			jsonb_build_object(
 				'stock_id',$3::bigint,
 				'asset_id',$4::bigint,
@@ -1689,7 +1689,6 @@ func (h *InventoryWorkflowHandler) ConfirmRequisitionDelivery(c *gin.Context) {
 	}
 	response.OK(c, gin.H{"requisition_id": requisitionID, "tt_no": ttNo, "device_serial": serial, "delivered_val": 1, "delivered_by": currentEmployee, "delivered_at": time.Now()})
 }
-
 
 
 

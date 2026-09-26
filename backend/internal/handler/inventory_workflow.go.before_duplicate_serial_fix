@@ -1422,16 +1422,14 @@ func (h *InventoryWorkflowHandler) AssignStockToRequisition(c *gin.Context) {
 	var assetID int64
 	var currentAssetStatus int
 	assetErr := tx.QueryRow(ctx, `
-                SELECT
-                        ad.id,
-                        ad.asset_status
-                FROM public.stack_inventory s
-                INNER JOIN public.asset_devices ad
-                        ON ad.id = s.asset_device_id
-                WHERE s.id=$1
-                  AND ad.row_status=1
-                FOR UPDATE OF ad
-        `, req.StockID).Scan(&assetID, &currentAssetStatus)
+		SELECT id,asset_status
+		FROM public.asset_devices
+		WHERE legacy_stack_id=$1
+		  AND row_status=1
+		ORDER BY id DESC
+		LIMIT 1
+		FOR UPDATE
+	`, req.StockID).Scan(&assetID, &currentAssetStatus)
 
 	if errors.Is(assetErr, pgx.ErrNoRows) {
 		assetErr = tx.QueryRow(ctx, `
@@ -1577,7 +1575,7 @@ func (h *InventoryWorkflowHandler) AssignStockToRequisition(c *gin.Context) {
 		return
 	}
 
-	_, err = tx.Exec(ctx, `
+	_, _ = tx.Exec(ctx, `
 		INSERT INTO public.asset_device_history (
 			asset_device_id,legacy_equipment_id,device_serial,
 			status_code,raw_status,previous_status,
@@ -1585,34 +1583,26 @@ func (h *InventoryWorkflowHandler) AssignStockToRequisition(c *gin.Context) {
 			mr_number,pr_number,vendor,assigned_date,
 			history_reason,created_at_source,updated_at_source,migrated_at
 		) VALUES (
-			$1,NULL,$2,1,'Assigned & Delivered',0,
+			$1,0,$2,1,'Assigned & Delivered',0,
 			$3,$4,$5,$6,$7,$8,$9,NOW(),$10,NOW(),NOW(),NOW()
 		)
 	`, assetID, serial, employeeID, empName, department, designation, mr, pr, vendor, fmt.Sprintf("Assigned and delivered through approved requisition %s", ttNo))
-    if err != nil {
-        response.ServerError(c, err)
-        return
-    }
 
-	_, err = tx.Exec(ctx, `
+	_, _ = tx.Exec(ctx, `
 		INSERT INTO public.audit_log (
 			user_id,table_name,record_id,action,new_data
 		) VALUES (
-			$1,'tt_reasons',$2::bigint,'ASSIGN_DELIVER_ASSET',
+			$1,'tt_reasons',$2,'ASSIGN_AND_DELIVER_ASSET',
 			jsonb_build_object(
-				'stock_id',$3::bigint,
-				'asset_id',$4::bigint,
-				'serial',$5::text,
-				'employee_id',$6::text,
-				'category_id',$7::bigint,
+				'stock_id',$3,
+				'asset_id',$4,
+				'serial',$5,
+				'employee_id',$6,
+				'category_id',$7,
 				'delivered_val',1
 			)
 		)
 	`, currentEmployee, requisitionID, req.StockID, assetID, serial, employeeID, stockCategoryID)
-    if err != nil {
-        response.ServerError(c, err)
-        return
-    }
 
 	if err = tx.Commit(ctx); err != nil {
 		response.ServerError(c, err)
@@ -1689,8 +1679,4 @@ func (h *InventoryWorkflowHandler) ConfirmRequisitionDelivery(c *gin.Context) {
 	}
 	response.OK(c, gin.H{"requisition_id": requisitionID, "tt_no": ttNo, "device_serial": serial, "delivered_val": 1, "delivered_by": currentEmployee, "delivered_at": time.Now()})
 }
-
-
-
-
 
