@@ -61,6 +61,7 @@ import {
 import {
     api,
     assetDeviceApi,
+    dashboardApi,
     employeeApi,
     getToken,
     getUser,
@@ -461,47 +462,40 @@ type AssetDeviceHistoryResponse = {
     items?: AssetDeviceHistoryEntry[];
 };
 
-// type ApprovedTTRequisition = AllocatableRequisition & {
-//     category_id?: number;
-//     brand_id?: number;
-//     model_id?: number;
-//     brand?: string;
-//     model?: string;
-//     department?: string;
-//     designation?: string;
-//     approval_status?: string;
-//     approved_by?: string;
-//     approved_by_name?: string;
-//     approved_date?: string;
-// };
-
-
 type ApprovedTTRequisition = AllocatableRequisition & {
-    category_id?: number;
-    brand_id?: number;
-    model_id?: number;
+    category_id?: number | null;
+    brand_id?: number | null;
+    model_id?: number | null;
 
+    category?: string;
     brand?: string;
     model?: string;
 
-    department?: string;
-    designation?: string;
+    employee_id?: string;
+    employee_name?: string;
 
-    approval_status?: string;
+    created_at?: string | null;
+    device_sl_no?: string | null;
 
     approved_val?: number | null;
-    delivered_val?: number | null;
-    dev_assigned_val?: number | null;
+    approval_status?: string;
 
     approved_by?: string | null;
     approved_by_name?: string | null;
     approved_date?: string | null;
 
+    delivered_val?: number | null;
+    delivery_status?: string;
+
     delivered_by?: string | null;
+    delivered_by_name?: string | null;
     delivered_date?: string | null;
 
+    device_assigned_val?: number | null;
+    device_assigned_by?: string | null;
+    device_assigned_date?: string | null;
+
     stock_inventory_id?: number | null;
-    device_sl_no?: string | null;
 };
 
 const deviceOperationsApi = {
@@ -1768,6 +1762,12 @@ export default function AssetDevicesPage() {
     const [requisitionLoading, setRequisitionLoading] = useState(false);
     const [requisitionTotalApproved, setRequisitionTotalApproved] = useState(0);
 
+    // Approved TT is a workflow KPI, not a second table.
+    const [approvedTTCount, setApprovedTTCount] = useState(0);
+    const [approvedTTCountLoading, setApprovedTTCountLoading] = useState(false);
+    const [overviewMode, setOverviewMode] =
+        useState<"device-status" | "approved-tt">("device-status");
+
     const [updateForm, setUpdateForm] = useState({
         device_serial: "",
         category: "",
@@ -2419,6 +2419,26 @@ export default function AssetDevicesPage() {
         }
     }, []);
 
+    const loadApprovedTTCount = useCallback(async () => {
+        try {
+            setApprovedTTCountLoading(true);
+
+            const response =
+                await dashboardApi.requisitionDashboardSummary();
+
+            setApprovedTTCount(
+                Number(response.data?.approved ?? 0),
+            );
+        } catch (reason) {
+            console.error(
+                "Unable to load Approved TT count:",
+                reason,
+            );
+        } finally {
+            setApprovedTTCountLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         void loadAssets();
     }, [loadAssets]);
@@ -2426,6 +2446,11 @@ export default function AssetDevicesPage() {
     useEffect(() => {
         void loadStatusCounts();
     }, [loadStatusCounts]);
+
+    useEffect(() => {
+        void loadApprovedTTCount();
+    }, [loadApprovedTTCount]);
+
 
     useEffect(() => {
         const needsEmployeeSearch =
@@ -2688,14 +2713,16 @@ export default function AssetDevicesPage() {
 
                 if (!active) return;
 
-                // Safety guard: only approved and not-yet-delivered TTs are selectable.
+                // Safety guard: only approved, undelivered and unassigned TTs are selectable.
                 const approvedRows = (response.data ?? []).filter((item) => {
                     const approvedVal = Number(item.approved_val ?? 0);
                     const deliveredVal = Number(item.delivered_val ?? 0);
+                    const assignedVal = Number(item.device_assigned_val ?? 0);
 
                     return (
                         (approvedVal === 1 || approvedVal === 3) &&
-                        deliveredVal === 0
+                        deliveredVal === 0 &&
+                        assignedVal === 0
                     );
                 });
 
@@ -3946,6 +3973,7 @@ export default function AssetDevicesPage() {
                         onClick={() => {
                             void loadAssets();
                             void loadStatusCounts();
+                            void loadApprovedTTCount();
                         }}
                         disabled={loading}
                         className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-60"
@@ -4019,7 +4047,9 @@ export default function AssetDevicesPage() {
                             Status Overview
                         </p>
                         <span className="hidden truncate text-[9px] text-muted-foreground md:inline">
-                            Click a status to filter · latest action first
+                            {overviewMode === "approved-tt"
+                                ? "Approved TT selected · showing Available devices · use Actions to assign"
+                                : "Click a status to filter · latest action first"}
                         </span>
                     </div>
 
@@ -4031,9 +4061,11 @@ export default function AssetDevicesPage() {
                     )}
                 </div>
 
-                <div className="grid grid-cols-5 gap-1 lg:grid-cols-10">
-                    {STATUS_OPTIONS.map((option) => {
-                        const active = status === option.value;
+                <div className="grid grid-cols-4 gap-1 sm:grid-cols-6 xl:grid-cols-11">
+                    {STATUS_OPTIONS.slice(0, 1).map((option) => {
+                        const active =
+                            overviewMode === "device-status" &&
+                            status === option.value;
                         const numericStatus =
                             option.value === "" ? null : Number(option.value);
 
@@ -4042,6 +4074,83 @@ export default function AssetDevicesPage() {
                                 key={option.value || "all"}
                                 type="button"
                                 onClick={() => {
+                                    setOverviewMode("device-status");
+                                    setStatus(option.value);
+                                    setPage(1);
+                                }}
+                                className={`min-w-0 rounded-md border px-1.5 py-1 text-left transition-all ${active
+                                    ? "border-primary bg-primary/10 ring-1 ring-primary/20"
+                                    : numericStatus === null
+                                        ? "border-border bg-muted/20 hover:bg-muted/40"
+                                        : `${statusClass(numericStatus)} hover:opacity-85`
+                                    }`}
+                                title={`${option.label}: ${Number(statusCounts[option.value] ?? 0).toLocaleString()}`}
+                            >
+                                <div className="flex min-w-0 items-center justify-between gap-1">
+                                    <span className="truncate text-[7px] font-bold uppercase leading-3 tracking-[0.025em]">
+                                        {option.compactLabel}
+                                    </span>
+                                    {active && (
+                                        <span className="h-1 w-1 shrink-0 rounded-full bg-primary" />
+                                    )}
+                                </div>
+
+                                <div className="mt-0.5 truncate text-[13px] font-bold leading-4 tabular-nums">
+                                    {statusCountsLoading && statusCounts[option.value] == null
+                                        ? "…"
+                                        : Number(statusCounts[option.value] ?? 0).toLocaleString()}
+                                </div>
+                            </button>
+                        );
+                    })}
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            // Approved TT is a workflow card.
+                            // It uses the same main device table and filters to
+                            // Available devices because assignment starts there.
+                            setOverviewMode("approved-tt");
+                            setStatus("0");
+                            setPage(1);
+                        }}
+                        className={`min-w-0 rounded-md border px-1.5 py-1 text-left transition-all ${overviewMode === "approved-tt"
+                                ? "border-emerald-500 bg-emerald-100 ring-1 ring-emerald-300"
+                                : "border-emerald-200 bg-emerald-50 hover:bg-emerald-100"
+                            }`}
+                        title={`Approved TT: ${approvedTTCount.toLocaleString()} · click to show Available devices`}
+                    >
+                        <div className="flex min-w-0 items-center justify-between gap-1">
+                            <span className="truncate text-[7px] font-bold uppercase leading-3 tracking-[0.025em] text-emerald-700">
+                                Approved TT
+                            </span>
+                            {overviewMode === "approved-tt" ? (
+                                <span className="h-1 w-1 shrink-0 rounded-full bg-emerald-600" />
+                            ) : (
+                                <ClipboardCheck className="h-2.5 w-2.5 shrink-0 text-emerald-600" />
+                            )}
+                        </div>
+
+                        <div className="mt-0.5 truncate text-[13px] font-bold leading-4 tabular-nums text-emerald-700">
+                            {approvedTTCountLoading
+                                ? "…"
+                                : approvedTTCount.toLocaleString()}
+                        </div>
+                    </button>
+
+                    {STATUS_OPTIONS.slice(1).map((option) => {
+                        const active =
+                            overviewMode === "device-status" &&
+                            status === option.value;
+                        const numericStatus =
+                            option.value === "" ? null : Number(option.value);
+
+                        return (
+                            <button
+                                key={option.value || "all"}
+                                type="button"
+                                onClick={() => {
+                                    setOverviewMode("device-status");
                                     setStatus(option.value);
                                     setPage(1);
                                 }}
@@ -4549,7 +4658,7 @@ export default function AssetDevicesPage() {
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => openOperation(item, "assign-tt")} className="gap-2">
                                                                 <ClipboardCheck className="h-4 w-4 text-emerald-600" />
-                                                                Assign from Approved TT
+                                                                Assign Approved TT
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
@@ -5448,7 +5557,7 @@ export default function AssetDevicesPage() {
                                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-3 py-2.5">
                                     <div>
                                         <p className="text-[12px] font-semibold text-foreground">
-                                            Approved TT Requisitions
+                                            Select Approved TT
                                         </p>
                                         <p className="mt-0.5 text-[10px] text-muted-foreground">
                                             Category match: {selectedAsset?.category || "Uncategorized"}
@@ -5503,8 +5612,8 @@ export default function AssetDevicesPage() {
                                                 key={req.id}
                                                 onClick={() => setSelectedRequisition(req)}
                                                 className={`grid w-full grid-cols-[36px_minmax(135px,0.8fr)_minmax(180px,1.2fr)_minmax(120px,0.8fr)_105px] items-center gap-2 border-b border-border px-3 py-2.5 text-left text-[11px] transition-colors last:border-b-0 ${selectedRequisition?.id === req.id
-                                                        ? "bg-primary/[0.07]"
-                                                        : "hover:bg-muted/35"
+                                                    ? "bg-primary/[0.07]"
+                                                    : "hover:bg-muted/35"
                                                     }`}
                                             >
                                                 <span className="text-center text-[10px] font-semibold text-muted-foreground">
