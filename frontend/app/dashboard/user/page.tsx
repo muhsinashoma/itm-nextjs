@@ -684,7 +684,7 @@ export default function UserDashboardPage() {
                                     {employee.designation &&
                                         employee.department && (
                                             <span className="text-slate-300">
-                                                ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢
+                                                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢
                                             </span>
                                         )}
 
@@ -1104,6 +1104,17 @@ export default function UserDashboardPage() {
                                                 innerRadius={62}
                                                 outerRadius={112}
                                                 paddingAngle={2}
+                                                labelLine={{
+                                                    stroke: "#cbd5e1",
+                                                    strokeWidth: 1,
+                                                }}
+                                                label={({
+                                                    value,
+                                                }) =>
+                                                    Number(
+                                                        value
+                                                    ).toLocaleString()
+                                                }
                                             >
                                                 {queryTypeData.map(
                                                     (item, index) => (
@@ -1507,7 +1518,7 @@ export default function UserDashboardPage() {
                                                         }
                                                     >
                                                         {item.department ||
-                                                            "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
+                                                            "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
                                                     </span>
                                                 </div>
                                             </Td>
@@ -1570,7 +1581,7 @@ export default function UserDashboardPage() {
                                 1) *
                             PAGE_SIZE +
                             1}
-                        {"ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“"}
+                        {"ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ"}
                         {Math.min(
                             page *
                             PAGE_SIZE,
@@ -1955,7 +1966,7 @@ function DateCell({
     ) {
         return (
             <span className="text-slate-400">
-                ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
             </span>
         );
     }

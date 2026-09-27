@@ -488,15 +488,6 @@ export const Header =
                 permissions.has(
                     "panel.admin.access"
                 );
-            /*
-             * ROOT / IT Administrator / IT staff may return
-             * from the User Panel to the Admin/Staff dashboard.
-             */
-            const canReturnToAdminPanel =
-                canOpenAdminPanel ||
-                permissions.has(
-                    "panel.staff.access"
-                );
 
             /* ======================================================
                LOGOUT
@@ -1127,37 +1118,20 @@ export const Header =
                         if (
                             useUserShell
                         ) {
-                            const userItems:
-                                HeaderNavItem[] =
-                                [
-                                    {
-                                        label:
-                                            "Dashboard",
-                                        href:
-                                            "/dashboard/user",
-                                    },
-                                    {
-                                        label:
-                                            "Create TT",
-                                        href:
-                                            "/dashboard/operations/create_tt?source=user",
-                                    },
-                                ];
-
-                            if (
-                                canReturnToAdminPanel
-                            ) {
-                                userItems.push(
-                                    {
-                                        label:
-                                            "Admin Panel",
-                                        href:
-                                            "/dashboard",
-                                    }
-                                );
-                            }
-
-                            return userItems;
+                            return [
+                                {
+                                    label:
+                                        "Dashboard",
+                                    href:
+                                        "/dashboard/user",
+                                },
+                                {
+                                    label:
+                                        "Create TT",
+                                    href:
+                                        "/dashboard/operations/create_tt?source=user",
+                                },
+                            ];
                         }
 
                         /* ==========================================
@@ -1232,7 +1206,6 @@ export const Header =
                         useUserShell,
                         canOpenUserPanel,
                         canManageRoles,
-                        canReturnToAdminPanel,
                     ]
                 );
 
