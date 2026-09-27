@@ -684,7 +684,7 @@ export default function UserDashboardPage() {
                                     {employee.designation &&
                                         employee.department && (
                                             <span className="text-slate-300">
-                                                ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢
+                                                Ã¢â‚¬Â¢
                                             </span>
                                         )}
 
@@ -987,12 +987,12 @@ export default function UserDashboardPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className="w-full" style={{ height: "280px" }}>
+                        <div className="h-[280px] w-full">
                             {queryChartType === "bar" && (
-                                <div className="overflow-x-auto overflow-y-hidden pb-2" style={{ height: "100%" }}>
+                                <div className="h-full overflow-x-auto overflow-y-hidden pb-2">
                                     <div
+                                        className="h-full"
                                         style={{
-                                            height: "100%",
                                             minWidth: `${Math.max(
                                                 680,
                                                 queryTypeData.length * 72
@@ -1507,7 +1507,7 @@ export default function UserDashboardPage() {
                                                         }
                                                     >
                                                         {item.department ||
-                                                            "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
+                                                            "Ã¢â‚¬â€"}
                                                     </span>
                                                 </div>
                                             </Td>
@@ -1570,7 +1570,7 @@ export default function UserDashboardPage() {
                                 1) *
                             PAGE_SIZE +
                             1}
-                        {"ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“"}
+                        {"Ã¢â‚¬â€œ"}
                         {Math.min(
                             page *
                             PAGE_SIZE,
@@ -1955,7 +1955,7 @@ function DateCell({
     ) {
         return (
             <span className="text-slate-400">
-                ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+                Ã¢â‚¬â€
             </span>
         );
     }
