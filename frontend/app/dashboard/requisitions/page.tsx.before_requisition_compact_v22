@@ -1,6 +1,4 @@
 
-
-
 //frontend/app/dashboard/requisitions/page.tsx
 
 "use client";
@@ -99,7 +97,6 @@ const EMPTY_DASHBOARD_SUMMARY:
     approval_pending: 0,
     rejected: 0,
     approved: 0,
-    delivered: 0,
     total_active: 0,
 };
 
@@ -354,7 +351,7 @@ function ApprovalBadge({
         1
     ) {
         return (
-            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="h-3 w-3 shrink-0" />
 
                 Petty Cash (Approved)
@@ -367,7 +364,7 @@ function ApprovalBadge({
         3
     ) {
         return (
-            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-sky-600 dark:text-sky-400">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-semibold text-sky-600 dark:text-sky-400">
                 <CheckCircle2 className="h-3 w-3 shrink-0" />
 
                 PR (Approved)
@@ -380,7 +377,7 @@ function ApprovalBadge({
         2
     ) {
         return (
-            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-red-600 dark:text-red-400">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-semibold text-red-600 dark:text-red-400">
                 <XCircle className="h-3 w-3 shrink-0" />
 
                 Rejected
@@ -389,7 +386,7 @@ function ApprovalBadge({
     }
 
     return (
-        <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+        <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-semibold text-amber-600 dark:text-amber-400">
             <Clock3 className="h-3 w-3 shrink-0" />
 
             Approval Pending
@@ -414,7 +411,7 @@ function DeliveryBadge({
         1
     ) {
         return (
-            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="h-3 w-3 shrink-0" />
 
                 Delivered
@@ -427,7 +424,7 @@ function DeliveryBadge({
         2
     ) {
         return (
-            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-red-600 dark:text-red-400">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-semibold text-red-600 dark:text-red-400">
                 <XCircle className="h-3 w-3 shrink-0" />
 
                 Rejected
@@ -436,7 +433,7 @@ function DeliveryBadge({
     }
 
     return (
-        <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+        <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-semibold text-amber-600 dark:text-amber-400">
             <Clock3 className="h-3 w-3 shrink-0" />
 
             Pending
@@ -508,7 +505,7 @@ function ApprovalDropdown({
                 border-amber-400
                 bg-amber-50/50
                 px-2
-                text-[11px]
+                text-[9px]
                 font-semibold
                 text-amber-700
                 outline-none
@@ -603,7 +600,7 @@ function DeliveryDropdown({
                 border-amber-400
                 bg-amber-50/50
                 px-2
-                text-[11px]
+                text-[9px]
                 font-semibold
                 text-amber-700
                 outline-none
@@ -1442,14 +1439,6 @@ function RequisitionPageContent() {
                                 0
                             ),
 
-                        delivered:
-                            Number(
-                                response
-                                    .data
-                                    ?.delivered ??
-                                0
-                            ),
-
                         total_active:
                             Number(
                                 response
@@ -1838,7 +1827,7 @@ function RequisitionPageContent() {
         );
 
     const tableColumnCount =
-        8 +
+        12 +
         (
             visibleColumns
                 .raisedBy
@@ -2289,42 +2278,25 @@ function RequisitionPageContent() {
                         <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                                 <div>
-                                    <h2 className="text-sm font-semibold text-foreground">
+                                    <h2 className="text-[11px] font-semibold text-foreground">
                                         IT Accessories Requisition Pending List
                                     </h2>
 
-                                    <p className="mt-1 text-xs text-muted-foreground">
+                                    <p className="mt-0.5 text-[9px] text-muted-foreground">
                                         Select a category to view pending requisitions
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div className="min-w-[110px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/60 dark:bg-amber-950/20">
-                                        <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                                            Pending
-                                        </p>
-                                        <p className="mt-0.5 text-lg font-bold text-amber-600 dark:text-amber-400">
-                                            {dashboardSummary.approval_pending.toLocaleString()}
-                                        </p>
-                                    </div>
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 dark:border-amber-900/60 dark:bg-amber-950/20">
+                                    <p className="text-[7px] font-medium uppercase text-amber-700 dark:text-amber-400">
+                                        Total Pending
+                                    </p>
 
-                                    <div className="min-w-[110px] rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 dark:border-sky-900/60 dark:bg-sky-950/20">
-                                        <p className="text-[11px] font-medium text-sky-700 dark:text-sky-400">
-                                            Approved
-                                        </p>
-                                        <p className="mt-0.5 text-lg font-bold text-sky-600 dark:text-sky-400">
-                                            {dashboardSummary.approved.toLocaleString()}
-                                        </p>
-                                    </div>
-
-                                    <div className="min-w-[110px] rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900/60 dark:bg-emerald-950/20">
-                                        <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                                            Delivered
-                                        </p>
-                                        <p className="mt-0.5 text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                                            {dashboardSummary.delivered.toLocaleString()}
-                                        </p>
-                                    </div>
+                                    <p className="text-base font-bold text-amber-600 dark:text-amber-400">
+                                        {dashboardSummary
+                                            .approval_pending
+                                            .toLocaleString()}
+                                    </p>
                                 </div>
                             </div>
 
@@ -2346,7 +2318,7 @@ function RequisitionPageContent() {
                                         )
                                     }
                                     placeholder="Search category..."
-                                    className="h-9 w-full bg-transparent text-sm outline-none"
+                                    className="h-8 w-full bg-transparent text-[9px] outline-none"
                                 />
 
                                 {categorySearch && (
@@ -2383,22 +2355,22 @@ function RequisitionPageContent() {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto rounded-lg border border-border">
-                                    <table className="w-full text-sm">
+                                    <table className="w-full text-[9px]">
                                         <thead className="bg-cyan-50/70 dark:bg-cyan-950/10">
                                             <tr>
-                                                <th className="px-3 py-2 text-center text-xs">
+                                                <th className="px-3 py-2 text-center text-[10px]">
                                                     SL
                                                 </th>
 
-                                                <th className="px-3 py-2 text-left text-xs">
+                                                <th className="px-3 py-2 text-left text-[10px]">
                                                     Device Category
                                                 </th>
 
-                                                <th className="px-3 py-2 text-center text-xs">
+                                                <th className="px-3 py-2 text-center text-[10px]">
                                                     Pending Requisition
                                                 </th>
 
-                                                <th className="px-3 py-2 text-center text-xs">
+                                                <th className="px-3 py-2 text-center text-[10px]">
                                                     Action
                                                 </th>
                                             </tr>
@@ -2824,13 +2796,13 @@ function RequisitionPageContent() {
                                                 minWidth:
                                                     visibleColumns
                                                         .reason
-                                                        ? "1500px"
+                                                        ? "1900px"
                                                         : visibleColumns
                                                             .raisedBy ||
                                                             visibleColumns
                                                                 .userDetails
-                                                            ? "1320px"
-                                                            : "1120px",
+                                                            ? "1700px"
+                                                            : "1450px",
                                             }}
                                         >
                                             {/* ==================
@@ -2879,12 +2851,29 @@ function RequisitionPageContent() {
                                                                 Reason
                                                             </th>
                                                         )}
-                                                    <th className="min-w-[220px] px-3 py-2 text-left text-xs font-semibold">
-                                                        Approval
+
+                                                    <th className="px-2 py-2 text-left text-[10px]">
+                                                        Approval Status
                                                     </th>
 
-                                                    <th className="min-w-[220px] px-3 py-2 text-left text-xs font-semibold">
-                                                        Delivery
+                                                    <th className="px-2 py-2 text-left text-[10px]">
+                                                        Approved By
+                                                    </th>
+
+                                                    <th className="px-2 py-2 text-left text-[10px]">
+                                                        Approved Date
+                                                    </th>
+
+                                                    <th className="px-2 py-2 text-left text-[10px]">
+                                                        Delivered Status
+                                                    </th>
+
+                                                    <th className="px-2 py-2 text-left text-[10px]">
+                                                        Delivered By
+                                                    </th>
+
+                                                    <th className="px-2 py-2 text-left text-[10px]">
+                                                        Delivered Date
                                                     </th>
 
                                                     <th className="px-2 py-2 text-center text-[10px]">
@@ -3028,94 +3017,106 @@ function RequisitionPageContent() {
                                                                         </td>
                                                                     )}
 
-                                                                {/* Approval workflow */}
-                                                                <td className="px-3 py-2 align-top">
-                                                                    <div className="space-y-1.5">
-                                                                        <div className="flex items-start gap-2">
-                                                                            <span className="w-[48px] shrink-0 text-[11px] font-medium text-muted-foreground">
-                                                                                Status
-                                                                            </span>
-                                                                            <div className="min-w-0">
-                                                                                <ApprovalStatusCell
-                                                                                    item={item}
-                                                                                    updatingCell={updatingCell}
-                                                                                    onUpdate={(currentItem, value) =>
-                                                                                        void updateApproval(
-                                                                                            currentItem,
-                                                                                            value
-                                                                                        )
-                                                                                    }
-                                                                                />
-                                                                            </div>
-                                                                        </div>
+                                                                {/* ==================================
+                                                                APPROVAL STATUS
 
-                                                                        <div className="flex items-start gap-2">
-                                                                            <span className="w-[48px] shrink-0 text-[11px] font-medium text-muted-foreground">
-                                                                                By
-                                                                            </span>
-                                                                            <span className="min-w-0 break-words text-xs font-medium text-foreground">
-                                                                                {item.approved_by_name ||
-                                                                                    item.approved_by ||
-                                                                                    "—"}
-                                                                            </span>
-                                                                        </div>
+                                                                IMPORTANT:
+                                                                This is based on ROW STATUS,
+                                                                not current page.
+                                                            ================================== */}
 
-                                                                        <div className="flex items-start gap-2">
-                                                                            <span className="w-[48px] shrink-0 text-[11px] font-medium text-muted-foreground">
-                                                                                Date
-                                                                            </span>
-                                                                            <span className="whitespace-nowrap text-xs text-foreground">
-                                                                                {formatDateTime(
-                                                                                    item.approved_date
-                                                                                )}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
+                                                                <td className="px-2 py-2">
+                                                                    <ApprovalStatusCell
+                                                                        item={
+                                                                            item
+                                                                        }
+                                                                        updatingCell={
+                                                                            updatingCell
+                                                                        }
+                                                                        onUpdate={(
+                                                                            currentItem,
+                                                                            value
+                                                                        ) =>
+                                                                            void updateApproval(
+                                                                                currentItem,
+                                                                                value
+                                                                            )
+                                                                        }
+                                                                    />
                                                                 </td>
 
-                                                                {/* Delivery workflow */}
-                                                                <td className="px-3 py-2 align-top">
-                                                                    <div className="space-y-1.5">
-                                                                        <div className="flex items-start gap-2">
-                                                                            <span className="w-[48px] shrink-0 text-[11px] font-medium text-muted-foreground">
-                                                                                Status
-                                                                            </span>
-                                                                            <div className="min-w-0">
-                                                                                <DeliveryStatusCell
-                                                                                    item={item}
-                                                                                    updatingCell={updatingCell}
-                                                                                    onUpdate={(currentItem, value) =>
-                                                                                        void updateDelivery(
-                                                                                            currentItem,
-                                                                                            value
-                                                                                        )
-                                                                                    }
-                                                                                />
-                                                                            </div>
-                                                                        </div>
+                                                                {/* Approved By */}
 
-                                                                        <div className="flex items-start gap-2">
-                                                                            <span className="w-[48px] shrink-0 text-[11px] font-medium text-muted-foreground">
-                                                                                By
-                                                                            </span>
-                                                                            <span className="min-w-0 break-words text-xs font-medium text-foreground">
-                                                                                {item.delivered_by_name ||
-                                                                                    item.delivered_by ||
-                                                                                    "—"}
-                                                                            </span>
-                                                                        </div>
+                                                                <td className="px-2 py-2">
+                                                                    <p>
+                                                                        {item.approved_by ||
+                                                                            "—"}
+                                                                    </p>
 
-                                                                        <div className="flex items-start gap-2">
-                                                                            <span className="w-[48px] shrink-0 text-[11px] font-medium text-muted-foreground">
-                                                                                Date
-                                                                            </span>
-                                                                            <span className="whitespace-nowrap text-xs text-foreground">
-                                                                                {formatDateTime(
-                                                                                    item.delivered_date
-                                                                                )}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
+                                                                    <p className="text-[10px] text-muted-foreground">
+                                                                        {
+                                                                            item.approved_by_name
+                                                                        }
+                                                                    </p>
+                                                                </td>
+
+                                                                {/* Approved Date */}
+
+                                                                <td className="whitespace-nowrap px-2 py-2">
+                                                                    {formatDateTime(
+                                                                        item.approved_date
+                                                                    )}
+                                                                </td>
+
+                                                                {/* ==================================
+                                                                DELIVERY STATUS
+
+                                                                IMPORTANT:
+                                                                Becomes dropdown only AFTER
+                                                                approval has completed.
+                                                            ================================== */}
+
+                                                                <td className="px-2 py-2">
+                                                                    <DeliveryStatusCell
+                                                                        item={
+                                                                            item
+                                                                        }
+                                                                        updatingCell={
+                                                                            updatingCell
+                                                                        }
+                                                                        onUpdate={(
+                                                                            currentItem,
+                                                                            value
+                                                                        ) =>
+                                                                            void updateDelivery(
+                                                                                currentItem,
+                                                                                value
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </td>
+
+                                                                {/* Delivered By */}
+
+                                                                <td className="px-2 py-2">
+                                                                    <p>
+                                                                        {item.delivered_by ||
+                                                                            "—"}
+                                                                    </p>
+
+                                                                    <p className="text-[10px] text-muted-foreground">
+                                                                        {
+                                                                            item.delivered_by_name
+                                                                        }
+                                                                    </p>
+                                                                </td>
+
+                                                                {/* Delivered Date */}
+
+                                                                <td className="whitespace-nowrap px-2 py-2">
+                                                                    {formatDateTime(
+                                                                        item.delivered_date
+                                                                    )}
                                                                 </td>
 
                                                                 {/* Action */}

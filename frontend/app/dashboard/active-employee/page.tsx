@@ -783,8 +783,8 @@ export default function ActiveEmployeePage() {
                             type="button"
                             onClick={() => setSelectedDept(null)}
                             className={`flex min-w-0 items-center justify-between rounded-md border px-2 py-1 text-[10px] ${!selectedDept
-                                    ? "border-primary bg-primary/10 font-semibold text-primary"
-                                    : "border-border bg-muted/20 hover:bg-muted/50"
+                                ? "border-primary bg-primary/10 font-semibold text-primary"
+                                : "border-border bg-muted/20 hover:bg-muted/50"
                                 }`}
                         >
                             <span>All</span>
@@ -805,8 +805,8 @@ export default function ActiveEmployeePage() {
                                     )
                                 }
                                 className={`flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1 text-left text-[10px] ${selectedDept === department
-                                        ? "border-primary bg-primary/10 font-semibold text-primary"
-                                        : "border-border bg-muted/20 hover:bg-muted/50"
+                                    ? "border-primary bg-primary/10 font-semibold text-primary"
+                                    : "border-border bg-muted/20 hover:bg-muted/50"
                                     }`}
                             >
                                 <span className="truncate" title={department}>
