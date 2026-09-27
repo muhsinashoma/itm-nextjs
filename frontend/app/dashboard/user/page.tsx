@@ -1,4 +1,4 @@
-// frontend/app/dashboard/user/page.tsx
+﻿// frontend/app/dashboard/user/page.tsx
 
 "use client";
 
@@ -684,7 +684,7 @@ export default function UserDashboardPage() {
                                     {employee.designation &&
                                         employee.department && (
                                             <span className="text-slate-300">
-                                                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢
+                                                |
                                             </span>
                                         )}
 
@@ -1518,7 +1518,7 @@ export default function UserDashboardPage() {
                                                         }
                                                     >
                                                         {item.department ||
-                                                            "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                            "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã...Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}
                                                     </span>
                                                 </div>
                                             </Td>
@@ -1574,17 +1574,14 @@ export default function UserDashboardPage() {
                 <div className="flex flex-col gap-2 border-t border-slate-200 bg-slate-50/40 px-3.5 py-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-[10px] text-slate-500">
                         Showing{" "}
-                        {total ===
-                            0
+                        {total === 0
                             ? 0
-                            : (page -
-                                1) *
+                            : (page - 1) *
                             PAGE_SIZE +
                             1}
-                        {"ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ"}
+                        {"-"}
                         {Math.min(
-                            page *
-                            PAGE_SIZE,
+                            page * PAGE_SIZE,
                             total
                         )}{" "}
                         of{" "}
@@ -1966,7 +1963,7 @@ function DateCell({
     ) {
         return (
             <span className="text-slate-400">
-                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+                ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã...Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â
             </span>
         );
     }
