@@ -1,227 +1,470 @@
 
+
 //frontend/app/dashboard/active-employee/page.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { RefreshCw, Search, Users } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import {
     Avatar,
-    AvatarImage,
     AvatarFallback,
+    AvatarImage,
 } from "@/components/ui/avatar";
 
-/* ================= TYPES ================= */
-type Employee = {
-    id: number;
-    name: string;
-    designation: string;
-    department: string;
-    email: string;
-    status: "Active" | "Inactive";
-};
+import {
+    employeeApi,
+    type Employee,
+} from "@/lib/api";
 
-/* ================= DATA ================= */
-const EMPLOYEES: Employee[] = [
-    { id: 1, name: "Muhammad Rahim", designation: "Admin Officer", department: "Admin", email: "rahim@company.com", status: "Active" },
-    { id: 2, name: "Ayesha Akter", designation: "HR Executive", department: "HR", email: "ayesha@company.com", status: "Active" },
-    { id: 3, name: "Tanvir Hasan", designation: "System Analyst", department: "Software", email: "tanvir@company.com", status: "Active" },
-    { id: 4, name: "Nusrat Jahan", designation: "Admin Officer", department: "Admin", email: "nusrat@company.com", status: "Active" },
-    { id: 5, name: "Shakil Akhter Khan", designation: "DGM", department: "IT", email: "shakil.khan@company.com", status: "Active" },
-    { id: 6, name: "Md. Saulad Zahir Alvi", designation: "Manager", department: "IT", email: "saulad.zahir@company.com", status: "Active" },
-    { id: 7, name: "Nur Hosen", designation: "Assistant Manager", department: "IT", email: "nur.hosen@company.com", status: "Active" },
-    { id: 8, name: "Masud Rabbi", designation: "Chief HR", department: "HR", email: "masud.rabbi@company.com", status: "Active" },
-    { id: 9, name: "Mohammad Anwar Hossain Bhuiyan", designation: "Chief System Officer", department: "Software", email: "anwar.bhuiyan@company.com", status: "Active" },
-    { id: 10, name: "Nayma Siddique", designation: "Manager", department: "Chairman Secretariat", email: "nayma.siddique@company.com", status: "Active" },
-    { id: 11, name: "Nahida Islam", designation: "Sr. Manager", department: "IP Transmission", email: "nahida.islam@company.com", status: "Active" },
-    { id: 12, name: "Sadia Islam", designation: "Sr. Manager", department: "IP Transmission", email: "sadia.islam@company.com", status: "Active" },
-];
+const HRIS_IMAGE_BASE_URL =
+    (
+        process.env.NEXT_PUBLIC_HRIS_IMAGE_BASE_URL ||
+        "https://hris.fiberathome.net/hris/admin"
+    ).replace(/\/+$/, "");
 
-/* ================= HELPERS ================= */
-const getInitials = (name: string) =>
-    name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+function getInitials(name: string | null | undefined) {
+    const parts = String(name || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
 
-const getAvatar = (name: string) =>
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+    if (parts.length === 0) return "NA";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
 
-/* ================= COMPONENT ================= */
-export default function EmployeeDashboard() {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function resolveEmployeeImageUrl(value: string | null | undefined) {
+    const image = String(value || "").trim();
+    if (!image) return "";
+
+    if (
+        image.startsWith("http://") ||
+        image.startsWith("https://") ||
+        image.startsWith("data:") ||
+        image.startsWith("blob:")
+    ) {
+        return image;
+    }
+
+    return `${HRIS_IMAGE_BASE_URL}/${image.replace(/^\/+/, "")}`;
+}
+
+function isActiveEmployee(value: string | null | undefined) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return normalized === "yes" || normalized === "active";
+}
+
+function csvEscape(value: string | number | null | undefined) {
+    return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+export default function ActiveEmployeePage() {
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [selectedDept, setSelectedDept] = useState<string | null>(null);
     const [search, setSearch] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    /* GROUP BY DEPARTMENT */
-    const grouped = useMemo(() => {
-        return EMPLOYEES.reduce<Record<string, Employee[]>>((acc, emp) => {
-            if (!acc[emp.department]) acc[emp.department] = [];
-            acc[emp.department].push(emp);
-            return acc;
-        }, {});
+    async function loadActiveEmployees() {
+        try {
+            setLoading(true);
+            setError("");
+
+            const first = await employeeApi.list({
+                page: 1,
+                page_size: 200,
+                active: "Yes",
+            });
+
+            const firstRows = Array.isArray(first.data) ? first.data : [];
+            const totalPages = Math.max(
+                1,
+                Number(
+                    (first as any).total_pages ??
+                    Math.ceil(
+                        Number((first as any).total ?? firstRows.length) / 200,
+                    ),
+                ) || 1,
+            );
+
+            let rows = [...firstRows];
+
+            if (totalPages > 1) {
+                const remaining = await Promise.all(
+                    Array.from({ length: totalPages - 1 }, (_, index) =>
+                        employeeApi.list({
+                            page: index + 2,
+                            page_size: 200,
+                            active: "Yes",
+                        }),
+                    ),
+                );
+
+                for (const response of remaining) {
+                    if (Array.isArray(response.data)) {
+                        rows.push(...response.data);
+                    }
+                }
+            }
+
+            const unique = new Map<string, Employee>();
+
+            rows
+                .filter((employee) => isActiveEmployee(employee.active))
+                .forEach((employee) => {
+                    const id = String(employee.employee_id || "").trim();
+                    if (id) unique.set(id, employee);
+                });
+
+            setEmployees(
+                Array.from(unique.values()).sort((a, b) =>
+                    String(a.employee_name || "").localeCompare(
+                        String(b.employee_name || ""),
+                    ),
+                ),
+            );
+        } catch (reason) {
+            setEmployees([]);
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : "Unable to load active employees.",
+            );
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        void loadActiveEmployees();
     }, []);
 
-    /* FILTERED DATA */
+    const grouped = useMemo(() => {
+        return employees.reduce<Record<string, Employee[]>>((acc, employee) => {
+            const department =
+                String(employee.department || "").trim() ||
+                "Unassigned Department";
+
+            if (!acc[department]) acc[department] = [];
+            acc[department].push(employee);
+
+            return acc;
+        }, {});
+    }, [employees]);
+
+    const departments = useMemo(
+        () =>
+            Object.entries(grouped).sort(([a], [b]) =>
+                a.localeCompare(b),
+            ),
+        [grouped],
+    );
+
     const filteredData = useMemo(() => {
-        let data = selectedDept
+        const query = search.trim().toLowerCase();
+        const rows = selectedDept
             ? grouped[selectedDept] || []
-            : EMPLOYEES;
+            : employees;
 
-        return data.filter((e) =>
-            e.name.toLowerCase().includes(search.toLowerCase())
+        if (!query) return rows;
+
+        return rows.filter((employee) =>
+            [
+                employee.employee_id,
+                employee.employee_name,
+                employee.designation,
+                employee.department,
+                employee.email,
+                employee.official_cell,
+                employee.personal_cell,
+            ]
+                .filter(Boolean)
+                .some((value) =>
+                    String(value).toLowerCase().includes(query),
+                ),
         );
-    }, [selectedDept, search, grouped]);
+    }, [employees, grouped, search, selectedDept]);
 
-    /* EXPORT */
-    const exportCSV = () => {
+    function exportCSV() {
         const rows = [
-            ["ID", "Name", "Designation", "Department", "Email", "Status"],
-            ...filteredData.map((e) => [
-                e.id,
-                e.name,
-                e.designation,
-                e.department,
-                e.email,
-                e.status,
+            [
+                "Employee ID",
+                "Employee Name",
+                "Designation",
+                "Department",
+                "Email",
+                "Mobile",
+                "Status",
+            ],
+            ...filteredData.map((employee) => [
+                employee.employee_id,
+                employee.employee_name,
+                employee.designation,
+                employee.department,
+                employee.email,
+                employee.official_cell || employee.personal_cell,
+                employee.active,
             ]),
         ];
 
-        const csv = rows.map((r) => r.join(",")).join("\n");
-        const blob = new Blob([csv], { type: "text/csv" });
+        const csv = rows
+            .map((row) => row.map(csvEscape).join(","))
+            .join("\n");
 
+        const blob = new Blob([csv], {
+            type: "text/csv;charset=utf-8",
+        });
+
+        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "employees.csv";
+        link.href = url;
+        link.download = "active-employees.csv";
         link.click();
-    };
+        URL.revokeObjectURL(url);
+    }
 
     return (
-        <div className="min-h-screen bg-muted p-6">
-            <div className="max-w-7xl mx-auto">
-
-                {/* ================= HEADER ================= */}
-                <div className="mb-6">
-                    <h1 className="text-xl font-semibold text-gray-800">
-                        Department Wise Employee Dashboard
-                    </h1>
-                </div>
-
-                {/* ================= DEPARTMENT OVERVIEW ================= */}
-                <div className="mb-6 bg-white border rounded-xl shadow-sm p-3">
-
-                    <div className="flex justify-between mb-3">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase">
-                            Department Overview
+        <div className="min-h-screen bg-muted/30 p-4">
+            <div className="mx-auto max-w-7xl space-y-3">
+                <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <Users className="h-5 w-5 text-primary" />
+                            <h1 className="text-lg font-semibold">
+                                Active Employee Directory
+                            </h1>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Real active employee data with HRIS employee images.
                         </p>
-                        <span className="text-[10px] text-muted-foreground">Quick Filter</span>
                     </div>
 
-                    {/* ALL */}
-                    <div
-                        onClick={() => setSelectedDept(null)}
-                        className={`flex justify-between items-center px-3 py-2 rounded-md text-sm cursor-pointer mb-2 border transition
-    ${!selectedDept
-                                ? "bg-muted text-gray-800 border-gray-300"
-                                : "bg-muted hover:bg-muted text-gray-700 border-border"
-                            }`}
-                    >
-                        <span>All</span>
-                        <span className={`text-[11px] font-semibold ${!selectedDept ? "text-gray-800" : "text-muted-foreground"}`}>
-                            {EMPLOYEES.length}
+                    <div className="flex items-center gap-2">
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5">
+                            <span className="text-[10px] font-medium text-emerald-700">
+                                Active Employees
+                            </span>
+                            <span className="ml-2 text-sm font-bold text-emerald-800">
+                                {loading ? "…" : employees.length.toLocaleString()}
+                            </span>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => void loadActiveEmployees()}
+                            disabled={loading}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold hover:bg-muted disabled:opacity-60"
+                        >
+                            <RefreshCw
+                                className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""
+                                    }`}
+                            />
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                {error && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                        {error}
+                    </div>
+                )}
+
+                <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+                    <div className="mb-2 flex items-center justify-between">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                            Department Overview
+                        </p>
+                        <span className="text-[10px] text-muted-foreground">
+                            Quick Filter
                         </span>
                     </div>
 
-                    {/* DEPARTMENT LIST */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {Object.entries(grouped).map(([dept, list]) => (
-                            <div
-                                key={dept}
-                                onClick={() => setSelectedDept(dept)}
-                                className={`flex justify-between items-center px-3 py-2 rounded-md text-xs cursor-pointer border
-                                ${selectedDept === dept
-                                        ? "bg-gray-800 text-white"
-                                        : "bg-muted hover:bg-muted"
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedDept(null)}
+                            className={`flex items-center justify-between rounded-md border px-2.5 py-1.5 text-[11px] ${!selectedDept
+                                ? "border-primary bg-primary/10 font-semibold text-primary"
+                                : "border-border bg-muted/20 hover:bg-muted/50"
+                                }`}
+                        >
+                            <span>All</span>
+                            <span className="font-semibold tabular-nums">
+                                {employees.length}
+                            </span>
+                        </button>
+
+                        {departments.map(([department, list]) => (
+                            <button
+                                key={department}
+                                type="button"
+                                onClick={() =>
+                                    setSelectedDept(
+                                        selectedDept === department
+                                            ? null
+                                            : department,
+                                    )
+                                }
+                                className={`flex min-w-0 items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-[11px] ${selectedDept === department
+                                    ? "border-primary bg-primary/10 font-semibold text-primary"
+                                    : "border-border bg-muted/20 hover:bg-muted/50"
                                     }`}
                             >
-                                <span>{dept}</span>
-                                <span className={selectedDept === dept ? "text-white" : "text-muted-foreground"}>
+                                <span className="truncate" title={department}>
+                                    {department}
+                                </span>
+                                <span className="shrink-0 font-semibold tabular-nums">
                                     {list.length}
                                 </span>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 </div>
 
-                {/* ================= TABLE ================= */}
-                <div className="bg-card border rounded-xl shadow-sm">
+                <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                    <div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="relative w-full max-w-md">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                className="h-9 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                                placeholder="Search by ID, name, designation, department, email or mobile..."
+                            />
+                        </div>
 
-                    {/* TOP BAR */}
-                    <div className="p-3 flex justify-between gap-2">
-                        <input
-                            className="border px-3 py-2 rounded text-sm w-full max-w-sm"
-                            placeholder="Search employee..."
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground">
+                                Showing {filteredData.length.toLocaleString()}
+                            </span>
 
-                        <button
-                            onClick={exportCSV}
-                            className="bg-green-600 text-white px-3 py-2 rounded text-sm"
-                        >
-                            Export
-                        </button>
+                            <button
+                                type="button"
+                                onClick={exportCSV}
+                                disabled={filteredData.length === 0}
+                                className="h-8 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                                Export CSV
+                            </button>
+                        </div>
                     </div>
 
-                    {/* TABLE */}
-                    <div className="overflow-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-muted text-xs uppercase">
+                    <div className="max-h-[68vh] overflow-auto">
+                        <table className="w-full min-w-[980px] text-[11px]">
+                            <thead className="sticky top-0 z-10 border-b border-border bg-background/95 text-[9px] font-semibold uppercase tracking-[0.04em] text-muted-foreground backdrop-blur">
                                 <tr>
-                                    <th className="p-3 text-left">SL</th>
-                                    <th className="p-3 text-left">Employee</th>
-                                    <th className="p-3 text-left">Designation</th>
-                                    <th className="p-3 text-left">Department</th>
-                                    <th className="p-3 text-left">Email</th>
-                                    <th className="p-3 text-left">Status</th>
+                                    <th className="w-[55px] px-3 py-2 text-center">SL</th>
+                                    <th className="px-3 py-2 text-left">Employee</th>
+                                    <th className="px-3 py-2 text-left">Designation</th>
+                                    <th className="px-3 py-2 text-left">Department</th>
+                                    <th className="px-3 py-2 text-left">Email</th>
+                                    <th className="px-3 py-2 text-left">Mobile</th>
+                                    <th className="w-[90px] px-3 py-2 text-center">Status</th>
                                 </tr>
                             </thead>
 
                             <tbody>
-                                {filteredData.map((emp, i) => (
-                                    <tr key={emp.id} className="border-b hover:bg-muted">
-
-                                        <td className="p-3">{i + 1}</td>
-
-                                        <td className="p-3 flex items-center gap-3">
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src={getAvatar(emp.name)} />
-                                                <AvatarFallback>
-                                                    {getInitials(emp.name)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            {emp.name}
-                                        </td>
-
-                                        <td className="p-3">{emp.designation}</td>
-                                        <td className="p-3">{emp.department}</td>
-                                        <td className="p-3 text-muted-foreground">{emp.email}</td>
-
-                                        <td className="p-3">
-                                            <Badge className="bg-green-100 text-green-700">
-                                                {emp.status}
-                                            </Badge>
-                                        </td>
-                                    </tr>
-                                ))}
-
-                                {filteredData.length === 0 && (
+                                {loading && employees.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="text-center p-6 text-muted-foreground">
-                                            No data found
+                                        <td colSpan={7} className="px-4 py-14 text-center text-muted-foreground">
+                                            <span className="inline-flex items-center gap-2">
+                                                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                                                Loading active employees...
+                                            </span>
                                         </td>
                                     </tr>
                                 )}
+
+                                {!loading && !error && filteredData.length === 0 && (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-14 text-center text-muted-foreground">
+                                            No active employees found.
+                                        </td>
+                                    </tr>
+                                )}
+
+                                {filteredData.map((employee, index) => {
+                                    const imageUrl =
+                                        resolveEmployeeImageUrl(employee.picture);
+
+                                    return (
+                                        <tr
+                                            key={employee.employee_id}
+                                            className="border-b border-border/70 transition-colors last:border-b-0 hover:bg-muted/30"
+                                        >
+                                            <td className="px-3 py-2 text-center font-medium tabular-nums text-muted-foreground">
+                                                {index + 1}
+                                            </td>
+
+                                            <td className="px-3 py-2">
+                                                <div className="flex min-w-0 items-center gap-2.5">
+                                                    <Avatar className="h-9 w-9 shrink-0 border border-border bg-muted">
+                                                        {imageUrl && (
+                                                            <AvatarImage
+                                                                src={imageUrl}
+                                                                alt={employee.employee_name || "Employee"}
+                                                                className="object-cover"
+                                                            />
+                                                        )}
+                                                        <AvatarFallback className="text-[10px] font-bold">
+                                                            {getInitials(employee.employee_name)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+
+                                                    <div className="min-w-0">
+                                                        <p
+                                                            className="truncate text-[11px] font-semibold"
+                                                            title={employee.employee_name}
+                                                        >
+                                                            {employee.employee_name || "Employee"}
+                                                        </p>
+                                                        <p className="mt-0.5 font-mono text-[9px] font-semibold text-primary">
+                                                            {employee.employee_id || "—"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <td className="max-w-[220px] px-3 py-2">
+                                                <span className="block truncate" title={employee.designation || "—"}>
+                                                    {employee.designation || "—"}
+                                                </span>
+                                            </td>
+
+                                            <td className="max-w-[220px] px-3 py-2">
+                                                <span className="block truncate" title={employee.department || "—"}>
+                                                    {employee.department || "—"}
+                                                </span>
+                                            </td>
+
+                                            <td className="max-w-[260px] px-3 py-2 text-muted-foreground">
+                                                <span className="block truncate" title={employee.email || "—"}>
+                                                    {employee.email || "—"}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-3 py-2 font-mono text-[10px]">
+                                                {employee.official_cell ||
+                                                    employee.personal_cell ||
+                                                    "—"}
+                                            </td>
+
+                                            <td className="px-3 py-2 text-center">
+                                                <Badge className="border border-emerald-200 bg-emerald-50 text-[9px] font-semibold text-emerald-700 hover:bg-emerald-50">
+                                                    Active
+                                                </Badge>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
-
                 </div>
-
             </div>
         </div>
     );
