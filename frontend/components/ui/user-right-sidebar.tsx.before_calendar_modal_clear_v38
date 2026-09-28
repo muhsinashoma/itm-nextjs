@@ -24,7 +24,6 @@ import {
     RefreshCw,
     Ticket,
     Users,
-    X,
 } from "lucide-react";
 
 import {
@@ -51,12 +50,6 @@ export function UserRightSidebar() {
     ] = useState<Date | null>(
         null
     );
-
-
-
-
-
-
 
     const [
         data,
@@ -124,7 +117,7 @@ export function UserRightSidebar() {
             []
         );
 
-    useEffect(() => {
+        useEffect(() => {
         const updateTime = () => {
             setCurrentTime(
                 new Date()
@@ -144,7 +137,7 @@ export function UserRightSidebar() {
                 timer
             );
     }, []);
-    useEffect(
+useEffect(
         () => {
             void loadSummary();
         },
@@ -248,166 +241,24 @@ export function UserRightSidebar() {
     return (
         <aside className="flex h-full w-full flex-col bg-card">
             {/* USER RIGHT SIDEBAR TOP CALENDAR */}
-            <div className="shrink-0 border-b border-border p-2.5">
+            <div className="shrink-0 border-b border-border p-3">
                 <div
                     className="
                         rounded-xl
                         border
                         border-border
                         bg-background
-                        p-3
+                        px-3
+                        py-2.5
                         shadow-sm
                     "
                 >
-                    <div className="flex items-start gap-3">
-                        {/* Analog clock */}
-                        <div
-                            className="
-                                relative
-                                h-[88px]
-                                w-[88px]
-                                shrink-0
-                                rounded-full
-                                border
-                                border-primary/20
-                                bg-gradient-to-br
-                                from-primary/5
-                                to-background
-                                shadow-inner
-                            "
-                            aria-hidden="true"
-                        >
-                            {Array.from({
-                                length: 12,
-                            }).map(
-                                (
-                                    _,
-                                    index
-                                ) => (
-                                    <span
-                                        key={index}
-                                        className="absolute inset-[6px]"
-                                        style={{
-                                            transform:
-                                                `rotate(${index * 30}deg)`,
-                                        }}
-                                    >
-                                        <span
-                                            className={`
-                                                absolute
-                                                left-1/2
-                                                top-0
-                                                -translate-x-1/2
-                                                rounded-full
-                                                bg-muted-foreground/55
-
-                                                ${index % 3 === 0
-                                                    ? "h-2 w-[2px]"
-                                                    : "h-1.5 w-px"
-                                                }
-                                            `}
-                                        />
-                                    </span>
-                                )
-                            )}
-
-                            <span
-                                className="
-                                    absolute
-                                    left-1/2
-                                    top-1/2
-                                    h-[23px]
-                                    w-[3px]
-                                    rounded-full
-                                    bg-foreground
-                                "
-                                style={{
-                                    transformOrigin:
-                                        "50% 100%",
-                                    transform:
-                                        `translate(-50%, -100%) rotate(${currentTime
-                                            ? ((currentTime.getHours() % 12) * 30 +
-                                                currentTime.getMinutes() * 0.5)
-                                            : 0
-                                        }deg)`,
-                                }}
-                            />
-
-                            <span
-                                className="
-                                    absolute
-                                    left-1/2
-                                    top-1/2
-                                    h-[31px]
-                                    w-[2px]
-                                    rounded-full
-                                    bg-foreground/80
-                                "
-                                style={{
-                                    transformOrigin:
-                                        "50% 100%",
-                                    transform:
-                                        `translate(-50%, -100%) rotate(${currentTime
-                                            ? (currentTime.getMinutes() * 6 +
-                                                currentTime.getSeconds() * 0.1)
-                                            : 0
-                                        }deg)`,
-                                }}
-                            />
-
-                            <span
-                                className="
-                                    absolute
-                                    left-1/2
-                                    top-1/2
-                                    h-[33px]
-                                    w-px
-                                    rounded-full
-                                    bg-red-500
-                                "
-                                style={{
-                                    transformOrigin:
-                                        "50% 100%",
-                                    transform:
-                                        `translate(-50%, -100%) rotate(${currentTime
-                                            ? currentTime.getSeconds() * 6
-                                            : 0
-                                        }deg)`,
-                                }}
-                            />
-
-                            <span
-                                className="
-                                    absolute
-                                    left-1/2
-                                    top-1/2
-                                    h-2
-                                    w-2
-                                    -translate-x-1/2
-                                    -translate-y-1/2
-                                    rounded-full
-                                    border-2
-                                    border-background
-                                    bg-primary
-                                    shadow-sm
-                                "
-                            />
-                        </div>
-
-                        <div className="min-w-0 flex-1 pt-1">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <Clock3 className="h-3.5 w-3.5 shrink-0 text-primary" />
 
-                                <p
-                                    className="
-                                        whitespace-nowrap
-                                        text-[15px]
-                                        font-bold
-                                        tabular-nums
-                                        tracking-tight
-                                        text-foreground
-                                    "
-                                >
+                                <p className="whitespace-nowrap text-sm font-bold tabular-nums text-foreground">
                                     {currentTime
                                         ? currentTime.toLocaleTimeString(
                                             "en-US",
@@ -426,72 +277,64 @@ export function UserRightSidebar() {
                                 </p>
                             </div>
 
-                            <p
-                                className="
-                                    mt-1
-                                    whitespace-nowrap
-                                    text-[9px]
-                                    font-medium
-                                    leading-4
-                                    tracking-tight
-                                    text-foreground/80
-                                "
-                            >
-                                {currentTime
-                                    ? currentTime.toLocaleDateString(
-                                        "en-US",
-                                        {
-                                            weekday:
-                                                "long",
-                                            month:
-                                                "long",
-                                            day:
-                                                "numeric",
-                                            year:
-                                                "numeric",
-                                        }
-                                    )
-                                    : "Loading dateâ€¦"}
-                            </p>
+                            <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-primary/80" />
 
-                            <div className="mt-3 flex justify-end">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setCalendarOpen(
-                                            true
+                                <p className="truncate text-[10px] font-medium text-muted-foreground">
+                                    {currentTime
+                                        ? currentTime.toLocaleDateString(
+                                            "en-US",
+                                            {
+                                                weekday:
+                                                    "long",
+                                                month:
+                                                    "long",
+                                                day:
+                                                    "numeric",
+                                                year:
+                                                    "numeric",
+                                            }
                                         )
-                                    }
-                                    className="
-                                        inline-flex
-                                        h-8
-                                        items-center
-                                        gap-1.5
-                                        rounded-lg
-                                        border
-                                        border-primary/25
-                                        bg-primary/5
-                                        px-3
-                                        text-[10px]
-                                        font-semibold
-                                        text-primary
-                                        shadow-sm
-                                        transition
-                                        hover:border-primary/40
-                                        hover:bg-primary/10
-                                        hover:shadow
-                                        focus-visible:outline-none
-                                        focus-visible:ring-2
-                                        focus-visible:ring-primary/20
-                                    "
-                                    aria-haspopup="dialog"
-                                >
-                                    <CalendarDays className="h-3.5 w-3.5" />
-
-                                    Calendar
-                                </button>
+                                        : "Loading dateâ€¦"}
+                                </p>
                             </div>
                         </div>
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setCalendarOpen(
+                                    true
+                                )
+                            }
+                            className="
+                                inline-flex
+                                h-8
+                                shrink-0
+                                items-center
+                                gap-1.5
+                                rounded-lg
+                                border
+                                border-primary/25
+                                bg-primary/5
+                                px-2.5
+                                text-[10px]
+                                font-semibold
+                                text-primary
+                                shadow-sm
+                                transition
+                                hover:border-primary/40
+                                hover:bg-primary/10
+                                focus-visible:outline-none
+                                focus-visible:ring-2
+                                focus-visible:ring-primary/20
+                            "
+                            aria-haspopup="dialog"
+                        >
+                            <CalendarDays className="h-3.5 w-3.5" />
+
+                            Calendar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -505,8 +348,9 @@ export function UserRightSidebar() {
                         flex
                         items-center
                         justify-center
-                        bg-black/20
+                        bg-black/45
                         p-4
+                        backdrop-blur-[2px]
                     "
                     role="dialog"
                     aria-modal="true"
@@ -606,28 +450,9 @@ export function UserRightSidebar() {
                                         false
                                     )
                                 }
-                                className="
-                                    inline-flex
-                                    h-8
-                                    w-8
-                                    shrink-0
-                                    items-center
-                                    justify-center
-                                    rounded-lg
-                                    border
-                                    border-border
-                                    bg-background
-                                    text-muted-foreground
-                                    shadow-sm
-                                    transition
-                                    hover:bg-muted
-                                    hover:text-foreground
-                                    focus-visible:outline-none
-                                    focus-visible:ring-2
-                                    focus-visible:ring-primary/20
-                                "
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:bg-muted hover:text-foreground"
                             >
-                                <X className="h-4 w-4" />
+                                Ã—
                             </button>
                         </div>
 
