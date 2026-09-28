@@ -113,25 +113,14 @@ const menuGroups: MenuGroup[] = [
                         icon: MonitorSmartphone,
                     },
 
-                    {
-                        title: "All Device Status",
-                        href: "/dashboard/stock/all-status",
-                        icon: LayoutList,
-                    },
+                    // {
+                    //     title: "All Device Status",
+                    //     href: "/dashboard/stock/all-status",
+                    //     icon: LayoutList,
+                    // },
                 ],
             },
-            // {
-            //     title: "Assigned Assets",
-            //     icon: Layers,
-            //     accent: "indigo",
-            //     children: [
-            //         {
-            //             title: "Employee Asset List",
-            //             href: "/dashboard/operations/emp-assets-list",
-            //             icon: Users,
-            //         },
-            //     ],
-            // },
+
             {
                 title: "Non-Operational",
                 icon: Trash2,
@@ -222,7 +211,7 @@ const menuGroups: MenuGroup[] = [
         access: "admin",
         items: [
             {
-                title: "Add All Item",
+                title: "Add Master Item",
                 icon: ClipboardList,
                 accent: "violet",
                 children: [
