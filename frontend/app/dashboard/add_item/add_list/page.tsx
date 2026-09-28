@@ -1,5 +1,6 @@
-//frontend/app/dashboard(admin)/add-item/page.tsx
-//Master Data Management Page for Admin Dashboard
+
+//frontend/app/dashboard(Admin)/add_item/add_list/page.tsx
+//Master Data Management Page
 "use client";
 
 import {
@@ -2139,15 +2140,8 @@ function MasterDrawer({
                     : "Add Component";
 
     return (
-        <div className="fixed inset-0 z-[160] flex justify-end bg-black/20">
-            <button
-                type="button"
-                aria-label="Close drawer"
-                className="absolute inset-0 cursor-default"
-                onClick={onClose}
-            />
-
-            <aside className="relative z-10 flex h-full w-full max-w-[430px] flex-col border-l border-border bg-card shadow-2xl">
+        <div className="pointer-events-none fixed inset-y-0 right-0 z-[160] flex justify-end">
+            <aside className="pointer-events-auto relative flex h-full w-[430px] max-w-[94vw] flex-col border-l border-border bg-card shadow-2xl">
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
                     <div>
                         <h2 className="text-sm font-semibold text-foreground">
