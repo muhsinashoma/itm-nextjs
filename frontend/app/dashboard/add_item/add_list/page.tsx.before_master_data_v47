@@ -1,19 +1,16 @@
-//frontend/app/dashboard(admin)/add-item/page.tsx
-//Master Data Management Page for Admin Dashboard
+//frontend/app/dashboard(admin)/add_item/add_list/page.tsx
+//Master Data Management Page
 "use client";
 
 import {
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from "react";
 
 import {
     Boxes,
-    Check,
-    ChevronDown,
     ChevronRight,
     CirclePlus,
     Cpu,
@@ -159,359 +156,6 @@ function ErrorState({
                 <RefreshCcw className="h-3.5 w-3.5" />
                 Retry
             </button>
-        </div>
-    );
-}
-
-
-type SearchableOption = {
-    value: string;
-    label: string;
-    searchText?: string;
-};
-
-function SearchableSelect({
-    value,
-    onChange,
-    options,
-    placeholder,
-    searchPlaceholder = "Search...",
-    allowClear = true,
-    disabled = false,
-}: {
-    value: string;
-    onChange: (
-        value: string
-    ) => void;
-    options: SearchableOption[];
-    placeholder: string;
-    searchPlaceholder?: string;
-    allowClear?: boolean;
-    disabled?: boolean;
-}) {
-    const [
-        open,
-        setOpen,
-    ] =
-        useState(false);
-
-    const [
-        query,
-        setQuery,
-    ] =
-        useState("");
-
-    const rootRef =
-        useRef<HTMLDivElement>(
-            null
-        );
-
-    useEffect(() => {
-        function handlePointerDown(
-            event: MouseEvent
-        ) {
-            if (
-                rootRef.current &&
-                !rootRef.current.contains(
-                    event.target as Node
-                )
-            ) {
-                setOpen(
-                    false
-                );
-
-                setQuery(
-                    ""
-                );
-            }
-        }
-
-        document.addEventListener(
-            "mousedown",
-            handlePointerDown
-        );
-
-        return () => {
-            document.removeEventListener(
-                "mousedown",
-                handlePointerDown
-            );
-        };
-    }, []);
-
-    const sortedOptions =
-        useMemo(
-            () =>
-                [...options].sort(
-                    (
-                        a,
-                        b
-                    ) =>
-                        a.label.localeCompare(
-                            b.label,
-                            undefined,
-                            {
-                                sensitivity:
-                                    "base",
-                                numeric:
-                                    true,
-                            }
-                        )
-                ),
-            [
-                options,
-            ]
-        );
-
-    const normalized =
-        query
-            .trim()
-            .toLowerCase();
-
-    const visibleOptions =
-        sortedOptions.filter(
-            (
-                option
-            ) =>
-                !normalized ||
-                [
-                    option.label,
-                    option.searchText ??
-                    "",
-                ].some(
-                    (
-                        text
-                    ) =>
-                        text
-                            .toLowerCase()
-                            .includes(
-                                normalized
-                            )
-                )
-        );
-
-    const selected =
-        sortedOptions.find(
-            (
-                option
-            ) =>
-                option.value ===
-                value
-        );
-
-    return (
-        <div
-            ref={
-                rootRef
-            }
-            className="relative"
-        >
-            <div
-                className={`
-                    flex
-                    h-9
-                    w-full
-                    items-center
-                    rounded-lg
-                    border
-                    border-input
-                    bg-background
-                    transition
-                    ${open
-                        ? "border-primary/40 ring-2 ring-primary/10"
-                        : ""
-                    }
-                    ${disabled
-                        ? "cursor-not-allowed opacity-60"
-                        : ""
-                    }
-                `}
-            >
-                <button
-                    type="button"
-                    disabled={
-                        disabled
-                    }
-                    onClick={() =>
-                        setOpen(
-                            (
-                                current
-                            ) =>
-                                !current
-                        )
-                    }
-                    className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 text-left text-[11px]"
-                >
-                    <span
-                        className={`
-                            truncate
-                            ${selected
-                                ? "text-foreground"
-                                : "text-muted-foreground"
-                            }
-                        `}
-                    >
-                        {selected
-                            ?.label ??
-                            placeholder}
-                    </span>
-
-                    <ChevronDown
-                        className={`
-                            h-3.5
-                            w-3.5
-                            shrink-0
-                            text-muted-foreground
-                            transition-transform
-                            ${open
-                                ? "rotate-180"
-                                : ""
-                            }
-                        `}
-                    />
-                </button>
-
-                {allowClear &&
-                    value &&
-                    !disabled && (
-                        <button
-                            type="button"
-                            onClick={(
-                                event
-                            ) => {
-                                event.stopPropagation();
-
-                                onChange(
-                                    ""
-                                );
-
-                                setQuery(
-                                    ""
-                                );
-                            }}
-                            className="mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                            aria-label="Clear selection"
-                            title="Clear selection"
-                        >
-                            <X className="h-3.5 w-3.5" />
-                        </button>
-                    )}
-            </div>
-
-            {open &&
-                !disabled && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[220] overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-                        <div className="border-b border-border p-2">
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-
-                                <input
-                                    autoFocus
-                                    value={
-                                        query
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        setQuery(
-                                            event
-                                                .target
-                                                .value
-                                        )
-                                    }
-                                    placeholder={
-                                        searchPlaceholder
-                                    }
-                                    className="h-8 w-full rounded-lg border border-input bg-background pl-8 pr-8 text-[10px] outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                                />
-
-                                {query && (
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setQuery(
-                                                ""
-                                            )
-                                        }
-                                        className="absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                                        aria-label="Clear search"
-                                        title="Clear search"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="max-h-56 overflow-y-auto p-1.5">
-                            {visibleOptions.length ===
-                                0 ? (
-                                <div className="px-3 py-5 text-center text-[10px] text-muted-foreground">
-                                    No matching records
-                                </div>
-                            ) : (
-                                visibleOptions.map(
-                                    (
-                                        option
-                                    ) => {
-                                        const active =
-                                            option.value ===
-                                            value;
-
-                                        return (
-                                            <button
-                                                key={
-                                                    option.value
-                                                }
-                                                type="button"
-                                                onClick={() => {
-                                                    onChange(
-                                                        option.value
-                                                    );
-
-                                                    setOpen(
-                                                        false
-                                                    );
-
-                                                    setQuery(
-                                                        ""
-                                                    );
-                                                }}
-                                                className={`
-                                                    flex
-                                                    w-full
-                                                    items-center
-                                                    justify-between
-                                                    gap-2
-                                                    rounded-lg
-                                                    px-2.5
-                                                    py-2
-                                                    text-left
-                                                    text-[10px]
-                                                    transition
-                                                    ${active
-                                                        ? "bg-primary/10 font-semibold text-primary"
-                                                        : "text-foreground hover:bg-muted"
-                                                    }
-                                                `}
-                                            >
-                                                <span className="truncate">
-                                                    {
-                                                        option.label
-                                                    }
-                                                </span>
-
-                                                {active && (
-                                                    <Check className="h-3.5 w-3.5 shrink-0" />
-                                                )}
-                                            </button>
-                                        );
-                                    }
-                                )
-                            )}
-                        </div>
-                    </div>
-                )}
         </div>
     );
 }
@@ -702,39 +346,22 @@ export default function AddItemPage() {
     const filteredQueries =
         useMemo(
             () =>
-                queryTypes
-                    .filter(
-                        (
-                            item
-                        ) =>
-                            !normalizedSearch ||
-                            item.name
-                                .toLowerCase()
-                                .includes(
-                                    normalizedSearch
-                                ) ||
-                            item.description
-                                .toLowerCase()
-                                .includes(
-                                    normalizedSearch
-                                )
-                    )
-                    .sort(
-                        (
-                            a,
-                            b
-                        ) =>
-                            a.name.localeCompare(
-                                b.name,
-                                undefined,
-                                {
-                                    sensitivity:
-                                        "base",
-                                    numeric:
-                                        true,
-                                }
+                queryTypes.filter(
+                    (
+                        item
+                    ) =>
+                        !normalizedSearch ||
+                        item.name
+                            .toLowerCase()
+                            .includes(
+                                normalizedSearch
+                            ) ||
+                        item.description
+                            .toLowerCase()
+                            .includes(
+                                normalizedSearch
                             )
-                    ),
+                ),
             [
                 queryTypes,
                 normalizedSearch,
@@ -854,42 +481,6 @@ export default function AddItemPage() {
                                             normalizedSearch
                                         )
                             )
-                    )
-                    .sort(
-                        (
-                            a,
-                            b
-                        ) =>
-                            a.category.localeCompare(
-                                b.category,
-                                undefined,
-                                {
-                                    sensitivity:
-                                        "base",
-                                    numeric:
-                                        true,
-                                }
-                            ) ||
-                            a.brand.localeCompare(
-                                b.brand,
-                                undefined,
-                                {
-                                    sensitivity:
-                                        "base",
-                                    numeric:
-                                        true,
-                                }
-                            ) ||
-                            a.model.localeCompare(
-                                b.model,
-                                undefined,
-                                {
-                                    sensitivity:
-                                        "base",
-                                    numeric:
-                                        true,
-                                }
-                            )
                     );
             },
             [
@@ -901,49 +492,32 @@ export default function AddItemPage() {
     const filteredComponents =
         useMemo(
             () =>
-                components
-                    .filter(
+                components.filter(
+                    (
+                        item
+                    ) =>
                         (
-                            item
-                        ) =>
-                            (
-                                componentFilter ===
-                                "all" ||
-                                item.type ===
-                                componentFilter
-                            ) &&
-                            (
-                                !normalizedSearch ||
-                                item.name
-                                    .toLowerCase()
-                                    .includes(
-                                        normalizedSearch
-                                    ) ||
-                                COMPONENT_LABELS[
-                                    item.type
-                                ]
-                                    .toLowerCase()
-                                    .includes(
-                                        normalizedSearch
-                                    )
-                            )
-                    )
-                    .sort(
+                            componentFilter ===
+                            "all" ||
+                            item.type ===
+                            componentFilter
+                        ) &&
                         (
-                            a,
-                            b
-                        ) =>
-                            a.name.localeCompare(
-                                b.name,
-                                undefined,
-                                {
-                                    sensitivity:
-                                        "base",
-                                    numeric:
-                                        true,
-                                }
-                            )
-                    ),
+                            !normalizedSearch ||
+                            item.name
+                                .toLowerCase()
+                                .includes(
+                                    normalizedSearch
+                                ) ||
+                            COMPONENT_LABELS[
+                                item.type
+                            ]
+                                .toLowerCase()
+                                .includes(
+                                    normalizedSearch
+                                )
+                        )
+                ),
             [
                 components,
                 componentFilter,
@@ -1832,39 +1406,6 @@ function MasterDrawer({
                 : ""
         );
 
-
-    const initialModelBrand =
-        drawer.tab ===
-            "device" &&
-            drawer.item
-                ?.type ===
-            "model"
-            ? deviceCatalog.find(
-                (
-                    item
-                ) =>
-                    item.id ===
-                    Number(
-                        drawer.item
-                            ?.parent_id ??
-                        0
-                    )
-            )
-            : undefined;
-
-    const [
-        modelCategoryId,
-        setModelCategoryId,
-    ] =
-        useState(
-            initialModelBrand
-                ?.parent_id
-                ? String(
-                    initialModelBrand.parent_id
-                )
-                : ""
-        );
-
     const [
         componentType,
         setComponentType,
@@ -1892,72 +1433,32 @@ function MasterDrawer({
         );
 
     const categories =
-        deviceCatalog
-            .filter(
-                (
-                    item
-                ) =>
-                    item.type ===
-                    "category" &&
-                    item.status ===
-                    1
-            )
-            .sort(
-                (
-                    a,
-                    b
-                ) =>
-                    a.name.localeCompare(
-                        b.name,
-                        undefined,
-                        {
-                            sensitivity:
-                                "base",
-                            numeric:
-                                true,
-                        }
-                    )
-            );
+        deviceCatalog.filter(
+            (
+                item
+            ) =>
+                item.type ===
+                "category" &&
+                item.status ===
+                1
+        );
 
     const brands =
-        deviceCatalog
-            .filter(
+        deviceCatalog.filter(
+            (
+                item
+            ) =>
+                item.type ===
+                "brand" &&
+                item.status ===
+                1 &&
                 (
-                    item
-                ) =>
-                    item.type ===
-                    "brand" &&
-                    item.status ===
-                    1 &&
-                    (
-                        deviceLevel !==
-                        "model" ||
-                        !modelCategoryId ||
-                        Number(
-                            item.parent_id ??
-                            0
-                        ) ===
-                        Number(
-                            modelCategoryId
-                        )
-                    )
-            )
-            .sort(
-                (
-                    a,
-                    b
-                ) =>
-                    a.name.localeCompare(
-                        b.name,
-                        undefined,
-                        {
-                            sensitivity:
-                                "base",
-                            numeric:
-                                true,
-                        }
-                    )
-            );
+                    deviceLevel !==
+                    "model" ||
+                    !parentId ||
+                    true
+                )
+        );
 
     async function save() {
         try {
@@ -2225,51 +1726,35 @@ function MasterDrawer({
                                     label="Level"
                                     required
                                 >
-                                    <SearchableSelect
+                                    <select
                                         value={
                                             deviceLevel
                                         }
                                         onChange={(
-                                            value
+                                            event
                                         ) => {
                                             setDeviceLevel(
-                                                value as DeviceCatalogLevel
+                                                event
+                                                    .target
+                                                    .value as DeviceCatalogLevel
                                             );
 
                                             setParentId(
                                                 ""
                                             );
-
-                                            setModelCategoryId(
-                                                ""
-                                            );
                                         }}
-                                        options={[
-                                            {
-                                                value:
-                                                    "category",
-                                                label:
-                                                    "Category",
-                                            },
-                                            {
-                                                value:
-                                                    "brand",
-                                                label:
-                                                    "Brand",
-                                            },
-                                            {
-                                                value:
-                                                    "model",
-                                                label:
-                                                    "Model",
-                                            },
-                                        ]}
-                                        placeholder="Select Level"
-                                        searchPlaceholder="Search Level..."
-                                        allowClear={
-                                            false
-                                        }
-                                    />
+                                        className="h-9 w-full rounded-lg border border-input bg-background px-3 text-[11px]"
+                                    >
+                                        <option value="category">
+                                            Category
+                                        </option>
+                                        <option value="brand">
+                                            Brand
+                                        </option>
+                                        <option value="model">
+                                            Model
+                                        </option>
+                                    </select>
                                 </Field>
 
                                 {deviceLevel ===
@@ -2278,111 +1763,92 @@ function MasterDrawer({
                                             label="Parent Category"
                                             required
                                         >
-                                            <SearchableSelect
+                                            <select
                                                 value={
                                                     parentId
                                                 }
-                                                onChange={
-                                                    setParentId
-                                                }
-                                                options={
-                                                    categories.map(
-                                                        (
-                                                            item
-                                                        ) => ({
-                                                            value:
-                                                                String(
-                                                                    item.id
-                                                                ),
-                                                            label:
-                                                                item.name,
-                                                        })
+                                                onChange={(
+                                                    event
+                                                ) =>
+                                                    setParentId(
+                                                        event
+                                                            .target
+                                                            .value
                                                     )
                                                 }
-                                                placeholder="Select Category"
-                                                searchPlaceholder="Search Category..."
-                                            />
+                                                className="h-9 w-full rounded-lg border border-input bg-background px-3 text-[11px]"
+                                            >
+                                                <option value="">
+                                                    Select Category
+                                                </option>
+
+                                                {categories.map(
+                                                    (
+                                                        item
+                                                    ) => (
+                                                        <option
+                                                            key={
+                                                                item.id
+                                                            }
+                                                            value={
+                                                                item.id
+                                                            }
+                                                        >
+                                                            {
+                                                                item.name
+                                                            }
+                                                        </option>
+                                                    )
+                                                )}
+                                            </select>
                                         </Field>
                                     )}
 
                                 {deviceLevel ===
                                     "model" && (
-                                        <>
-                                            <Field
-                                                label="Category"
-                                                required
+                                        <Field
+                                            label="Parent Brand"
+                                            required
+                                        >
+                                            <select
+                                                value={
+                                                    parentId
+                                                }
+                                                onChange={(
+                                                    event
+                                                ) =>
+                                                    setParentId(
+                                                        event
+                                                            .target
+                                                            .value
+                                                    )
+                                                }
+                                                className="h-9 w-full rounded-lg border border-input bg-background px-3 text-[11px]"
                                             >
-                                                <SearchableSelect
-                                                    value={
-                                                        modelCategoryId
-                                                    }
-                                                    onChange={(
-                                                        value
-                                                    ) => {
-                                                        setModelCategoryId(
-                                                            value
-                                                        );
+                                                <option value="">
+                                                    Select Brand
+                                                </option>
 
-                                                        setParentId(
-                                                            ""
-                                                        );
-                                                    }}
-                                                    options={
-                                                        categories.map(
-                                                            (
-                                                                item
-                                                            ) => ({
-                                                                value:
-                                                                    String(
-                                                                        item.id
-                                                                    ),
-                                                                label:
-                                                                    item.name,
-                                                            })
-                                                        )
-                                                    }
-                                                    placeholder="Select Category"
-                                                    searchPlaceholder="Search Category..."
-                                                />
-                                            </Field>
-
-                                            <Field
-                                                label="Parent Brand"
-                                                required
-                                            >
-                                                <SearchableSelect
-                                                    value={
-                                                        parentId
-                                                    }
-                                                    onChange={
-                                                        setParentId
-                                                    }
-                                                    options={
-                                                        brands.map(
-                                                            (
-                                                                item
-                                                            ) => ({
-                                                                value:
-                                                                    String(
-                                                                        item.id
-                                                                    ),
-                                                                label:
-                                                                    item.name,
-                                                            })
-                                                        )
-                                                    }
-                                                    placeholder={
-                                                        modelCategoryId
-                                                            ? "Select Brand"
-                                                            : "Select Category first"
-                                                    }
-                                                    searchPlaceholder="Search Brand..."
-                                                    disabled={
-                                                        !modelCategoryId
-                                                    }
-                                                />
-                                            </Field>
-                                        </>
+                                                {brands.map(
+                                                    (
+                                                        item
+                                                    ) => (
+                                                        <option
+                                                            key={
+                                                                item.id
+                                                            }
+                                                            value={
+                                                                item.id
+                                                            }
+                                                        >
+                                                            {
+                                                                item.name
+                                                            }
+                                                        </option>
+                                                    )
+                                                )}
+                                            </select>
+                                        </Field>
                                     )}
 
                                 <Field
@@ -2432,49 +1898,34 @@ function MasterDrawer({
                                     label="Component Type"
                                     required
                                 >
-                                    <SearchableSelect
+                                    <select
                                         value={
                                             componentType
                                         }
                                         onChange={(
-                                            value
+                                            event
                                         ) =>
                                             setComponentType(
-                                                value as ComponentType
+                                                event
+                                                    .target
+                                                    .value as ComponentType
                                             )
                                         }
-                                        options={[
-                                            {
-                                                value:
-                                                    "cpu",
-                                                label:
-                                                    "CPU",
-                                            },
-                                            {
-                                                value:
-                                                    "ram",
-                                                label:
-                                                    "RAM",
-                                            },
-                                            {
-                                                value:
-                                                    "ssd",
-                                                label:
-                                                    "SSD",
-                                            },
-                                            {
-                                                value:
-                                                    "monitor",
-                                                label:
-                                                    "Monitor",
-                                            },
-                                        ]}
-                                        placeholder="Select Component Type"
-                                        searchPlaceholder="Search Component Type..."
-                                        allowClear={
-                                            false
-                                        }
-                                    />
+                                        className="h-9 w-full rounded-lg border border-input bg-background px-3 text-[11px]"
+                                    >
+                                        <option value="cpu">
+                                            CPU
+                                        </option>
+                                        <option value="ram">
+                                            RAM
+                                        </option>
+                                        <option value="ssd">
+                                            SSD
+                                        </option>
+                                        <option value="monitor">
+                                            Monitor
+                                        </option>
+                                    </select>
                                 </Field>
 
                                 <Field
@@ -2516,41 +1967,30 @@ function MasterDrawer({
                         label="Status"
                         required
                     >
-                        <SearchableSelect
+                        <select
                             value={
-                                String(
-                                    status
-                                )
+                                status
                             }
                             onChange={(
-                                value
+                                event
                             ) =>
                                 setStatus(
                                     Number(
-                                        value
+                                        event
+                                            .target
+                                            .value
                                     ) as MasterStatus
                                 )
                             }
-                            options={[
-                                {
-                                    value:
-                                        "1",
-                                    label:
-                                        "Active",
-                                },
-                                {
-                                    value:
-                                        "0",
-                                    label:
-                                        "Inactive",
-                                },
-                            ]}
-                            placeholder="Select Status"
-                            searchPlaceholder="Search Status..."
-                            allowClear={
-                                false
-                            }
-                        />
+                            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-[11px]"
+                        >
+                            <option value={1}>
+                                Active
+                            </option>
+                            <option value={0}>
+                                Inactive
+                            </option>
+                        </select>
                     </Field>
 
                     {formError && (

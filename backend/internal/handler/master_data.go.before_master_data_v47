@@ -722,18 +722,6 @@ func (h *CategoryHandler) MasterUpdateDeviceCatalog(c *gin.Context) {
 func (h *CategoryHandler) ensureMasterComponents(
 	ctx context.Context,
 ) error {
-	/*
-		Seed the editable component master from the existing ITM data.
-
-		The current inventory workflow already uses:
-		  stack_inventory.cpu
-		  stack_inventory.ram
-		  stack_inventory.ssd
-		  stack_inventory.monitor
-
-		inventory_categories entries typed cpu/ram/ssd/monitor are also
-		accepted as existing reference values.
-	*/
 	_, err := h.db.Exec(
 		ctx,
 		`
@@ -753,83 +741,6 @@ func (h *CategoryHandler) ensureMasterComponents(
 				component_type,
 				status
 			);
-
-		CREATE UNIQUE INDEX IF NOT EXISTS uq_inventory_components_type_name
-			ON public.inventory_components (
-				LOWER(BTRIM(component_type)),
-				LOWER(BTRIM(component_name))
-			);
-
-		WITH source_values AS (
-			SELECT
-				'cpu'::text AS component_type,
-				BTRIM(COALESCE(cpu, '')) AS component_name
-			FROM public.stack_inventory
-			WHERE COALESCE(status, 1) = 1
-
-			UNION
-
-			SELECT
-				'ram'::text,
-				BTRIM(COALESCE(ram, ''))
-			FROM public.stack_inventory
-			WHERE COALESCE(status, 1) = 1
-
-			UNION
-
-			SELECT
-				'ssd'::text,
-				BTRIM(COALESCE(ssd, ''))
-			FROM public.stack_inventory
-			WHERE COALESCE(status, 1) = 1
-
-			UNION
-
-			SELECT
-				'monitor'::text,
-				BTRIM(COALESCE(monitor, ''))
-			FROM public.stack_inventory
-			WHERE COALESCE(status, 1) = 1
-
-			UNION
-
-			SELECT
-				LOWER(BTRIM(COALESCE(type, ''))),
-				BTRIM(COALESCE(inventory_category_list, ''))
-			FROM public.inventory_categories
-			WHERE COALESCE(status, 1) = 1
-			  AND LOWER(BTRIM(COALESCE(type, ''))) IN (
-					'cpu',
-					'ram',
-					'ssd',
-					'monitor'
-			  )
-		)
-		INSERT INTO public.inventory_components (
-			component_type,
-			component_name,
-			status,
-			created_by
-		)
-		SELECT
-			source_values.component_type,
-			source_values.component_name,
-			1,
-			'SYSTEM-SEED'
-		FROM source_values
-		WHERE source_values.component_name <> ''
-		  AND LOWER(source_values.component_name) NOT IN (
-				'n/a',
-				'na',
-				'none',
-				'not applicable',
-				'-'
-		  )
-		ON CONFLICT (
-			LOWER(BTRIM(component_type)),
-			LOWER(BTRIM(component_name))
-		)
-		DO NOTHING;
 		`,
 	)
 	return err
@@ -859,8 +770,14 @@ func (h *CategoryHandler) MasterComponents(c *gin.Context) {
 			'monitor'
 		)
 		ORDER BY
+			CASE LOWER(BTRIM(component_type))
+				WHEN 'cpu' THEN 1
+				WHEN 'ram' THEN 2
+				WHEN 'ssd' THEN 3
+				WHEN 'monitor' THEN 4
+				ELSE 5
+			END,
 			LOWER(BTRIM(component_name)) ASC,
-			LOWER(BTRIM(component_type)) ASC,
 			id ASC
 		`,
 	)
