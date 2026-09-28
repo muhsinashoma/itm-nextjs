@@ -1,4 +1,3 @@
-
 // frontend/app/dashboard/page.tsx
 
 "use client";
@@ -43,6 +42,8 @@ import {
     Bar,
     PieChart,
     Pie,
+    LineChart,
+    Line,
     Tooltip,
     ResponsiveContainer,
     Cell,
@@ -217,6 +218,159 @@ const cleanTooltipProps = {
             "0 8px 20px rgba(15, 23, 42, 0.12)",
     },
 };
+
+type QueryTypeMonths =
+    | 1
+    | 2
+    | 3;
+
+type QueryTypeChartMode =
+    | "vertical"
+    | "horizontal"
+    | "line"
+    | "pie";
+
+type QueryTypeChartPoint = {
+    label: string;
+    value: number;
+    color: string;
+};
+
+const queryTypeChartPalette = [
+    "#7c83f3",
+    "#67c5ef",
+    "#63dbb3",
+    "#ffc94c",
+    "#a99bf6",
+    "#54d1e6",
+    "#ef98c9",
+    "#80e3d0",
+    "#f7b26a",
+    "#7db3ea",
+    "#737ee8",
+    "#62d6a9",
+    "#f4ca45",
+    "#b6a6f5",
+    "#5fc9e9",
+    "#f28ba5",
+];
+
+function toDashboardDate(
+    value: Date
+) {
+    const year =
+        value
+            .getFullYear()
+            .toString()
+            .padStart(
+                4,
+                "0"
+            );
+
+    const month =
+        (
+            value.getMonth() +
+            1
+        )
+            .toString()
+            .padStart(
+                2,
+                "0"
+            );
+
+    const day =
+        value
+            .getDate()
+            .toString()
+            .padStart(
+                2,
+                "0"
+            );
+
+    return `${year}-${month}-${day}`;
+}
+
+function queryTypePeriod(
+    year: number,
+    months: QueryTypeMonths
+) {
+    const now =
+        new Date();
+
+    const endMonth =
+        year ===
+        now.getFullYear()
+            ? now.getMonth()
+            : 11;
+
+    const start =
+        new Date(
+            year,
+            endMonth -
+            (
+                months -
+                1
+            ),
+            1
+        );
+
+    const end =
+        new Date(
+            year,
+            endMonth +
+            1,
+            0
+        );
+
+    return {
+        fromDate:
+            toDashboardDate(
+                start
+            ),
+
+        toDate:
+            toDashboardDate(
+                end
+            ),
+
+        periodText:
+            months === 1
+                ? "Current Month"
+                : `Last ${months} Months`,
+
+        badgeText:
+            months === 1
+                ? `${year} · Month`
+                : `${year} · ${months} Months`,
+    };
+}
+
+function shortQueryTypeLabel(
+    value: string
+) {
+    const label =
+        value.trim();
+
+    /*
+     * Dense dashboard category axes should stay compact.
+     * The tooltip still shows the complete Query Type.
+     */
+    const maxLength =
+        7;
+
+    if (
+        label.length <=
+        maxLength
+    ) {
+        return label;
+    }
+
+    return `${label.slice(
+        0,
+        maxLength -
+        1
+    )}…`;
+}
 
 const PieLabel = (props: any) => {
     const {
@@ -554,7 +708,7 @@ export default function DashboardPage() {
                 const permissions =
                     new Set(
                         authUser?.permissions ??
-                            []
+                        []
                     );
 
                 return (
@@ -659,6 +813,55 @@ export default function DashboardPage() {
     ] = useState<
         TroubleTicketITPersonnel[]
     >([]);
+
+
+    /* --------------------------------------------------------
+       TROUBLE TICKET QUERY TYPE CHART
+       -------------------------------------------------------- */
+
+    const [
+        queryTypeMonths,
+        setQueryTypeMonths,
+    ] =
+        useState<QueryTypeMonths>(
+            1
+        );
+
+    const [
+        queryTypeChartMode,
+        setQueryTypeChartMode,
+    ] =
+        useState<QueryTypeChartMode>(
+            "vertical"
+        );
+
+    const [
+        queryTypeYear,
+        setQueryTypeYear,
+    ] =
+        useState(
+            new Date().getFullYear()
+        );
+
+    const [
+        queryTypeChartData,
+        setQueryTypeChartData,
+    ] =
+        useState<
+            QueryTypeChartPoint[]
+        >([]);
+
+    const [
+        queryTypeChartLoading,
+        setQueryTypeChartLoading,
+    ] =
+        useState(false);
+
+    const [
+        queryTypeChartError,
+        setQueryTypeChartError,
+    ] =
+        useState("");
 
     /* --------------------------------------------------------
        INSTANT ASSIGN / REASSIGN UI UPDATE
@@ -1460,6 +1663,267 @@ export default function DashboardPage() {
         troubleTicketLoading,
     ]);
 
+
+    /* ========================================================
+       QUERY TYPE CHART — GLOBAL YEAR + DEFAULT LAST 3 MONTHS
+       ======================================================== */
+
+    useEffect(() => {
+        const syncDashboardYear =
+            () => {
+                const stored =
+                    window.localStorage.getItem(
+                        "itm_selected_year"
+                    );
+
+                const parsed =
+                    Number(stored);
+
+                if (
+                    Number.isInteger(
+                        parsed
+                    ) &&
+                    parsed >= 2000 &&
+                    parsed <= 2100
+                ) {
+                    setQueryTypeYear(
+                        parsed
+                    );
+                }
+            };
+
+        syncDashboardYear();
+
+        window.addEventListener(
+            "itm-year-change",
+            syncDashboardYear
+        );
+
+        return () => {
+            window.removeEventListener(
+                "itm-year-change",
+                syncDashboardYear
+            );
+        };
+    }, []);
+
+    useEffect(() => {
+        let cancelled =
+            false;
+
+        async function loadQueryTypeChart() {
+            try {
+                setQueryTypeChartLoading(
+                    true
+                );
+
+                setQueryTypeChartError(
+                    ""
+                );
+
+                const period =
+                    queryTypePeriod(
+                        queryTypeYear,
+                        queryTypeMonths
+                    );
+
+                const pageSize =
+                    1000;
+
+                const first =
+                    await dashboardApi.troubleTickets(
+                        {
+                            scope:
+                                "all",
+                            page:
+                                1,
+                            limit:
+                                pageSize,
+                            status:
+                                "all",
+                            from_date:
+                                period.fromDate,
+                            to_date:
+                                period.toDate,
+                        }
+                    );
+
+                if (
+                    cancelled
+                ) {
+                    return;
+                }
+
+                const rows = [
+                    ...(
+                        first.data ??
+                        []
+                    ),
+                ];
+
+                const total =
+                    Number(
+                        first.total ??
+                        rows.length
+                    );
+
+                const pages =
+                    Math.max(
+                        1,
+                        Math.ceil(
+                            total /
+                            pageSize
+                        )
+                    );
+
+                for (
+                    let pageNumber =
+                        2;
+                    pageNumber <=
+                    pages;
+                    pageNumber++
+                ) {
+                    const response =
+                        await dashboardApi.troubleTickets(
+                            {
+                                scope:
+                                    "all",
+                                page:
+                                    pageNumber,
+                                limit:
+                                    pageSize,
+                                status:
+                                    "all",
+                                from_date:
+                                    period.fromDate,
+                                to_date:
+                                    period.toDate,
+                            }
+                        );
+
+                    if (
+                        cancelled
+                    ) {
+                        return;
+                    }
+
+                    rows.push(
+                        ...(
+                            response.data ??
+                            []
+                        )
+                    );
+                }
+
+                const grouped =
+                    new Map<
+                        string,
+                        number
+                    >();
+
+                for (
+                    const ticket of
+                    rows
+                ) {
+                    const queryType =
+                        String(
+                            ticket.query_type ??
+                            ""
+                        ).trim() ||
+                        "Unspecified";
+
+                    grouped.set(
+                        queryType,
+                        (
+                            grouped.get(
+                                queryType
+                            ) ??
+                            0
+                        ) + 1
+                    );
+                }
+
+                const chartRows =
+                    Array.from(
+                        grouped.entries()
+                    )
+                        .sort(
+                            (
+                                a,
+                                b
+                            ) =>
+                                b[1] -
+                                a[1] ||
+                                a[0].localeCompare(
+                                    b[0]
+                                )
+                        )
+                        .map(
+                            (
+                                [
+                                    label,
+                                    value,
+                                ],
+                                index
+                            ) => ({
+                                label,
+                                value,
+                                color:
+                                    queryTypeChartPalette[
+                                        index %
+                                        queryTypeChartPalette.length
+                                    ],
+                            })
+                        );
+
+                if (
+                    !cancelled
+                ) {
+                    setQueryTypeChartData(
+                        chartRows
+                    );
+                }
+            } catch (
+            reason
+            ) {
+                if (
+                    cancelled
+                ) {
+                    return;
+                }
+
+                setQueryTypeChartData(
+                    []
+                );
+
+                setQueryTypeChartError(
+                    reason instanceof
+                        Error
+                        ? reason.message
+                        : "Unable to load Query Type chart."
+                );
+            } finally {
+                if (
+                    !cancelled
+                ) {
+                    setQueryTypeChartLoading(
+                        false
+                    );
+                }
+            }
+        }
+
+        void loadQueryTypeChart();
+
+        return () => {
+            cancelled =
+                true;
+        };
+    }, [
+        queryTypeMonths,
+        queryTypeYear,
+    ]);
+
     /* ========================================================
        LOADING / ERROR STATES
        ======================================================== */
@@ -1736,6 +2200,24 @@ export default function DashboardPage() {
             </text>
         );
     };
+
+
+    const queryTypeTicketTotal =
+        queryTypeChartData.reduce(
+            (
+                total,
+                item
+            ) =>
+                total +
+                item.value,
+            0
+        );
+
+    const queryTypeSelectedPeriod =
+        queryTypePeriod(
+            queryTypeYear,
+            queryTypeMonths
+        );
 
     /* ========================================================
        RENDER
@@ -2940,6 +3422,573 @@ export default function DashboardPage() {
                     </div>
                 </CardShell>
             </div>
+
+
+            {/* ==================================================
+                TROUBLE TICKET QUERY TYPE — DEFAULT CURRENT MONTH
+            ================================================== */}
+
+            <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-sm font-semibold text-foreground">
+                                Tickets by Query Type
+                            </h2>
+
+                            <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-semibold text-indigo-700">
+                                {queryTypeSelectedPeriod.badgeText}
+                            </span>
+                        </div>
+
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                            Your Trouble Ticket query mix for the selected reporting period
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <select
+                            value={
+                                queryTypeMonths
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                setQueryTypeMonths(
+                                    Number(
+                                        event.target
+                                            .value
+                                    ) as QueryTypeMonths
+                                )
+                            }
+                            className="h-9 rounded-lg border border-border bg-background px-3 text-[10px] font-semibold text-foreground shadow-sm outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                            aria-label="Query Type period"
+                        >
+                            <option value={1}>
+                                Current Month
+                            </option>
+
+                            <option value={2}>
+                                Last 2 Months
+                            </option>
+
+                            <option value={3}>
+                                Last 3 Months
+                            </option>
+                        </select>
+
+                        <select
+                            value={
+                                queryTypeChartMode
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                setQueryTypeChartMode(
+                                    event.target
+                                        .value as QueryTypeChartMode
+                                )
+                            }
+                            className="h-9 rounded-lg border border-border bg-background px-3 text-[10px] font-semibold text-foreground shadow-sm outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                            aria-label="Query Type chart type"
+                        >
+                            <option value="vertical">
+                                Vertical Bar
+                            </option>
+
+                            <option value="horizontal">
+                                Horizontal Bar
+                            </option>
+
+                            <option value="line">
+                                Line
+                            </option>
+
+                            <option value="pie">
+                                Pie
+                            </option>
+                        </select>
+
+                        <div className="min-w-[72px] rounded-lg border border-border bg-muted/20 px-3 py-1.5 text-center shadow-sm">
+                            <p className="text-[8px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                Tickets
+                            </p>
+
+                            <p className="mt-0.5 text-base font-bold tabular-nums text-foreground">
+                                {queryTypeTicketTotal.toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-3 pb-3 pt-2">
+                    {queryTypeChartMode ===
+                        "vertical" &&
+                        queryTypeChartData.length >
+                        16 && (
+                        <div className="mb-1 flex justify-end">
+                            <span className="text-[9px] font-medium text-muted-foreground">
+                                Scroll horizontally to view more →
+                            </span>
+                        </div>
+                    )}
+
+                    {queryTypeChartError ? (
+                        <div className="flex h-[250px] items-center justify-center rounded-lg border border-red-100 bg-red-50/50 px-4 text-center text-[10px] text-red-600">
+                            {queryTypeChartError}
+                        </div>
+                    ) : queryTypeChartLoading ? (
+                        <div className="flex h-[250px] items-center justify-center text-[10px] text-muted-foreground">
+                            Loading Query Type analytics...
+                        </div>
+                    ) : queryTypeChartData.length ===
+                        0 ? (
+                        <div className="flex h-[250px] items-center justify-center text-[10px] text-muted-foreground">
+                            No Trouble Ticket Query Type data found for {queryTypeSelectedPeriod.periodText}.
+                        </div>
+                    ) : (
+                        <div
+                            className="
+                                h-[250px]
+                                w-full
+                                overflow-x-auto
+                                overflow-y-hidden
+                                pb-2
+                            "
+                        >
+                            <div
+                                className="h-full"
+                                style={{
+                                    minWidth:
+                                        "100%",
+
+                                    width:
+                                        queryTypeChartMode ===
+                                        "vertical"
+                                            ? `${Math.max(
+                                                1000,
+                                                queryTypeChartData.length *
+                                                64
+                                            )}px`
+                                            : "100%",
+                                }}
+                            >
+                                <ResponsiveContainer
+                                    width="100%"
+                                    height="100%"
+                                >
+                                {queryTypeChartMode ===
+                                    "horizontal" ? (
+                                    <BarChart
+                                        data={
+                                            queryTypeChartData
+                                        }
+                                        layout="vertical"
+                                        margin={{
+                                            top:
+                                                8,
+                                            right:
+                                                34,
+                                            left:
+                                                4,
+                                            bottom:
+                                                4,
+                                        }}
+                                    >
+                                        <XAxis
+                                            type="number"
+                                            allowDecimals={
+                                                false
+                                            }
+                                            tickLine={
+                                                false
+                                            }
+                                            axisLine={
+                                                false
+                                            }
+                                            tick={{
+                                                fontSize:
+                                                    8,
+                                                fill:
+                                                    "#94a3b8",
+                                            }}
+                                        />
+
+                                        <YAxis
+                                            type="category"
+                                            dataKey="label"
+                                            width={
+                                                110
+                                            }
+                                            interval={
+                                                0
+                                            }
+                                            tickLine={
+                                                false
+                                            }
+                                            axisLine={
+                                                false
+                                            }
+                                            tick={{
+                                                fontSize:
+                                                    7,
+                                                fill:
+                                                    "#64748b",
+                                            }}
+                                            tickFormatter={
+                                                shortQueryTypeLabel
+                                            }
+                                            height={
+                                                34
+                                            }
+                                        />
+
+                                        <Tooltip
+                                            {...cleanTooltipProps}
+                                            formatter={(
+                                                value:
+                                                    number
+                                            ) => [
+                                                    Number(
+                                                        value
+                                                    ).toLocaleString(),
+                                                    "Tickets",
+                                                ]}
+                                        />
+
+                                        <Bar
+                                            dataKey="value"
+                                            radius={[
+                                                0,
+                                                5,
+                                                5,
+                                                0,
+                                            ]}
+                                            maxBarSize={
+                                                24
+                                            }
+                                            activeBar={
+                                                false
+                                            }
+                                        >
+                                            {queryTypeChartData.map(
+                                                (
+                                                    item,
+                                                    index
+                                                ) => (
+                                                    <Cell
+                                                        key={`${item.label}-${index}`}
+                                                        fill={
+                                                            item.color
+                                                        }
+                                                    />
+                                                )
+                                            )}
+
+                                            <LabelList
+                                                dataKey="value"
+                                                position="right"
+                                                fontSize={
+                                                    8
+                                                }
+                                                fontWeight={
+                                                    700
+                                                }
+                                                fill="var(--foreground)"
+                                            />
+                                        </Bar>
+                                    </BarChart>
+                                ) : queryTypeChartMode ===
+                                    "line" ? (
+                                    <LineChart
+                                        data={
+                                            queryTypeChartData
+                                        }
+                                        margin={{
+                                            top:
+                                                18,
+                                            right:
+                                                10,
+                                            left:
+                                                0,
+                                            bottom:
+                                                26,
+                                        }}
+                                    >
+                                        <XAxis
+                                            dataKey="label"
+                                            interval={
+                                                0
+                                            }
+                                            tickLine={
+                                                false
+                                            }
+                                            axisLine={{
+                                                stroke:
+                                                    "var(--border)",
+                                            }}
+                                            tick={{
+                                                fontSize:
+                                                    7,
+                                                fill:
+                                                    "#64748b",
+                                            }}
+                                            tickFormatter={
+                                                shortQueryTypeLabel
+                                            }
+                                            height={
+                                                34
+                                            }
+                                        />
+
+                                        <YAxis
+                                            allowDecimals={
+                                                false
+                                            }
+                                            width={
+                                                28
+                                            }
+                                            tickLine={
+                                                false
+                                            }
+                                            axisLine={
+                                                false
+                                            }
+                                            tick={{
+                                                fontSize:
+                                                    8,
+                                                fill:
+                                                    "#94a3b8",
+                                            }}
+                                        />
+
+                                        <Tooltip
+                                            {...cleanTooltipProps}
+                                            formatter={(
+                                                value:
+                                                    number
+                                            ) => [
+                                                    Number(
+                                                        value
+                                                    ).toLocaleString(),
+                                                    "Tickets",
+                                                ]}
+                                        />
+
+                                        <Line
+                                            type="monotone"
+                                            dataKey="value"
+                                            stroke="#6366f1"
+                                            strokeWidth={
+                                                2
+                                            }
+                                            dot={{
+                                                r:
+                                                    3,
+                                                fill:
+                                                    "#6366f1",
+                                            }}
+                                            activeDot={{
+                                                r:
+                                                    5,
+                                            }}
+                                        >
+                                            <LabelList
+                                                dataKey="value"
+                                                position="top"
+                                                fontSize={
+                                                    8
+                                                }
+                                                fontWeight={
+                                                    700
+                                                }
+                                                fill="var(--foreground)"
+                                            />
+                                        </Line>
+                                    </LineChart>
+                                ) : queryTypeChartMode ===
+                                    "pie" ? (
+                                    <PieChart>
+                                        <Pie
+                                            data={
+                                                queryTypeChartData
+                                            }
+                                            dataKey="value"
+                                            nameKey="label"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={
+                                                58
+                                            }
+                                            outerRadius={
+                                                90
+                                            }
+                                            paddingAngle={
+                                                2
+                                            }
+                                        >
+                                            {queryTypeChartData.map(
+                                                (
+                                                    item,
+                                                    index
+                                                ) => (
+                                                    <Cell
+                                                        key={`${item.label}-${index}`}
+                                                        fill={
+                                                            item.color
+                                                        }
+                                                    />
+                                                )
+                                            )}
+                                        </Pie>
+
+                                        <Tooltip
+                                            {...cleanTooltipProps}
+                                            formatter={(
+                                                value:
+                                                    number
+                                            ) => [
+                                                    Number(
+                                                        value
+                                                    ).toLocaleString(),
+                                                    "Tickets",
+                                                ]}
+                                        />
+                                    </PieChart>
+                                ) : (
+                                    <BarChart
+                                        data={
+                                            queryTypeChartData
+                                        }
+                                        margin={{
+                                            top:
+                                                20,
+                                            right:
+                                                8,
+                                            left:
+                                                0,
+                                            bottom:
+                                                28,
+                                        }}
+                                        barCategoryGap="28%"
+                                    >
+                                        <XAxis
+                                            dataKey="label"
+                                            interval={
+                                                0
+                                            }
+                                            minTickGap={
+                                                0
+                                            }
+                                            tickLine={
+                                                false
+                                            }
+                                            axisLine={{
+                                                stroke:
+                                                    "var(--border)",
+                                            }}
+                                            tick={{
+                                                fontSize:
+                                                    8,
+                                                fill:
+                                                    "#64748b",
+                                            }}
+                                            tickFormatter={
+                                                shortQueryTypeLabel
+                                            }
+                                        />
+
+                                        <YAxis
+                                            allowDecimals={
+                                                false
+                                            }
+                                            width={
+                                                28
+                                            }
+                                            tickLine={
+                                                false
+                                            }
+                                            axisLine={
+                                                false
+                                            }
+                                            tick={{
+                                                fontSize:
+                                                    8,
+                                                fill:
+                                                    "#94a3b8",
+                                            }}
+                                        />
+
+                                        <Tooltip
+                                            {...cleanTooltipProps}
+                                            formatter={(
+                                                value:
+                                                    number
+                                            ) => [
+                                                    Number(
+                                                        value
+                                                    ).toLocaleString(),
+                                                    "Tickets",
+                                                ]}
+                                            labelFormatter={(
+                                                label
+                                            ) =>
+                                                String(
+                                                    label
+                                                )
+                                            }
+                                        />
+
+                                        <Bar
+                                            dataKey="value"
+                                            radius={[
+                                                6,
+                                                6,
+                                                0,
+                                                0,
+                                            ]}
+                                            maxBarSize={
+                                                38
+                                            }
+                                            activeBar={
+                                                false
+                                            }
+                                        >
+                                            {queryTypeChartData.map(
+                                                (
+                                                    item,
+                                                    index
+                                                ) => (
+                                                    <Cell
+                                                        key={`${item.label}-${index}`}
+                                                        fill={
+                                                            item.color
+                                                        }
+                                                    />
+                                                )
+                                            )}
+
+                                            <LabelList
+                                                dataKey="value"
+                                                position="top"
+                                                fontSize={
+                                                    8
+                                                }
+                                                fontWeight={
+                                                    700
+                                                }
+                                                fill="var(--foreground)"
+                                            />
+                                        </Bar>
+                                    </BarChart>
+                                )}
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </section>
+
 
             {/* ==================================================
                 TROUBLE TICKET OVERVIEW

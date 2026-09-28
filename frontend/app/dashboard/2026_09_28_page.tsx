@@ -1,4 +1,3 @@
-
 // frontend/app/dashboard/page.tsx
 
 "use client";
@@ -548,6 +547,26 @@ export default function DashboardPage() {
 
     const [authLoading, setAuthLoading] =
         useState(true);
+    const canAccessAdminDashboard =
+        useMemo(
+            () => {
+                const permissions =
+                    new Set(
+                        authUser?.permissions ??
+                        []
+                    );
+
+                return (
+                    permissions.has(
+                        "panel.admin.access"
+                    ) ||
+                    permissions.has(
+                        "panel.staff.access"
+                    )
+                );
+            },
+            [authUser?.permissions]
+        );
 
     const actionPermissions = useMemo(
         () =>
@@ -737,6 +756,32 @@ export default function DashboardPage() {
             mounted = false;
         };
     }, []);
+    /*
+     * Route ownership:
+     * Normal employees belong to /dashboard/user.
+     * Only Admin/IT staff may stay on /dashboard.
+     */
+    useEffect(() => {
+        if (
+            authLoading ||
+            !authUser
+        ) {
+            return;
+        }
+
+        if (
+            !canAccessAdminDashboard
+        ) {
+            router.replace(
+                "/dashboard/user"
+            );
+        }
+    }, [
+        authLoading,
+        authUser,
+        canAccessAdminDashboard,
+        router,
+    ]);
 
     /* ========================================================
        LOAD DASHBOARD DATA
@@ -1418,7 +1463,14 @@ export default function DashboardPage() {
        LOADING / ERROR STATES
        ======================================================== */
 
-    if (loading || authLoading) {
+    if (
+        loading ||
+        authLoading ||
+        (
+            authUser &&
+            !canAccessAdminDashboard
+        )
+    ) {
         return (
             <div className="p-4 text-sm text-muted-foreground">
                 Loading dashboard data...
@@ -2888,6 +2940,8 @@ export default function DashboardPage() {
                 </CardShell>
             </div>
 
+
+
             {/* ==================================================
                 TROUBLE TICKET OVERVIEW
             ================================================== */}
@@ -2979,6 +3033,4 @@ export default function DashboardPage() {
         </div>
     );
 }
-
-
 
