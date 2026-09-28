@@ -1,3 +1,4 @@
+
 // frontend/components/ui/right-sidebar.tsx
 "use client";
 
@@ -14,41 +15,7 @@ import { typography } from "@/components/ui/typography";
 import { urgentTaskApi, type UrgentTask } from "@/lib/urgent-task-api";
 
 
-type RightSidebarProps = {
-    cycleLabel?: string;
-};
-
-function formatClockTime(
-    value: Date
-) {
-    return value.toLocaleTimeString(
-        "en-US",
-        {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-        }
-    );
-}
-
-function formatClockDate(
-    value: Date
-) {
-    return value.toLocaleDateString(
-        "en-US",
-        {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-        }
-    );
-}
-
-export function RightSidebar({
-    cycleLabel,
-}: RightSidebarProps = {}) {
+export function RightSidebar() {
     const router = useRouter();
     const [calendarOpen, setCalendarOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -60,7 +27,7 @@ export function RightSidebar({
     const [selectedDept, setSelectedDept] = useState<any>(null);
 
 
-    // ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ ADD HERE
+    // ✅ ADD HERE
     const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
     const [showCompanyModal, setShowCompanyModal] = useState(false);
     const [companySearch, setCompanySearch] = useState("");
@@ -80,7 +47,6 @@ export function RightSidebar({
 
     const [mounted, setMounted] = useState(false);
     const [time, setTime] = useState("");
-    const [clockNow, setClockNow] = useState<Date | null>(null);
 
     const [urgentTasks, setUrgentTasks] = useState<UrgentTask[]>([]);
     const [urgentTasksLoading, setUrgentTasksLoading] = useState(true);
@@ -94,7 +60,6 @@ export function RightSidebar({
         setMounted(true);
         const updateTime = () => {
             const now = new Date();
-            setClockNow(now);
             setTime(
                 now.toLocaleTimeString("en-US", {
                     hour: "2-digit",
@@ -332,13 +297,13 @@ export function RightSidebar({
         }))
         .sort((a, b) => b.count - a.count || a.dept.localeCompare(b.dept));
 
-    // ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ ADD HERE (below ttDepartmentToday)
+    // ✅ ADD HERE (below ttDepartmentToday)
     const companyCountMap: Record<string, number> = {};
 
     sections.forEach((item) => {
         const company = item.company_name;
 
-        if (!company) return; // ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ only real company names
+        if (!company) return; // ✅ only real company names
 
         if (!companyCountMap[company]) {
             companyCountMap[company] = 0;
@@ -360,30 +325,6 @@ export function RightSidebar({
         })
     );
 
-    const displayNow =
-        clockNow ??
-        new Date();
-
-    const clockHours =
-        displayNow.getHours() %
-        12;
-
-    const clockMinutes =
-        displayNow.getMinutes();
-
-    const clockSeconds =
-        displayNow.getSeconds();
-
-    const clockHourAngle =
-        clockHours * 30 +
-        clockMinutes * 0.5;
-
-    const clockMinuteAngle =
-        clockMinutes * 6 +
-        clockSeconds * 0.1;
-
-    const clockSecondAngle =
-        clockSeconds * 6;
     const cardStyle = {
         backgroundColor: "var(--card)",
         color: "var(--card-foreground)",
@@ -392,7 +333,7 @@ export function RightSidebar({
 
     return (
         <aside
-            className="h-full min-h-0 w-full flex flex-col gap-3.5 overflow-y-auto overflow-x-hidden px-3 pt-3 transition-colors duration-300 overscroll-contain"
+            className="h-full min-h-0 w-full flex flex-col gap-3.5 overflow-y-auto overflow-x-hidden px-3 pt-3 pb-12 transition-colors duration-300 overscroll-contain"
             style={{
                 backgroundColor: "var(--dashboard-bg)",
                 color: "var(--foreground)",
@@ -400,528 +341,45 @@ export function RightSidebar({
                 WebkitOverflowScrolling: "touch",
             }}
         >
-            {/* Clock + Calendar */}
-            <section
-                className="
-                    relative
-                    w-full
-                    overflow-visible
-                    rounded-xl
-                    border
-                    border-border
-                    bg-card
-                    shadow-sm
-                    transition-colors
-                    duration-300
-                "
+            {/* Calendar Header */}
+            <div
+                className="flex items-center mb-4 cursor-pointer"
+                onClick={() => setCalendarOpen(!calendarOpen)}
             >
-                <div className="relative p-3">
-                    <div className="flex items-start gap-3">
-                        {/* Analog clock */}
-                        <div
-                            className="
-                                relative
-                                h-[82px]
-                                w-[82px]
-                                shrink-0
-                                rounded-full
-                                border
-                                border-primary/20
-                                bg-gradient-to-br
-                                from-primary/5
-                                to-background
-                                shadow-inner
-                            "
-                            aria-hidden="true"
-                        >
-                            {Array.from({
-                                length: 12,
-                            }).map(
-                                (
-                                    _,
-                                    index
-                                ) => (
-                                    <span
-                                        key={index}
-                                        className="absolute inset-[5px]"
-                                        style={{
-                                            transform:
-                                                `rotate(${index * 30}deg)`,
-                                        }}
-                                    >
-                                        <span
-                                            className={`
-                                                absolute
-                                                left-1/2
-                                                top-0
-                                                -translate-x-1/2
-                                                rounded-full
-                                                bg-muted-foreground/60
-
-                                                ${index % 3 === 0
-                                                    ? "h-2 w-[2px]"
-                                                    : "h-1.5 w-px"
-                                                }
-                                            `}
-                                        />
-                                    </span>
-                                )
-                            )}
-
-                            <span
-                                className="
-                                    absolute
-                                    left-1/2
-                                    top-1/2
-                                    h-[22px]
-                                    w-[3px]
-                                    rounded-full
-                                    bg-foreground
-                                "
-                                style={{
-                                    transformOrigin:
-                                        "50% 100%",
-                                    transform:
-                                        `translate(-50%, -100%) rotate(${clockHourAngle}deg)`,
-                                }}
-                            />
-
-                            <span
-                                className="
-                                    absolute
-                                    left-1/2
-                                    top-1/2
-                                    h-[29px]
-                                    w-[2px]
-                                    rounded-full
-                                    bg-foreground/80
-                                "
-                                style={{
-                                    transformOrigin:
-                                        "50% 100%",
-                                    transform:
-                                        `translate(-50%, -100%) rotate(${clockMinuteAngle}deg)`,
-                                }}
-                            />
-
-                            <span
-                                className="
-                                    absolute
-                                    left-1/2
-                                    top-1/2
-                                    h-[31px]
-                                    w-px
-                                    rounded-full
-                                    bg-red-500
-                                "
-                                style={{
-                                    transformOrigin:
-                                        "50% 100%",
-                                    transform:
-                                        `translate(-50%, -100%) rotate(${clockSecondAngle}deg)`,
-                                }}
-                            />
-
-                            <span
-                                className="
-                                    absolute
-                                    left-1/2
-                                    top-1/2
-                                    h-2
-                                    w-2
-                                    -translate-x-1/2
-                                    -translate-y-1/2
-                                    rounded-full
-                                    border-2
-                                    border-background
-                                    bg-primary
-                                    shadow-sm
-                                "
-                            />
-                        </div>
-
-                        {/* Digital clock */}
-                        <div className="min-w-0 flex-1 pt-1">
-                            <div className="flex items-center gap-1.5">
-                                <Clock3 className="h-3.5 w-3.5 shrink-0 text-primary" />
-
-                                <p
-                                    className="
-                                        whitespace-nowrap
-                                        text-[15px]
-                                        font-bold
-                                        tabular-nums
-                                        tracking-tight
-                                        text-foreground
-                                    "
-                                >
-                                    {mounted
-                                        ? formatClockTime(
-                                            displayNow
-                                        )
-                                        : "--:--:-- --"}
-                                </p>
-                            </div>
-
-                            <p
-                                className="
-                                    mt-1
-                                    max-w-full
-                                    whitespace-nowrap
-                                    pr-2
-                                    text-[9px]
-                                    font-medium
-                                    leading-4
-                                    tracking-tight
-                                    text-foreground/80
-                                "
-                            >
-                                {mounted
-                                    ? displayNow.toLocaleDateString(
-                                        "en-US",
-                                        {
-                                            weekday:
-                                                "long",
-                                            month:
-                                                "long",
-                                            day:
-                                                "numeric",
-                                            year:
-                                                "numeric",
-                                        }
-                                    )
-                                    : "Loading dateÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"}
-                            </p>
-
-                            {cycleLabel && (
-                                <p className="mt-1 truncate text-[9px] text-muted-foreground">
-                                    This cycle:{" "}
-                                    <span className="font-medium text-foreground/80">
-                                        {cycleLabel}
-                                    </span>
-                                </p>
-                            )}
-                        </div>
+                <div className="flex items-center gap-2">
+                    <LucideCalendar className="w-5 h-5 text-primary" />
+                    <div>
+                        <p className={typography.small}>Today</p>
+                        <p className={`${typography.body} font-medium leading-tight`}>
+                            {selectedDate.toLocaleDateString("en-US", {
+                                weekday: "long",
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                            })}
+                        </p>
+                        <p className={typography.small}>{mounted ? time : "--:--"}</p>
                     </div>
-
-                    {/* Calendar button - fixed to the bottom-right of the card */}
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setCalendarOpen(
-                                true
-                            )
-                        }
-                        className="
-                            absolute
-                            bottom-2
-                            right-3
-                            inline-flex
-                            h-8
-                            items-center
-                            gap-1.5
-                            rounded-lg
-                            border
-                            border-primary/25
-                            bg-primary/5
-                            px-3
-                            text-[10px]
-                            font-semibold
-                            text-primary
-                            shadow-sm
-                            transition-all
-                            hover:border-primary/40
-                            hover:bg-primary/10
-                            hover:shadow
-                            focus-visible:outline-none
-                            focus-visible:ring-2
-                            focus-visible:ring-primary/20
-                        "
-                        aria-haspopup="dialog"
-                    >
-                        <LucideCalendar className="h-3.5 w-3.5" />
-
-                        Calendar
-                    </button>
                 </div>
-            </section>
+            </div>
 
-            {/* Professional Calendar Modal */}
+            {/* Calendar */}
             {calendarOpen && (
-                <div
-                    className="
-                        fixed
-                        inset-0
-                        z-[140]
-                        flex
-                        items-center
-                        justify-center
-                        bg-black/50
-                        p-4
-                        backdrop-blur-[3px]
-                    "
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Calendar"
-                    onMouseDown={() =>
-                        setCalendarOpen(
-                            false
-                        )
-                    }
-                >
-                    <div
-                        className="
-                            w-full
-                            max-w-[420px]
-                            overflow-hidden
-                            rounded-2xl
-                            border
-                            border-border
-                            bg-card
-                            shadow-2xl
-                        "
-                        onMouseDown={(
-                            event
-                        ) =>
-                            event.stopPropagation()
-                        }
-                    >
-                        {/* Modal header */}
-                        <div
-                            className="
-                                flex
-                                items-start
-                                justify-between
-                                gap-3
-                                border-b
-                                border-border
-                                bg-gradient-to-r
-                                from-primary/10
-                                via-primary/5
-                                to-transparent
-                                px-5
-                                py-4
-                            "
-                        >
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <div
-                                        className="
-                                            flex
-                                            h-9
-                                            w-9
-                                            shrink-0
-                                            items-center
-                                            justify-center
-                                            rounded-xl
-                                            border
-                                            border-primary/20
-                                            bg-primary/10
-                                        "
-                                    >
-                                        <LucideCalendar className="h-4.5 w-4.5 text-primary" />
-                                    </div>
-
-                                    <div>
-                                        <h3 className="text-sm font-semibold text-foreground">
-                                            Calendar
-                                        </h3>
-
-                                        <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                            Select a date
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-3 flex items-baseline gap-2">
-                                    <span className="text-2xl font-bold tracking-tight text-primary">
-                                        {selectedDate.getFullYear()}
-                                    </span>
-
-                                    <span className="text-sm font-semibold text-foreground/80">
-                                        {selectedDate.toLocaleDateString(
-                                            "en-US",
-                                            {
-                                                month:
-                                                    "long",
-                                            }
-                                        )}
-                                    </span>
-                                </div>
-
-                                <p className="mt-1 whitespace-nowrap text-[11px] font-medium text-foreground/80">
-                                    {selectedDate.toLocaleDateString(
-                                        "en-US",
-                                        {
-                                            weekday:
-                                                "long",
-                                            month:
-                                                "long",
-                                            day:
-                                                "numeric",
-                                            year:
-                                                "numeric",
-                                        }
-                                    )}
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                aria-label="Close calendar"
-                                onClick={() =>
-                                    setCalendarOpen(
-                                        false
-                                    )
-                                }
-                                className="
-                                    inline-flex
-                                    h-8
-                                    w-8
-                                    shrink-0
-                                    items-center
-                                    justify-center
-                                    rounded-lg
-                                    border
-                                    border-border
-                                    bg-background/80
-                                    text-muted-foreground
-                                    shadow-sm
-                                    transition
-                                    hover:bg-muted
-                                    hover:text-foreground
-                                    focus-visible:outline-none
-                                    focus-visible:ring-2
-                                    focus-visible:ring-primary/20
-                                "
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        {/* Calendar body */}
-                        <div className="bg-background p-4">
-                            <div
-                                className="
-                                    overflow-hidden
-                                    rounded-xl
-                                    border
-                                    border-border
-                                    bg-card
-                                    p-2
-                                    shadow-sm
-                                "
-                            >
-                                <Calendar
-                                    mode="single"
-                                    selected={
-                                        selectedDate
-                                    }
-                                    onSelect={(
-                                        date
-                                    ) => {
-                                        if (date) {
-                                            setSelectedDate(
-                                                date
-                                            );
-
-                                            setCalendarOpen(
-                                                false
-                                            );
-                                        }
-                                    }}
-                                    className="mx-auto"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Modal footer */}
-                        <div
-                            className="
-                                flex
-                                items-center
-                                justify-between
-                                gap-3
-                                border-t
-                                border-border
-                                bg-muted/15
-                                px-5
-                                py-3
-                            "
-                        >
-                            <p className="text-[10px] text-muted-foreground">
-                                {selectedDate.toLocaleDateString(
-                                    "en-US",
-                                    {
-                                        weekday:
-                                            "short",
-                                        month:
-                                            "long",
-                                        day:
-                                            "numeric",
-                                    }
-                                )}
-                            </p>
-
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setCalendarOpen(
-                                            false
-                                        )
-                                    }
-                                    className="
-                                        rounded-lg
-                                        border
-                                        border-border
-                                        bg-background
-                                        px-3
-                                        py-1.5
-                                        text-[10px]
-                                        font-semibold
-                                        text-muted-foreground
-                                        transition
-                                        hover:bg-muted
-                                        hover:text-foreground
-                                    "
-                                >
-                                    Cancel
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedDate(
-                                            new Date()
-                                        );
-
-                                        setCalendarOpen(
-                                            false
-                                        );
-                                    }}
-                                    className="
-                                        rounded-lg
-                                        border
-                                        border-primary/25
-                                        bg-primary
-                                        px-3
-                                        py-1.5
-                                        text-[10px]
-                                        font-semibold
-                                        text-primary-foreground
-                                        shadow-sm
-                                        transition
-                                        hover:bg-primary/90
-                                    "
-                                >
-                                    Today
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                <div className="border rounded-xl shadow p-3 mb-4 transition-colors duration-300" style={cardStyle}>
+                    <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                            if (date) {
+                                setSelectedDate(date);
+                                setCalendarOpen(false);
+                            }
+                        }}
+                    />
                 </div>
             )}
+
+
 
             {/* Urgent Tasks */}
             <section
@@ -1356,7 +814,7 @@ export function RightSidebar({
             > */}
             {/* Title */}
             {/* <h4 className={`${typography.label} text-primary mb-1 border-b border-primary pb-0.5`}>
-                    Company TT Today {todayTTLoading ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" : ""}
+                    Company TT Today {todayTTLoading ? "…" : ""}
                 </h4> */}
 
             {/* Grid Content (UNCHANGED DESIGN) */}
@@ -1788,7 +1246,7 @@ export function RightSidebar({
                                 onClick={() => setShowCompanyModal(false)}
                                 className="text-muted-foreground hover:text-destructive text-lg"
                             >
-                                ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢
+                                ✕
                             </button>
                         </div>
 
