@@ -1,6 +1,9 @@
-"use client";
-
 import { DashboardBackButton } from "@/components/ui/dashboard-back-button";
+
+
+
+//frontend/app/dashboard/service-warranty/warranty-claims/page.tsx
+"use client";
 
 
 import {
@@ -53,7 +56,7 @@ import { AppFormSection } from "@/components/common/form/AppFormSection";
 import { AppInfoField } from "@/components/common/form/AppInfoField";
 import { AppFormFooter } from "@/components/common/form/AppFormFooter";
 
-type WarrantyStatus = "Claimed" | "To Vendor" | "Recovered" | "Soon Expired";
+type WarrantyStatus = "Claimed" | "To Vendor" | "Recovered" | "Expired";
 
 type WarrantyColumnKey =
     | "reference"
@@ -167,7 +170,7 @@ const EMPTY_SUMMARY: WarrantySummary = {
         { label: "Claimed", value: 0 },
         { label: "To Vendor", value: 0 },
         { label: "Recovered", value: 0 },
-        { label: "Soon Expired", value: 0 },
+        { label: "Expired", value: 0 },
     ],
 };
 
@@ -237,8 +240,8 @@ const STAT_CARDS: Array<{
             icon: <CheckCircle2 size={14} />,
         },
         {
-            key: "Soon Expired",
-            label: "Soon Expired",
+            key: "Expired",
+            label: "Expired",
             color: "text-red-700",
             bg: "bg-red-50 border-red-100",
             icon: <AlertCircle size={14} />,
@@ -250,16 +253,16 @@ function isWarrantyStatus(value: string | null): value is WarrantyStatus {
         value === "Claimed" ||
         value === "To Vendor" ||
         value === "Recovered" ||
-        value === "Soon Expired"
+        value === "Expired"
     );
 }
 
 function text(value?: string | null) {
-    return value?.trim() || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    return value?.trim() || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
 }
 
 function formatDate(value?: string | null) {
-    if (!value) return "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    if (!value) return "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return new Intl.DateTimeFormat("en-GB", {
@@ -339,10 +342,10 @@ function formatDeviceAge(item: WarrantyClaimRow) {
         item.purchaseDate,
     );
 
-    if (!purchaseDate) return "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    if (!purchaseDate) return "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
 
     const purchasedAt = new Date(purchaseDate);
-    if (Number.isNaN(purchasedAt.getTime())) return "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    if (Number.isNaN(purchasedAt.getTime())) return "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
 
     const today = new Date();
     let months =
@@ -353,7 +356,7 @@ function formatDeviceAge(item: WarrantyClaimRow) {
         months -= 1;
     }
 
-    if (months < 0) return "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    if (months < 0) return "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
 
     const years = Math.floor(months / 12);
     const remainingMonths = months % 12;
@@ -478,7 +481,7 @@ function renderWarrantyCell(
                 !visibleColumns.has("model") ? item.model : null,
             ]
                 .filter(Boolean)
-                .join(" ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ");
+                .join(" Ãƒâ€šÃ‚Â· ");
 
             return (
                 <div className="min-w-0">
@@ -681,7 +684,7 @@ function printRows(rows: WarrantyClaimItem[]) {
             ? "Closing Date"
             : status === "To Vendor"
                 ? "Forward Date"
-                : status === "Soon Expired"
+                : status === "Expired"
                     ? "Expired Date"
                     : "Claim Date";
 
@@ -1003,7 +1006,7 @@ function ClaimModal({
             ? "Closing Date"
             : item.status === "To Vendor"
                 ? "Forward Date"
-                : item.status === "Soon Expired"
+                : item.status === "Expired"
                     ? "Expired Date"
                     : "Claim Date";
 
@@ -1716,7 +1719,7 @@ export default function WarrantyClaimsPage() {
                                     </span>
                                 </div>
                                 <p className={`text-xl font-bold ${card.color}`}>
-                                    {summaryLoading ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" : count}
+                                    {summaryLoading ? "ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : count}
                                 </p>
                             </button>
                         );

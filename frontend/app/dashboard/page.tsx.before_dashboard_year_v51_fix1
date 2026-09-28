@@ -343,8 +343,8 @@ function queryTypePeriod(
 
         badgeText:
             months === 1
-                ? `${year} Â· Month`
-                : `${year} Â· ${months} Months`,
+                ? `${year} · Month`
+                : `${year} · ${months} Months`,
     };
 }
 
@@ -372,7 +372,7 @@ function shortQueryTypeLabel(
         0,
         maxLength -
         1
-    )}â€¦`;
+    )}…`;
 }
 
 const PieLabel = (props: any) => {
@@ -1668,7 +1668,7 @@ export default function DashboardPage() {
 
 
     /* ========================================================
-       QUERY TYPE CHART â€” GLOBAL YEAR + DEFAULT LAST 3 MONTHS
+       QUERY TYPE CHART — GLOBAL YEAR + DEFAULT LAST 3 MONTHS
        ======================================================== */
 
     useEffect(() => {
@@ -1711,186 +1711,363 @@ export default function DashboardPage() {
     }, []);
 
     /* ========================================================
-       AUTHORITATIVE DASHBOARD DATA â€” CURRENT OPERATIONAL VIEW
+       AUTHORITATIVE DASHBOARD DATA — GLOBAL SELECTED YEAR
 
-       Active Assets:
-       - Assigned
-       - Available
-       - Returned
+       Current inventory comes from the same /assets/devices endpoint used by
+       Device Operations. Warranty/service activity comes from /claims and is
+       filtered by the selected reporting year. Ownership uses the same
+       /assets/ownership summary that powers Ownership Assets.
 
-       Warranty:
-       - Claimed
-       - To Vendor
-       - Recovered
-       - Soon Expired
-
-       Service:
-       - Service Request
-       - Transferred to Vendor
-       - Closed
-
-       Each number is read from the same paginated endpoint used by
-       the corresponding detail page, so dashboard and drill-down
-       totals stay aligned.
+       Warranty expiry is calculated directly from AssetDevice.warranty_date.
+       For the current reporting year, only warranties expiring from today
+       through 31 December are counted as "Expiring This Year".
        ======================================================== */
 
     useEffect(() => {
         let cancelled = false;
 
-        async function loadOperationalDashboard() {
+        async function loadAuthoritativeDashboardYear() {
+            const assetPageSize = 1000;
+            const claimPageSize = 1000;
+
+            async function loadAllAssets() {
+                const first =
+                    await assetDeviceApi.list({
+                        page: 1,
+                        limit: assetPageSize,
+                    });
+
+                const rows = [
+                    ...(first.data ?? []),
+                ];
+
+                const total =
+                    Number(
+                        first.total ??
+                        rows.length
+                    );
+
+                const pages =
+                    Math.max(
+                        1,
+                        Math.ceil(
+                            total /
+                            assetPageSize
+                        )
+                    );
+
+                for (
+                    let pageNumber = 2;
+                    pageNumber <= pages;
+                    pageNumber++
+                ) {
+                    const response =
+                        await assetDeviceApi.list({
+                            page: pageNumber,
+                            limit: assetPageSize,
+                        });
+
+                    rows.push(
+                        ...(response.data ?? [])
+                    );
+                }
+
+                return rows;
+            }
+
+            async function loadAllClaims() {
+                const first =
+                    await claimApi.list({
+                        page: 1,
+                        page_size:
+                            claimPageSize,
+                    });
+
+                const rows = [
+                    ...(first.data ?? []),
+                ];
+
+                const total =
+                    Number(
+                        first.total ??
+                        rows.length
+                    );
+
+                const pages =
+                    Math.max(
+                        1,
+                        Math.ceil(
+                            total /
+                            claimPageSize
+                        )
+                    );
+
+                for (
+                    let pageNumber = 2;
+                    pageNumber <= pages;
+                    pageNumber++
+                ) {
+                    const response =
+                        await claimApi.list({
+                            page:
+                                pageNumber,
+                            page_size:
+                                claimPageSize,
+                        });
+
+                    rows.push(
+                        ...(response.data ?? [])
+                    );
+                }
+
+                return rows;
+            }
+
+            function recordYear(
+                value:
+                    string |
+                    null |
+                    undefined
+            ) {
+                if (!value) {
+                    return null;
+                }
+
+                const date =
+                    new Date(
+                        value
+                    );
+
+                if (
+                    Number.isNaN(
+                        date.getTime()
+                    )
+                ) {
+                    return null;
+                }
+
+                return date.getFullYear();
+            }
+
             try {
                 const [
-                    assignedRes,
-                    availableRes,
-                    returnedRes,
-
-                    warrantyClaimedRes,
-                    warrantyVendorRes,
-                    warrantyRecoveredRes,
-                    warrantySoonExpiredRes,
-
-                    serviceRequestRes,
-                    serviceVendorRes,
-                    serviceClosedRes,
-
+                    assets,
+                    claims,
                     ownershipRes,
-                ] = await Promise.all([
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 1,
-                    }),
-
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 0,
-                    }),
-
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 4,
-                    }),
-
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Claimed",
-                    }),
-
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "To Vendor",
-                    }),
-
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Recovered",
-                    }),
-
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Soon Expired",
-                    }),
-
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Service Request",
-                    }),
-
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Transferred to Vendor",
-                    }),
-
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Closed",
-                    }),
-
-                    ownershipApi.summary(),
-                ]);
+                ] =
+                    await Promise.all([
+                        loadAllAssets(),
+                        loadAllClaims(),
+                        ownershipApi.summary(),
+                    ]);
 
                 if (cancelled) {
                     return;
                 }
 
-                const assigned =
-                    Number(
-                        assignedRes.total ??
-                        assignedRes.data?.length ??
-                        0
+                /*
+                 * Device Operations is the inventory source of truth.
+                 * OWST/ownership assets are shown separately in the
+                 * Non-Operational card and are not double-counted here.
+                 */
+                const visibleAssets =
+                    assets.filter(
+                        (asset) =>
+                            Number(
+                                asset.asset_status
+                            ) !== 7
                     );
 
-                const available =
-                    Number(
-                        availableRes.total ??
-                        availableRes.data?.length ??
-                        0
+                const assetGroups =
+                    new Map<
+                        string,
+                        number
+                    >();
+
+                for (
+                    const asset of
+                    visibleAssets
+                ) {
+                    const label =
+                        String(
+                            asset.status_label ??
+                            "Unknown"
+                        ).trim() ||
+                        "Unknown";
+
+                    assetGroups.set(
+                        label,
+                        (
+                            assetGroups.get(
+                                label
+                            ) ??
+                            0
+                        ) + 1
+                    );
+                }
+
+                const activeItems =
+                    Array.from(
+                        assetGroups.entries()
+                    )
+                        .sort(
+                            (
+                                a,
+                                b
+                            ) =>
+                                b[1] -
+                                a[1] ||
+                                a[0].localeCompare(
+                                    b[0]
+                                )
+                        )
+                        .map(
+                            ([
+                                label,
+                                value,
+                            ]) => ({
+                                label,
+                                value,
+                            })
+                        );
+
+                const yearClaims =
+                    claims.filter(
+                        (claim) =>
+                            recordYear(
+                                claim.created_at
+                            ) ===
+                            queryTypeYear
                     );
 
-                const returned =
-                    Number(
-                        returnedRes.total ??
-                        returnedRes.data?.length ??
-                        0
+                const warrantyClaims =
+                    yearClaims.filter(
+                        (claim) =>
+                            Number(
+                                claim.service_type
+                            ) !== 1
+                    );
+
+                const serviceClaims =
+                    yearClaims.filter(
+                        (claim) =>
+                            Number(
+                                claim.service_type
+                            ) === 1
                     );
 
                 const warrantyClaimed =
-                    Number(
-                        warrantyClaimedRes.total ??
-                        warrantyClaimedRes.data?.length ??
-                        0
-                    );
+                    warrantyClaims.filter(
+                        (claim) =>
+                            Number(
+                                claim.claim_status
+                            ) === 8
+                    ).length;
 
                 const warrantyVendor =
-                    Number(
-                        warrantyVendorRes.total ??
-                        warrantyVendorRes.data?.length ??
-                        0
-                    );
+                    warrantyClaims.filter(
+                        (claim) =>
+                            Number(
+                                claim.claim_status
+                            ) === 9
+                    ).length;
 
                 const warrantyRecovered =
-                    Number(
-                        warrantyRecoveredRes.total ??
-                        warrantyRecoveredRes.data?.length ??
-                        0
-                    );
-
-                const warrantySoonExpired =
-                    Number(
-                        warrantySoonExpiredRes.total ??
-                        warrantySoonExpiredRes.data?.length ??
-                        0
-                    );
+                    warrantyClaims.filter(
+                        (claim) =>
+                            Number(
+                                claim.claim_status
+                            ) === 10
+                    ).length;
 
                 const serviceRequested =
-                    Number(
-                        serviceRequestRes.total ??
-                        serviceRequestRes.data?.length ??
-                        0
-                    );
+                    serviceClaims.filter(
+                        (claim) =>
+                            Number(
+                                claim.claim_status
+                            ) === 15
+                    ).length;
 
                 const serviceVendor =
-                    Number(
-                        serviceVendorRes.total ??
-                        serviceVendorRes.data?.length ??
-                        0
-                    );
+                    serviceClaims.filter(
+                        (claim) =>
+                            Number(
+                                claim.claim_status
+                            ) === 9
+                    ).length;
 
                 const serviceClosed =
-                    Number(
-                        serviceClosedRes.total ??
-                        serviceClosedRes.data?.length ??
-                        0
+                    serviceClaims.filter(
+                        (claim) =>
+                            Number(
+                                claim.claim_status
+                            ) === 10
+                    ).length;
+
+                const now =
+                    new Date();
+
+                const today =
+                    new Date(
+                        now.getFullYear(),
+                        now.getMonth(),
+                        now.getDate()
                     );
+
+                const warrantyExpiring =
+                    assets.filter(
+                        (asset) => {
+                            if (
+                                !asset.warranty_date
+                            ) {
+                                return false;
+                            }
+
+                            const warrantyDate =
+                                new Date(
+                                    asset.warranty_date
+                                );
+
+                            if (
+                                Number.isNaN(
+                                    warrantyDate.getTime()
+                                ) ||
+                                warrantyDate.getFullYear() !==
+                                    queryTypeYear
+                            ) {
+                                return false;
+                            }
+
+                            /*
+                             * Current year:
+                             * only warranties still due to expire.
+                             *
+                             * Other selected years:
+                             * show all warranties whose expiry belongs
+                             * to that reporting year.
+                             */
+                            if (
+                                queryTypeYear ===
+                                now.getFullYear()
+                            ) {
+                                return (
+                                    warrantyDate >=
+                                    today
+                                );
+                            }
+
+                            return true;
+                        }
+                    ).length;
+
+                const expiryLabel =
+                    queryTypeYear ===
+                        now.getFullYear()
+                        ? "Expiring This Year"
+                        : queryTypeYear <
+                          now.getFullYear()
+                        ? `Expired in ${queryTypeYear}`
+                        : `Expiring in ${queryTypeYear}`;
 
                 setSummary(
                     (current) => {
@@ -1903,24 +2080,9 @@ export default function DashboardPage() {
 
                             active_assets: {
                                 total:
-                                    assigned +
-                                    available +
-                                    returned,
-
-                                items: [
-                                    {
-                                        label: "Assigned",
-                                        value: assigned,
-                                    },
-                                    {
-                                        label: "Available",
-                                        value: available,
-                                    },
-                                    {
-                                        label: "Returned",
-                                        value: returned,
-                                    },
-                                ],
+                                    visibleAssets.length,
+                                items:
+                                    activeItems,
                             },
 
                             warranty: {
@@ -1928,24 +2090,32 @@ export default function DashboardPage() {
                                     warrantyClaimed +
                                     warrantyVendor +
                                     warrantyRecovered +
-                                    warrantySoonExpired,
+                                    warrantyExpiring,
 
                                 items: [
                                     {
-                                        label: "Claimed",
-                                        value: warrantyClaimed,
+                                        label:
+                                            "Claimed",
+                                        value:
+                                            warrantyClaimed,
                                     },
                                     {
-                                        label: "To Vendor",
-                                        value: warrantyVendor,
+                                        label:
+                                            "To Vendor",
+                                        value:
+                                            warrantyVendor,
                                     },
                                     {
-                                        label: "Recovered",
-                                        value: warrantyRecovered,
+                                        label:
+                                            "Recovered",
+                                        value:
+                                            warrantyRecovered,
                                     },
                                     {
-                                        label: "Soon Expired",
-                                        value: warrantySoonExpired,
+                                        label:
+                                            expiryLabel,
+                                        value:
+                                            warrantyExpiring,
                                     },
                                 ],
                             },
@@ -1958,16 +2128,22 @@ export default function DashboardPage() {
 
                                 items: [
                                     {
-                                        label: "Service Request",
-                                        value: serviceRequested,
+                                        label:
+                                            "Service Request",
+                                        value:
+                                            serviceRequested,
                                     },
                                     {
-                                        label: "Transferred to Vendor",
-                                        value: serviceVendor,
+                                        label:
+                                            "Transferred to Vendor",
+                                        value:
+                                            serviceVendor,
                                     },
                                     {
-                                        label: "Closed",
-                                        value: serviceClosed,
+                                        label:
+                                            "Closed",
+                                        value:
+                                            serviceClosed,
                                     },
                                 ],
                             },
@@ -1987,20 +2163,26 @@ export default function DashboardPage() {
                             ),
                     })
                 );
-            } catch (reason) {
+            } catch (
+            reason
+            ) {
                 console.warn(
-                    "[dashboard] operational source sync failed:",
+                    "[dashboard] selected-year source sync failed:",
                     reason
                 );
             }
         }
 
-        void loadOperationalDashboard();
+        void loadAuthoritativeDashboardYear();
 
         return () => {
-            cancelled = true;
+            cancelled =
+                true;
         };
-    }, []);
+    }, [
+        queryTypeYear,
+    ]);
+
     useEffect(() => {
         let cancelled =
             false;
@@ -2307,8 +2489,7 @@ export default function DashboardPage() {
         );
 
     const currentYear =
-        new Date()
-            .getFullYear()
+        queryTypeYear
             .toString();
 
     const warrantyExpiryLabel =
@@ -2320,7 +2501,7 @@ export default function DashboardPage() {
                         "expir"
                     )
         )?.label ??
-        "Soon Expired";
+        "Expiring This Year";
 
     const warrantyBarData = [
         {
@@ -2884,9 +3065,19 @@ export default function DashboardPage() {
                                             recovered:
                                                 "Recovered",
                                             expired:
-                                                "Soon Expired",
+                                                warrantyExpiryLabel,
                                         };
 
+                                        if (
+                                            key ===
+                                            "expired"
+                                        ) {
+                                            router.push(
+                                                "/dashboard/assets/devices"
+                                            );
+
+                                            return;
+                                        }
 
                                         if (
                                             key &&
@@ -3026,11 +3217,19 @@ export default function DashboardPage() {
                                             item.color
                                         }
                                         onClick={() =>
-                                            router.push(
-                                                `/dashboard/service-warranty/warranty-claims?status=${encodeURIComponent(
-                                                    item.status
-                                                )}`
-                                            )
+                                            item.label
+                                                .toLowerCase()
+                                                .includes(
+                                                    "expir"
+                                                )
+                                                ? router.push(
+                                                    "/dashboard/assets/devices"
+                                                )
+                                                : router.push(
+                                                    `/dashboard/service-warranty/warranty-claims?status=${encodeURIComponent(
+                                                        item.status
+                                                    )}`
+                                                )
                                         }
                                     />
                                 )
@@ -3731,7 +3930,7 @@ export default function DashboardPage() {
 
 
             {/* ==================================================
-                TROUBLE TICKET QUERY TYPE â€” DEFAULT CURRENT MONTH
+                TROUBLE TICKET QUERY TYPE — DEFAULT CURRENT MONTH
             ================================================== */}
 
             <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -3834,7 +4033,7 @@ export default function DashboardPage() {
                         16 && (
                             <div className="mb-1 flex justify-end">
                                 <span className="text-[9px] font-medium text-muted-foreground">
-                                    Scroll horizontally to view more â†’
+                                    Scroll horizontally to view more →
                                 </span>
                             </div>
                         )}

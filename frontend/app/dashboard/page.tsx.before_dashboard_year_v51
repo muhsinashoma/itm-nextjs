@@ -26,11 +26,8 @@ import type {
 } from "@/types/tt";
 
 import {
-    assetDeviceApi,
     authApi,
-    claimApi,
     dashboardApi,
-    ownershipApi,
     reportApi,
     type DashboardSummary,
     type NonOperationalSummary,
@@ -343,8 +340,8 @@ function queryTypePeriod(
 
         badgeText:
             months === 1
-                ? `${year} Â· Month`
-                : `${year} Â· ${months} Months`,
+                ? `${year} · Month`
+                : `${year} · ${months} Months`,
     };
 }
 
@@ -372,7 +369,7 @@ function shortQueryTypeLabel(
         0,
         maxLength -
         1
-    )}â€¦`;
+    )}…`;
 }
 
 const PieLabel = (props: any) => {
@@ -1668,7 +1665,7 @@ export default function DashboardPage() {
 
 
     /* ========================================================
-       QUERY TYPE CHART â€” GLOBAL YEAR + DEFAULT LAST 3 MONTHS
+       QUERY TYPE CHART — GLOBAL YEAR + DEFAULT LAST 3 MONTHS
        ======================================================== */
 
     useEffect(() => {
@@ -1710,297 +1707,6 @@ export default function DashboardPage() {
         };
     }, []);
 
-    /* ========================================================
-       AUTHORITATIVE DASHBOARD DATA â€” CURRENT OPERATIONAL VIEW
-
-       Active Assets:
-       - Assigned
-       - Available
-       - Returned
-
-       Warranty:
-       - Claimed
-       - To Vendor
-       - Recovered
-       - Soon Expired
-
-       Service:
-       - Service Request
-       - Transferred to Vendor
-       - Closed
-
-       Each number is read from the same paginated endpoint used by
-       the corresponding detail page, so dashboard and drill-down
-       totals stay aligned.
-       ======================================================== */
-
-    useEffect(() => {
-        let cancelled = false;
-
-        async function loadOperationalDashboard() {
-            try {
-                const [
-                    assignedRes,
-                    availableRes,
-                    returnedRes,
-
-                    warrantyClaimedRes,
-                    warrantyVendorRes,
-                    warrantyRecoveredRes,
-                    warrantySoonExpiredRes,
-
-                    serviceRequestRes,
-                    serviceVendorRes,
-                    serviceClosedRes,
-
-                    ownershipRes,
-                ] = await Promise.all([
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 1,
-                    }),
-
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 0,
-                    }),
-
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 4,
-                    }),
-
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Claimed",
-                    }),
-
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "To Vendor",
-                    }),
-
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Recovered",
-                    }),
-
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Soon Expired",
-                    }),
-
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Service Request",
-                    }),
-
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Transferred to Vendor",
-                    }),
-
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Closed",
-                    }),
-
-                    ownershipApi.summary(),
-                ]);
-
-                if (cancelled) {
-                    return;
-                }
-
-                const assigned =
-                    Number(
-                        assignedRes.total ??
-                        assignedRes.data?.length ??
-                        0
-                    );
-
-                const available =
-                    Number(
-                        availableRes.total ??
-                        availableRes.data?.length ??
-                        0
-                    );
-
-                const returned =
-                    Number(
-                        returnedRes.total ??
-                        returnedRes.data?.length ??
-                        0
-                    );
-
-                const warrantyClaimed =
-                    Number(
-                        warrantyClaimedRes.total ??
-                        warrantyClaimedRes.data?.length ??
-                        0
-                    );
-
-                const warrantyVendor =
-                    Number(
-                        warrantyVendorRes.total ??
-                        warrantyVendorRes.data?.length ??
-                        0
-                    );
-
-                const warrantyRecovered =
-                    Number(
-                        warrantyRecoveredRes.total ??
-                        warrantyRecoveredRes.data?.length ??
-                        0
-                    );
-
-                const warrantySoonExpired =
-                    Number(
-                        warrantySoonExpiredRes.total ??
-                        warrantySoonExpiredRes.data?.length ??
-                        0
-                    );
-
-                const serviceRequested =
-                    Number(
-                        serviceRequestRes.total ??
-                        serviceRequestRes.data?.length ??
-                        0
-                    );
-
-                const serviceVendor =
-                    Number(
-                        serviceVendorRes.total ??
-                        serviceVendorRes.data?.length ??
-                        0
-                    );
-
-                const serviceClosed =
-                    Number(
-                        serviceClosedRes.total ??
-                        serviceClosedRes.data?.length ??
-                        0
-                    );
-
-                setSummary(
-                    (current) => {
-                        if (!current) {
-                            return current;
-                        }
-
-                        return {
-                            ...current,
-
-                            active_assets: {
-                                total:
-                                    assigned +
-                                    available +
-                                    returned,
-
-                                items: [
-                                    {
-                                        label: "Assigned",
-                                        value: assigned,
-                                    },
-                                    {
-                                        label: "Available",
-                                        value: available,
-                                    },
-                                    {
-                                        label: "Returned",
-                                        value: returned,
-                                    },
-                                ],
-                            },
-
-                            warranty: {
-                                total:
-                                    warrantyClaimed +
-                                    warrantyVendor +
-                                    warrantyRecovered +
-                                    warrantySoonExpired,
-
-                                items: [
-                                    {
-                                        label: "Claimed",
-                                        value: warrantyClaimed,
-                                    },
-                                    {
-                                        label: "To Vendor",
-                                        value: warrantyVendor,
-                                    },
-                                    {
-                                        label: "Recovered",
-                                        value: warrantyRecovered,
-                                    },
-                                    {
-                                        label: "Soon Expired",
-                                        value: warrantySoonExpired,
-                                    },
-                                ],
-                            },
-
-                            service_requests: {
-                                total:
-                                    serviceRequested +
-                                    serviceVendor +
-                                    serviceClosed,
-
-                                items: [
-                                    {
-                                        label: "Service Request",
-                                        value: serviceRequested,
-                                    },
-                                    {
-                                        label: "Transferred to Vendor",
-                                        value: serviceVendor,
-                                    },
-                                    {
-                                        label: "Closed",
-                                        value: serviceClosed,
-                                    },
-                                ],
-                            },
-                        };
-                    }
-                );
-
-                setNonOpSummary(
-                    (current) => ({
-                        ...current,
-                        ownership:
-                            Number(
-                                ownershipRes
-                                    .data
-                                    ?.total_ownership ??
-                                0
-                            ),
-                    })
-                );
-            } catch (reason) {
-                console.warn(
-                    "[dashboard] operational source sync failed:",
-                    reason
-                );
-            }
-        }
-
-        void loadOperationalDashboard();
-
-        return () => {
-            cancelled = true;
-        };
-    }, []);
     useEffect(() => {
         let cancelled =
             false;
@@ -2310,17 +2016,6 @@ export default function DashboardPage() {
         new Date()
             .getFullYear()
             .toString();
-
-    const warrantyExpiryLabel =
-        summary.warranty.items.find(
-            (item) =>
-                item.label
-                    .toLowerCase()
-                    .includes(
-                        "expir"
-                    )
-        )?.label ??
-        "Soon Expired";
 
     const warrantyBarData = [
         {
@@ -2836,7 +2531,7 @@ export default function DashboardPage() {
                     <CardHead
                         title={`Warranty Overview ${currentYear}`}
                         kpi={totalWarranty.toLocaleString()}
-                        badge={currentYear}
+                        badge="Live"
                         onKpiClick={() =>
                             router.push(
                                 "/dashboard/service-warranty/warranty-claims"
@@ -2884,9 +2579,8 @@ export default function DashboardPage() {
                                             recovered:
                                                 "Recovered",
                                             expired:
-                                                "Soon Expired",
+                                                "Expired",
                                         };
-
 
                                         if (
                                             key &&
@@ -3047,7 +2741,7 @@ export default function DashboardPage() {
                     <CardHead
                         title={`Service Requests ${currentYear}`}
                         kpi={totalService.toLocaleString()}
-                        badge={currentYear}
+                        badge="Live"
                         onKpiClick={() =>
                             router.push(
                                 "/dashboard/service-warranty/service-claims"
@@ -3731,7 +3425,7 @@ export default function DashboardPage() {
 
 
             {/* ==================================================
-                TROUBLE TICKET QUERY TYPE â€” DEFAULT CURRENT MONTH
+                TROUBLE TICKET QUERY TYPE — DEFAULT CURRENT MONTH
             ================================================== */}
 
             <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -3834,7 +3528,7 @@ export default function DashboardPage() {
                         16 && (
                             <div className="mb-1 flex justify-end">
                                 <span className="text-[9px] font-medium text-muted-foreground">
-                                    Scroll horizontally to view more â†’
+                                    Scroll horizontally to view more →
                                 </span>
                             </div>
                         )}

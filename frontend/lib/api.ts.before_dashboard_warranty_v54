@@ -2695,8 +2695,7 @@ export interface WarrantyClaimItem {
     | "Claimed"
     | "To Vendor"
     | "Recovered"
-    | "Soon Expired"
-            | "Expired";
+    | "Expired";
 
     vendor:
     string |
@@ -3078,7 +3077,6 @@ export const reportApi = {
             | "Claimed"
             | "To Vendor"
             | "Recovered"
-            | "Soon Expired"
             | "Expired";
 
             search?:

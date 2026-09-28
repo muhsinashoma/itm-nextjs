@@ -1,7 +1,7 @@
+
+// frontend/app/dashboard/disposal/ownership-assets/page.tsx
+
 "use client";
-
-import { DashboardBackButton } from "@/components/ui/dashboard-back-button";
-
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -33,12 +33,12 @@ function getDeviceName(item: OwnershipAsset) {
         [item.category, item.brand, item.model]
             .filter(Boolean)
             .join(" ")
-            .trim() || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+            .trim() || "—"
     );
 }
 
 function formatDate(value: string | null) {
-    if (!value) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (!value) return "—";
 
     const date = new Date(value);
 
@@ -57,7 +57,7 @@ function escapeCsvValue(value: string | number | null | undefined) {
     return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
-/* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Avatar ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
+/* ── Avatar ── */
 function Avatar({ name }: { name: string }) {
     const safeName = name.trim() || "Unknown";
 
@@ -86,12 +86,12 @@ function Avatar({ name }: { name: string }) {
 
                 }`}
         >
-            {initials || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+            {initials || "—"}
         </span>
     );
 }
 
-/* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Status badge ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
+/* ── Status badge ── */
 function StatusBadge({
     ownershipType,
 }: {
@@ -113,7 +113,7 @@ function StatusBadge({
     );
 }
 
-/* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Export helpers ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
+/* ── Export helpers ── */
 function exportCSV(data: OwnershipAsset[]) {
     const headers = [
         "SL",
@@ -171,9 +171,9 @@ function exportPDF(data: OwnershipAsset[]) {
                 <tr>
                     <td>${index + 1}</td>
                     <td>${item.reference}</td>
-                    <td>${item.emp_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
+                    <td>${item.emp_name || "—"}</td>
                     <td>${getDeviceName(item)}</td>
-                    <td>${item.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
+                    <td>${item.device_serial || "—"}</td>
                     <td>${formatDate(
                 item.transfer_date ||
                 item.assigned_date ||
@@ -247,7 +247,7 @@ function exportPDF(data: OwnershipAsset[]) {
 
                 <p>
                     Generated: ${new Date().toLocaleString()}
-                    ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Total Current Ownership Assets: ${data.length}
+                    · Total Current Ownership Assets: ${data.length}
                 </p>
 
                 <table>
@@ -269,7 +269,7 @@ function exportPDF(data: OwnershipAsset[]) {
                 </table>
 
                 <div class="footer">
-                    Fiber@Home Ltd. ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ITM Portal
+                    Fiber@Home Ltd. · ITM Portal
                 </div>
             </body>
         </html>
@@ -285,7 +285,7 @@ function exportPDF(data: OwnershipAsset[]) {
     });
 }
 
-/* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ View Modal ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
+/* ── View Modal ── */
 function ViewModal({
     item,
     onClose,
@@ -327,7 +327,7 @@ function ViewModal({
                             <div className="grid grid-cols-2 gap-3 bg-card px-4 py-3">
                                 <InfoField
                                     label="Employee ID"
-                                    value={item.emp_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                    value={item.emp_id || "—"}
                                 />
 
                                 <InfoField
@@ -337,12 +337,12 @@ function ViewModal({
 
                                 <InfoField
                                     label="Department"
-                                    value={item.department || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                    value={item.department || "—"}
                                 />
 
                                 <InfoField
                                     label="Designation"
-                                    value={item.designation || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                    value={item.designation || "—"}
                                 />
                             </div>
                         </div>
@@ -363,7 +363,7 @@ function ViewModal({
 
                                 <InfoField
                                     label="Serial Number"
-                                    value={item.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                    value={item.device_serial || "—"}
                                 />
 
                                 <InfoField
@@ -437,13 +437,13 @@ function InfoField({
             </p>
 
             <p className="mt-0.5 break-words text-[11px] font-semibold text-foreground">
-                {value || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                {value || "—"}
             </p>
         </div>
     );
 }
 
-/* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Actions Dropdown ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
+/* ── Actions Dropdown ── */
 function ActionsDropdown({
     item,
     onView,
@@ -514,7 +514,7 @@ function ActionsDropdown({
     );
 }
 
-/* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Main Page ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
+/* ── Main Page ── */
 export default function WarrantyOwnershipPage() {
 
     const [search, setSearch] = useState("");
@@ -650,9 +650,6 @@ export default function WarrantyOwnershipPage() {
 
     return (
         <div className="space-y-3 p-3 sm:p-4">
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
 
             <div className="rounded-xl border border-border bg-card p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -768,13 +765,13 @@ export default function WarrantyOwnershipPage() {
 
                                     {/* <p className={`mt-0.5 text-lg font-bold tabular-nums ${item.color}`}>
                                         {isLoading
-                                            ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+                                            ? "—"
                                             : item.value.toLocaleString()}
                                     </p> */}
 
                                     <div className="mt-0.5 flex items-center gap-1.5">
                                         <p className={`text-base font-bold leading-none tabular-nums ${item.color}`}>
-                                            {isLoading ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â" : item.value.toLocaleString()}
+                                            {isLoading ? "—" : item.value.toLocaleString()}
                                         </p>
 
                                         {item.percentage && (
@@ -819,7 +816,7 @@ export default function WarrantyOwnershipPage() {
 
                         {!isLoading && summary && (
                             <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                {/* Transfer forms: {summary.total_ownership} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·
+                                {/* Transfer forms: {summary.total_ownership} ·
                                 Current registry assets:{" "}
                                 {summary.current_asset_count} */}
                             </p>
@@ -923,7 +920,7 @@ export default function WarrantyOwnershipPage() {
                                                     </p>
 
                                                     <p className="text-[10px] text-muted-foreground">
-                                                        {item.emp_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {item.emp_id || "—"}
                                                     </p>
                                                 </div>
                                             </div>
@@ -940,7 +937,7 @@ export default function WarrantyOwnershipPage() {
                                         </td>
 
                                         <td className="px-2 py-1 font-mono text-[11px] text-muted-foreground">
-                                            {item.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            {item.device_serial || "—"}
                                         </td>
                                         <td className="whitespace-nowrap px-2 py-1 text-[10px] text-muted-foreground">
                                             {formatDate(
@@ -1031,4 +1028,5 @@ export default function WarrantyOwnershipPage() {
         </div>
     );
 }
+
 

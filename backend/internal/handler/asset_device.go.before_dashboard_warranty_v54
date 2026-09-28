@@ -479,7 +479,7 @@
 // 					"value": summary.Recovered,
 // 				},
 // 				{
-// 					"label": "Soon Expired",
+// 					"label": "Expired",
 // 					"value": summary.Expired,
 // 				},
 // 			},
@@ -1008,11 +1008,11 @@
 // 	}
 
 // 	switch status {
-// 	case "all", "claimed", "to vendor", "tovendor", "recovered", "expired", "soon expired":
+// 	case "all", "claimed", "to vendor", "tovendor", "recovered", "expired":
 // 	default:
 // 		response.BadRequest(
 // 			c,
-// 			"status must be one of: all, Claimed, To Vendor, Recovered, Expired, Soon Expired",
+// 			"status must be one of: all, Claimed, To Vendor, Recovered, Expired",
 // 		)
 // 		return
 // 	}
@@ -2949,6 +2949,8 @@
 // 	})
 // }
 
+
+
 package handler
 
 import (
@@ -3761,7 +3763,7 @@ func (h *AssetDeviceHandler) WarrantyOverviewSummary(
 
 				{
 
-					"label": "Soon Expired",
+					"label": "Expired",
 
 					"value": summary.Expired,
 				},
@@ -4725,7 +4727,7 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 
 	switch status {
 
-	case "all", "claimed", "to vendor", "tovendor", "recovered", "expired", "soon expired":
+	case "all", "claimed", "to vendor", "tovendor", "recovered", "expired":
 
 	default:
 
@@ -4733,7 +4735,7 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 
 			c,
 
-			"status must be one of: all, Claimed, To Vendor, Recovered, Expired, Soon Expired",
+			"status must be one of: all, Claimed, To Vendor, Recovered, Expired",
 		)
 
 		return
@@ -5244,39 +5246,6 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 
 
 
-        soon_expired_rows AS (
-            SELECT
-                ad.id,
-                ad.id::text AS reference,
-
-                NULLIF(BTRIM(ad.emp_name), '') AS employee,
-                NULLIF(BTRIM(ad.emp_id), '') AS emp_id,
-                NULLIF(BTRIM(ad.department), '') AS department,
-                NULLIF(BTRIM(ad.designation), '') AS designation,
-
-                NULLIF(BTRIM(ad.category), '') AS category,
-                NULLIF(BTRIM(ad.brand), '') AS brand,
-                NULLIF(BTRIM(ad.model), '') AS model,
-                NULLIF(BTRIM(ad.device_serial), '') AS device_serial,
-
-                ad.warranty_date::text AS warranty_date,
-
-                'Soon Expired'::text AS status,
-
-                NULLIF(BTRIM(ad.vendor_name), '') AS vendor,
-                NULL::text AS problems,
-
-                ad.warranty_date::timestamp AS sort_at
-
-            FROM public.asset_devices ad
-            CROSS JOIN year_bounds yb
-
-            WHERE ad.row_status = 1
-              AND ad.warranty_date IS NOT NULL
-              AND ad.warranty_date::date >= CURRENT_DATE
-              AND ad.warranty_date::date < yb.next_year_start
-        ),
-
         warranty_rows AS (
 
             SELECT
@@ -5433,25 +5402,6 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 
             FROM expired_rows
 
-            UNION ALL
-
-            SELECT
-                id,
-                reference,
-                employee,
-                emp_id,
-                department,
-                designation,
-                category,
-                brand,
-                model,
-                device_serial,
-                warranty_date,
-                status,
-                vendor,
-                problems,
-                sort_at
-            FROM soon_expired_rows
         )
 
     `
