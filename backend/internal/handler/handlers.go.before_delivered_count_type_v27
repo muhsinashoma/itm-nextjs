@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+
 type EmployeeHandler struct{ db *pgxpool.Pool }
 
 func NewEmployeeHandler(db *pgxpool.Pool) *EmployeeHandler {
@@ -2739,15 +2740,17 @@ type ClaimHandler struct{ db *pgxpool.Pool }
 
 func NewClaimHandler(db *pgxpool.Pool) *ClaimHandler { return &ClaimHandler{db: db} }
 
+
+
 func (h *ClaimHandler) Register(rg *gin.RouterGroup) {
-	g := rg.Group("/claims")
+    g := rg.Group("/claims")
 
-	g.GET("", h.List)
-	g.GET("/:id", h.Get)
-	g.POST("", h.Create)
-	g.PUT("/:id/status", h.UpdateStatus)
+    g.GET("", h.List)
+    g.GET("/:id", h.Get)
+    g.POST("", h.Create)
+    g.PUT("/:id/status", h.UpdateStatus)
 
-	h.RegisterLifecycleRoutes(g)
+    h.RegisterLifecycleRoutes(g)
 }
 
 func (h *ClaimHandler) List(c *gin.Context) {
@@ -3756,9 +3759,9 @@ func (
 
 		Approved int64 `json:"approved"`
 
+		
 		Delivered int64 `json:"delivered"`
-
-		TotalActive int64 `json:"total_active"`
+TotalActive int64 `json:"total_active"`
 	}
 
 	const query = `
@@ -3819,18 +3822,6 @@ func (
 				AS approved,
 
 			/*
-				Successfully delivered requisitions.
-			*/
-			COUNT(*) FILTER (
-				WHERE
-					COALESCE(
-						delivered_val,
-						0
-					) = 1
-			)::bigint
-				AS delivered,
-
-			/*
 				All active requisition records.
 			*/
 			COUNT(*)::bigint
@@ -3855,7 +3846,6 @@ func (
 		&result.ApprovalPending,
 		&result.Rejected,
 		&result.Approved,
-		&result.Delivered,
 		&result.TotalActive,
 	); err != nil {
 		response.ServerError(

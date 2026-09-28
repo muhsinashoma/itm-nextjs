@@ -1083,9 +1083,8 @@ export const dashboardApi = {
             view?:
             | "all"
             | "pending"
-            | "approved"
-            | "delivered"
-            | "rejected";
+            | "rejected"
+            | "approved";
 
             category?: string;
 

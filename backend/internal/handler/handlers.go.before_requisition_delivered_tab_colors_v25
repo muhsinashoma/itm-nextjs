@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+
 type EmployeeHandler struct{ db *pgxpool.Pool }
 
 func NewEmployeeHandler(db *pgxpool.Pool) *EmployeeHandler {
@@ -2739,15 +2740,17 @@ type ClaimHandler struct{ db *pgxpool.Pool }
 
 func NewClaimHandler(db *pgxpool.Pool) *ClaimHandler { return &ClaimHandler{db: db} }
 
+
+
 func (h *ClaimHandler) Register(rg *gin.RouterGroup) {
-	g := rg.Group("/claims")
+    g := rg.Group("/claims")
 
-	g.GET("", h.List)
-	g.GET("/:id", h.Get)
-	g.POST("", h.Create)
-	g.PUT("/:id/status", h.UpdateStatus)
+    g.GET("", h.List)
+    g.GET("/:id", h.Get)
+    g.POST("", h.Create)
+    g.PUT("/:id/status", h.UpdateStatus)
 
-	h.RegisterLifecycleRoutes(g)
+    h.RegisterLifecycleRoutes(g)
 }
 
 func (h *ClaimHandler) List(c *gin.Context) {
@@ -4005,7 +4008,6 @@ func (
 //	pending
 //	rejected
 //	approved
-//	delivered
 //
 // Supported filters:
 //
@@ -4160,25 +4162,11 @@ func (
 			)
 		`
 
-	case "delivered":
-
-		where += `
-			AND reason.approved_val IN (
-				1,
-				3
-			)
-
-			AND COALESCE(
-				reason.delivered_val,
-				0
-			) = 1
-		`
-
 	default:
 
 		response.BadRequest(
 			c,
-			"view must be all, pending, approved, delivered, or rejected",
+			"view must be all, pending, rejected, or approved",
 		)
 
 		return
