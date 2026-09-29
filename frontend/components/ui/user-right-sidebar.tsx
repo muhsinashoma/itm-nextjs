@@ -450,7 +450,7 @@ export function UserRightSidebar() {
                                                 "numeric",
                                         }
                                     )
-                                    : "Loading dateÃ¢â‚¬Â¦"}
+                                    : "Loading date…"}
                             </p>
 
                             <div className="mt-2 flex justify-end">

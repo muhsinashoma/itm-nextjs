@@ -1,8 +1,7 @@
+//frontend/app/dashboard/service-warranty/warranty-claims/page.tsx
 "use client";
 
 import { DashboardBackButton } from "@/components/ui/dashboard-back-button";
-
-
 import {
     useCallback,
     useEffect,
@@ -40,6 +39,7 @@ import {
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { cleanDisplayText, sanitizeApiPayload } from "@/lib/text-sanitize";
 import {
     reportApi,
     type WarrantyClaimItem,
@@ -52,6 +52,41 @@ import { AppFormModal } from "@/components/common/form/AppFormModal";
 import { AppFormSection } from "@/components/common/form/AppFormSection";
 import { AppInfoField } from "@/components/common/form/AppInfoField";
 import { AppFormFooter } from "@/components/common/form/AppFormFooter";
+
+/* Legacy records can contain encoding corruption. Keep cleanup at the
+   display boundary while preserving normal Unicode text. */
+function cleanLegacyClaimText(value: unknown): string {
+    return cleanDisplayText(String(value ?? "")).trim();
+}
+
+function cleanClaimDisplayRow<
+    T extends Record<string, any>
+>(row: T): T {
+    const next: Record<string, any> = {
+        ...row,
+    };
+
+    const displayFields = [
+        "employee",
+        "employee_name",
+        "emp_name",
+        "department",
+        "designation",
+        "category",
+        "brand",
+        "model",
+        "vendor",
+        "problems",
+    ];
+
+    for (const field of displayFields) {
+        if (field in next) {
+            next[field] = cleanLegacyClaimText(next[field]);
+        }
+    }
+
+    return next as T;
+}
 
 type WarrantyStatus = "Claimed" | "To Vendor" | "Recovered" | "Soon Expired";
 
@@ -193,7 +228,7 @@ const STATUS_CONFIG: Record<
         border: "border-blue-200",
         icon: <CheckCircle2 size={11} />,
     },
-    Expired: {
+    "Soon Expired": {
         color: "text-red-700",
         bg: "bg-red-50",
         border: "border-red-200",
@@ -255,11 +290,11 @@ function isWarrantyStatus(value: string | null): value is WarrantyStatus {
 }
 
 function text(value?: string | null) {
-    return value?.trim() || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    return value?.trim() || "—";
 }
 
 function formatDate(value?: string | null) {
-    if (!value) return "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    if (!value) return "—";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return new Intl.DateTimeFormat("en-GB", {
@@ -339,10 +374,10 @@ function formatDeviceAge(item: WarrantyClaimRow) {
         item.purchaseDate,
     );
 
-    if (!purchaseDate) return "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    if (!purchaseDate) return "—";
 
     const purchasedAt = new Date(purchaseDate);
-    if (Number.isNaN(purchasedAt.getTime())) return "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    if (Number.isNaN(purchasedAt.getTime())) return "—";
 
     const today = new Date();
     let months =
@@ -353,7 +388,7 @@ function formatDeviceAge(item: WarrantyClaimRow) {
         months -= 1;
     }
 
-    if (months < 0) return "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â";
+    if (months < 0) return "—";
 
     const years = Math.floor(months / 12);
     const remainingMonths = months % 12;
@@ -478,7 +513,7 @@ function renderWarrantyCell(
                 !visibleColumns.has("model") ? item.model : null,
             ]
                 .filter(Boolean)
-                .join(" ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ");
+                .join(" · ");
 
             return (
                 <div className="min-w-0">
@@ -1025,7 +1060,7 @@ function ClaimModal({
                     <AppInfoField label="Reference" value={item.reference} />
                     <AppInfoField label="Status" value={item.status} />
                     <AppInfoField label={dateLabel} value={formatDate(item.created_at)} />
-                    <AppInfoField label="Vendor" value={item.vendor} />
+                    <AppInfoField label="Vendor" value={cleanLegacyClaimText(item.vendor) || "—"} />
                 </div>
 
                 <AppFormSection
@@ -1033,10 +1068,10 @@ function ClaimModal({
                     icon={<UserRound size={14} />}
                     columns="four"
                 >
-                    <AppInfoField label="Employee" value={item.employee} />
+                    <AppInfoField label="Employee" value={cleanLegacyClaimText(item.employee) || "—"} />
                     <AppInfoField label="Employee ID" value={item.emp_id} />
-                    <AppInfoField label="Department" value={item.department} />
-                    <AppInfoField label="Designation" value={item.designation} />
+                    <AppInfoField label="Department" value={cleanLegacyClaimText(item.department) || "—"} />
+                    <AppInfoField label="Designation" value={cleanLegacyClaimText(item.designation) || "—"} />
                 </AppFormSection>
 
                 <AppFormSection
@@ -1044,15 +1079,15 @@ function ClaimModal({
                     icon={<Monitor size={14} />}
                     columns="three"
                 >
-                    <AppInfoField label="Category" value={item.category} />
-                    <AppInfoField label="Brand" value={item.brand} />
-                    <AppInfoField label="Model" value={item.model} />
+                    <AppInfoField label="Category" value={cleanLegacyClaimText(item.category) || "—"} />
+                    <AppInfoField label="Brand" value={cleanLegacyClaimText(item.brand) || "—"} />
+                    <AppInfoField label="Model" value={cleanLegacyClaimText(item.model) || "—"} />
                     <AppInfoField label="Device Serial" value={item.device_serial} mono />
                     <AppInfoField
                         label="Warranty Date"
                         value={formatDate(item.warranty_date)}
                     />
-                    <AppInfoField label="Vendor" value={item.vendor} />
+                    <AppInfoField label="Vendor" value={cleanLegacyClaimText(item.vendor) || "—"} />
                 </AppFormSection>
 
                 <AppFormSection
@@ -1073,7 +1108,7 @@ function ClaimModal({
                     icon={<Info size={14} />}
                     columns="one"
                 >
-                    <AppInfoField label="Problem Details" value={item.problems} span />
+                    <AppInfoField label="Problem Details" value={cleanLegacyClaimText(item.problems) || "—"} span />
                 </AppFormSection>
             </div>
         </AppFormModal>
@@ -1541,7 +1576,11 @@ export default function WarrantyClaimsPage() {
                 search: search || undefined,
             });
 
-            setRows((response.data ?? []) as WarrantyClaimRow[]);
+            const cleanedRows = sanitizeApiPayload(
+                (response.data ?? []) as WarrantyClaimRow[],
+            ).map((row) => cleanClaimDisplayRow(row));
+
+            setRows(cleanedRows);
             setTotal(response.total ?? 0);
         } catch (err) {
             setRows([]);
@@ -1640,11 +1679,11 @@ export default function WarrantyClaimsPage() {
     );
 
     return (
-        <div className="space-y-4 p-4 sm:p-6">
-            <div className="mb-3">
+        <div className="itm-claim-clean-page bg-white space-y-4 p-4 sm:p-6">
+<div className="mb-3">
                 <DashboardBackButton />
             </div>
-            <div className="rounded-2xl border border-border bg-card p-5">
+<div className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50">
@@ -1716,7 +1755,7 @@ export default function WarrantyClaimsPage() {
                                     </span>
                                 </div>
                                 <p className={`text-xl font-bold ${card.color}`}>
-                                    {summaryLoading ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" : count}
+                                    {summaryLoading ? "…" : count}
                                 </p>
                             </button>
                         );

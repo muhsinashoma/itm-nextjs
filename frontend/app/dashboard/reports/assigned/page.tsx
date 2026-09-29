@@ -66,8 +66,7 @@ export default function AssignedPage() {
 
             {/* ✅ FIXED */}
             <div className="overflow-x-auto rounded-xl"><DataTable columns={columns} data={data} />
-
-            {/* ================= VIEW MODAL ================= */}
+            </div>{/* ================= VIEW MODAL ================= */}
             {viewDevice && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
                     <div className="bg-card p-6 rounded w-[600px]">

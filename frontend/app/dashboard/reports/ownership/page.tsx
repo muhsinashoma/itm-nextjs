@@ -115,8 +115,7 @@ export default function OwnershipPage() {
 
             {/* ================= TABLE ================= */}
             <div className="overflow-x-auto rounded-xl"><DataTable columns={columns} data={data} />
-
-            {/* ================= MODAL ================= */}
+            </div>{/* ================= MODAL ================= */}
             <DeviceViewModal
                 open={!!viewDevice}
                 onOpenChange={(open) => {

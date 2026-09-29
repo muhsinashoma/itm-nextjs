@@ -321,7 +321,15 @@ function PieValueLabel(
    COMPONENT
 ====================================================== */
 
-export default function OverviewChart() {
+export default function OverviewChart({
+    year,
+}: {
+    year?: number;
+}) {
+    const selectedYear =
+        year ??
+        new Date().getFullYear();
+
     const router =
         useRouter();
 
@@ -472,7 +480,7 @@ export default function OverviewChart() {
 
                     const response =
                         await dashboardApi
-                            .troubleTicketSummary();
+                            .troubleTicketSummary(selectedYear);
 
                     if (
                         !mounted
@@ -575,7 +583,7 @@ export default function OverviewChart() {
 
                     const response =
                         await dashboardApi
-                            .requisitionDashboardSummary();
+                            .requisitionDashboardSummary(selectedYear);
 
                     if (
                         !mounted
@@ -2403,9 +2411,7 @@ export default function OverviewChart() {
 
                                 {!requisitionLoading &&
                                     !requisitionError && (
-                                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-400">
-                                            Live
-                                        </span>
+                                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-400">{selectedYear}</span>
                                     )}
                             </div>
 

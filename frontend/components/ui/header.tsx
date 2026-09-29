@@ -110,6 +110,67 @@ const HEADER_YEAR_STORAGE_KEY =
 const UI_FONT_STORAGE_KEY =
     "itm_ui_font";
 
+const HEADER_FONT_STACK =
+    '"Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
+const HEADER_NAV_TONES: Record<
+    string,
+    {
+        idle: string;
+        active: string;
+    }
+> = {
+    Dashboard: {
+        idle:
+            "border-sky-200/70 bg-sky-50/70 text-sky-700 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300",
+        active:
+            "border-sky-300 bg-sky-100 text-sky-800 shadow-sm ring-1 ring-sky-200/70 dark:border-sky-800 dark:bg-sky-950/45 dark:text-sky-200 dark:ring-sky-900",
+    },
+    "Assigned TT": {
+        idle:
+            "border-violet-200/70 bg-violet-50/70 text-violet-700 hover:border-violet-300 hover:bg-violet-100 hover:text-violet-800 dark:border-violet-900/60 dark:bg-violet-950/25 dark:text-violet-300",
+        active:
+            "border-violet-300 bg-violet-100 text-violet-800 shadow-sm ring-1 ring-violet-200/70 dark:border-violet-800 dark:bg-violet-950/45 dark:text-violet-200 dark:ring-violet-900",
+    },
+    "Create TT": {
+        idle:
+            "border-emerald-200/70 bg-emerald-50/70 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300",
+        active:
+            "border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm ring-1 ring-emerald-200/70 dark:border-emerald-800 dark:bg-emerald-950/45 dark:text-emerald-200 dark:ring-emerald-900",
+    },
+    "User Panel": {
+        idle:
+            "border-cyan-200/70 bg-cyan-50/70 text-cyan-700 hover:border-cyan-300 hover:bg-cyan-100 hover:text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/25 dark:text-cyan-300",
+        active:
+            "border-cyan-300 bg-cyan-100 text-cyan-800 shadow-sm ring-1 ring-cyan-200/70 dark:border-cyan-800 dark:bg-cyan-950/45 dark:text-cyan-200 dark:ring-cyan-900",
+    },
+    "Role Access": {
+        idle:
+            "border-amber-200/70 bg-amber-50/70 text-amber-700 hover:border-amber-300 hover:bg-amber-100 hover:text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300",
+        active:
+            "border-amber-300 bg-amber-100 text-amber-800 shadow-sm ring-1 ring-amber-200/70 dark:border-amber-800 dark:bg-amber-950/45 dark:text-amber-200 dark:ring-amber-900",
+    },
+    "Admin Panel": {
+        idle:
+            "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/55 dark:text-slate-300",
+        active:
+            "border-slate-300 bg-slate-100 text-slate-900 shadow-sm ring-1 ring-slate-200/70 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700",
+    },
+};
+
+function headerNavTone(
+    label: string,
+    active: boolean,
+) {
+    const tone =
+        HEADER_NAV_TONES[label] ??
+        HEADER_NAV_TONES.Dashboard;
+
+    return active
+        ? tone.active
+        : tone.idle;
+}
+
 const UI_FONT_OPTIONS: UIFontOption[] = [
     {
         key: "inter",
@@ -410,6 +471,7 @@ export const Header =
         ) => {
             const {
                 className,
+                style,
                 onMenuClick,
                 onMobileNavClick,
                 authUser,
@@ -588,6 +650,55 @@ export const Header =
                         "undefined"
                     ) {
                         return;
+                    }
+
+                    const yearDefaultKey =
+                        "itm_reporting_year_default_v59";
+
+                    const hasInitializedYear =
+                        window.localStorage.getItem(
+                            yearDefaultKey
+                        ) ===
+                        "1";
+
+                    /*
+                     * One-time migration:
+                     * stale browser values such as 2023 should not remain
+                     * the default after the current-year dashboard rollout.
+                     *
+                     * After this one-time initialization, normal user
+                     * year selections remain persistent.
+                     */
+                    if (
+                        !hasInitializedYear
+                    ) {
+                        setSelectedYear(
+                            currentYear
+                        );
+
+                        window.localStorage.setItem(
+                            HEADER_YEAR_STORAGE_KEY,
+                            String(
+                                currentYear
+                            )
+                        );
+
+                        window.localStorage.setItem(
+                            yearDefaultKey,
+                            "1"
+                        );
+
+                        window.dispatchEvent(
+                            new CustomEvent(
+                                "itm-year-change",
+                                {
+                                    detail: {
+                                        year:
+                                            currentYear,
+                                    },
+                                }
+                            )
+                        );
                     }
 
                     const savedYear =
@@ -1309,6 +1420,11 @@ export const Header =
                         "sticky top-0 z-50 flex h-14 items-center justify-between gap-2 border-b border-border bg-card/95 px-3 text-foreground backdrop-blur-sm sm:px-5",
                         className
                     )}
+                    style={{
+                        ...style,
+                        fontFamily:
+                            HEADER_FONT_STACK,
+                    }}
                     {...rest}
                 >
                     {/* ==================================================
@@ -1357,19 +1473,11 @@ export const Header =
                                                 item.href
                                             }
                                             className={cn(
-                                                "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
-
-                                                useUserShell &&
-                                                    item.label ===
-                                                        "Create TT"
-                                                    ? "bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                                                    : useUserShell &&
-                                                        item.label ===
-                                                            "Admin Panel"
-                                                      ? "border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                                                      : active
-                                                        ? "bg-primary/10 font-semibold text-primary"
-                                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                "rounded-lg border px-3 py-1.5 text-[12px] font-semibold tracking-[-0.01em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+                                                headerNavTone(
+                                                    item.label,
+                                                    active
+                                                )
                                             )}
                                         >
                                             {
@@ -1392,7 +1500,7 @@ export const Header =
                             onClick={
                                 handleLogout
                             }
-                            className="px-2 text-xs font-medium text-red-600 transition-colors hover:text-red-700"
+                            className="rounded-lg border border-rose-200/80 bg-rose-50/80 px-2.5 py-1.5 text-[12px] font-semibold tracking-[-0.01em] text-rose-700 transition-all hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300"
                         >
                             Logout
                         </button>
@@ -1491,7 +1599,7 @@ export const Header =
                                     type="button"
                                     title="Reporting year"
                                     aria-label={`Reporting year ${selectedYear}`}
-                                    className="hidden h-8 items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 text-[11px] font-semibold text-foreground shadow-sm transition-all hover:border-primary/30 hover:bg-muted/70 hover:shadow md:flex"
+                                    className="hidden h-8 items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50/80 px-2.5 text-[11px] font-semibold text-sky-800 shadow-sm transition-all hover:border-sky-300 hover:bg-sky-100 hover:shadow dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300 md:flex"
                                 >
                                     <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/10 px-1 text-[8px] font-bold tracking-wide text-primary">
                                         YR
@@ -1591,7 +1699,7 @@ export const Header =
                                     type="button"
                                     title={`UI font: ${selectedFontOption.label}`}
                                     aria-label={`UI font ${selectedFontOption.label}`}
-                                    className="hidden h-8 items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 text-[11px] font-medium text-foreground shadow-sm transition-all hover:border-primary/30 hover:bg-muted/70 hover:shadow lg:flex"
+                                    className="hidden h-8 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/80 px-2.5 text-[11px] font-semibold text-indigo-800 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:shadow dark:border-indigo-900/60 dark:bg-indigo-950/25 dark:text-indigo-300 lg:flex"
                                 >
                                     <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-indigo-500/10 px-1 font-serif text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
                                         Aa
@@ -1734,7 +1842,7 @@ export const Header =
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="relative h-8 w-8"
+                                    className="relative h-8 w-8 border border-amber-200/80 bg-amber-50/70 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300"
                                     aria-label="Notifications"
                                 >
                                     <Bell
@@ -1897,7 +2005,7 @@ export const Header =
                             >
                                 <button
                                     type="button"
-                                    className="flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 transition-all hover:bg-muted"
+                                    className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50/70 px-1.5 py-1 text-emerald-800 transition-all hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300"
                                 >
                                     <Avatar className="h-7 w-7">
                                         <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">

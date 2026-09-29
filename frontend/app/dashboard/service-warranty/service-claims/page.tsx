@@ -3,6 +3,7 @@
 import { DashboardBackButton } from "@/components/ui/dashboard-back-button";
 
 
+
 import {
     useCallback,
     useEffect,
@@ -245,11 +246,11 @@ function isServiceRequestStatus(
 }
 
 function text(value?: string | null) {
-    return value?.trim() || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    return value?.trim() || "—";
 }
 
 function formatDate(value?: string | null) {
-    if (!value) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (!value) return "—";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return new Intl.DateTimeFormat("en-GB", {
@@ -329,10 +330,10 @@ function formatDeviceAge(item: ServiceRequestClaimRow) {
         item.purchaseDate,
     );
 
-    if (!purchaseDate) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (!purchaseDate) return "—";
 
     const purchasedAt = new Date(purchaseDate);
-    if (Number.isNaN(purchasedAt.getTime())) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (Number.isNaN(purchasedAt.getTime())) return "—";
 
     const today = new Date();
     let months =
@@ -343,7 +344,7 @@ function formatDeviceAge(item: ServiceRequestClaimRow) {
         months -= 1;
     }
 
-    if (months < 0) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (months < 0) return "—";
 
     const years = Math.floor(months / 12);
     const remainingMonths = months % 12;
@@ -390,10 +391,7 @@ function renderServiceRequestCell(
         case "employee":
             return (
                 <div className="flex min-w-0 items-center gap-2.5">
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
-                    <span
+<span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold tracking-wide shadow-sm ring-2 ${getEmployeeAvatarColor(item.employee)}`}
                         aria-label={`Employee initials ${getEmployeeInitials(item.employee)}`}
                         title={text(item.employee)}
@@ -471,14 +469,11 @@ function renderServiceRequestCell(
                 !visibleColumns.has("model") ? item.model : null,
             ]
                 .filter(Boolean)
-                .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ");
+                .join(" · ");
 
             return (
                 <div className="min-w-0">
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
-                    <p className="text-[10px] font-semibold leading-[14px]">
+<p className="text-[10px] font-semibold leading-[14px]">
                         {text(item.category)}
                     </p>
 
@@ -1134,10 +1129,7 @@ function ServiceRequestColumnSelector({
 
     return (
         <div ref={selectorRef} className="relative">
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
-            <button
+<button
                 type="button"
                 onClick={() => setOpen((value) => !value)}
                 aria-expanded={open}
@@ -1643,7 +1635,7 @@ export default function ServiceClaimsPage() {
             <div className="mb-3">
                 <DashboardBackButton />
             </div>
-            <div className="rounded-2xl border border-border bg-card p-5">
+<div className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-100 bg-blue-50">
@@ -1715,7 +1707,7 @@ export default function ServiceClaimsPage() {
                                     </span>
                                 </div>
                                 <p className={`text-xl font-bold ${card.color}`}>
-                                    {summaryLoading ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : count}
+                                    {summaryLoading ? "…" : count}
                                 </p>
                             </button>
                         );

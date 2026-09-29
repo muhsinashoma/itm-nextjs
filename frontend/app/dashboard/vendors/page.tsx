@@ -486,7 +486,7 @@ export default function VendorMasterPage() {
                                     : "border-border bg-background text-muted-foreground hover:bg-muted"
                                     }`}
                             >
-                                All Ownership Ã‚Â· {vendors.length}
+                                All Ownership · {vendors.length}
                             </button>
 
                             {ownerships.map((ownership) => {
@@ -514,7 +514,7 @@ export default function VendorMasterPage() {
                                             : "border-border bg-background text-muted-foreground hover:bg-muted"
                                             }`}
                                     >
-                                        {ownership.name} Ã‚Â· {count}
+                                        {ownership.name} · {count}
                                     </button>
                                 );
                             })}
@@ -535,7 +535,7 @@ export default function VendorMasterPage() {
                                     : "border-border bg-background text-muted-foreground hover:bg-muted"
                                     }`}
                             >
-                                All Vendors Ã‚Â· {vendors.length}
+                                All Vendors · {vendors.length}
                             </button>
 
                             {types.map((type) => {
@@ -558,14 +558,14 @@ export default function VendorMasterPage() {
                                             : "border-border bg-background text-muted-foreground hover:bg-muted"
                                             }`}
                                     >
-                                        {type.name} Ã‚Â· {count}
+                                        {type.name} · {count}
                                     </button>
                                 );
                             })}
 
                             {unclassifiedCount > 0 && (
                                 <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
-                                    Unclassified Ã‚Â· {unclassifiedCount}
+                                    Unclassified · {unclassifiedCount}
                                 </span>
                             )}
                         </div>
@@ -659,7 +659,7 @@ export default function VendorMasterPage() {
                                                 </p>
                                                 <p className="mt-0.5 truncate text-[10px] leading-4 text-muted-foreground">
                                                     {vendor.address ||
-                                                        "Ã¢â‚¬â€"}
+                                                        "—"}
                                                 </p>
                                             </td>
                                             <td className="px-2.5 py-2">
@@ -698,12 +698,12 @@ export default function VendorMasterPage() {
                                             <td className="min-w-0 px-2.5 py-2 text-xs">
                                                 <p className="truncate leading-4">
                                                     {vendor.contact_person ||
-                                                        "Ã¢â‚¬â€"}
+                                                        "—"}
                                                 </p>
                                                 <p className="truncate text-[10px] leading-4 text-muted-foreground">
                                                     {vendor.mobile ||
                                                         vendor.email ||
-                                                        "Ã¢â‚¬â€"}
+                                                        "—"}
                                                 </p>
                                             </td>
                                             <td className="px-2.5 py-2">

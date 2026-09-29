@@ -1,0 +1,215 @@
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:207: { key: "mrpr", label: "Entry Type ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· MR / PR" },
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1031: if (!value) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1047: if (!value) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1093: if (value == null) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1136: if (name && id) return `${name} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${id}`;
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1137: return name || id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1145: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1201: if (!startValue) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1207: return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1459: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1494: ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1527: ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1562: value={[asset.category, asset.brand, asset.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1568: ? `${asset.emp_name || "Employee"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${asset.emp_id}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1570: ? `${asset.last_emp_name || "Employee"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${asset.last_emp_id}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1586: return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1642: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:1654: value={stock?.stock_inventory_id ? `#${stock.stock_inventory_id}` : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2041: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2045: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2049: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2053: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2057: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2059: selectedOWSTVendor?.name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2061: selectedOWSTVendor?.address || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2063: selectedOWSTVendor?.mobile || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2067: selectedAsset.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2069: selectedAsset.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2071: selectedAsset.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2073: selectedAsset.device_type || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2081: owstReceiverAddress.trim() || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2085: : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2091: remarks.trim() || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2093: owstAttachment?.name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2199: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2213: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2218: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2222: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2226: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2230: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2233: record.vendor_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2235: record.vendor_address || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2237: record.vendor_mobile || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2246: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2248: item.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2250: item.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2252: item.device_type || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2271: record.receiver_address || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2277: : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2283: record.remarks || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:2290: : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:3278: message = `Device assigned directly to ${selectedEmployee.employee_id} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedEmployee.employee_name}.`;
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:3440: message = `Previous assignment saved as Transferred and device assigned to ${selectedEmployee.employee_id} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedEmployee.employee_name}.`;
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:3489: message = `Previous assignment saved as Transferred and device assigned to ${selectedEmployee.employee_id} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedEmployee.employee_name}.`;
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:3854: ? "Service ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Transferred to Vendor"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4098: return "OWST ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Ownership Transfer";
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4204: {loading && total === 0 ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : total.toLocaleString()}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4219: MR: {importMR || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {stockCommittedCount || importedCount + updatedCount} stock row(s) committed ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {assetsCreatedCount} new asset(s) ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {updatedCount} synchronized ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {conflictedCount} serial conflict(s). Conflicting serials were not duplicated.
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4223: <>MR: {importMR || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {stockCommittedCount || importedCount + updatedCount} stock row(s) committed ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {assetsCreatedCount} new asset(s) ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {assetsSynchronizedCount} existing asset(s) synchronized{normalizedAvailableCount > 0 ? ` ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${normalizedAvailableCount} normalized to Available` : ""}. Imported rows are filtered below.</>
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4267: ? "Approved TT selected ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· assign a matching Available device to the requested user"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4316: ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4336: title={`Approved TT: ${approvedTTCount.toLocaleString()} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· click to show approved requisitions`}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4351: ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4391: ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4497: Latest approved TT first ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· assign a matching Available device to the requested employee.
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4587: {req.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4599: {req.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4608: {[req.brand, req.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "Requested category"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4617: {assignedDate ? formatDateTime(assignedDate) : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4624: ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4654: TT {req.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4657: {req.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {req.employee_name || "Requested User"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4869: {item.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4883: {[item.brand, item.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4908: {item.pr_number?.trim() || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4953: title={[item.designation, item.department].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || undefined}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4955: {[item.designation, item.department].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4963: {item.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4971: {item.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:4987: {item.vendor_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5024: <span className="text-[11px] text-muted-foreground">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5051: {item.remarks || item.history_reason || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5059: {item.device_type || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5090: {item.device_serial || `Asset #${item.id}`} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {item.status_label || historyStatusLabel(item.asset_status)}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5249: Delete ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ROOT only
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5338: ? `TT ${selectedApprovedTT?.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· assign a matching ${selectedApprovedTT?.category || "device"} to ${selectedApprovedTT?.employee_name || selectedApprovedTT?.employee_id || "the requested user"}.`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5343: ? `Available device ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· select an approved, undelivered TT for assignment.`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5352: : `${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.category || "Device"}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5371: {selectedAsset?.device_serial || (selectedAsset ? `Asset #${selectedAsset.id}` : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5376: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5426: <p className="text-[10px] text-muted-foreground">Append-only audit trail ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· newest first</p>
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5463: <span className="mx-1">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</span>
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5474: {entry.from_emp_id} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {entry.to_emp_id}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5487: {entry.changed_by_name || entry.changed_by || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5528: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5569: ? `${selectedAsset.device_serial} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· #${selectedAsset.id}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5572: : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5584: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5627: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5636: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5643: : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5692: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "Signed-in IT user"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5703: ? `${selectedAsset?.status_label || "Current"} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Assigned ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· previous record ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Transferred (3)`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5704: : "Available ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Assigned"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5709: value="ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Assigned"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5717: Optional ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {remarks.length}/1000
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5807: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5817: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5850: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5888: ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Unique
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5988: <CompactDeviceInfo label="TT No" value={selectedApprovedTT.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5993: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:5995: <CompactDeviceInfo label="Requested Category" value={selectedApprovedTT.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6004: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6010: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6017: {selectedApprovedTT.reason_details || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6026: Category: {selectedApprovedTT.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· choose Serial / Brand / Model
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6030: Available ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {approvedDeviceLoading ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : approvedDeviceTotal}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6079: <p className="truncate font-mono text-[11px] font-semibold">{device.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</p>
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6082: <span className="truncate">{device.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</span>
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6083: <span className="truncate">{device.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</span>
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6085: {device.warranty_date ? formatDate(device.warranty_date) : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6108: {" ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ "}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6112: <CompactDeviceInfo label="TT No" value={selectedApprovedTT.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6113: <CompactDeviceInfo label="Serial" value={selectedAsset.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6115: <CompactDeviceInfo label="Employee ID" value={selectedApprovedTT.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6116: <CompactDeviceInfo label="Employee Name" value={selectedApprovedTT.employee_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6153: Available ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Status 0
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6160: value={selectedAsset?.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6165: value={selectedAsset?.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6171: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6213: Approved Available ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {requisitionLoading ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : requisitionTotalApproved}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6283: {req.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6289: {req.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6292: {[req.brand, req.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6332: value={selectedRequisition.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6337: value={selectedRequisition.employee_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6356: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6399: <CompactDeviceInfo label="Asset ID" value={selectedAsset ? `#${selectedAsset.id}` : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6406: value={assignmentContext?.stock.stock_inventory_id ? `#${assignmentContext.stock.stock_inventory_id}` : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6588: {selectedAsset?.emp_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6593: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6654: New status ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Returned (4)
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6663: ? `${selectedAsset.emp_name || "Employee"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.emp_id}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6722: User OWST = 1 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Vendor OWST = 2 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· final device status = OWST
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6728: Asset #{selectedAsset?.id ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6762: ? `${selectedAsset.emp_id} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.emp_name || "Employee"}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6763: : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6769: value={`${selectedAsset?.category || "Device"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset?.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}`}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6778: } ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${formatDateTime(new Date().toISOString())}`}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6797: ? "User OWST ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Receiver"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6798: : "Vendor OWST ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Receiver"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6822: {owstEmployeeProfile?.employee_id || selectedAsset?.emp_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6830: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6834: ? "Loading employee contactÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6837: "Mobile ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6874: {owstVendorsLoading ? "Loading vendorsÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : "Select active vendor"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6910: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6942: <CompactDeviceInfo label="Item" value={selectedAsset?.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6943: <CompactDeviceInfo label="Serial" value={selectedAsset?.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6944: <CompactDeviceInfo label="Brand" value={selectedAsset?.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6945: <CompactDeviceInfo label="Model" value={selectedAsset?.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:6946: <CompactDeviceInfo label="Device Type" value={selectedAsset?.device_type || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7121: {operation === "damaged" ? "New status ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Damaged (2)" : "New status ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Lost (5)"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7139: ? `${selectedAsset.emp_name || "Employee"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.emp_id}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7213: {operation === "service" ? "Service Request" : "Warranty Claim"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {selectedAsset?.device_serial || `Asset #${selectedAsset?.id}`}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7216: {[selectedAsset?.category, selectedAsset?.brand, selectedAsset?.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "Device"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7223: Warranty Expired ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {formatDate(selectedAsset.warranty_date)}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7234: <CompactDeviceInfo label="Employee ID" value={selectedAsset?.emp_id || selectedAsset?.last_emp_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7235: <CompactDeviceInfo label="Employee Name" value={selectedAsset?.emp_name || selectedAsset?.last_emp_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7260: <CompactDeviceInfo label="Vendor Mobile" value={selectedWarrantyVendor?.mobile || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7261: <CompactDeviceInfo label="Vendor Email" value={selectedWarrantyVendor?.email || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7331: ? `Selected vendor: ${selectedWarrantyVendor.name} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedWarrantyVendor.email}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7415: ? `${selectedAsset.emp_name} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.emp_id || ""}`
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7425: {activeWarrantyClaim.problem || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7696: JPG, PNG, PDF, TXT, Office ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· max 4 MB
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7747: {(warrantyWorkflowAttachment.size / 1024).toFixed(1)} KB ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· selected and ready
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7771: Read-only snapshot from Step 2 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· shown for quick comparison.
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7785: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7790: value={previousVendorHandover.vendor_personnel_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7794: value={previousVendorHandover.vendor_mobile || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7799: value={String(previousVendorMetadata?.gate_pass_date || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7812: "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7822: {previousVendorHandover.remarks || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7858: Previous vendor attachment ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· click to download
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7938: {(vendorTransferAttachment.size / 1024).toFixed(1)} KB ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ready to upload
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7953: JPG, PNG, GIF, PDF, TXT, DOC/DOCX, PPT/PPTX or XLS/XLSX ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· maximum 4 MB.
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:7990: Flow: Claim Opened ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Sent to Vendor ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Received from Vendor ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Claim Closed
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8033: {entry.changed_by ? ` ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· By ${entry.changed_by}` : ""}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8037: {entry.previous_status} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {entry.current_status}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8042: {entry.remarks || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8081: Click to download ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {attachmentPath}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8225: {successDialog?.serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8438: value !== "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8440: .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8451: {owstPrintSnapshot.companyMaterial ? "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“" : "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒâ€šÃ‚Â"}{" "}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8455: {owstPrintSnapshot.nonRefundable ? "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“" : "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒâ€šÃ‚Â"}{" "}
+D:\ITM-Data\itm\frontend\app\dashboard\assets\devices\page.tsx:8483: Fiber@Home Ltd ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· IT Management System ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· OWST / Gate Pass
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:58: Ã, Â, Æ, â or replacement-character sequences.
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:78: /[ÃÂÆâ�]/.test(
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:93: !/[ÃÂÆâ�]/.test(
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:358: return value?.trim() || "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:362: if (!value) return "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:442: if (!purchaseDate) return "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:445: if (Number.isNaN(purchasedAt.getTime())) return "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:456: if (months < 0) return "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â";
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:581: .join(" ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ");
+D:\ITM-Data\itm\frontend\app\dashboard\service-warranty\warranty-claims\page.tsx:1819: {summaryLoading ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" : count}
+D:\ITM-Data\itm\frontend\app\dashboard\user\page.tsx:1521: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã...Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}
+D:\ITM-Data\itm\frontend\app\dashboard\user\page.tsx:1966: ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã...Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â
+D:\ITM-Data\itm\frontend\components\ui\right-sidebar.tsx:63: // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ADD HERE
+D:\ITM-Data\itm\frontend\components\ui\right-sidebar.tsx:335: // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ADD HERE (below ttDepartmentToday)
+D:\ITM-Data\itm\frontend\components\ui\right-sidebar.tsx:341: if (!company) return; // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ only real company names
+D:\ITM-Data\itm\frontend\components\ui\right-sidebar.tsx:1359: Company TT Today {todayTTLoading ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : ""}
+D:\ITM-Data\itm\frontend\components\ui\right-sidebar.tsx:1791: ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢

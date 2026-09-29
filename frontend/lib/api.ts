@@ -1,3 +1,5 @@
+import { sanitizeApiPayload } from "@/lib/text-sanitize";
+
 
 
 // frontend/lib/api.ts
@@ -38,10 +40,12 @@ export function getUser():
     }
 
     try {
-        return JSON.parse(
-            localStorage.getItem(
-                "itm_user"
-            ) ?? "null"
+        return sanitizeApiPayload(
+            JSON.parse(
+                localStorage.getItem(
+                    "itm_user"
+                ) ?? "null"
+            )
         );
     } catch {
         return null;
@@ -220,10 +224,11 @@ async function request<T>(
         );
     }
 
-    const data =
+    const data = sanitizeApiPayload(
         await res
             .json()
-            .catch(() => null);
+            .catch(() => null)
+    );
 
     if (
         !res.ok ||
@@ -909,15 +914,18 @@ export const dashboardApi = {
             "/dashboard/ticket-trend"
         ),
 
-    troubleTicketSummary:
-        () =>
-            api.get<
-                ApiOk<
-                    TroubleTicketDashboardSummary
-                >
-            >(
-                "/dashboard/trouble-ticket-summary"
-            ),
+    troubleTicketSummary: (
+        year?: number
+    ) =>
+        api.get<
+            ApiOk<
+                TroubleTicketDashboardSummary
+            >
+        >(
+            `/dashboard/trouble-ticket-summary${toQuery({
+                year,
+            })}`
+        ),
 
     troubleTicketOverview: (
         range:
@@ -1060,13 +1068,17 @@ export const dashboardApi = {
      REQUISITION
   ====================================================== */
 
-    requisitionDashboardSummary: () =>
+    requisitionDashboardSummary: (
+        year?: number
+    ) =>
         api.get<
             ApiOk<
                 RequisitionDashboardSummary
             >
         >(
-            "/dashboard/requisition-dashboard-summary"
+            `/dashboard/requisition-dashboard-summary${toQuery({
+                year,
+            })}`
         ),
 
     requisitionSummary: () =>
@@ -3053,6 +3065,15 @@ export const reportApi = {
 
                 search?:
                 string;
+
+                year?:
+                number;
+
+                year?:
+                number;
+
+                year?:
+                number;
             }
         ) =>
             api.get<
@@ -3083,6 +3104,15 @@ export const reportApi = {
 
             search?:
             string;
+
+            year?:
+            number;
+
+            year?:
+            number;
+
+            year?:
+            number;
         }
     ) =>
         api.get<

@@ -3873,6 +3873,84 @@ func (h *AssetDeviceHandler) ServiceRequestsSummary(
 
 //  10 = Closed
 
+func claimReportYear(c *gin.Context) (int, bool) {
+	raw := strings.TrimSpace(c.Query("year"))
+	if raw == "" {
+		// 0 means "current year" inside the SQL expression.
+		return 0, true
+	}
+
+	parsed, err := strconv.Atoi(raw)
+	if err != nil || parsed < 2000 || parsed > 2100 {
+		response.BadRequest(c, "year must be between 2000 and 2100")
+		return 0, false
+	}
+
+	return parsed, true
+}
+
+func cleanClaimLegacyText(value *string) *string {
+	if value == nil {
+		return nil
+	}
+
+	raw := strings.TrimSpace(*value)
+	if raw == "" {
+		return nil
+	}
+
+	parts := strings.Fields(raw)
+	clean := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		broken := false
+
+		for _, r := range part {
+			if r < 32 || r > 126 {
+				broken = true
+				break
+			}
+		}
+
+		if broken {
+			continue
+		}
+
+		part = strings.Trim(part, " |")
+		if part != "" {
+			clean = append(clean, part)
+		}
+	}
+
+	result := strings.TrimSpace(strings.Join(clean, " "))
+
+	if result == "" {
+		var builder strings.Builder
+
+		for _, r := range raw {
+			if r >= 32 && r <= 126 {
+				builder.WriteRune(r)
+			}
+		}
+
+		result = strings.Join(
+			strings.Fields(builder.String()),
+			" ",
+		)
+	}
+
+	if result == "" {
+		return nil
+	}
+
+	return &result
+}
+
+func cleanWarrantyClaimDisplay(item *WarrantyClaimItem) {
+	item.Category = cleanClaimLegacyText(item.Category)
+	item.Brand = cleanClaimLegacyText(item.Brand)
+	item.Model = cleanClaimLegacyText(item.Model)
+}
 func (h *AssetDeviceHandler) ServiceRequestsList(c *gin.Context) {
 
 	status := strings.ToLower(
@@ -3881,6 +3959,10 @@ func (h *AssetDeviceHandler) ServiceRequestsList(c *gin.Context) {
 	)
 
 	search := strings.TrimSpace(c.Query("search"))
+	requestedYear, ok := claimReportYear(c)
+	if !ok {
+		return
+	}
 
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 
@@ -3945,21 +4027,15 @@ func (h *AssetDeviceHandler) ServiceRequestsList(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	const baseCTE = `
+	baseCTE := `
 
         WITH year_bounds AS (
 
             SELECT
 
-                DATE_TRUNC('year', CURRENT_DATE)::date AS year_start,
+                MAKE_DATE(COALESCE(NULLIF(__REPORT_YEAR__, 0), EXTRACT(YEAR FROM CURRENT_DATE)::int), 1, 1) AS year_start,
 
-                (
-
-                    DATE_TRUNC('year', CURRENT_DATE)
-
-                    + INTERVAL '1 year'
-
-                )::date AS next_year_start
+                MAKE_DATE(COALESCE(NULLIF(__REPORT_YEAR__, 0), EXTRACT(YEAR FROM CURRENT_DATE)::int) + 1, 1, 1) AS next_year_start
 
         ),
 
@@ -4380,6 +4456,11 @@ func (h *AssetDeviceHandler) ServiceRequestsList(c *gin.Context) {
         )
 
     `
+	baseCTE = strings.ReplaceAll(
+		baseCTE,
+		"__REPORT_YEAR__",
+		strconv.Itoa(requestedYear),
+	)
 
 	args := make([]any, 0)
 
@@ -4660,6 +4741,8 @@ func (h *AssetDeviceHandler) ServiceRequestsList(c *gin.Context) {
 
 		}
 
+		cleanWarrantyClaimDisplay(&item)
+
 		items = append(items, item)
 
 	}
@@ -4700,6 +4783,10 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 	)
 
 	search := strings.TrimSpace(c.Query("search"))
+	requestedYear, ok := claimReportYear(c)
+	if !ok {
+		return
+	}
 
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 
@@ -4748,15 +4835,15 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	const baseCTE = `
+	baseCTE := `
 
         WITH year_bounds AS (
 
             SELECT
 
-                DATE_TRUNC('year', CURRENT_DATE)::date AS year_start,
+                MAKE_DATE(COALESCE(NULLIF(__REPORT_YEAR__, 0), EXTRACT(YEAR FROM CURRENT_DATE)::int), 1, 1) AS year_start,
 
-                (DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year')::date AS next_year_start
+                MAKE_DATE(COALESCE(NULLIF(__REPORT_YEAR__, 0), EXTRACT(YEAR FROM CURRENT_DATE)::int) + 1, 1, 1) AS next_year_start
 
         ),
 
@@ -5273,7 +5360,13 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 
             WHERE ad.row_status = 1
               AND ad.warranty_date IS NOT NULL
-              AND ad.warranty_date::date >= CURRENT_DATE
+              AND ad.warranty_date::date >=
+                  CASE
+                    WHEN COALESCE(NULLIF(__REPORT_YEAR__, 0), EXTRACT(YEAR FROM CURRENT_DATE)::int)
+                         = EXTRACT(YEAR FROM CURRENT_DATE)::int
+                      THEN CURRENT_DATE
+                    ELSE yb.year_start
+                  END
               AND ad.warranty_date::date < yb.next_year_start
         ),
 
@@ -5455,6 +5548,11 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
         )
 
     `
+	baseCTE = strings.ReplaceAll(
+		baseCTE,
+		"__REPORT_YEAR__",
+		strconv.Itoa(requestedYear),
+	)
 
 	args := make([]any, 0)
 
@@ -5738,6 +5836,8 @@ func (h *AssetDeviceHandler) WarrantyClaimsList(c *gin.Context) {
 			return
 
 		}
+
+		cleanWarrantyClaimDisplay(&item)
 
 		items = append(items, item)
 

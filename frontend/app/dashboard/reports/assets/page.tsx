@@ -259,7 +259,7 @@ function RequisitionAllocationModal({
                                 {label}
                             </p>
                             <p className="mt-1 truncate text-[9px] font-semibold text-foreground" title={value}>
-                                {value || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                {value || "—"}
                             </p>
                         </div>
                     ))}
@@ -340,7 +340,7 @@ function RequisitionAllocationModal({
                                                 </p>
                                                 <p className="mt-1 text-[9px] font-semibold text-foreground">
                                                     {row.employee_name ||
-                                                        "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}{" "}
+                                                        "—"}{" "}
                                                     <span className="font-mono text-muted-foreground">
                                                         ({row.employee_id})
                                                     </span>

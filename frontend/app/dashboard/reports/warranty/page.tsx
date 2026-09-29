@@ -96,8 +96,7 @@ export default function AssignedPage() {
             </h1>
 
             <div className="overflow-x-auto rounded-xl"><DataTable columns={columns} data={data} />
-
-            {/* ================= VIEW MODAL ================= */}
+            </div>{/* ================= VIEW MODAL ================= */}
             <DialogPrimitive.Root
                 open={!!viewDevice}
                 onOpenChange={() => setViewDevice(null)}

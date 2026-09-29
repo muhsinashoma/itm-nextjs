@@ -28,7 +28,6 @@ import type {
 import {
     assetDeviceApi,
     authApi,
-    claimApi,
     dashboardApi,
     ownershipApi,
     reportApi,
@@ -75,18 +74,22 @@ function CardHead({
     title,
     kpi,
     kpiClass = "text-primary",
+    titleClass = "text-muted-foreground",
     badge,
     onKpiClick,
 }: {
     title: string;
     kpi: string | number;
     kpiClass?: string;
+    titleClass?: string;
     badge?: string;
     onKpiClick?: () => void;
 }) {
     return (
         <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3
+                className={`text-[11px] font-semibold uppercase tracking-wide ${titleClass}`}
+            >
                 {title}
             </h3>
 
@@ -343,8 +346,8 @@ function queryTypePeriod(
 
         badgeText:
             months === 1
-                ? `${year} Â· Month`
-                : `${year} Â· ${months} Months`,
+                ? `${year} · Month`
+                : `${year} · ${months} Months`,
     };
 }
 
@@ -372,7 +375,7 @@ function shortQueryTypeLabel(
         0,
         maxLength -
         1
-    )}â€¦`;
+    )}…`;
 }
 
 const PieLabel = (props: any) => {
@@ -517,176 +520,86 @@ function hideDashboardLabels(
 }
 
 /* ============================================================
-   STATIC CHART DATA
+   YEAR-DRIVEN DASHBOARD SUPPORT
    ============================================================ */
 
-const resignationAreaData = [
-    {
-        month: "Jan",
-        pending: 2,
-        completed: 5,
-        inprocess: 1,
-    },
-    {
-        month: "Feb",
-        pending: 1,
-        completed: 4,
-        inprocess: 2,
-    },
-    {
-        month: "Mar",
-        pending: 2,
-        completed: 3,
-        inprocess: 1,
-    },
-    {
-        month: "Apr",
-        pending: 5,
-        completed: 3,
-        inprocess: 2,
-    },
-    {
-        month: "May",
-        pending: 3,
-        completed: 6,
-        inprocess: 2,
-    },
-    {
-        month: "Jun",
-        pending: 4,
-        completed: 7,
-        inprocess: 1,
-    },
+type ResignationAreaPoint = {
+    month: string;
+    pending: number;
+    completed: number;
+    inprocess: number;
+};
+
+type RenewalBarPoint = {
+    month: string;
+    upcoming: number;
+    completed: number;
+    delayed: number;
+};
+
+const DASHBOARD_MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 ];
 
-const resignationPendingTotal =
-    resignationAreaData.reduce(
-        (sum, item) =>
-            sum + item.pending,
-        0
-    );
+function emptyResignationYear(): ResignationAreaPoint[] {
+    return DASHBOARD_MONTHS.map((month) => ({
+        month,
+        pending: 0,
+        completed: 0,
+        inprocess: 0,
+    }));
+}
 
-const resignationCompletedTotal =
-    resignationAreaData.reduce(
-        (sum, item) =>
-            sum + item.completed,
-        0
-    );
+function emptyRenewalYear(): RenewalBarPoint[] {
+    return DASHBOARD_MONTHS.map((month) => ({
+        month,
+        upcoming: 0,
+        completed: 0,
+        delayed: 0,
+    }));
+}
 
-const resignationInProcessTotal =
-    resignationAreaData.reduce(
-        (sum, item) =>
-            sum + item.inprocess,
-        0
-    );
+function safeDate(value: unknown): Date | null {
+    if (!value) {
+        return null;
+    }
 
-const resignationLegend = [
-    {
-        label: "Pending Clearance",
-        value:
-            resignationPendingTotal,
-        color: "#f59e0b",
-        status: "Pending Clearance",
-    },
-    {
-        label: "Completed",
-        value:
-            resignationCompletedTotal,
-        color: "#10b981",
-        status: "Completed",
-    },
-    {
-        label: "In Process",
-        value:
-            resignationInProcessTotal,
-        color: "#3b82f6",
-        status: "In Process",
-    },
-];
+    const parsed =
+        new Date(
+            String(value)
+        );
 
-const renewalBarData = [
-    {
-        month: "Jan",
-        upcoming: 5,
-        completed: 10,
-        delayed: 2,
-    },
-    {
-        month: "Feb",
-        upcoming: 4,
-        completed: 9,
-        delayed: 3,
-    },
-    {
-        month: "Mar",
-        upcoming: 6,
-        completed: 12,
-        delayed: 2,
-    },
-    {
-        month: "Apr",
-        upcoming: 5,
-        completed: 14,
-        delayed: 3,
-    },
-    {
-        month: "May",
-        upcoming: 7,
-        completed: 11,
-        delayed: 1,
-    },
-    {
-        month: "Jun",
-        upcoming: 6,
-        completed: 13,
-        delayed: 2,
-    },
-];
+    return Number.isNaN(
+        parsed.getTime()
+    )
+        ? null
+        : parsed;
+}
 
-const renewalUpcomingTotal =
-    renewalBarData.reduce(
-        (sum, item) =>
-            sum + item.upcoming,
-        0
-    );
+function yearOf(value: unknown): number | null {
+    return safeDate(
+        value
+    )?.getFullYear() ??
+        null;
+}
 
-const renewalCompletedTotal =
-    renewalBarData.reduce(
-        (sum, item) =>
-            sum + item.completed,
-        0
-    );
-
-const renewalDelayedTotal =
-    renewalBarData.reduce(
-        (sum, item) =>
-            sum + item.delayed,
-        0
-    );
-
-const renewalLegend = [
-    {
-        label: "Upcoming Renewals",
-        value:
-            renewalUpcomingTotal,
-        color: "#f59e0b",
-        status: "Upcoming Renewals",
-    },
-    {
-        label: "Completed",
-        value:
-            renewalCompletedTotal,
-        color: "#10b981",
-        status: "Completed",
-    },
-    {
-        label: "Delayed",
-        value:
-            renewalDelayedTotal,
-        color: "#ef4444",
-        status: "Delayed",
-    },
-];
+function monthOf(value: unknown): number | null {
+    return safeDate(
+        value
+    )?.getMonth() ??
+        null;
+}
 
 /* ============================================================
    PAGE
@@ -844,6 +757,24 @@ export default function DashboardPage() {
     ] =
         useState(
             new Date().getFullYear()
+        );
+
+    const [
+        resignationAreaData,
+        setResignationAreaData,
+    ] =
+        useState<ResignationAreaPoint[]>(
+            () =>
+                emptyResignationYear()
+        );
+
+    const [
+        renewalBarData,
+        setRenewalBarData,
+    ] =
+        useState<RenewalBarPoint[]>(
+            () =>
+                emptyRenewalYear()
         );
 
     const [
@@ -1338,11 +1269,11 @@ export default function DashboardPage() {
 
                             from_date:
                                 troubleTicketServerFilters.fromDate ||
-                                undefined,
+                                `${queryTypeYear}-01-01`,
 
                             to_date:
                                 troubleTicketServerFilters.toDate ||
-                                undefined,
+                                `${queryTypeYear}-12-31`,
 
                             employee_id:
                                 troubleTicketServerFilters.employeeId ||
@@ -1458,11 +1389,11 @@ export default function DashboardPage() {
                                 ? (troubleTicketServerFilters.status as TroubleTicketStatus)
                                 : "all",
                         from_date:
-                            troubleTicketServerFilters.fromDate ||
-                            undefined,
+                                troubleTicketServerFilters.fromDate ||
+                                `${queryTypeYear}-01-01`,
                         to_date:
-                            troubleTicketServerFilters.toDate ||
-                            undefined,
+                                troubleTicketServerFilters.toDate ||
+                                `${queryTypeYear}-12-31`,
                         employee_id:
                             troubleTicketServerFilters.employeeId ||
                             undefined,
@@ -1575,7 +1506,7 @@ export default function DashboardPage() {
                 channel.close();
             }
         };
-    }, [troubleTicketServerFilters, actionDialogOpen]);
+    }, [troubleTicketServerFilters, actionDialogOpen, queryTypeYear]);
 
     /* ========================================================
        POST-CREATE TROUBLE TICKET UX
@@ -1660,15 +1591,11 @@ export default function DashboardPage() {
                 );
             }
         };
-    }, [
-        loading,
-        authLoading,
-        troubleTicketLoading,
-    ]);
+    }, []);
 
 
     /* ========================================================
-       QUERY TYPE CHART â€” GLOBAL YEAR + DEFAULT LAST 3 MONTHS
+       QUERY TYPE CHART — GLOBAL YEAR + DEFAULT LAST 3 MONTHS
        ======================================================== */
 
     useEffect(() => {
@@ -1710,39 +1637,120 @@ export default function DashboardPage() {
         };
     }, []);
 
-    /* ========================================================
-       AUTHORITATIVE DASHBOARD DATA â€” CURRENT OPERATIONAL VIEW
-
-       Active Assets:
-       - Assigned
-       - Available
-       - Returned
-
-       Warranty:
-       - Claimed
-       - To Vendor
-       - Recovered
-       - Soon Expired
-
-       Service:
-       - Service Request
-       - Transferred to Vendor
-       - Closed
-
-       Each number is read from the same paginated endpoint used by
-       the corresponding detail page, so dashboard and drill-down
-       totals stay aligned.
-       ======================================================== */
-
     useEffect(() => {
-        let cancelled = false;
+        let cancelled =
+            false;
 
-        async function loadOperationalDashboard() {
+        async function loadSelectedYearDashboard() {
+            const assetPageSize =
+                1000;
+
+            const ownershipPageSize =
+                1000;
+
+            async function loadAllAssets() {
+                const first =
+                    await assetDeviceApi.list({
+                        page: 1,
+                        limit:
+                            assetPageSize,
+                    });
+
+                const rows = [
+                    ...(first.data ?? []),
+                ];
+
+                const total =
+                    Number(
+                        first.total ??
+                        rows.length
+                    );
+
+                const pageCount =
+                    Math.max(
+                        1,
+                        Math.ceil(
+                            total /
+                            assetPageSize
+                        )
+                    );
+
+                for (
+                    let page = 2;
+                    page <= pageCount;
+                    page++
+                ) {
+                    const response =
+                        await assetDeviceApi.list({
+                            page,
+                            limit:
+                                assetPageSize,
+                        });
+
+                    rows.push(
+                        ...(response.data ?? [])
+                    );
+                }
+
+                return rows;
+            }
+
+            async function loadAllOwnership() {
+                const first =
+                    await ownershipApi.list({
+                        page: 1,
+                        limit:
+                            ownershipPageSize,
+                        category:
+                            "all",
+                    });
+
+                const rows = [
+                    ...(first.data ?? []),
+                ];
+
+                const total =
+                    Number(
+                        first.total ??
+                        rows.length
+                    );
+
+                const pageCount =
+                    Math.max(
+                        1,
+                        Math.ceil(
+                            total /
+                            ownershipPageSize
+                        )
+                    );
+
+                for (
+                    let page = 2;
+                    page <= pageCount;
+                    page++
+                ) {
+                    const response =
+                        await ownershipApi.list({
+                            page,
+                            limit:
+                                ownershipPageSize,
+                            category:
+                                "all",
+                        });
+
+                    rows.push(
+                        ...(response.data ?? [])
+                    );
+                }
+
+                return rows;
+            }
+
             try {
                 const [
-                    assignedRes,
-                    availableRes,
-                    returnedRes,
+                    assets,
+                    nonOperationalRes,
+                    ownershipRows,
 
                     warrantyClaimedRes,
                     warrantyVendorRes,
@@ -1753,144 +1761,263 @@ export default function DashboardPage() {
                     serviceVendorRes,
                     serviceClosedRes,
 
-                    ownershipRes,
-                ] = await Promise.all([
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 1,
-                    }),
+                    resignationRes,
+                    renewalRes,
+                ] =
+                    await Promise.all([
+                        loadAllAssets(),
 
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 0,
-                    }),
+                        reportApi.nonOperational({
+                            detail:
+                                "all",
+                        }),
 
-                    assetDeviceApi.list({
-                        page: 1,
-                        limit: 1,
-                        status: 4,
-                    }),
+                        loadAllOwnership(),
 
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Claimed",
-                    }),
+                        reportApi.warrantyClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Claimed",
+                            year:
+                                queryTypeYear,
+                        }),
 
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "To Vendor",
-                    }),
+                        reportApi.warrantyClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "To Vendor",
+                            year:
+                                queryTypeYear,
+                        }),
 
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Recovered",
-                    }),
+                        reportApi.warrantyClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Recovered",
+                            year:
+                                queryTypeYear,
+                        }),
 
-                    reportApi.warrantyClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Soon Expired",
-                    }),
+                        reportApi.warrantyClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Soon Expired",
+                            year:
+                                queryTypeYear,
+                        }),
 
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Service Request",
-                    }),
+                        reportApi.serviceRequestClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Service Request",
+                            year:
+                                queryTypeYear,
+                        }),
 
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Transferred to Vendor",
-                    }),
+                        reportApi.serviceRequestClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Transferred to Vendor",
+                            year:
+                                queryTypeYear,
+                        }),
 
-                    reportApi.serviceRequestClaims({
-                        page: 1,
-                        limit: 1,
-                        status: "Closed",
-                    }),
+                        reportApi.serviceRequestClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Closed",
+                            year:
+                                queryTypeYear,
+                        }),
 
-                    ownershipApi.summary(),
-                ]);
+                        reportApi.resignation({
+                            year:
+                                queryTypeYear,
+                        }),
 
-                if (cancelled) {
+                        reportApi.renewal({
+                            year:
+                                queryTypeYear,
+                        }),
+                    ]);
+
+                if (
+                    cancelled
+                ) {
                     return;
                 }
 
-                const assigned =
-                    Number(
-                        assignedRes.total ??
-                        assignedRes.data?.length ??
-                        0
+                const selectedYearAssets =
+                    assets.filter(
+                        (asset: any) =>
+                            yearOf(
+                                asset.purchase_date ??
+                                asset.created_at
+                            ) ===
+                            queryTypeYear
                     );
+
+                const assigned =
+                    selectedYearAssets.filter(
+                        (asset: any) =>
+                            Number(
+                                asset.asset_status
+                            ) === 1
+                    ).length;
 
                 const available =
-                    Number(
-                        availableRes.total ??
-                        availableRes.data?.length ??
-                        0
-                    );
+                    selectedYearAssets.filter(
+                        (asset: any) =>
+                            Number(
+                                asset.asset_status
+                            ) === 0
+                    ).length;
 
                 const returned =
-                    Number(
-                        returnedRes.total ??
-                        returnedRes.data?.length ??
-                        0
+                    selectedYearAssets.filter(
+                        (asset: any) =>
+                            Number(
+                                asset.asset_status
+                            ) === 4
+                    ).length;
+
+                const rawNonOperational:
+                    any =
+                    (nonOperationalRes as any)
+                        ?.data;
+
+                const nonOperationalRows:
+                    any[] =
+                    Array.isArray(
+                        rawNonOperational
+                    )
+                        ? rawNonOperational
+                        : Array.isArray(
+                            rawNonOperational
+                                ?.data
+                        )
+                        ? rawNonOperational.data
+                        : [];
+
+                const selectedNonOperational =
+                    nonOperationalRows.filter(
+                        (item: any) =>
+                            yearOf(
+                                item.updated_at ??
+                                item.created_at ??
+                                item.assigned_date ??
+                                item.purchase_date
+                            ) ===
+                            queryTypeYear
                     );
+
+                const damaged =
+                    selectedNonOperational.filter(
+                        (item: any) =>
+                            Number(
+                                item.asset_status
+                            ) === 2 ||
+                            String(
+                                item.status_label ??
+                                ""
+                            )
+                                .toLowerCase()
+                                .includes(
+                                    "damag"
+                                )
+                    ).length;
+
+                const lost =
+                    selectedNonOperational.filter(
+                        (item: any) =>
+                            Number(
+                                item.asset_status
+                            ) === 5 ||
+                            String(
+                                item.status_label ??
+                                ""
+                            )
+                                .toLowerCase() ===
+                            "lost"
+                    ).length;
+
+                const ownership =
+                    ownershipRows.filter(
+                        (item: any) =>
+                            yearOf(
+                                item.transfer_date ??
+                                item.updated_at ??
+                                item.created_at
+                            ) ===
+                            queryTypeYear
+                    ).length;
 
                 const warrantyClaimed =
                     Number(
                         warrantyClaimedRes.total ??
-                        warrantyClaimedRes.data?.length ??
+                        warrantyClaimedRes.data
+                            ?.length ??
                         0
                     );
 
                 const warrantyVendor =
                     Number(
                         warrantyVendorRes.total ??
-                        warrantyVendorRes.data?.length ??
+                        warrantyVendorRes.data
+                            ?.length ??
                         0
                     );
 
                 const warrantyRecovered =
                     Number(
                         warrantyRecoveredRes.total ??
-                        warrantyRecoveredRes.data?.length ??
+                        warrantyRecoveredRes.data
+                            ?.length ??
                         0
                     );
 
                 const warrantySoonExpired =
                     Number(
                         warrantySoonExpiredRes.total ??
-                        warrantySoonExpiredRes.data?.length ??
+                        warrantySoonExpiredRes
+                            .data?.length ??
                         0
                     );
 
                 const serviceRequested =
                     Number(
                         serviceRequestRes.total ??
-                        serviceRequestRes.data?.length ??
+                        serviceRequestRes.data
+                            ?.length ??
                         0
                     );
 
                 const serviceVendor =
                     Number(
                         serviceVendorRes.total ??
-                        serviceVendorRes.data?.length ??
+                        serviceVendorRes.data
+                            ?.length ??
                         0
                     );
 
                 const serviceClosed =
                     Number(
                         serviceClosedRes.total ??
-                        serviceClosedRes.data?.length ??
+                        serviceClosedRes.data
+                            ?.length ??
                         0
                     );
+
+                const currentSystemYear =
+                    new Date()
+                        .getFullYear();
 
                 setSummary(
                     (current) => {
@@ -1909,16 +2036,22 @@ export default function DashboardPage() {
 
                                 items: [
                                     {
-                                        label: "Assigned",
-                                        value: assigned,
+                                        label:
+                                            "Assigned",
+                                        value:
+                                            assigned,
                                     },
                                     {
-                                        label: "Available",
-                                        value: available,
+                                        label:
+                                            "Available",
+                                        value:
+                                            available,
                                     },
                                     {
-                                        label: "Returned",
-                                        value: returned,
+                                        label:
+                                            "Returned",
+                                        value:
+                                            returned,
                                     },
                                 ],
                             },
@@ -1932,20 +2065,34 @@ export default function DashboardPage() {
 
                                 items: [
                                     {
-                                        label: "Claimed",
-                                        value: warrantyClaimed,
+                                        label:
+                                            "Claimed",
+                                        value:
+                                            warrantyClaimed,
                                     },
                                     {
-                                        label: "To Vendor",
-                                        value: warrantyVendor,
+                                        label:
+                                            "To Vendor",
+                                        value:
+                                            warrantyVendor,
                                     },
                                     {
-                                        label: "Recovered",
-                                        value: warrantyRecovered,
+                                        label:
+                                            "Recovered",
+                                        value:
+                                            warrantyRecovered,
                                     },
                                     {
-                                        label: "Soon Expired",
-                                        value: warrantySoonExpired,
+                                        label:
+                                            queryTypeYear ===
+                                            currentSystemYear
+                                                ? "Soon Expired"
+                                                : queryTypeYear <
+                                                  currentSystemYear
+                                                ? "Expired"
+                                                : "Expiring",
+                                        value:
+                                            warrantySoonExpired,
                                     },
                                 ],
                             },
@@ -1958,16 +2105,22 @@ export default function DashboardPage() {
 
                                 items: [
                                     {
-                                        label: "Service Request",
-                                        value: serviceRequested,
+                                        label:
+                                            "Service Request",
+                                        value:
+                                            serviceRequested,
                                     },
                                     {
-                                        label: "Transferred to Vendor",
-                                        value: serviceVendor,
+                                        label:
+                                            "Transferred to Vendor",
+                                        value:
+                                            serviceVendor,
                                     },
                                     {
-                                        label: "Closed",
-                                        value: serviceClosed,
+                                        label:
+                                            "Closed",
+                                        value:
+                                            serviceClosed,
                                     },
                                 ],
                             },
@@ -1978,29 +2131,165 @@ export default function DashboardPage() {
                 setNonOpSummary(
                     (current) => ({
                         ...current,
-                        ownership:
-                            Number(
-                                ownershipRes
-                                    .data
-                                    ?.total_ownership ??
-                                0
-                            ),
+                        ownership,
+                        damaged,
+                        lost,
+                        total_non_operational:
+                            ownership +
+                            damaged +
+                            lost,
                     })
                 );
-            } catch (reason) {
+
+                const resignationRows:
+                    any[] =
+                    Array.isArray(
+                        (resignationRes as any)
+                            ?.data
+                    )
+                        ? (resignationRes as any)
+                            .data
+                        : [];
+
+                const resignationPoints =
+                    emptyResignationYear();
+
+                for (
+                    const item of
+                    resignationRows
+                ) {
+                    const separationDate =
+                        item.separation_date ??
+                        item.separationDate;
+
+                    if (
+                        yearOf(
+                            separationDate
+                        ) !==
+                        queryTypeYear
+                    ) {
+                        continue;
+                    }
+
+                    const month =
+                        monthOf(
+                            separationDate
+                        );
+
+                    if (
+                        month ===
+                        null
+                    ) {
+                        continue;
+                    }
+
+                    const assignedDevices =
+                        Number(
+                            item.assigned_devices ??
+                            item.device_count ??
+                            0
+                        );
+
+                    if (
+                        assignedDevices >
+                        0
+                    ) {
+                        resignationPoints[
+                            month
+                        ].pending +=
+                            1;
+                    } else {
+                        resignationPoints[
+                            month
+                        ].completed +=
+                            1;
+                    }
+                }
+
+                setResignationAreaData(
+                    resignationPoints
+                );
+
+                const renewalRows:
+                    any[] =
+                    Array.isArray(
+                        (renewalRes as any)
+                            ?.data
+                    )
+                        ? (renewalRes as any)
+                            .data
+                        : [];
+
+                const renewalPoints =
+                    emptyRenewalYear();
+
+                const today =
+                    new Date();
+
+                for (
+                    const item of
+                    renewalRows
+                ) {
+                    const renewalDate =
+                        item.warranty_date ??
+                        item.device_warranty_date ??
+                        item.renewal_date;
+
+                    const parsed =
+                        safeDate(
+                            renewalDate
+                        );
+
+                    if (
+                        !parsed ||
+                        parsed.getFullYear() !==
+                            queryTypeYear
+                    ) {
+                        continue;
+                    }
+
+                    const month =
+                        parsed.getMonth();
+
+                    if (
+                        parsed >=
+                        today
+                    ) {
+                        renewalPoints[
+                            month
+                        ].upcoming +=
+                            1;
+                    } else {
+                        renewalPoints[
+                            month
+                        ].delayed +=
+                            1;
+                    }
+                }
+
+                setRenewalBarData(
+                    renewalPoints
+                );
+            } catch (
+            reason
+            ) {
                 console.warn(
-                    "[dashboard] operational source sync failed:",
+                    "[dashboard] unable to load selected-year data:",
                     reason
                 );
             }
         }
 
-        void loadOperationalDashboard();
+        void loadSelectedYearDashboard();
 
         return () => {
-            cancelled = true;
+            cancelled =
+                true;
         };
-    }, []);
+    }, [
+        queryTypeYear,
+    ]);
+
     useEffect(() => {
         let cancelled =
             false;
@@ -2307,20 +2596,8 @@ export default function DashboardPage() {
         );
 
     const currentYear =
-        new Date()
-            .getFullYear()
+        queryTypeYear
             .toString();
-
-    const warrantyExpiryLabel =
-        summary.warranty.items.find(
-            (item) =>
-                item.label
-                    .toLowerCase()
-                    .includes(
-                        "expir"
-                    )
-        )?.label ??
-        "Soon Expired";
 
     const warrantyBarData = [
         {
@@ -2347,7 +2624,7 @@ export default function DashboardPage() {
             expired:
                 getSummaryValue(
                     summary.warranty.items,
-                    "expired"
+                    "expir"
                 ),
         },
     ];
@@ -2459,6 +2736,90 @@ export default function DashboardPage() {
         },
     ];
 
+    const resignationPendingTotal =
+        resignationAreaData.reduce(
+            (sum, item) =>
+                sum + item.pending,
+            0
+        );
+
+    const resignationCompletedTotal =
+        resignationAreaData.reduce(
+            (sum, item) =>
+                sum + item.completed,
+            0
+        );
+
+    const resignationInProcessTotal =
+        resignationAreaData.reduce(
+            (sum, item) =>
+                sum + item.inprocess,
+            0
+        );
+
+    const resignationLegend = [
+        {
+            label: "Pending Clearance",
+            value: resignationPendingTotal,
+            color: "#f59e0b",
+            status: "Pending Clearance",
+        },
+        {
+            label: "Completed",
+            value: resignationCompletedTotal,
+            color: "#10b981",
+            status: "Completed",
+        },
+        {
+            label: "In Process",
+            value: resignationInProcessTotal,
+            color: "#3b82f6",
+            status: "In Process",
+        },
+    ];
+
+    const renewalUpcomingTotal =
+        renewalBarData.reduce(
+            (sum, item) =>
+                sum + item.upcoming,
+            0
+        );
+
+    const renewalCompletedTotal =
+        renewalBarData.reduce(
+            (sum, item) =>
+                sum + item.completed,
+            0
+        );
+
+    const renewalDelayedTotal =
+        renewalBarData.reduce(
+            (sum, item) =>
+                sum + item.delayed,
+            0
+        );
+
+    const renewalLegend = [
+        {
+            label: "Upcoming Renewals",
+            value: renewalUpcomingTotal,
+            color: "#f59e0b",
+            status: "Upcoming Renewals",
+        },
+        {
+            label: "Completed",
+            value: renewalCompletedTotal,
+            color: "#10b981",
+            status: "Completed",
+        },
+        {
+            label: "Delayed",
+            value: renewalDelayedTotal,
+            color: "#ef4444",
+            status: "Delayed",
+        },
+    ];
+
     const totalResig =
         resignationAreaData.reduce(
             (sum, item) =>
@@ -2545,7 +2906,8 @@ export default function DashboardPage() {
                     <CardHead
                         title="Total Active Assets"
                         kpi={totalAssets.toLocaleString()}
-                        badge="Live"
+                        titleClass="text-blue-700 dark:text-blue-300"
+                        badge={currentYear}
                         onKpiClick={() =>
                             router.push(
                                 "/dashboard/reports/assets"
@@ -2664,7 +3026,7 @@ export default function DashboardPage() {
                                             router.push(
                                                 `/dashboard/reports/assets?status=${encodeURIComponent(
                                                     item.label
-                                                )}`
+                                                )}&year=${queryTypeYear}`
                                             )
                                         }
                                     />
@@ -2683,14 +3045,15 @@ export default function DashboardPage() {
                         title="Non-Operational Assets"
                         kpi={totalNonOp.toLocaleString()}
                         kpiClass="text-red-500"
+                        titleClass="text-rose-700 dark:text-rose-300"
                         badge={
                             nonOpLoading
                                 ? "Loading..."
-                                : "Live"
+                                : currentYear
                         }
                         onKpiClick={() =>
                             router.push(
-                                "/dashboard/reports/non-operational"
+                                `/dashboard/reports/non-operational?year=${queryTypeYear}`
                             )
                         }
                     />
@@ -2793,7 +3156,7 @@ export default function DashboardPage() {
                                 color="#10b981"
                                 onClick={() =>
                                     router.push(
-                                        "/dashboard/disposal/ownership-assets"
+                                        `/dashboard/disposal/ownership-assets?year=${queryTypeYear}`
                                     )
                                 }
                             />
@@ -2806,7 +3169,7 @@ export default function DashboardPage() {
                                 color="#f59e0b"
                                 onClick={() =>
                                     router.push(
-                                        "/dashboard/reports/non-operational?status=damaged"
+                                        `/dashboard/reports/non-operational?status=damaged&year=${queryTypeYear}`
                                     )
                                 }
                             />
@@ -2819,7 +3182,7 @@ export default function DashboardPage() {
                                 color="#ef4444"
                                 onClick={() =>
                                     router.push(
-                                        "/dashboard/reports/non-operational?status=lost"
+                                        `/dashboard/reports/non-operational?status=lost&year=${queryTypeYear}`
                                     )
                                 }
                             />
@@ -2836,10 +3199,11 @@ export default function DashboardPage() {
                     <CardHead
                         title={`Warranty Overview ${currentYear}`}
                         kpi={totalWarranty.toLocaleString()}
+                        titleClass="text-violet-700 dark:text-violet-300"
                         badge={currentYear}
                         onKpiClick={() =>
                             router.push(
-                                "/dashboard/service-warranty/warranty-claims"
+                                `/dashboard/service-warranty/warranty-claims?year=${queryTypeYear}`
                             )
                         }
                     />
@@ -2884,9 +3248,8 @@ export default function DashboardPage() {
                                             recovered:
                                                 "Recovered",
                                             expired:
-                                                "Soon Expired",
+                                                "Expired",
                                         };
-
 
                                         if (
                                             key &&
@@ -2895,7 +3258,7 @@ export default function DashboardPage() {
                                             router.push(
                                                 `/dashboard/service-warranty/warranty-claims?status=${encodeURIComponent(
                                                     map[key]
-                                                )}`
+                                                )}&year=${queryTypeYear}`
                                             );
                                         }
                                     }}
@@ -3029,7 +3392,7 @@ export default function DashboardPage() {
                                             router.push(
                                                 `/dashboard/service-warranty/warranty-claims?status=${encodeURIComponent(
                                                     item.status
-                                                )}`
+                                                )}&year=${queryTypeYear}`
                                             )
                                         }
                                     />
@@ -3047,10 +3410,11 @@ export default function DashboardPage() {
                     <CardHead
                         title={`Service Requests ${currentYear}`}
                         kpi={totalService.toLocaleString()}
+                        titleClass="text-amber-700 dark:text-amber-300"
                         badge={currentYear}
                         onKpiClick={() =>
                             router.push(
-                                "/dashboard/service-warranty/service-claims"
+                                `/dashboard/service-warranty/service-claims?year=${queryTypeYear}`
                             )
                         }
                     />
@@ -3103,7 +3467,7 @@ export default function DashboardPage() {
                                             router.push(
                                                 `/dashboard/service-warranty/service-claims?status=${encodeURIComponent(
                                                     map[key]
-                                                )}`
+                                                )}&year=${queryTypeYear}`
                                             );
                                         }
                                     }}
@@ -3221,7 +3585,7 @@ export default function DashboardPage() {
                                             router.push(
                                                 `/dashboard/service-warranty/service-claims?status=${encodeURIComponent(
                                                     item.status
-                                                )}`
+                                                )}&year=${queryTypeYear}`
                                             )
                                         }
                                     />
@@ -3237,13 +3601,14 @@ export default function DashboardPage() {
 
                 <CardShell>
                     <CardHead
-                        title="Resignation Clearance"
+                        title={`Resignation Clearance ${currentYear}`}
                         kpi={totalResig}
                         kpiClass="text-red-500"
-                        badge="Static"
+                        titleClass="text-cyan-700 dark:text-cyan-300"
+                        badge={currentYear}
                         onKpiClick={() =>
                             router.push(
-                                "/dashboard/reports/resignation"
+                                `/dashboard/reports/resignation?year=${queryTypeYear}`
                             )
                         }
                     />
@@ -3478,7 +3843,7 @@ export default function DashboardPage() {
                                             router.push(
                                                 `/dashboard/reports/resignation?status=${encodeURIComponent(
                                                     item.status
-                                                )}`
+                                                )}&year=${queryTypeYear}`
                                             )
                                         }
                                         className="
@@ -3526,13 +3891,14 @@ export default function DashboardPage() {
 
                 <CardShell>
                     <CardHead
-                        title="Contract Renewal"
+                        title={`Contract Renewal ${currentYear}`}
                         kpi={totalRenewal}
                         kpiClass="text-emerald-600"
-                        badge="Static"
+                        titleClass="text-emerald-700 dark:text-emerald-300"
+                        badge={currentYear}
                         onKpiClick={() =>
                             router.push(
-                                "/dashboard/reports/renewal"
+                                `/dashboard/reports/renewal?year=${queryTypeYear}`
                             )
                         }
                     />
@@ -3585,7 +3951,7 @@ export default function DashboardPage() {
                                             router.push(
                                                 `/dashboard/reports/renewal?status=${encodeURIComponent(
                                                     map[key]
-                                                )}`
+                                                )}&year=${queryTypeYear}`
                                             );
                                         }
                                     }}
@@ -3686,7 +4052,7 @@ export default function DashboardPage() {
                                             router.push(
                                                 `/dashboard/reports/renewal?status=${encodeURIComponent(
                                                     item.status
-                                                )}`
+                                                )}&year=${queryTypeYear}`
                                             )
                                         }
                                         className="
@@ -3731,7 +4097,7 @@ export default function DashboardPage() {
 
 
             {/* ==================================================
-                TROUBLE TICKET QUERY TYPE â€” DEFAULT CURRENT MONTH
+                TROUBLE TICKET QUERY TYPE — DEFAULT CURRENT MONTH
             ================================================== */}
 
             <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -3834,7 +4200,7 @@ export default function DashboardPage() {
                         16 && (
                             <div className="mb-1 flex justify-end">
                                 <span className="text-[9px] font-medium text-muted-foreground">
-                                    Scroll horizontally to view more â†’
+                                    Scroll horizontally to view more →
                                 </span>
                             </div>
                         )}
@@ -4301,7 +4667,7 @@ export default function DashboardPage() {
             ================================================== */}
 
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                <OverviewChart />
+                <OverviewChart key={queryTypeYear} year={queryTypeYear} />
             </div>
 
             {/* ==================================================

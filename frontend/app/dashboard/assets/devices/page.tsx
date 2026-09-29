@@ -1,6 +1,8 @@
+//frontend/app/dashboard/assets/devices/page.tsx
 "use client";
 
 import { DashboardBackButton } from "@/components/ui/dashboard-back-button";
+import { sanitizeApiPayload } from "@/lib/text-sanitize";
 
 
 import {
@@ -204,7 +206,7 @@ type ColumnKey =
 const COLUMN_OPTIONS: Array<{ key: ColumnKey; label: string }> = [
     { key: "serial", label: "Serial / Asset ID" },
     { key: "device", label: "Device" },
-    { key: "mrpr", label: "Entry Type ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· MR / PR" },
+    { key: "mrpr", label: "Entry Type · MR / PR" },
     { key: "employee", label: "Employee" },
     { key: "assignedDate", label: "Assigned Date" },
     { key: "designation", label: "Designation / Department" },
@@ -1028,7 +1030,7 @@ function columnIcon(key: ColumnKey) {
 }
 
 function formatDate(value: string | null | undefined) {
-    if (!value) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (!value) return "—";
 
     const date = new Date(value);
 
@@ -1044,7 +1046,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 function formatDateTime(value: string | null | undefined) {
-    if (!value) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (!value) return "—";
 
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
@@ -1090,7 +1092,7 @@ function statusActionDateHeader(
 }
 
 function historyStatusLabel(value: number | null | undefined) {
-    if (value == null) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (value == null) return "—";
     return (
         STATUS_OPTIONS.find((item) => item.value === String(value))?.label ??
         `Status ${value}`
@@ -1133,8 +1135,8 @@ function historyEmployee(entry: AssetDeviceHistoryEntry) {
         entry.user_return_id ||
         entry.from_emp_id;
 
-    if (name && id) return `${name} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${id}`;
-    return name || id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (name && id) return `${name} · ${id}`;
+    return name || id || "—";
 }
 
 function historyRemarks(entry: AssetDeviceHistoryEntry) {
@@ -1142,7 +1144,7 @@ function historyRemarks(entry: AssetDeviceHistoryEntry) {
         entry.remarks ||
         entry.transfer_comment ||
         entry.return_comment ||
-        "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+        "—"
     );
 }
 
@@ -1198,13 +1200,13 @@ function formatCompactDuration(
     startValue: string | null | undefined,
     endValue?: string | null,
 ) {
-    if (!startValue) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    if (!startValue) return "—";
 
     const start = new Date(startValue);
     const end = endValue ? new Date(endValue) : new Date();
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-        return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+        return "—";
     }
 
     const milliseconds = Math.max(0, end.getTime() - start.getTime());
@@ -1330,9 +1332,6 @@ function EmployeeAvatar({
 
     return (
         <div className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted font-bold text-foreground ${avatarClass}`}>
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
             {canShowImage ? (
                 <img
                     src={imageUrl!}
@@ -1368,9 +1367,6 @@ function EmployeeSearchBox({
 
     return (
         <div className="space-y-1.5">
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
             <label className="block text-xs font-semibold text-foreground">
                 Assign to Employee <span className="text-red-500">*</span>
             </label>
@@ -1456,7 +1452,7 @@ function EmployeeSearchBox({
                                             <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                                 {[employee.designation, employee.department]
                                                     .filter(Boolean)
-                                                    .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                    .join(" · ") || "—"}
                                             </p>
                                         </div>
 
@@ -1491,14 +1487,11 @@ function AssignmentInfo({
 }) {
     const displayValue =
         value === null || value === undefined || String(value).trim() === ""
-            ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+            ? "—"
             : String(value);
 
     return (
         <div className="min-w-0 rounded-lg border border-border/70 bg-background px-3 py-2">
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 {label}
             </p>
@@ -1524,14 +1517,11 @@ function CompactDeviceInfo({
 }) {
     const displayValue =
         value === null || value === undefined || String(value).trim() === ""
-            ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+            ? "—"
             : String(value);
 
     return (
         <div className="min-w-0 rounded-md border border-border/70 bg-background px-2 py-1.5">
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
             <p className="truncate text-[9px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
                 {label}
             </p>
@@ -1559,15 +1549,15 @@ function CompactOperationSummary({
                 <CompactDeviceInfo label="Serial" value={asset.device_serial || `Asset #${asset.id}`} mono />
                 <CompactDeviceInfo
                     label="Device"
-                    value={[asset.category, asset.brand, asset.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                    value={[asset.category, asset.brand, asset.model].filter(Boolean).join(" · ") || "—"}
                 />
                 <CompactDeviceInfo
                     label="Employee"
                     value={
                         asset.emp_id
-                            ? `${asset.emp_name || "Employee"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${asset.emp_id}`
+                            ? `${asset.emp_name || "Employee"} · ${asset.emp_id}`
                             : asset.last_emp_id
-                                ? `${asset.last_emp_name || "Employee"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${asset.last_emp_id}`
+                                ? `${asset.last_emp_name || "Employee"} · ${asset.last_emp_id}`
                                 : "Unassigned"
                     }
                 />
@@ -1583,7 +1573,7 @@ function CompactOperationSummary({
 function assignmentDeviceTypeLabel(value: string | number | null | undefined) {
     if (String(value ?? "") === "1") return "Permanent (1)";
     if (String(value ?? "") === "2") return "Temporary (2)";
-    return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+    return "—";
 }
 
 function DeviceDatabaseSnapshot({
@@ -1639,7 +1629,7 @@ function DeviceDatabaseSnapshot({
                     label="Department / Designation"
                     value={[asset.department, asset.designation]
                         .filter(Boolean)
-                        .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}
+                        .join(" · ")}
                 />
 
                 <CompactDeviceInfo
@@ -1651,7 +1641,7 @@ function DeviceDatabaseSnapshot({
                 <CompactDeviceInfo label="PR Number" value={asset.pr_number} mono />
                 <CompactDeviceInfo
                     label="Stock Row"
-                    value={stock?.stock_inventory_id ? `#${stock.stock_inventory_id}` : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                    value={stock?.stock_inventory_id ? `#${stock.stock_inventory_id}` : "—"}
                     mono
                 />
 
@@ -2038,39 +2028,39 @@ export default function AssetDevicesPage() {
             employeeName:
                 owstEmployeeProfile?.employee_name ||
                 selectedAsset.emp_name ||
-                "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                "—",
             employeeID:
                 owstEmployeeProfile?.employee_id ||
                 selectedAsset.emp_id ||
-                "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                "—",
             designation:
                 owstEmployeeProfile?.designation ||
                 selectedAsset.designation ||
-                "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                "—",
             department:
                 owstEmployeeProfile?.department ||
                 selectedAsset.department ||
-                "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                "—",
             mobile:
                 owstEmployeeProfile?.official_cell ||
                 owstEmployeeProfile?.personal_cell ||
-                "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                "—",
             vendorName:
-                selectedOWSTVendor?.name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                selectedOWSTVendor?.name || "—",
             vendorAddress:
-                selectedOWSTVendor?.address || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                selectedOWSTVendor?.address || "—",
             vendorMobile:
-                selectedOWSTVendor?.mobile || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                selectedOWSTVendor?.mobile || "—",
             deviceCategory:
                 selectedAsset.category || "Device",
             deviceSerial:
-                selectedAsset.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                selectedAsset.device_serial || "—",
             brand:
-                selectedAsset.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                selectedAsset.brand || "—",
             model:
-                selectedAsset.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                selectedAsset.model || "—",
             deviceType:
-                selectedAsset.device_type || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                selectedAsset.device_type || "—",
             deviceAge:
                 formatAssignedDeviceAge(
                     selectedAsset.assigned_date,
@@ -2078,19 +2068,19 @@ export default function AssetDevicesPage() {
             amount:
                 owstAmount.trim() || "0",
             receiverAddress:
-                owstReceiverAddress.trim() || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                owstReceiverAddress.trim() || "—",
             gatePassDate:
                 owstGatePassDate
                     ? formatDate(owstGatePassDate)
-                    : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    : "—",
             unit:
                 owstUnit.trim() || "Nos",
             quantity:
                 owstQuantity.trim() || "1",
             remarks:
-                remarks.trim() || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                remarks.trim() || "—",
             attachmentName:
-                owstAttachment?.name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                owstAttachment?.name || "—",
             companyMaterial:
                 owstCompanyMaterial,
             nonRefundable:
@@ -2196,7 +2186,7 @@ export default function AssetDevicesPage() {
                 referenceNo: String(
                     record.reference_no ||
                     record.id ||
-                    "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    "—",
                 ),
                 ownershipType: category,
                 ownershipLabel:
@@ -2210,31 +2200,31 @@ export default function AssetDevicesPage() {
                 employeeName:
                     holderProfile?.employee_name ||
                     item.emp_name ||
-                    "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    "—",
                 employeeID:
                     record.employee_id ||
                     holderProfile?.employee_id ||
                     item.emp_id ||
-                    "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    "—",
                 designation:
                     holderProfile?.designation ||
                     item.designation ||
-                    "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    "—",
                 department:
                     holderProfile?.department ||
                     item.department ||
-                    "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    "—",
                 mobile:
                     holderProfile?.official_cell ||
                     holderProfile?.personal_cell ||
-                    "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    "—",
 
                 vendorName:
-                    record.vendor_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    record.vendor_name || "—",
                 vendorAddress:
-                    record.vendor_address || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    record.vendor_address || "—",
                 vendorMobile:
-                    record.vendor_mobile || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    record.vendor_mobile || "—",
 
                 deviceCategory:
                     record.item_name ||
@@ -2243,13 +2233,13 @@ export default function AssetDevicesPage() {
                 deviceSerial:
                     record.device_sl_no ||
                     item.device_serial ||
-                    "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    "—",
                 brand:
-                    item.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    item.brand || "—",
                 model:
-                    item.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    item.model || "—",
                 deviceType:
-                    item.device_type || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    item.device_type || "—",
                 deviceAge:
                     record.device_age ||
                     formatAssignedDeviceAge(
@@ -2268,26 +2258,26 @@ export default function AssetDevicesPage() {
                             "0",
                         ),
                 receiverAddress:
-                    record.receiver_address || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    record.receiver_address || "—",
                 gatePassDate:
                     record.gate_pass_date
                         ? formatDate(
                             record.gate_pass_date,
                         )
-                        : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                        : "—",
                 unit:
                     record.unit || "Nos",
                 quantity:
                     String(record.quantity || "1"),
                 remarks:
-                    record.remarks || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                    record.remarks || "—",
                 attachmentName:
                     record.attach_file
                         ? record.attach_file
                             .split(/[\\/]/)
                             .filter(Boolean)
                             .pop() || record.attach_file
-                        : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                        : "—",
 
                 companyMaterial:
                     Number(record.company_material) > 0,
@@ -2373,8 +2363,9 @@ export default function AssetDevicesPage() {
                 category: category || undefined,
             });
 
-            const pageItems =
-                (response.data ?? []) as OperationalAssetDevice[];
+            const pageItems = sanitizeApiPayload(
+                (response.data ?? []) as OperationalAssetDevice[],
+            );
 
             // Instant-first UX: render the API page immediately.
             // Returned-holder enrichment is display-only and runs in the background.
@@ -3275,7 +3266,7 @@ export default function AssetDevicesPage() {
                     },
                 );
 
-                message = `Device assigned directly to ${selectedEmployee.employee_id} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedEmployee.employee_name}.`;
+                message = `Device assigned directly to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
             }
 
             if (operation === "approved-tt-assign") {
@@ -3437,7 +3428,7 @@ export default function AssetDevicesPage() {
                     EMPTY_ASSIGNMENT_TECHNICAL_FORM,
                 );
 
-                message = `Previous assignment saved as Transferred and device assigned to ${selectedEmployee.employee_id} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedEmployee.employee_name}.`;
+                message = `Previous assignment saved as Transferred and device assigned to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
             }
 
             if (operation === "reassign") {
@@ -3486,7 +3477,7 @@ export default function AssetDevicesPage() {
                     },
                 );
 
-                message = `Previous assignment saved as Transferred and device assigned to ${selectedEmployee.employee_id} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedEmployee.employee_name}.`;
+                message = `Previous assignment saved as Transferred and device assigned to ${selectedEmployee.employee_id} · ${selectedEmployee.employee_name}.`;
             }
 
             if (operation === "return") {
@@ -3851,7 +3842,7 @@ export default function AssetDevicesPage() {
                                 ? workflowResponse?.data?.restored_status_label ||
                                 "Restored"
                                 : operation === "service-transfer"
-                                    ? "Service ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Transferred to Vendor"
+                                    ? "Service · Transferred to Vendor"
                                     : "Transferred to Vendor",
                     });
 
@@ -4095,7 +4086,7 @@ export default function AssetDevicesPage() {
             case "return":
                 return "Return Device";
             case "owst":
-                return "OWST ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Ownership Transfer";
+                return "OWST · Ownership Transfer";
             case "warranty":
                 return "Raise Warranty Claim";
             case "warranty-transfer":
@@ -4201,7 +4192,7 @@ export default function AssetDevicesPage() {
                     <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
                         <span className="text-muted-foreground">Total Devices:</span>
                         <span className="ml-1 font-bold text-primary">
-                            {loading && total === 0 ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : total.toLocaleString()}
+                            {loading && total === 0 ? "…" : total.toLocaleString()}
                         </span>
                     </div>
                 </div>
@@ -4216,11 +4207,11 @@ export default function AssetDevicesPage() {
                             <p className="mt-0.5 text-xs">
                                 {conflictedCount > 0 ? (
                                     <>
-                                        MR: {importMR || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {stockCommittedCount || importedCount + updatedCount} stock row(s) committed ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {assetsCreatedCount} new asset(s) ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {updatedCount} synchronized ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {conflictedCount} serial conflict(s). Conflicting serials were not duplicated.
+                                        MR: {importMR || "—"} · {stockCommittedCount || importedCount + updatedCount} stock row(s) committed · {assetsCreatedCount} new asset(s) · {updatedCount} synchronized · {conflictedCount} serial conflict(s). Conflicting serials were not duplicated.
                                         {conflictSerial ? ` First conflict: ${conflictSerial}.` : ""}
                                     </>
                                 ) : (
-                                    <>MR: {importMR || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {stockCommittedCount || importedCount + updatedCount} stock row(s) committed ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {assetsCreatedCount} new asset(s) ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {assetsSynchronizedCount} existing asset(s) synchronized{normalizedAvailableCount > 0 ? ` ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${normalizedAvailableCount} normalized to Available` : ""}. Imported rows are filtered below.</>
+                                    <>MR: {importMR || "—"} · {stockCommittedCount || importedCount + updatedCount} stock row(s) committed · {assetsCreatedCount} new asset(s) · {assetsSynchronizedCount} existing asset(s) synchronized{normalizedAvailableCount > 0 ? ` · ${normalizedAvailableCount} normalized to Available` : ""}. Imported rows are filtered below.</>
                                 )}
                             </p>
                             {conflictedCount > 0 && conflictAssetID > 0 && (
@@ -4264,8 +4255,8 @@ export default function AssetDevicesPage() {
                         </p>
                         <span className="hidden truncate text-[9px] text-muted-foreground md:inline">
                             {overviewMode === "approved-tt"
-                                ? "Approved TT selected ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· assign a matching Available device to the requested user"
-                                : "Click a status to filter ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· latest action first"}
+                                ? "Approved TT selected · assign a matching Available device to the requested user"
+                                : "Click a status to filter · latest action first"}
                         </span>
                     </div>
 
@@ -4313,7 +4304,7 @@ export default function AssetDevicesPage() {
 
                                 <div className="mt-0.5 truncate text-[13px] font-bold leading-4 tabular-nums">
                                     {statusCountsLoading && statusCounts[option.value] == null
-                                        ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"
+                                        ? "…"
                                         : Number(statusCounts[option.value] ?? 0).toLocaleString()}
                                 </div>
                             </button>
@@ -4333,7 +4324,7 @@ export default function AssetDevicesPage() {
                                 ? "border-emerald-500 bg-emerald-100 ring-1 ring-emerald-300"
                                 : "border-emerald-200 bg-emerald-50 hover:bg-emerald-100"
                             }`}
-                        title={`Approved TT: ${approvedTTCount.toLocaleString()} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· click to show approved requisitions`}
+                        title={`Approved TT: ${approvedTTCount.toLocaleString()} · click to show approved requisitions`}
                     >
                         <div className="flex min-w-0 items-center justify-between gap-1">
                             <span className="truncate text-[7px] font-bold uppercase leading-3 tracking-[0.025em] text-emerald-700">
@@ -4348,7 +4339,7 @@ export default function AssetDevicesPage() {
 
                         <div className="mt-0.5 truncate text-[13px] font-bold leading-4 tabular-nums text-emerald-700">
                             {approvedTTCountLoading
-                                ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"
+                                ? "…"
                                 : approvedTTCount.toLocaleString()}
                         </div>
                     </button>
@@ -4388,7 +4379,7 @@ export default function AssetDevicesPage() {
 
                                 <div className="mt-0.5 truncate text-[13px] font-bold leading-4 tabular-nums">
                                     {statusCountsLoading && statusCounts[option.value] == null
-                                        ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"
+                                        ? "…"
                                         : Number(statusCounts[option.value] ?? 0).toLocaleString()}
                                 </div>
                             </button>
@@ -4494,7 +4485,7 @@ export default function AssetDevicesPage() {
                                 Approved TT Requisitions
                             </p>
                             <p className="text-[10px] text-muted-foreground">
-                                Latest approved TT first ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· assign a matching Available device to the requested employee.
+                                Latest approved TT first · assign a matching Available device to the requested employee.
                             </p>
                         </div>
 
@@ -4584,7 +4575,7 @@ export default function AssetDevicesPage() {
 
                                                 <td className="px-2.5 py-2">
                                                     <div className="truncate font-mono text-[11px] font-bold text-violet-700">
-                                                        {req.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {req.tt_no || "—"}
                                                     </div>
                                                     <div className="mt-0.5 text-[9px] text-muted-foreground">
                                                         Requisition #{req.id}
@@ -4596,7 +4587,7 @@ export default function AssetDevicesPage() {
                                                         {req.employee_name || "Requested User"}
                                                     </div>
                                                     <div className="mt-0.5 truncate font-mono text-[10px] font-bold text-blue-700">
-                                                        {req.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {req.employee_id || "—"}
                                                     </div>
                                                 </td>
 
@@ -4605,7 +4596,7 @@ export default function AssetDevicesPage() {
                                                         {req.category || "Uncategorized"}
                                                     </div>
                                                     <div className="mt-0.5 truncate text-[9px] text-muted-foreground">
-                                                        {[req.brand, req.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "Requested category"}
+                                                        {[req.brand, req.model].filter(Boolean).join(" · ") || "Requested category"}
                                                     </div>
                                                 </td>
 
@@ -4614,14 +4605,14 @@ export default function AssetDevicesPage() {
                                                 </td>
 
                                                 <td className="px-2.5 py-2 whitespace-nowrap text-[10px] font-medium">
-                                                    {assignedDate ? formatDateTime(assignedDate) : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                    {assignedDate ? formatDateTime(assignedDate) : "—"}
                                                 </td>
 
                                                 <td className="px-2.5 py-2 whitespace-nowrap text-[10px]">
                                                     {req.warranty_date
                                                         ? formatDate(req.warranty_date)
                                                         : alreadyAssigned
-                                                            ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+                                                            ? "—"
                                                             : "Select device"}
                                                 </td>
 
@@ -4651,10 +4642,10 @@ export default function AssetDevicesPage() {
                                                         <DropdownMenuContent align="end" className="w-56">
                                                             <DropdownMenuLabel className="text-[10px]">
                                                                 <div className="truncate font-mono font-semibold text-violet-700">
-                                                                    TT {req.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                                    TT {req.tt_no || "—"}
                                                                 </div>
                                                                 <div className="mt-0.5 truncate font-normal text-muted-foreground">
-                                                                    {req.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {req.employee_name || "Requested User"}
+                                                                    {req.employee_id || "—"} · {req.employee_name || "Requested User"}
                                                                 </div>
                                                             </DropdownMenuLabel>
 
@@ -4866,7 +4857,7 @@ export default function AssetDevicesPage() {
                                             {visibleColumns.has("serial") && (
                                                 <td className="px-2.5 py-2">
                                                     <div className="truncate font-mono text-[11px] font-semibold text-foreground" title={item.device_serial || undefined}>
-                                                        {item.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {item.device_serial || "—"}
                                                     </div>
                                                     <div className="mt-0.5 text-[10px] text-muted-foreground">
                                                         Asset #{item.id}
@@ -4880,7 +4871,7 @@ export default function AssetDevicesPage() {
                                                         {item.category || "Uncategorized"}
                                                     </div>
                                                     <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                                                        {[item.brand, item.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {[item.brand, item.model].filter(Boolean).join(" · ") || "—"}
                                                     </div>
                                                 </td>
                                             )}
@@ -4905,7 +4896,7 @@ export default function AssetDevicesPage() {
                                                                 PR
                                                             </span>
                                                             <span className="min-w-0 truncate font-mono text-[10px] text-foreground/85" title={item.pr_number || undefined}>
-                                                                {item.pr_number?.trim() || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                                {item.pr_number?.trim() || "—"}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -4950,9 +4941,9 @@ export default function AssetDevicesPage() {
                                                 <td className="px-2 py-2">
                                                     <div
                                                         className="truncate text-[10px]"
-                                                        title={[item.designation, item.department].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || undefined}
+                                                        title={[item.designation, item.department].filter(Boolean).join(" · ") || undefined}
                                                     >
-                                                        {[item.designation, item.department].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {[item.designation, item.department].filter(Boolean).join(" · ") || "—"}
                                                     </div>
                                                 </td>
                                             )}
@@ -4960,7 +4951,7 @@ export default function AssetDevicesPage() {
                                             {visibleColumns.has("brand") && (
                                                 <td className="px-2 py-2">
                                                     <div className="truncate text-[10px]" title={item.brand || undefined}>
-                                                        {item.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {item.brand || "—"}
                                                     </div>
                                                 </td>
                                             )}
@@ -4968,7 +4959,7 @@ export default function AssetDevicesPage() {
                                             {visibleColumns.has("model") && (
                                                 <td className="px-2 py-2">
                                                     <div className="truncate text-[10px]" title={item.model || undefined}>
-                                                        {item.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {item.model || "—"}
                                                     </div>
                                                 </td>
                                             )}
@@ -4984,7 +4975,7 @@ export default function AssetDevicesPage() {
                                             {visibleColumns.has("vendor") && (
                                                 <td className="px-2 py-2">
                                                     <div className="truncate text-[10px]" title={item.vendor_name || undefined}>
-                                                        {item.vendor_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {item.vendor_name || "—"}
                                                     </div>
                                                 </td>
                                             )}
@@ -5021,7 +5012,7 @@ export default function AssetDevicesPage() {
                                                             </div>
                                                         )
                                                     ) : (
-                                                        <span className="text-[11px] text-muted-foreground">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>
+                                                        <span className="text-[11px] text-muted-foreground">—</span>
                                                     )}
                                                 </td>
                                             )}
@@ -5048,7 +5039,7 @@ export default function AssetDevicesPage() {
                                                         className="truncate text-[10px]"
                                                         title={(item.remarks || item.history_reason || undefined) as string | undefined}
                                                     >
-                                                        {item.remarks || item.history_reason || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {item.remarks || item.history_reason || "—"}
                                                     </div>
                                                 </td>
                                             )}
@@ -5056,7 +5047,7 @@ export default function AssetDevicesPage() {
                                             {visibleColumns.has("assetType") && (
                                                 <td className="px-2 py-2">
                                                     <div className="truncate text-[10px]" title={item.device_type || undefined}>
-                                                        {item.device_type || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {item.device_type || "—"}
                                                     </div>
                                                 </td>
                                             )}
@@ -5087,7 +5078,7 @@ export default function AssetDevicesPage() {
 
                                                     <DropdownMenuContent align="end" className="w-64">
                                                         <DropdownMenuLabel className="truncate">
-                                                            {item.device_serial || `Asset #${item.id}`} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {item.status_label || historyStatusLabel(item.asset_status)}
+                                                            {item.device_serial || `Asset #${item.id}`} · {item.status_label || historyStatusLabel(item.asset_status)}
                                                         </DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
 
@@ -5246,7 +5237,7 @@ export default function AssetDevicesPage() {
                                                                     className="gap-2 text-red-600 focus:text-red-600"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
-                                                                    Delete ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ROOT only
+                                                                    Delete · ROOT only
                                                                 </DropdownMenuItem>
                                                             </>
                                                         )}
@@ -5335,12 +5326,12 @@ export default function AssetDevicesPage() {
                         <DialogTitle>{operationTitle}</DialogTitle>
                         <DialogDescription>
                             {operation === "approved-tt-assign"
-                                ? `TT ${selectedApprovedTT?.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· assign a matching ${selectedApprovedTT?.category || "device"} to ${selectedApprovedTT?.employee_name || selectedApprovedTT?.employee_id || "the requested user"}.`
+                                ? `TT ${selectedApprovedTT?.tt_no || "—"} · assign a matching ${selectedApprovedTT?.category || "device"} to ${selectedApprovedTT?.employee_name || selectedApprovedTT?.employee_id || "the requested user"}.`
                                 : selectedAsset
                                     ? operation === "assign-direct" || operation === "reassign"
                                         ? `Review ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} and select the active employee who will receive this device.`
                                         : operation === "assign-tt"
-                                            ? `Available device ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· select an approved, undelivered TT for assignment.`
+                                            ? `Available device ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} · select an approved, undelivered TT for assignment.`
                                             : operation === "transfer"
                                                 ? `Transfer ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} from the current employee to another active employee.`
                                                 : operation === "warranty-transfer" || operation === "service-transfer"
@@ -5349,7 +5340,7 @@ export default function AssetDevicesPage() {
                                                         ? `Immutable assignment, transfer and return trail for ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`}.`
                                                         : operation === "detail"
                                                             ? `Complete at-a-glance database view for ${selectedAsset.device_serial || `Asset #${selectedAsset.id}`}.`
-                                                            : `${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.category || "Device"}`
+                                                            : `${selectedAsset.device_serial || `Asset #${selectedAsset.id}`} · ${selectedAsset.category || "Device"}`
                                     : "Device operation"}
                         </DialogDescription>
                     </DialogHeader>
@@ -5368,12 +5359,12 @@ export default function AssetDevicesPage() {
                                         Device
                                     </p>
                                     <p className="mt-1 font-mono text-sm font-semibold">
-                                        {selectedAsset?.device_serial || (selectedAsset ? `Asset #${selectedAsset.id}` : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}
+                                        {selectedAsset?.device_serial || (selectedAsset ? `Asset #${selectedAsset.id}` : "—")}
                                     </p>
                                     <p className="mt-1 text-xs text-muted-foreground">
                                         {[selectedAsset?.category, selectedAsset?.brand, selectedAsset?.model]
                                             .filter(Boolean)
-                                            .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            .join(" · ") || "—"}
                                     </p>
                                 </div>
 
@@ -5423,7 +5414,7 @@ export default function AssetDevicesPage() {
                                 <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
                                     <div>
                                         <p className="text-xs font-semibold">Assignment lifecycle</p>
-                                        <p className="text-[10px] text-muted-foreground">Append-only audit trail ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· newest first</p>
+                                        <p className="text-[10px] text-muted-foreground">Append-only audit trail · newest first</p>
                                     </div>
                                     <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                                         {historyEntries.length} record{historyEntries.length === 1 ? "" : "s"}
@@ -5460,7 +5451,7 @@ export default function AssetDevicesPage() {
                                                         </td>
                                                         <td className="px-3 py-2.5 text-[11px] text-muted-foreground">
                                                             {historyStatusLabel(entry.prev_status)}
-                                                            <span className="mx-1">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</span>
+                                                            <span className="mx-1">→</span>
                                                             <span className="font-semibold text-foreground">
                                                                 {historyStatusLabel(entry.current_status)}
                                                             </span>
@@ -5471,7 +5462,7 @@ export default function AssetDevicesPage() {
                                                             </span>
                                                             {entry.from_emp_id && entry.to_emp_id && (
                                                                 <span className="mt-0.5 block truncate font-mono text-[10px] text-muted-foreground">
-                                                                    {entry.from_emp_id} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {entry.to_emp_id}
+                                                                    {entry.from_emp_id} → {entry.to_emp_id}
                                                                 </span>
                                                             )}
                                                         </td>
@@ -5484,7 +5475,7 @@ export default function AssetDevicesPage() {
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2.5 text-[11px] text-muted-foreground">
-                                                            {entry.changed_by_name || entry.changed_by || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                            {entry.changed_by_name || entry.changed_by || "—"}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -5525,7 +5516,7 @@ export default function AssetDevicesPage() {
                                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                             {[selectedAsset.designation, selectedAsset.department]
                                                 .filter(Boolean)
-                                                .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                .join(" · ") || "—"}
                                         </p>
                                     </div>
                                 </section>
@@ -5566,10 +5557,10 @@ export default function AssetDevicesPage() {
                                             label="Serial / Asset"
                                             value={
                                                 selectedAsset?.device_serial
-                                                    ? `${selectedAsset.device_serial} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· #${selectedAsset.id}`
+                                                    ? `${selectedAsset.device_serial} · #${selectedAsset.id}`
                                                     : selectedAsset
                                                         ? `Asset #${selectedAsset.id}`
-                                                        : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+                                                        : "—"
                                             }
                                             mono
                                         />
@@ -5581,7 +5572,7 @@ export default function AssetDevicesPage() {
                                                 selectedAsset?.model,
                                             ]
                                                 .filter(Boolean)
-                                                .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}
+                                                .join(" · ")}
                                         />
                                         <CompactDeviceInfo
                                             label="Entry"
@@ -5624,7 +5615,7 @@ export default function AssetDevicesPage() {
                                                 assignmentContext?.stock.ram,
                                             ]
                                                 .filter(Boolean)
-                                                .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}
+                                                .join(" · ")}
                                         />
                                         <CompactDeviceInfo
                                             label="Storage / Monitor"
@@ -5633,14 +5624,14 @@ export default function AssetDevicesPage() {
                                                 assignmentContext?.stock.monitor,
                                             ]
                                                 .filter(Boolean)
-                                                .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ")}
+                                                .join(" · ")}
                                         />
                                         <CompactDeviceInfo
                                             label="Stock Row"
                                             value={
                                                 assignmentContext?.stock.stock_inventory_id
                                                     ? `#${assignmentContext.stock.stock_inventory_id}`
-                                                    : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+                                                    : "—"
                                             }
                                             mono
                                         />
@@ -5689,7 +5680,7 @@ export default function AssetDevicesPage() {
                                                     authUser?.full_name || authUser?.username,
                                                 ]
                                                     .filter(Boolean)
-                                                    .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "Signed-in IT user"
+                                                    .join(" · ") || "Signed-in IT user"
                                             }
                                         />
                                         <CompactDeviceInfo
@@ -5700,13 +5691,13 @@ export default function AssetDevicesPage() {
                                             label="Status"
                                             value={
                                                 operation === "reassign"
-                                                    ? `${selectedAsset?.status_label || "Current"} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Assigned ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· previous record ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Transferred (3)`
-                                                    : "Available ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Assigned"
+                                                    ? `${selectedAsset?.status_label || "Current"} → Assigned · previous record → Transferred (3)`
+                                                    : "Available → Assigned"
                                             }
                                         />
                                         <CompactDeviceInfo
                                             label="Stock Sync"
-                                            value="ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Assigned"
+                                            value="→ Assigned"
                                         />
                                     </div>
 
@@ -5714,7 +5705,7 @@ export default function AssetDevicesPage() {
                                         <span className="mb-1 flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-[0.04em] text-amber-900 dark:text-amber-100">
                                             <span>Assignment Remarks</span>
                                             <span className="font-normal normal-case tracking-normal text-amber-700 dark:text-amber-300">
-                                                Optional ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {remarks.length}/1000
+                                                Optional · {remarks.length}/1000
                                             </span>
                                         </span>
                                         <textarea
@@ -5804,7 +5795,7 @@ export default function AssetDevicesPage() {
                                                                 <p className="truncate font-mono text-[9px] text-primary">
                                                                     ID {selectedAsset?.previous_assignment?.employee_id ||
                                                                         selectedAsset?.last_emp_id ||
-                                                                        "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                                        "—"}
                                                                 </p>
                                                                 <p className="truncate text-[9px] text-muted-foreground">
                                                                     {[
@@ -5814,7 +5805,7 @@ export default function AssetDevicesPage() {
                                                                         selectedAsset?.last_designation,
                                                                     ]
                                                                         .filter(Boolean)
-                                                                        .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                                        .join(" · ") || "—"}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -5847,7 +5838,7 @@ export default function AssetDevicesPage() {
                                                                 {selectedAsset?.previous_assignment?.end_remarks ||
                                                                     selectedAsset?.previous_assignment?.assignment_remarks ||
                                                                     selectedAsset?.history_reason ||
-                                                                    "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                                    "—"}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -5885,7 +5876,7 @@ export default function AssetDevicesPage() {
                                                         {(field.key === "lan_mac_address" ||
                                                             field.key === "wlan_mac_address") && (
                                                                 <span className="ml-1 font-normal text-primary">
-                                                                    ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Unique
+                                                                    · Unique
                                                                 </span>
                                                             )}
                                                     </span>
@@ -5985,14 +5976,14 @@ export default function AssetDevicesPage() {
                                 </div>
 
                                 <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                                    <CompactDeviceInfo label="TT No" value={selectedApprovedTT.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+                                    <CompactDeviceInfo label="TT No" value={selectedApprovedTT.tt_no || "—"} mono />
                                     <CompactDeviceInfo
                                         label="Requested User"
                                         value={[selectedApprovedTT.employee_name, selectedApprovedTT.employee_id]
                                             .filter(Boolean)
-                                            .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            .join(" · ") || "—"}
                                     />
-                                    <CompactDeviceInfo label="Requested Category" value={selectedApprovedTT.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+                                    <CompactDeviceInfo label="Requested Category" value={selectedApprovedTT.category || "—"} />
                                     <CompactDeviceInfo label="Submitted" value={formatDateTime(selectedApprovedTT.created_at)} />
                                 </div>
 
@@ -6001,20 +5992,20 @@ export default function AssetDevicesPage() {
                                         label="Raised By"
                                         value={[selectedApprovedTT.created_by_name, selectedApprovedTT.created_by]
                                             .filter(Boolean)
-                                            .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            .join(" · ") || "—"}
                                     />
                                     <CompactDeviceInfo
                                         label="Approved By"
                                         value={[selectedApprovedTT.approved_by_name, selectedApprovedTT.approved_by]
                                             .filter(Boolean)
-                                            .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            .join(" · ") || "—"}
                                     />
                                     <CompactDeviceInfo label="Approved Date" value={formatDateTime(selectedApprovedTT.approved_date)} />
                                 </div>
 
                                 <div className="mt-2 rounded-md border border-violet-200 bg-white/70 px-2.5 py-2 text-[11px]">
                                     <span className="font-semibold">Reason:</span>{" "}
-                                    {selectedApprovedTT.reason_details || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                    {selectedApprovedTT.reason_details || "—"}
                                 </div>
                             </section>
 
@@ -6023,11 +6014,11 @@ export default function AssetDevicesPage() {
                                     <div>
                                         <p className="text-[12px] font-semibold">Matching Available Devices</p>
                                         <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                            Category: {selectedApprovedTT.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· choose Serial / Brand / Model
+                                            Category: {selectedApprovedTT.category || "—"} · choose Serial / Brand / Model
                                         </p>
                                     </div>
                                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
-                                        Available ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {approvedDeviceLoading ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : approvedDeviceTotal}
+                                        Available · {approvedDeviceLoading ? "…" : approvedDeviceTotal}
                                     </span>
                                 </div>
 
@@ -6076,13 +6067,13 @@ export default function AssetDevicesPage() {
                                             >
                                                 <span className="text-center text-[10px]">{index + 1}</span>
                                                 <div className="min-w-0">
-                                                    <p className="truncate font-mono text-[11px] font-semibold">{device.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</p>
+                                                    <p className="truncate font-mono text-[11px] font-semibold">{device.device_serial || "—"}</p>
                                                     <p className="text-[9px] text-muted-foreground">Asset #{device.id}</p>
                                                 </div>
-                                                <span className="truncate">{device.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</span>
-                                                <span className="truncate">{device.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</span>
+                                                <span className="truncate">{device.brand || "—"}</span>
+                                                <span className="truncate">{device.model || "—"}</span>
                                                 <span className="whitespace-nowrap text-[10px]">
-                                                    {device.warranty_date ? formatDate(device.warranty_date) : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                    {device.warranty_date ? formatDate(device.warranty_date) : "—"}
                                                 </span>
                                                 <span className="font-mono text-[10px]">
                                                     {device.stock_inventory_id ? `#${device.stock_inventory_id}` : "Not linked"}
@@ -6105,15 +6096,15 @@ export default function AssetDevicesPage() {
                                     <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Assignment Preview</p>
                                     <p className="mt-0.5 text-[12px] font-semibold">
                                         {selectedAsset.device_serial || `Asset #${selectedAsset.id}`}
-                                        {" ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ "}
+                                        {" → "}
                                         {selectedApprovedTT.employee_name || selectedApprovedTT.employee_id || "Requested user"}
                                     </p>
                                     <div className="mt-2 grid gap-2 sm:grid-cols-5">
-                                        <CompactDeviceInfo label="TT No" value={selectedApprovedTT.tt_no || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
-                                        <CompactDeviceInfo label="Serial" value={selectedAsset.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+                                        <CompactDeviceInfo label="TT No" value={selectedApprovedTT.tt_no || "—"} mono />
+                                        <CompactDeviceInfo label="Serial" value={selectedAsset.device_serial || "—"} mono />
                                         <CompactDeviceInfo label="Warranty Date" value={formatDate(selectedAsset.warranty_date)} />
-                                        <CompactDeviceInfo label="Employee ID" value={selectedApprovedTT.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
-                                        <CompactDeviceInfo label="Employee Name" value={selectedApprovedTT.employee_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+                                        <CompactDeviceInfo label="Employee ID" value={selectedApprovedTT.employee_id || "—"} mono />
+                                        <CompactDeviceInfo label="Employee Name" value={selectedApprovedTT.employee_name || "—"} />
                                     </div>
                                 </section>
                             )}
@@ -6150,25 +6141,25 @@ export default function AssetDevicesPage() {
 
                                     <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
                                         <CheckCircle2 className="h-3.5 w-3.5" />
-                                        Available ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Status 0
+                                        Available · Status 0
                                     </span>
                                 </div>
 
                                 <div className="mt-3 grid gap-2 sm:grid-cols-5">
                                     <CompactDeviceInfo
                                         label="Serial"
-                                        value={selectedAsset?.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                        value={selectedAsset?.device_serial || "—"}
                                         mono
                                     />
                                     <CompactDeviceInfo
                                         label="Device"
-                                        value={selectedAsset?.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                        value={selectedAsset?.category || "—"}
                                     />
                                     <CompactDeviceInfo
                                         label="Brand / Model"
                                         value={[selectedAsset?.brand, selectedAsset?.model]
                                             .filter(Boolean)
-                                            .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            .join(" · ") || "—"}
                                     />
                                     <CompactDeviceInfo
                                         label="SCM Stock Row"
@@ -6210,7 +6201,7 @@ export default function AssetDevicesPage() {
 
                                     <div className="flex items-center gap-2">
                                         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
-                                            Approved Available ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {requisitionLoading ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : requisitionTotalApproved}
+                                            Approved Available · {requisitionLoading ? "…" : requisitionTotalApproved}
                                         </span>
 
                                         {selectedRequisition && (
@@ -6280,16 +6271,16 @@ export default function AssetDevicesPage() {
                                                         {req.employee_name || "Employee"}
                                                     </p>
                                                     <p className="mt-0.5 truncate font-mono text-[9px] font-semibold text-blue-700">
-                                                        {req.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {req.employee_id || "—"}
                                                     </p>
                                                 </div>
 
                                                 <div className="min-w-0">
                                                     <p className="truncate text-[10px] font-medium text-foreground">
-                                                        {req.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {req.category || "—"}
                                                     </p>
                                                     <p className="mt-0.5 truncate text-[9px] text-muted-foreground">
-                                                        {[req.brand, req.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {[req.brand, req.model].filter(Boolean).join(" · ") || "—"}
                                                     </p>
                                                 </div>
 
@@ -6329,12 +6320,12 @@ export default function AssetDevicesPage() {
                                     <div className="mt-2 grid gap-2 sm:grid-cols-4">
                                         <CompactDeviceInfo
                                             label="Employee ID"
-                                            value={selectedRequisition.employee_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            value={selectedRequisition.employee_id || "—"}
                                             mono
                                         />
                                         <CompactDeviceInfo
                                             label="Employee Name"
-                                            value={selectedRequisition.employee_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            value={selectedRequisition.employee_name || "—"}
                                         />
                                         <CompactDeviceInfo
                                             label="Approval"
@@ -6353,7 +6344,7 @@ export default function AssetDevicesPage() {
                                                     selectedRequisition.approved_by_name,
                                                 ]
                                                     .filter(Boolean)
-                                                    .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+                                                    .join(" · ") || "—"
                                             }
                                         />
                                     </div>
@@ -6396,14 +6387,14 @@ export default function AssetDevicesPage() {
                                 </div>
 
                                 <div className="grid grid-cols-6 gap-1.5">
-                                    <CompactDeviceInfo label="Asset ID" value={selectedAsset ? `#${selectedAsset.id}` : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
+                                    <CompactDeviceInfo label="Asset ID" value={selectedAsset ? `#${selectedAsset.id}` : "—"} mono />
                                     <CompactDeviceInfo label="Employee ID" value={selectedAsset?.emp_id} mono />
                                     <CompactDeviceInfo label="Employee Name" value={selectedAsset?.emp_name} />
                                     <CompactDeviceInfo label="MR Number" value={selectedAsset?.mr_number} mono />
                                     <CompactDeviceInfo label="PR Number" value={selectedAsset?.pr_number} mono />
                                     <CompactDeviceInfo
                                         label="Stock Row"
-                                        value={assignmentContext?.stock.stock_inventory_id ? `#${assignmentContext.stock.stock_inventory_id}` : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                        value={assignmentContext?.stock.stock_inventory_id ? `#${assignmentContext.stock.stock_inventory_id}` : "—"}
                                         mono
                                     />
                                 </div>
@@ -6585,12 +6576,12 @@ export default function AssetDevicesPage() {
                                                 {selectedAsset?.emp_name || "Current employee"}
                                             </p>
                                             <p className="font-mono text-[11px] text-primary">
-                                                {selectedAsset?.emp_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                {selectedAsset?.emp_id || "—"}
                                             </p>
                                             <p className="truncate text-[10px] text-muted-foreground">
                                                 {[selectedAsset?.designation, selectedAsset?.department]
                                                     .filter(Boolean)
-                                                    .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                    .join(" · ") || "—"}
                                             </p>
                                         </div>
                                     </div>
@@ -6651,7 +6642,7 @@ export default function AssetDevicesPage() {
                                     </div>
 
                                     <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                                        New status ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Returned (4)
+                                        New status · Returned (4)
                                     </span>
                                 </div>
 
@@ -6660,7 +6651,7 @@ export default function AssetDevicesPage() {
                                         label="Current Employee"
                                         value={
                                             selectedAsset?.emp_id
-                                                ? `${selectedAsset.emp_name || "Employee"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.emp_id}`
+                                                ? `${selectedAsset.emp_name || "Employee"} · ${selectedAsset.emp_id}`
                                                 : "IT Stock / No employee"
                                         }
                                     />
@@ -6719,13 +6710,13 @@ export default function AssetDevicesPage() {
                                             OWST At-a-Glance
                                         </p>
                                         <p className="text-[9px] text-muted-foreground">
-                                            User OWST = 1 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Vendor OWST = 2 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· final device status = OWST
+                                            User OWST = 1 · Vendor OWST = 2 · final device status = OWST
                                         </p>
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-1.5">
                                         <span className="rounded-md border border-teal-200 bg-background px-2 py-1 text-[9px] font-semibold text-teal-800">
-                                            Asset #{selectedAsset?.id ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            Asset #{selectedAsset?.id ?? "—"}
                                         </span>
                                         <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold ${statusClass(selectedAsset?.asset_status ?? 1)}`}>
                                             {selectedAsset?.status_label || "Assigned"}
@@ -6759,14 +6750,14 @@ export default function AssetDevicesPage() {
                                         label="Current Holder"
                                         value={
                                             selectedAsset?.emp_id
-                                                ? `${selectedAsset.emp_id} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.emp_name || "Employee"}`
-                                                : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+                                                ? `${selectedAsset.emp_id} · ${selectedAsset.emp_name || "Employee"}`
+                                                : "—"
                                         }
                                     />
 
                                     <CompactDeviceInfo
                                         label="Device"
-                                        value={`${selectedAsset?.category || "Device"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset?.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}`}
+                                        value={`${selectedAsset?.category || "Device"} · ${selectedAsset?.device_serial || "—"}`}
                                     />
 
                                     <CompactDeviceInfo
@@ -6775,7 +6766,7 @@ export default function AssetDevicesPage() {
                                             authUser?.username ||
                                             authUser?.employee_id ||
                                             "Current user"
-                                            } ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${formatDateTime(new Date().toISOString())}`}
+                                            } · ${formatDateTime(new Date().toISOString())}`}
                                     />
                                 </div>
                             </section>
@@ -6794,8 +6785,8 @@ export default function AssetDevicesPage() {
                                         <div>
                                             <p className="text-[11px] font-semibold">
                                                 {owstType === "user"
-                                                    ? "User OWST ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Receiver"
-                                                    : "Vendor OWST ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Receiver"}
+                                                    ? "User OWST · Receiver"
+                                                    : "Vendor OWST · Receiver"}
                                             </p>
                                             <p className="text-[9px] text-muted-foreground">
                                                 {owstType === "user"
@@ -6819,7 +6810,7 @@ export default function AssetDevicesPage() {
                                                         {owstEmployeeProfile?.employee_name || selectedAsset?.emp_name || "Employee"}
                                                     </p>
                                                     <p className="mt-0.5 font-mono text-[9px] font-semibold text-blue-700">
-                                                        {owstEmployeeProfile?.employee_id || selectedAsset?.emp_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {owstEmployeeProfile?.employee_id || selectedAsset?.emp_id || "—"}
                                                     </p>
                                                     <p className="mt-1 text-[9px] leading-3 text-muted-foreground">
                                                         {[
@@ -6827,14 +6818,14 @@ export default function AssetDevicesPage() {
                                                             owstEmployeeProfile?.department || selectedAsset?.department,
                                                         ]
                                                             .filter(Boolean)
-                                                            .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                            .join(" · ") || "—"}
                                                     </p>
                                                     <p className="mt-0.5 text-[9px] text-muted-foreground">
                                                         {owstEmployeeLoading
-                                                            ? "Loading employee contactÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"
+                                                            ? "Loading employee contact…"
                                                             : owstEmployeeProfile?.official_cell ||
                                                             owstEmployeeProfile?.personal_cell ||
-                                                            "Mobile ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                            "Mobile —"}
                                                     </p>
                                                 </div>
                                             </div>
@@ -6871,7 +6862,7 @@ export default function AssetDevicesPage() {
                                                     className="h-8 w-full rounded-md border border-input bg-background px-2 text-[10px] font-medium"
                                                 >
                                                     <option value="">
-                                                        {owstVendorsLoading ? "Loading vendorsÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : "Select active vendor"}
+                                                        {owstVendorsLoading ? "Loading vendors…" : "Select active vendor"}
                                                     </option>
                                                     {owstVendors.map((vendor) => (
                                                         <option key={vendor.id} value={String(vendor.id)}>
@@ -6907,7 +6898,7 @@ export default function AssetDevicesPage() {
                                                 value={
                                                     [selectedOWSTVendor?.mobile, selectedOWSTVendor?.email]
                                                         .filter(Boolean)
-                                                        .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"
+                                                        .join(" · ") || "—"
                                                 }
                                             />
 
@@ -6939,11 +6930,11 @@ export default function AssetDevicesPage() {
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                                        <CompactDeviceInfo label="Item" value={selectedAsset?.category || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
-                                        <CompactDeviceInfo label="Serial" value={selectedAsset?.device_serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
-                                        <CompactDeviceInfo label="Brand" value={selectedAsset?.brand || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
-                                        <CompactDeviceInfo label="Model" value={selectedAsset?.model || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
-                                        <CompactDeviceInfo label="Device Type" value={selectedAsset?.device_type || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+                                        <CompactDeviceInfo label="Item" value={selectedAsset?.category || "—"} />
+                                        <CompactDeviceInfo label="Serial" value={selectedAsset?.device_serial || "—"} mono />
+                                        <CompactDeviceInfo label="Brand" value={selectedAsset?.brand || "—"} />
+                                        <CompactDeviceInfo label="Model" value={selectedAsset?.model || "—"} />
+                                        <CompactDeviceInfo label="Device Type" value={selectedAsset?.device_type || "—"} />
                                         <CompactDeviceInfo label="Device Age" value={formatAssignedDeviceAge(selectedAsset?.assigned_date)} />
                                     </div>
                                 </section>
@@ -7118,7 +7109,7 @@ export default function AssetDevicesPage() {
                                                     : "border-red-200 bg-white text-red-700"
                                                     }`}
                                             >
-                                                {operation === "damaged" ? "New status ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Damaged (2)" : "New status ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Lost (5)"}
+                                                {operation === "damaged" ? "New status · Damaged (2)" : "New status · Lost (5)"}
                                             </span>
                                         </div>
                                     </div>
@@ -7136,7 +7127,7 @@ export default function AssetDevicesPage() {
                                         label="Responsible Employee"
                                         value={
                                             selectedAsset?.emp_id
-                                                ? `${selectedAsset.emp_name || "Employee"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.emp_id}`
+                                                ? `${selectedAsset.emp_name || "Employee"} · ${selectedAsset.emp_id}`
                                                 : "IT Stock / No employee"
                                         }
                                     />
@@ -7210,17 +7201,17 @@ export default function AssetDevicesPage() {
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div className="min-w-0">
                                         <p className="truncate text-xs font-semibold text-foreground">
-                                            {operation === "service" ? "Service Request" : "Warranty Claim"} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {selectedAsset?.device_serial || `Asset #${selectedAsset?.id}`}
+                                            {operation === "service" ? "Service Request" : "Warranty Claim"} · {selectedAsset?.device_serial || `Asset #${selectedAsset?.id}`}
                                         </p>
                                         <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                                            {[selectedAsset?.category, selectedAsset?.brand, selectedAsset?.model].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "Device"}
+                                            {[selectedAsset?.category, selectedAsset?.brand, selectedAsset?.model].filter(Boolean).join(" · ") || "Device"}
                                         </p>
                                     </div>
 
                                     {selectedAsset?.warranty_date && isWarrantyExpired(selectedAsset.warranty_date) ? (
                                         <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
                                             <FileWarning className="h-3 w-3" />
-                                            Warranty Expired ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {formatDate(selectedAsset.warranty_date)}
+                                            Warranty Expired · {formatDate(selectedAsset.warranty_date)}
                                         </span>
                                     ) : (
                                         <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -7231,8 +7222,8 @@ export default function AssetDevicesPage() {
                                 </div>
 
                                 <div className="mt-2 grid gap-1.5 sm:grid-cols-4">
-                                    <CompactDeviceInfo label="Employee ID" value={selectedAsset?.emp_id || selectedAsset?.last_emp_id || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} mono />
-                                    <CompactDeviceInfo label="Employee Name" value={selectedAsset?.emp_name || selectedAsset?.last_emp_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+                                    <CompactDeviceInfo label="Employee ID" value={selectedAsset?.emp_id || selectedAsset?.last_emp_id || "—"} mono />
+                                    <CompactDeviceInfo label="Employee Name" value={selectedAsset?.emp_name || selectedAsset?.last_emp_name || "—"} />
                                     <CompactDeviceInfo label="Assigned Date" value={formatDate(selectedAsset?.assigned_date)} />
                                     <CompactDeviceInfo label="Current Status" value={selectedAsset?.status_label || historyStatusLabel(selectedAsset?.asset_status)} />
                                 </div>
@@ -7257,8 +7248,8 @@ export default function AssetDevicesPage() {
                                         </select>
                                     </label>
 
-                                    <CompactDeviceInfo label="Vendor Mobile" value={selectedWarrantyVendor?.mobile || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
-                                    <CompactDeviceInfo label="Vendor Email" value={selectedWarrantyVendor?.email || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"} />
+                                    <CompactDeviceInfo label="Vendor Mobile" value={selectedWarrantyVendor?.mobile || "—"} />
+                                    <CompactDeviceInfo label="Vendor Email" value={selectedWarrantyVendor?.email || "—"} />
                                 </div>
                             </section>
 
@@ -7328,7 +7319,7 @@ export default function AssetDevicesPage() {
                                         </datalist>
                                         <p className="mt-1 truncate text-[9px] text-muted-foreground">
                                             {selectedWarrantyVendor?.email
-                                                ? `Selected vendor: ${selectedWarrantyVendor.name} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedWarrantyVendor.email}`
+                                                ? `Selected vendor: ${selectedWarrantyVendor.name} · ${selectedWarrantyVendor.email}`
                                                 : vendorEmailOptions.length > 0
                                                     ? `${vendorEmailOptions.length} vendor email${vendorEmailOptions.length === 1 ? "" : "s"} available`
                                                     : "No vendor email is available in the vendor master."}
@@ -7412,7 +7403,7 @@ export default function AssetDevicesPage() {
                                                     label="Current Holder"
                                                     value={
                                                         selectedAsset?.emp_name
-                                                            ? `${selectedAsset.emp_name} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${selectedAsset.emp_id || ""}`
+                                                            ? `${selectedAsset.emp_name} · ${selectedAsset.emp_id || ""}`
                                                             : selectedAsset?.last_emp_name || "IT Stock"
                                                     }
                                                 />
@@ -7422,7 +7413,7 @@ export default function AssetDevicesPage() {
                                                     Problem / Claim Reason
                                                 </p>
                                                 <p className="mt-1 whitespace-pre-wrap text-xs">
-                                                    {activeWarrantyClaim.problem || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                    {activeWarrantyClaim.problem || "—"}
                                                 </p>
                                             </div>
                                         </div>
@@ -7693,7 +7684,7 @@ export default function AssetDevicesPage() {
                                                                             Attached File
                                                                         </p>
                                                                         <p className="truncate text-[9px] text-muted-foreground">
-                                                                            JPG, PNG, PDF, TXT, Office ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· max 4 MB
+                                                                            JPG, PNG, PDF, TXT, Office · max 4 MB
                                                                         </p>
                                                                     </div>
                                                                 </div>
@@ -7744,7 +7735,7 @@ export default function AssetDevicesPage() {
                                                                             </p>
                                                                         </div>
                                                                         <p className="mt-0.5 text-[9px] text-emerald-800/70">
-                                                                            {(warrantyWorkflowAttachment.size / 1024).toFixed(1)} KB ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· selected and ready
+                                                                            {(warrantyWorkflowAttachment.size / 1024).toFixed(1)} KB · selected and ready
                                                                         </p>
                                                                     </div>
                                                                 </div>
@@ -7768,7 +7759,7 @@ export default function AssetDevicesPage() {
                                                 <div>
                                                     <p className="text-xs font-semibold">Previous Vendor Handover</p>
                                                     <p className="text-[9px] text-muted-foreground">
-                                                        Read-only snapshot from Step 2 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· shown for quick comparison.
+                                                        Read-only snapshot from Step 2 · shown for quick comparison.
                                                     </p>
                                                 </div>
                                                 <span className="rounded-full border border-slate-200 bg-background px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
@@ -7782,21 +7773,21 @@ export default function AssetDevicesPage() {
                                                     value={String(
                                                         previousVendorMetadata?.vendor_name ||
                                                         activeWarrantyClaim.vendor_name ||
-                                                        "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                                                        "—",
                                                     )}
                                                 />
                                                 <CompactDeviceInfo
                                                     label="Receiver"
-                                                    value={previousVendorHandover.vendor_personnel_name || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                    value={previousVendorHandover.vendor_personnel_name || "—"}
                                                 />
                                                 <CompactDeviceInfo
                                                     label="Receiver Mobile"
-                                                    value={previousVendorHandover.vendor_mobile || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                    value={previousVendorHandover.vendor_mobile || "—"}
                                                     mono
                                                 />
                                                 <CompactDeviceInfo
                                                     label="Gate Pass Date"
-                                                    value={String(previousVendorMetadata?.gate_pass_date || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}
+                                                    value={String(previousVendorMetadata?.gate_pass_date || "—")}
                                                 />
                                             </div>
 
@@ -7809,7 +7800,7 @@ export default function AssetDevicesPage() {
                                                         {String(
                                                             previousVendorMetadata?.gate_pass_remarks ||
                                                             previousVendorHandover.remarks ||
-                                                            "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                                                            "—",
                                                         )}
                                                     </p>
                                                 </div>
@@ -7819,7 +7810,7 @@ export default function AssetDevicesPage() {
                                                         IT Transfer Comment
                                                     </p>
                                                     <p className="mt-1 whitespace-pre-wrap text-[11px]">
-                                                        {previousVendorHandover.remarks || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                        {previousVendorHandover.remarks || "—"}
                                                     </p>
                                                 </div>
                                             </div>
@@ -7855,7 +7846,7 @@ export default function AssetDevicesPage() {
                                                                 .pop()}
                                                         </p>
                                                         <p className="text-[9px] opacity-75">
-                                                            Previous vendor attachment ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· click to download
+                                                            Previous vendor attachment · click to download
                                                         </p>
                                                     </div>
                                                     <span className="text-[9px] font-semibold underline">
@@ -7935,7 +7926,7 @@ export default function AssetDevicesPage() {
                                                                     {vendorTransferAttachment.name}
                                                                 </p>
                                                                 <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                                                    {(vendorTransferAttachment.size / 1024).toFixed(1)} KB ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ready to upload
+                                                                    {(vendorTransferAttachment.size / 1024).toFixed(1)} KB · ready to upload
                                                                 </p>
                                                             </div>
                                                             <button
@@ -7950,7 +7941,7 @@ export default function AssetDevicesPage() {
                                                     )}
 
                                                     <p className="mt-1 text-[9px] text-muted-foreground">
-                                                        JPG, PNG, GIF, PDF, TXT, DOC/DOCX, PPT/PPTX or XLS/XLSX ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· maximum 4 MB.
+                                                        JPG, PNG, GIF, PDF, TXT, DOC/DOCX, PPT/PPTX or XLS/XLSX · maximum 4 MB.
                                                         Stored in backend/uploads/claims/.
                                                     </p>
                                                 </div>
@@ -7987,7 +7978,7 @@ export default function AssetDevicesPage() {
                                                     Chronological audit trail. Previous and current vendor responses, comments and attachments remain visible at a glance.
                                                 </p>
                                                 <p className="mt-0.5 text-[9px] text-muted-foreground">
-                                                    Flow: Claim Opened ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Sent to Vendor ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Received from Vendor ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Claim Closed
+                                                    Flow: Claim Opened → Sent to Vendor → Received from Vendor → Claim Closed
                                                 </p>
                                             </div>
                                             <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
@@ -8011,9 +8002,6 @@ export default function AssetDevicesPage() {
 
                                                     return (
                                                         <div key={entry.id} className="relative grid grid-cols-[28px_minmax(0,1fr)] gap-2 pb-3 last:pb-0">
-            <div className="mb-3">
-                <DashboardBackButton />
-            </div>
                                                             {index < warrantyClaimHistory.length - 1 && (
                                                                 <span className="absolute left-[13px] top-7 h-[calc(100%-18px)] w-px bg-border" />
                                                             )}
@@ -8030,16 +8018,16 @@ export default function AssetDevicesPage() {
                                                                         </p>
                                                                         <p className="mt-0.5 text-[10px] text-muted-foreground">
                                                                             {formatDateTime(entry.changed_at)}
-                                                                            {entry.changed_by ? ` ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· By ${entry.changed_by}` : ""}
+                                                                            {entry.changed_by ? ` · By ${entry.changed_by}` : ""}
                                                                         </p>
                                                                     </div>
                                                                     <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
-                                                                        {entry.previous_status} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {entry.current_status}
+                                                                        {entry.previous_status} → {entry.current_status}
                                                                     </span>
                                                                 </div>
 
                                                                 <p className="mt-1.5 whitespace-pre-wrap text-[11px] text-foreground/85">
-                                                                    {entry.remarks || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                                    {entry.remarks || "—"}
                                                                 </p>
 
                                                                 {(entry.vendor_personnel_name || entry.vendor_mobile) && (
@@ -8078,7 +8066,7 @@ export default function AssetDevicesPage() {
                                                                                 {attachmentName}
                                                                             </p>
                                                                             <p className="truncate text-[9px] opacity-75">
-                                                                                Click to download ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {attachmentPath}
+                                                                                Click to download · {attachmentPath}
                                                                             </p>
                                                                         </div>
                                                                         <span className="shrink-0 text-[9px] font-semibold underline">
@@ -8222,7 +8210,7 @@ export default function AssetDevicesPage() {
                                     Device
                                 </p>
                                 <p className="mt-1 truncate font-mono text-xs font-semibold text-foreground">
-                                    {successDialog?.serial || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                    {successDialog?.serial || "—"}
                                 </p>
                             </div>
                             <div className="rounded-lg border border-border bg-muted/25 px-3 py-2">
@@ -8435,9 +8423,9 @@ export default function AssetDevicesPage() {
                                             .filter(
                                                 (value) =>
                                                     value &&
-                                                    value !== "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+                                                    value !== "—",
                                             )
-                                            .join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                            .join(" · ") || "—"}
                                     </td>
                                     <td>{owstPrintSnapshot.unit}</td>
                                     <td>{owstPrintSnapshot.quantity}</td>
@@ -8448,11 +8436,11 @@ export default function AssetDevicesPage() {
 
                         <div className="owst-print-policy">
                             <span>
-                                {owstPrintSnapshot.companyMaterial ? "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“" : "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒâ€šÃ‚Â"}{" "}
+                                {owstPrintSnapshot.companyMaterial ? "Yes" : "No"}{" "}
                                 Company Material
                             </span>
                             <span>
-                                {owstPrintSnapshot.nonRefundable ? "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“" : "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒâ€šÃ‚Â"}{" "}
+                                {owstPrintSnapshot.nonRefundable ? "Yes" : "No"}{" "}
                                 Non-Refundable
                             </span>
                         </div>
@@ -8480,7 +8468,7 @@ export default function AssetDevicesPage() {
                         </div>
 
                         <div className="owst-print-footer">
-                            Fiber@Home Ltd ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· IT Management System ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· OWST / Gate Pass
+                            Fiber@Home Ltd · IT Management System · OWST / Gate Pass
                         </div>
                     </div>
                 </div>

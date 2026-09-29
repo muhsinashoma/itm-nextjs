@@ -54,6 +54,6 @@ export default function UsersPage() {
             </div>
 
             <div className="overflow-x-auto rounded-xl"><DataTable columns={userColumns} data={data} />
-        </div>
+            </div> </div>
     );
 }

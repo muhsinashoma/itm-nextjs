@@ -40,7 +40,7 @@ export default function AssignedPage() {
         }
 
         loadAssignedDevices();
-    }, [status]); // 👈 reload when status changes
+    }, [status]); // ðŸ‘ˆ reload when status changes
 
     if (loading) return <p className="p-6">Loading assigned devices...</p>;
     if (error) return <p className="p-6 text-red-600">{error}</p>;
@@ -52,6 +52,6 @@ export default function AssignedPage() {
             </h1>
 
             <div className="overflow-x-auto rounded-xl"><DataTable columns={assignedColumns} data={data} />
-        </div>
+            </div> </div>
     );
 }

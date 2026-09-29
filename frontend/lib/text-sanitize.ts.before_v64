@@ -1,0 +1,56 @@
+// frontend/lib/text-sanitize.ts
+//
+// Conservative display-data cleanup for legacy mojibake.
+// It does NOT remove normal Unicode text (including Bangla).
+// Only tokens containing strong encoding-corruption markers are removed.
+
+const MOJIBAKE_MARKER = /[ÃÂâÆƒ�]/u;
+const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+
+export function cleanDisplayText(value: string): string {
+    if (!value) return value;
+
+    const normalized = value
+        .replace(CONTROL_CHARS, "")
+        .replace(/\uFFFD/g, "");
+
+    if (!MOJIBAKE_MARKER.test(normalized)) {
+        return normalized;
+    }
+
+    const parts = normalized.split(/(\s+)/);
+
+    const cleaned = parts
+        .filter((part) => {
+            if (/^\s+$/.test(part)) return true;
+            return !MOJIBAKE_MARKER.test(part);
+        })
+        .join("")
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/\s+([,.;:])/g, "$1")
+        .trim();
+
+    return cleaned;
+}
+
+export function sanitizeApiPayload<T>(value: T): T {
+    if (typeof value === "string") {
+        return cleanDisplayText(value) as T;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => sanitizeApiPayload(item)) as T;
+    }
+
+    if (value && typeof value === "object") {
+        const output: Record<string, unknown> = {};
+
+        for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+            output[key] = sanitizeApiPayload(item);
+        }
+
+        return output as T;
+    }
+
+    return value;
+}

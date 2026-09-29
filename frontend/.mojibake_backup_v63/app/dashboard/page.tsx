@@ -1,0 +1,4758 @@
+// frontend/app/dashboard/page.tsx
+
+"use client";
+
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
+
+import { useRouter } from "next/navigation";
+import OverviewChart from "@/components/overview-chart";
+import { DataTable } from "@/components/data-table";
+import { useTTModal } from "@/components/ui/tt-modal-store";
+
+import {
+    createTTColumns,
+    mapTTPermissions,
+    toSection,
+    type TTAssignmentUpdate,
+} from "@/components/tt-columns";
+
+import type {
+    Section,
+} from "@/types/tt";
+
+import {
+    assetDeviceApi,
+    authApi,
+    dashboardApi,
+    ownershipApi,
+    reportApi,
+    type DashboardSummary,
+    type NonOperationalSummary,
+    type TroubleTicketITPersonnel,
+    type TroubleTicketStatus,
+} from "@/lib/api";
+
+import {
+    AreaChart,
+    Area,
+    BarChart,
+    Bar,
+    PieChart,
+    Pie,
+    LineChart,
+    Line,
+    Tooltip,
+    ResponsiveContainer,
+    Cell,
+    LabelList,
+    XAxis,
+    YAxis,
+} from "recharts";
+
+/* ============================================================
+   SHARED COMPONENTS
+   ============================================================ */
+
+function CardShell({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            {children}
+        </div>
+    );
+}
+
+function CardHead({
+    title,
+    kpi,
+    kpiClass = "text-primary",
+    titleClass = "text-muted-foreground",
+    badge,
+    onKpiClick,
+}: {
+    title: string;
+    kpi: string | number;
+    kpiClass?: string;
+    titleClass?: string;
+    badge?: string;
+    onKpiClick?: () => void;
+}) {
+    return (
+        <div className="mb-3 flex items-center justify-between">
+            <h3
+                className={`text-[11px] font-semibold uppercase tracking-wide ${titleClass}`}
+            >
+                {title}
+            </h3>
+
+            <div className="flex items-center gap-1.5">
+                <span
+                    onClick={onKpiClick}
+                    className={`
+                        text-lg
+                        font-bold
+                        tabular-nums
+                        ${kpiClass}
+                        ${onKpiClick
+                            ? "cursor-pointer hover:underline"
+                            : ""
+                        }
+                    `}
+                >
+                    {kpi}
+                </span>
+
+                {badge && (
+                    <span
+                        className="
+                            rounded-full
+                            border
+                            border-emerald-100
+                            bg-emerald-50
+                            px-1.5
+                            py-0.5
+                            text-[9px]
+                            font-semibold
+                            text-emerald-700
+                        "
+                    >
+                        {badge}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function LegendRow({
+    label,
+    value,
+    color,
+    onClick,
+    compact = false,
+}: {
+    label: string;
+    value: number | string;
+    color: string;
+    onClick?: () => void;
+    compact?: boolean;
+}) {
+    return (
+        <div
+            onClick={onClick}
+            className={`
+                grid
+                grid-cols-[minmax(0,1fr)_28px]
+                items-center
+                gap-2
+                rounded-lg
+                px-1.5
+                py-1.5
+                transition-colors
+                ${onClick
+                    ? "cursor-pointer hover:bg-muted/60"
+                    : ""
+                }
+            `}
+        >
+            <div className="flex min-w-0 items-center gap-1.5">
+                <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{
+                        backgroundColor: color,
+                    }}
+                />
+
+                <span
+                    title={label}
+                    className={`
+                        min-w-0
+                        text-muted-foreground
+                        ${compact
+                            ? "text-[9px] leading-[11px]"
+                            : "text-[10px] leading-[13px]"
+                        }
+                    `}
+                >
+                    {label}
+                </span>
+            </div>
+
+            <span
+                className="
+                    w-7
+                    shrink-0
+                    text-right
+                    text-[10px]
+                    font-bold
+                    tabular-nums
+                    text-foreground
+                "
+            >
+                {typeof value === "number"
+                    ? value.toLocaleString()
+                    : value}
+            </span>
+        </div>
+    );
+}
+
+/* ============================================================
+   CHART CONFIGURATION
+   ============================================================ */
+
+const tip = {
+    fontSize: 10,
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "var(--card)",
+};
+
+const cleanTooltipProps = {
+    cursor: false,
+    contentStyle: {
+        ...tip,
+        boxShadow:
+            "0 8px 20px rgba(15, 23, 42, 0.12)",
+    },
+};
+
+type QueryTypeMonths =
+    | 1
+    | 2
+    | 3;
+
+type QueryTypeChartMode =
+    | "vertical"
+    | "horizontal"
+    | "line"
+    | "pie";
+
+type QueryTypeChartPoint = {
+    label: string;
+    value: number;
+    color: string;
+};
+
+const queryTypeChartPalette = [
+    "#7c83f3",
+    "#67c5ef",
+    "#63dbb3",
+    "#ffc94c",
+    "#a99bf6",
+    "#54d1e6",
+    "#ef98c9",
+    "#80e3d0",
+    "#f7b26a",
+    "#7db3ea",
+    "#737ee8",
+    "#62d6a9",
+    "#f4ca45",
+    "#b6a6f5",
+    "#5fc9e9",
+    "#f28ba5",
+];
+
+function toDashboardDate(
+    value: Date
+) {
+    const year =
+        value
+            .getFullYear()
+            .toString()
+            .padStart(
+                4,
+                "0"
+            );
+
+    const month =
+        (
+            value.getMonth() +
+            1
+        )
+            .toString()
+            .padStart(
+                2,
+                "0"
+            );
+
+    const day =
+        value
+            .getDate()
+            .toString()
+            .padStart(
+                2,
+                "0"
+            );
+
+    return `${year}-${month}-${day}`;
+}
+
+function queryTypePeriod(
+    year: number,
+    months: QueryTypeMonths
+) {
+    const now =
+        new Date();
+
+    const endMonth =
+        year ===
+            now.getFullYear()
+            ? now.getMonth()
+            : 11;
+
+    const start =
+        new Date(
+            year,
+            endMonth -
+            (
+                months -
+                1
+            ),
+            1
+        );
+
+    const end =
+        new Date(
+            year,
+            endMonth +
+            1,
+            0
+        );
+
+    return {
+        fromDate:
+            toDashboardDate(
+                start
+            ),
+
+        toDate:
+            toDashboardDate(
+                end
+            ),
+
+        periodText:
+            months === 1
+                ? "Current Month"
+                : `Last ${months} Months`,
+
+        badgeText:
+            months === 1
+                ? `${year} Ã‚Â· Month`
+                : `${year} Ã‚Â· ${months} Months`,
+    };
+}
+
+function shortQueryTypeLabel(
+    value: string
+) {
+    const label =
+        value.trim();
+
+    /*
+     * Dense dashboard category axes should stay compact.
+     * The tooltip still shows the complete Query Type.
+     */
+    const maxLength =
+        7;
+
+    if (
+        label.length <=
+        maxLength
+    ) {
+        return label;
+    }
+
+    return `${label.slice(
+        0,
+        maxLength -
+        1
+    )}Ã¢â‚¬Â¦`;
+}
+
+const PieLabel = (props: any) => {
+    const {
+        cx,
+        cy,
+        midAngle,
+        outerRadius,
+        percent,
+        value,
+    } = props;
+
+    if (!value || percent <= 0) {
+        return null;
+    }
+
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius + 5;
+
+    const x =
+        cx +
+        radius *
+        Math.cos(
+            -midAngle * RADIAN
+        );
+
+    const y =
+        cy +
+        radius *
+        Math.sin(
+            -midAngle * RADIAN
+        );
+
+    return (
+        <text
+            x={x}
+            y={y}
+            fill="#111827"
+            textAnchor={
+                x > cx
+                    ? "start"
+                    : "end"
+            }
+            dominantBaseline="central"
+            fontSize={9}
+            fontWeight={700}
+        >
+            {(percent * 100).toFixed(1)}%
+        </text>
+    );
+};
+
+function colorByLabel(
+    label: string
+) {
+    const key =
+        label.toLowerCase();
+
+    if (key.includes("assigned"))
+        return "#3b82f6";
+
+    if (key.includes("transfer"))
+        return "#f59e0b";
+
+    if (key.includes("return"))
+        return "#10b981";
+
+    if (
+        key.includes("available") ||
+        key.includes("stored")
+    )
+        return "#8b5cf6";
+
+    if (key.includes("lost"))
+        return "#ef4444";
+
+    if (key.includes("damage"))
+        return "#f59e0b";
+
+    if (key.includes("ownership"))
+        return "#10b981";
+
+    if (key.includes("claim"))
+        return "#f97316";
+
+    if (key.includes("vendor"))
+        return "#8b5cf6";
+
+    if (key.includes("recover"))
+        return "#3b82f6";
+
+    if (key.includes("expired"))
+        return "#ef4444";
+
+    if (key.includes("closed"))
+        return "#10b981";
+
+    if (key.includes("service"))
+        return "#3b82f6";
+
+    return "#64748b";
+}
+
+function getSummaryValue(
+    items: {
+        label: string;
+        value: number;
+    }[],
+    keyword: string
+) {
+    return (
+        items.find(
+            (item) =>
+                item.label
+                    .toLowerCase()
+                    .includes(
+                        keyword.toLowerCase()
+                    )
+        )?.value ?? 0
+    );
+}
+
+function hideDashboardLabels(
+    items: {
+        label: string;
+        value: number;
+    }[],
+    hiddenLabels: string[]
+) {
+    const hidden =
+        hiddenLabels.map(
+            (label) =>
+                label.toLowerCase()
+        );
+
+    return items.filter(
+        (item) =>
+            !hidden.includes(
+                item.label.toLowerCase()
+            )
+    );
+}
+
+/* ============================================================
+   YEAR-DRIVEN DASHBOARD SUPPORT
+   ============================================================ */
+
+type ResignationAreaPoint = {
+    month: string;
+    pending: number;
+    completed: number;
+    inprocess: number;
+};
+
+type RenewalBarPoint = {
+    month: string;
+    upcoming: number;
+    completed: number;
+    delayed: number;
+};
+
+const DASHBOARD_MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+];
+
+function emptyResignationYear(): ResignationAreaPoint[] {
+    return DASHBOARD_MONTHS.map((month) => ({
+        month,
+        pending: 0,
+        completed: 0,
+        inprocess: 0,
+    }));
+}
+
+function emptyRenewalYear(): RenewalBarPoint[] {
+    return DASHBOARD_MONTHS.map((month) => ({
+        month,
+        upcoming: 0,
+        completed: 0,
+        delayed: 0,
+    }));
+}
+
+function safeDate(value: unknown): Date | null {
+    if (!value) {
+        return null;
+    }
+
+    const parsed =
+        new Date(
+            String(value)
+        );
+
+    return Number.isNaN(
+        parsed.getTime()
+    )
+        ? null
+        : parsed;
+}
+
+function yearOf(value: unknown): number | null {
+    return safeDate(
+        value
+    )?.getFullYear() ??
+        null;
+}
+
+function monthOf(value: unknown): number | null {
+    return safeDate(
+        value
+    )?.getMonth() ??
+        null;
+}
+
+/* ============================================================
+   PAGE
+   ============================================================ */
+
+export default function DashboardPage() {
+    const router = useRouter();
+    const { actionDialogOpen } = useTTModal();
+
+    /* --------------------------------------------------------
+       AUTH / TT COLUMN PERMISSIONS
+       -------------------------------------------------------- */
+
+    const [authUser, setAuthUser] =
+        useState<import("@/lib/api").AuthMeData | null>(null);
+
+    const [authLoading, setAuthLoading] =
+        useState(true);
+    const canAccessAdminDashboard =
+        useMemo(
+            () => {
+                const permissions =
+                    new Set(
+                        authUser?.permissions ??
+                        []
+                    );
+
+                return (
+                    permissions.has(
+                        "panel.admin.access"
+                    ) ||
+                    permissions.has(
+                        "panel.staff.access"
+                    )
+                );
+            },
+            [authUser?.permissions]
+        );
+
+    const actionPermissions = useMemo(
+        () =>
+            mapTTPermissions(
+                authUser?.permissions ?? []
+            ),
+        [authUser?.permissions]
+    );
+
+    /* --------------------------------------------------------
+       DASHBOARD STATE
+       -------------------------------------------------------- */
+
+    const [
+        summary,
+        setSummary,
+    ] = useState<DashboardSummary | null>(
+        null
+    );
+
+    const [
+        loading,
+        setLoading,
+    ] = useState(true);
+
+    const [
+        error,
+        setError,
+    ] = useState("");
+
+    /* --------------------------------------------------------
+       NON-OPERATIONAL STATE
+       -------------------------------------------------------- */
+
+    const [
+        nonOpSummary,
+        setNonOpSummary,
+    ] =
+        useState<NonOperationalSummary>({
+            ownership: 0,
+            damaged: 0,
+            lost: 0,
+            total_non_operational: 0,
+
+            main_table_damaged: 0,
+            damage_inventory_damaged: 0,
+            duplicate_in_both_tables: 0,
+            damage_inventory_only: 0,
+        });
+
+    const [
+        nonOpLoading,
+        setNonOpLoading,
+    ] = useState(true);
+
+    /* --------------------------------------------------------
+       TROUBLE TICKET STATE
+       -------------------------------------------------------- */
+
+    const [
+        troubleTicketRows,
+        setTroubleTicketRows,
+    ] = useState<Section[]>([]);
+
+    const [
+        troubleTicketLoading,
+        setTroubleTicketLoading,
+    ] = useState(true);
+
+    const [
+        troubleTicketError,
+        setTroubleTicketError,
+    ] = useState("");
+
+    const [
+        troubleTicketServerFilters,
+        setTroubleTicketServerFilters,
+    ] = useState({
+        fromDate: "",
+        toDate: "",
+        employeeId: "",
+        status: "",
+        itPersonal: "",
+    });
+
+    const [
+        troubleTicketITPersonnel,
+        setTroubleTicketITPersonnel,
+    ] = useState<
+        TroubleTicketITPersonnel[]
+    >([]);
+
+
+    /* --------------------------------------------------------
+       TROUBLE TICKET QUERY TYPE CHART
+       -------------------------------------------------------- */
+
+    const [
+        queryTypeMonths,
+        setQueryTypeMonths,
+    ] =
+        useState<QueryTypeMonths>(
+            1
+        );
+
+    const [
+        queryTypeChartMode,
+        setQueryTypeChartMode,
+    ] =
+        useState<QueryTypeChartMode>(
+            "vertical"
+        );
+
+    const [
+        queryTypeYear,
+        setQueryTypeYear,
+    ] =
+        useState(
+            new Date().getFullYear()
+        );
+
+    const [
+        resignationAreaData,
+        setResignationAreaData,
+    ] =
+        useState<ResignationAreaPoint[]>(
+            () =>
+                emptyResignationYear()
+        );
+
+    const [
+        renewalBarData,
+        setRenewalBarData,
+    ] =
+        useState<RenewalBarPoint[]>(
+            () =>
+                emptyRenewalYear()
+        );
+
+    const [
+        queryTypeChartData,
+        setQueryTypeChartData,
+    ] =
+        useState<
+            QueryTypeChartPoint[]
+        >([]);
+
+    const [
+        queryTypeChartLoading,
+        setQueryTypeChartLoading,
+    ] =
+        useState(false);
+
+    const [
+        queryTypeChartError,
+        setQueryTypeChartError,
+    ] =
+        useState("");
+
+    /* --------------------------------------------------------
+       INSTANT ASSIGN / REASSIGN UI UPDATE
+       -------------------------------------------------------- */
+
+    const handleAssignmentCommitted = useCallback(
+        (update: TTAssignmentUpdate) => {
+            setTroubleTicketRows((currentRows) =>
+                currentRows.map((ticket) => {
+                    if (
+                        Number(ticket.id) !==
+                        update.ticketId
+                    ) {
+                        return ticket;
+                    }
+
+                    return {
+                        ...ticket,
+                        assigned_id:
+                            update.assignedId,
+                        assigned_name:
+                            update.assignedName,
+                    };
+                })
+            );
+        },
+        []
+    );
+
+    const columns = useMemo(
+        () =>
+            createTTColumns(
+                actionPermissions,
+                handleAssignmentCommitted
+            ),
+        [
+            actionPermissions,
+            handleAssignmentCommitted,
+        ]
+    );
+
+    /* ========================================================
+       LOAD AUTH / PERMISSIONS
+       ======================================================== */
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadAuth() {
+            try {
+                setAuthLoading(true);
+
+                const response =
+                    await authApi.me();
+
+                if (!mounted) {
+                    return;
+                }
+
+                setAuthUser(
+                    response.data
+                );
+
+                /*
+                 * Keep localStorage in sync so other client
+                 * components such as TTTable can use the same
+                 * backend-authoritative permission list.
+                 */
+                if (typeof window !== "undefined") {
+                    localStorage.setItem(
+                        "itm_user",
+                        JSON.stringify(
+                            response.data
+                        )
+                    );
+                }
+            } catch (reason) {
+                console.error(
+                    "Unable to load authenticated user:",
+                    reason
+                );
+
+                if (mounted) {
+                    setAuthUser(null);
+                }
+            } finally {
+                if (mounted) {
+                    setAuthLoading(false);
+                }
+            }
+        }
+
+        void loadAuth();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+    /*
+     * Route ownership:
+     * Normal employees belong to /dashboard/user.
+     * Only Admin/IT staff may stay on /dashboard.
+     */
+    useEffect(() => {
+        if (
+            authLoading ||
+            !authUser
+        ) {
+            return;
+        }
+
+        if (
+            !canAccessAdminDashboard
+        ) {
+            router.replace(
+                "/dashboard/user"
+            );
+        }
+    }, [
+        authLoading,
+        authUser,
+        canAccessAdminDashboard,
+        router,
+    ]);
+
+    /* ========================================================
+       LOAD DASHBOARD DATA
+       ======================================================== */
+
+    useEffect(() => {
+        let mounted = true;
+
+        const emptyWarranty = {
+            total: 0,
+            items: [
+                {
+                    label: "Claimed",
+                    value: 0,
+                },
+                {
+                    label: "To Vendor",
+                    value: 0,
+                },
+                {
+                    label: "Recovered",
+                    value: 0,
+                },
+                {
+                    label: "Expired",
+                    value: 0,
+                },
+            ],
+        };
+
+        const emptyServiceRequests = {
+            total: 0,
+            items: [
+                {
+                    label: "Service Request",
+                    value: 0,
+                },
+                {
+                    label:
+                        "Transferred to Vendor",
+                    value: 0,
+                },
+                {
+                    label: "Closed",
+                    value: 0,
+                },
+            ],
+        };
+
+        function settledError(
+            result: PromiseSettledResult<unknown>
+        ): string | null {
+            if (
+                result.status ===
+                "fulfilled"
+            ) {
+                return null;
+            }
+
+            if (
+                result.reason instanceof
+                Error
+            ) {
+                return result.reason.message;
+            }
+
+            if (
+                typeof result.reason ===
+                "string"
+            ) {
+                return result.reason;
+            }
+
+            try {
+                return JSON.stringify(
+                    result.reason
+                );
+            } catch {
+                return "Unknown API error";
+            }
+        }
+
+        async function loadDashboard() {
+            try {
+                setLoading(true);
+                setNonOpLoading(true);
+                setError("");
+
+                const [
+                    dashboardRes,
+                    nonOpRes,
+                    warrantyRes,
+                    serviceRequestRes,
+                ] =
+                    await Promise.allSettled([
+                        dashboardApi.summary(),
+                        reportApi.nonOperationalSummary(),
+                        reportApi.warrantySummary(),
+                        reportApi.serviceRequestSummary(),
+                    ]);
+
+                if (!mounted) {
+                    return;
+                }
+
+                if (
+                    dashboardRes.status !==
+                    "fulfilled"
+                ) {
+                    setError(
+                        `Unable to load dashboard: ${settledError(
+                            dashboardRes
+                        ) ??
+                        "Unknown dashboard error"
+                        }`
+                    );
+
+                    return;
+                }
+
+                if (
+                    warrantyRes.status ===
+                    "rejected"
+                ) {
+                    console.warn(
+                        "[dashboard] warranty summary failed:",
+                        settledError(
+                            warrantyRes
+                        )
+                    );
+                }
+
+                if (
+                    serviceRequestRes.status ===
+                    "rejected"
+                ) {
+                    console.warn(
+                        "[dashboard] service request summary failed:",
+                        settledError(
+                            serviceRequestRes
+                        )
+                    );
+                }
+
+                const dashboardData: DashboardSummary =
+                {
+                    ...dashboardRes.value
+                        .data,
+
+                    warranty:
+                        warrantyRes.status ===
+                            "fulfilled"
+                            ? warrantyRes
+                                .value
+                                .data
+                            : emptyWarranty,
+
+                    service_requests:
+                        serviceRequestRes.status ===
+                            "fulfilled"
+                            ? serviceRequestRes
+                                .value
+                                .data
+                            : emptyServiceRequests,
+                };
+
+                setSummary(
+                    dashboardData
+                );
+
+                if (
+                    nonOpRes.status ===
+                    "fulfilled"
+                ) {
+                    const raw: any =
+                        nonOpRes.value
+                            .data;
+
+                    const data =
+                        raw?.data ??
+                        raw?.body ??
+                        raw;
+
+                    setNonOpSummary({
+                        ownership:
+                            Number(
+                                data?.ownership ??
+                                0
+                            ),
+
+                        damaged:
+                            Number(
+                                data?.damaged ??
+                                0
+                            ),
+
+                        lost:
+                            Number(
+                                data?.lost ??
+                                0
+                            ),
+
+                        total_non_operational:
+                            Number(
+                                data?.total_non_operational ??
+                                0
+                            ),
+
+                        main_table_damaged:
+                            Number(
+                                data?.main_table_damaged ??
+                                0
+                            ),
+
+                        damage_inventory_damaged:
+                            Number(
+                                data?.damage_inventory_damaged ??
+                                0
+                            ),
+
+                        duplicate_in_both_tables:
+                            Number(
+                                data?.duplicate_in_both_tables ??
+                                0
+                            ),
+
+                        damage_inventory_only:
+                            Number(
+                                data?.damage_inventory_only ??
+                                0
+                            ),
+                    });
+                } else {
+                    console.warn(
+                        "[dashboard] non-operational summary failed:",
+                        settledError(
+                            nonOpRes
+                        )
+                    );
+
+                    setNonOpSummary({
+                        ownership: 0,
+                        damaged: 0,
+                        lost: 0,
+                        total_non_operational: 0,
+                        main_table_damaged: 0,
+                        damage_inventory_damaged: 0,
+                        duplicate_in_both_tables: 0,
+                        damage_inventory_only: 0,
+                    });
+                }
+            } catch (
+            err: unknown
+            ) {
+                if (!mounted) {
+                    return;
+                }
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Unable to load dashboard data"
+                );
+            } finally {
+                if (mounted) {
+                    setLoading(false);
+                    setNonOpLoading(false);
+                }
+            }
+        }
+
+        void loadDashboard();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    /* ========================================================
+       LOAD IT PERSONNEL
+       ======================================================== */
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadITPersonnel() {
+            try {
+                const response =
+                    await dashboardApi.troubleTicketITPersonnel();
+
+                if (!mounted) {
+                    return;
+                }
+
+                setTroubleTicketITPersonnel(
+                    response.data ?? []
+                );
+            } catch (reason) {
+                console.error(
+                    "Unable to load IT Personnel:",
+                    reason
+                );
+
+                if (mounted) {
+                    setTroubleTicketITPersonnel(
+                        []
+                    );
+                }
+            }
+        }
+
+        void loadITPersonnel();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    /* ========================================================
+       LOAD TROUBLE TICKETS
+       ======================================================== */
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadTroubleTickets() {
+            try {
+                setTroubleTicketLoading(
+                    true
+                );
+
+                setTroubleTicketError("");
+
+                const response =
+                    await dashboardApi.troubleTickets(
+                        {
+                            scope: "all",
+
+                            page: 1,
+
+                            limit: 1000,
+
+                            status:
+                                troubleTicketServerFilters.status
+                                    ? (troubleTicketServerFilters.status as TroubleTicketStatus)
+                                    : "all",
+
+                            from_date:
+                                troubleTicketServerFilters.fromDate ||
+                                `${queryTypeYear}-01-01`,
+
+                            to_date:
+                                troubleTicketServerFilters.toDate ||
+                                `${queryTypeYear}-12-31`,
+
+                            employee_id:
+                                troubleTicketServerFilters.employeeId ||
+                                undefined,
+
+                            it_personal:
+                                troubleTicketServerFilters.itPersonal ||
+                                undefined,
+                        }
+                    );
+
+                if (!mounted) {
+                    return;
+                }
+
+                const tickets =
+                    response.data ?? [];
+
+                const mappedTickets =
+                    tickets.map(toSection);
+
+                /*
+                 * Professional dashboard behavior:
+                 * closed tickets remain in the database/history,
+                 * but the default operational table shows only
+                 * tickets that still need attention.
+                 *
+                 * If the user explicitly selects a Status filter
+                 * (including Closed), honor that filter.
+                 */
+                const visibleTickets =
+                    troubleTicketServerFilters.status
+                        ? mappedTickets
+                        : mappedTickets.filter(
+                            (ticket) =>
+                                ticket.status !== "Closed"
+                        );
+
+                setTroubleTicketRows(
+                    visibleTickets
+                );
+            } catch (
+            reason: unknown
+            ) {
+                if (!mounted) {
+                    return;
+                }
+
+                setTroubleTicketRows(
+                    []
+                );
+
+                setTroubleTicketError(
+                    reason instanceof Error
+                        ? reason.message
+                        : "Unable to load Trouble Ticket data"
+                );
+            } finally {
+                if (mounted) {
+                    setTroubleTicketLoading(
+                        false
+                    );
+                }
+            }
+        }
+
+        void loadTroubleTickets();
+
+        return () => {
+            mounted = false;
+        };
+    }, [
+        troubleTicketServerFilters,
+    ]);
+
+    /* ========================================================
+       SILENT TROUBLE TICKET SYNC
+
+       Assignment / reassignment can be performed by another logged-in
+       operator while this dashboard is already open. Keep the table
+       current without displaying a loader or reloading the page.
+
+       - Same browser/tab: custom event updates immediately.
+       - Other ITM tabs: BroadcastChannel updates immediately.
+       - Different browser/device: short silent polling fallback.
+       ======================================================== */
+
+    useEffect(() => {
+        let cancelled = false;
+        let inFlight = false;
+
+        async function silentSyncTroubleTickets() {
+            if (
+                cancelled ||
+                inFlight ||
+                actionDialogOpen ||
+                (typeof document !== "undefined" &&
+                    document.visibilityState === "hidden")
+            ) {
+                return;
+            }
+
+            try {
+                inFlight = true;
+
+                const response =
+                    await dashboardApi.troubleTickets({
+                        scope: "all",
+                        page: 1,
+                        limit: 1000,
+                        status:
+                            troubleTicketServerFilters.status
+                                ? (troubleTicketServerFilters.status as TroubleTicketStatus)
+                                : "all",
+                        from_date:
+                                troubleTicketServerFilters.fromDate ||
+                                `${queryTypeYear}-01-01`,
+                        to_date:
+                                troubleTicketServerFilters.toDate ||
+                                `${queryTypeYear}-12-31`,
+                        employee_id:
+                            troubleTicketServerFilters.employeeId ||
+                            undefined,
+                        it_personal:
+                            troubleTicketServerFilters.itPersonal ||
+                            undefined,
+                    });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const mappedTickets =
+                    (response.data ?? []).map(toSection);
+
+                const visibleTickets =
+                    troubleTicketServerFilters.status
+                        ? mappedTickets
+                        : mappedTickets.filter(
+                            (ticket) =>
+                                ticket.status !== "Closed"
+                        );
+
+                setTroubleTicketRows(visibleTickets);
+                setTroubleTicketError("");
+            } catch (reason) {
+                // Silent sync must never blank the existing table or show
+                // a page-level loading/error state for a transient failure.
+                console.debug(
+                    "Silent Trouble Ticket sync skipped:",
+                    reason
+                );
+            } finally {
+                inFlight = false;
+            }
+        }
+
+        const handleTicketChanged = () => {
+            void silentSyncTroubleTickets();
+        };
+
+        const handleFocus = () => {
+            void silentSyncTroubleTickets();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void silentSyncTroubleTickets();
+            }
+        };
+
+        window.addEventListener(
+            "itm:trouble-ticket-changed",
+            handleTicketChanged
+        );
+        window.addEventListener("focus", handleFocus);
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
+
+        let channel: BroadcastChannel | null = null;
+
+        try {
+            channel = new BroadcastChannel(
+                "itm-trouble-tickets"
+            );
+            channel.addEventListener(
+                "message",
+                handleTicketChanged
+            );
+        } catch {
+            channel = null;
+        }
+
+        /*
+         * Cross-browser/device fallback. It is intentionally silent: the
+         * existing table remains interactive and no "Updating..." state is
+         * shown. This gives near-real-time recipient updates even when the
+         * notification is received in another browser.
+         */
+        const interval = window.setInterval(
+            () => {
+                void silentSyncTroubleTickets();
+            },
+            2000
+        );
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+            window.removeEventListener(
+                "itm:trouble-ticket-changed",
+                handleTicketChanged
+            );
+            window.removeEventListener(
+                "focus",
+                handleFocus
+            );
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
+
+            if (channel) {
+                channel.removeEventListener(
+                    "message",
+                    handleTicketChanged
+                );
+                channel.close();
+            }
+        };
+    }, [troubleTicketServerFilters, actionDialogOpen, queryTypeYear]);
+
+    /* ========================================================
+       POST-CREATE TROUBLE TICKET UX
+
+       When Create TT returns with #trouble-ticket-table, wait until
+       the fresh Trouble Ticket data has loaded, then smoothly focus
+       the table.
+       ======================================================== */
+
+    useEffect(() => {
+        if (
+            loading ||
+            authLoading ||
+            troubleTicketLoading
+        ) {
+            return;
+        }
+
+        if (
+            typeof window ===
+            "undefined" ||
+            window.location.hash !==
+            "#trouble-ticket-table"
+        ) {
+            return;
+        }
+
+        let cleanupTimer:
+            number | undefined;
+
+        const frame =
+            window.requestAnimationFrame(
+                () => {
+                    const target =
+                        document.getElementById(
+                            "trouble-ticket-table"
+                        );
+
+                    if (!target) {
+                        return;
+                    }
+
+                    target.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                    });
+
+                    /*
+                     * Remove the hash after the UX transition so a later
+                     * refresh does not repeat the scroll.
+                     */
+                    cleanupTimer =
+                        window.setTimeout(
+                            () => {
+                                if (
+                                    window.location.hash ===
+                                    "#trouble-ticket-table"
+                                ) {
+                                    window.history.replaceState(
+                                        window.history.state,
+                                        "",
+                                        `${window.location.pathname}${window.location.search}`
+                                    );
+                                }
+                            },
+                            700
+                        );
+                }
+            );
+
+        return () => {
+            window.cancelAnimationFrame(
+                frame
+            );
+
+            if (
+                cleanupTimer !==
+                undefined
+            ) {
+                window.clearTimeout(
+                    cleanupTimer
+                );
+            }
+        };
+    }, []);
+
+
+    /* ========================================================
+       QUERY TYPE CHART Ã¢â‚¬â€ GLOBAL YEAR + DEFAULT LAST 3 MONTHS
+       ======================================================== */
+
+    useEffect(() => {
+        const syncDashboardYear =
+            () => {
+                const stored =
+                    window.localStorage.getItem(
+                        "itm_selected_year"
+                    );
+
+                const parsed =
+                    Number(stored);
+
+                if (
+                    Number.isInteger(
+                        parsed
+                    ) &&
+                    parsed >= 2000 &&
+                    parsed <= 2100
+                ) {
+                    setQueryTypeYear(
+                        parsed
+                    );
+                }
+            };
+
+        syncDashboardYear();
+
+        window.addEventListener(
+            "itm-year-change",
+            syncDashboardYear
+        );
+
+        return () => {
+            window.removeEventListener(
+                "itm-year-change",
+                syncDashboardYear
+            );
+        };
+    }, []);
+
+    useEffect(() => {
+        let cancelled =
+            false;
+
+        async function loadSelectedYearDashboard() {
+            const assetPageSize =
+                1000;
+
+            const ownershipPageSize =
+                1000;
+
+            async function loadAllAssets() {
+                const first =
+                    await assetDeviceApi.list({
+                        page: 1,
+                        limit:
+                            assetPageSize,
+                    });
+
+                const rows = [
+                    ...(first.data ?? []),
+                ];
+
+                const total =
+                    Number(
+                        first.total ??
+                        rows.length
+                    );
+
+                const pageCount =
+                    Math.max(
+                        1,
+                        Math.ceil(
+                            total /
+                            assetPageSize
+                        )
+                    );
+
+                for (
+                    let page = 2;
+                    page <= pageCount;
+                    page++
+                ) {
+                    const response =
+                        await assetDeviceApi.list({
+                            page,
+                            limit:
+                                assetPageSize,
+                        });
+
+                    rows.push(
+                        ...(response.data ?? [])
+                    );
+                }
+
+                return rows;
+            }
+
+            async function loadAllOwnership() {
+                const first =
+                    await ownershipApi.list({
+                        page: 1,
+                        limit:
+                            ownershipPageSize,
+                        category:
+                            "all",
+                    });
+
+                const rows = [
+                    ...(first.data ?? []),
+                ];
+
+                const total =
+                    Number(
+                        first.total ??
+                        rows.length
+                    );
+
+                const pageCount =
+                    Math.max(
+                        1,
+                        Math.ceil(
+                            total /
+                            ownershipPageSize
+                        )
+                    );
+
+                for (
+                    let page = 2;
+                    page <= pageCount;
+                    page++
+                ) {
+                    const response =
+                        await ownershipApi.list({
+                            page,
+                            limit:
+                                ownershipPageSize,
+                            category:
+                                "all",
+                        });
+
+                    rows.push(
+                        ...(response.data ?? [])
+                    );
+                }
+
+                return rows;
+            }
+
+            try {
+                const [
+                    assets,
+                    nonOperationalRes,
+                    ownershipRows,
+
+                    warrantyClaimedRes,
+                    warrantyVendorRes,
+                    warrantyRecoveredRes,
+                    warrantySoonExpiredRes,
+
+                    serviceRequestRes,
+                    serviceVendorRes,
+                    serviceClosedRes,
+
+                    resignationRes,
+                    renewalRes,
+                ] =
+                    await Promise.all([
+                        loadAllAssets(),
+
+                        reportApi.nonOperational({
+                            detail:
+                                "all",
+                        }),
+
+                        loadAllOwnership(),
+
+                        reportApi.warrantyClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Claimed",
+                            year:
+                                queryTypeYear,
+                        }),
+
+                        reportApi.warrantyClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "To Vendor",
+                            year:
+                                queryTypeYear,
+                        }),
+
+                        reportApi.warrantyClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Recovered",
+                            year:
+                                queryTypeYear,
+                        }),
+
+                        reportApi.warrantyClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Soon Expired",
+                            year:
+                                queryTypeYear,
+                        }),
+
+                        reportApi.serviceRequestClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Service Request",
+                            year:
+                                queryTypeYear,
+                        }),
+
+                        reportApi.serviceRequestClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Transferred to Vendor",
+                            year:
+                                queryTypeYear,
+                        }),
+
+                        reportApi.serviceRequestClaims({
+                            page: 1,
+                            limit: 1,
+                            status:
+                                "Closed",
+                            year:
+                                queryTypeYear,
+                        }),
+
+                        reportApi.resignation({
+                            year:
+                                queryTypeYear,
+                        }),
+
+                        reportApi.renewal({
+                            year:
+                                queryTypeYear,
+                        }),
+                    ]);
+
+                if (
+                    cancelled
+                ) {
+                    return;
+                }
+
+                const selectedYearAssets =
+                    assets.filter(
+                        (asset: any) =>
+                            yearOf(
+                                asset.purchase_date ??
+                                asset.created_at
+                            ) ===
+                            queryTypeYear
+                    );
+
+                const assigned =
+                    selectedYearAssets.filter(
+                        (asset: any) =>
+                            Number(
+                                asset.asset_status
+                            ) === 1
+                    ).length;
+
+                const available =
+                    selectedYearAssets.filter(
+                        (asset: any) =>
+                            Number(
+                                asset.asset_status
+                            ) === 0
+                    ).length;
+
+                const returned =
+                    selectedYearAssets.filter(
+                        (asset: any) =>
+                            Number(
+                                asset.asset_status
+                            ) === 4
+                    ).length;
+
+                const rawNonOperational:
+                    any =
+                    (nonOperationalRes as any)
+                        ?.data;
+
+                const nonOperationalRows:
+                    any[] =
+                    Array.isArray(
+                        rawNonOperational
+                    )
+                        ? rawNonOperational
+                        : Array.isArray(
+                            rawNonOperational
+                                ?.data
+                        )
+                        ? rawNonOperational.data
+                        : [];
+
+                const selectedNonOperational =
+                    nonOperationalRows.filter(
+                        (item: any) =>
+                            yearOf(
+                                item.updated_at ??
+                                item.created_at ??
+                                item.assigned_date ??
+                                item.purchase_date
+                            ) ===
+                            queryTypeYear
+                    );
+
+                const damaged =
+                    selectedNonOperational.filter(
+                        (item: any) =>
+                            Number(
+                                item.asset_status
+                            ) === 2 ||
+                            String(
+                                item.status_label ??
+                                ""
+                            )
+                                .toLowerCase()
+                                .includes(
+                                    "damag"
+                                )
+                    ).length;
+
+                const lost =
+                    selectedNonOperational.filter(
+                        (item: any) =>
+                            Number(
+                                item.asset_status
+                            ) === 5 ||
+                            String(
+                                item.status_label ??
+                                ""
+                            )
+                                .toLowerCase() ===
+                            "lost"
+                    ).length;
+
+                const ownership =
+                    ownershipRows.filter(
+                        (item: any) =>
+                            yearOf(
+                                item.transfer_date ??
+                                item.updated_at ??
+                                item.created_at
+                            ) ===
+                            queryTypeYear
+                    ).length;
+
+                const warrantyClaimed =
+                    Number(
+                        warrantyClaimedRes.total ??
+                        warrantyClaimedRes.data
+                            ?.length ??
+                        0
+                    );
+
+                const warrantyVendor =
+                    Number(
+                        warrantyVendorRes.total ??
+                        warrantyVendorRes.data
+                            ?.length ??
+                        0
+                    );
+
+                const warrantyRecovered =
+                    Number(
+                        warrantyRecoveredRes.total ??
+                        warrantyRecoveredRes.data
+                            ?.length ??
+                        0
+                    );
+
+                const warrantySoonExpired =
+                    Number(
+                        warrantySoonExpiredRes.total ??
+                        warrantySoonExpiredRes
+                            .data?.length ??
+                        0
+                    );
+
+                const serviceRequested =
+                    Number(
+                        serviceRequestRes.total ??
+                        serviceRequestRes.data
+                            ?.length ??
+                        0
+                    );
+
+                const serviceVendor =
+                    Number(
+                        serviceVendorRes.total ??
+                        serviceVendorRes.data
+                            ?.length ??
+                        0
+                    );
+
+                const serviceClosed =
+                    Number(
+                        serviceClosedRes.total ??
+                        serviceClosedRes.data
+                            ?.length ??
+                        0
+                    );
+
+                const currentSystemYear =
+                    new Date()
+                        .getFullYear();
+
+                setSummary(
+                    (current) => {
+                        if (!current) {
+                            return current;
+                        }
+
+                        return {
+                            ...current,
+
+                            active_assets: {
+                                total:
+                                    assigned +
+                                    available +
+                                    returned,
+
+                                items: [
+                                    {
+                                        label:
+                                            "Assigned",
+                                        value:
+                                            assigned,
+                                    },
+                                    {
+                                        label:
+                                            "Available",
+                                        value:
+                                            available,
+                                    },
+                                    {
+                                        label:
+                                            "Returned",
+                                        value:
+                                            returned,
+                                    },
+                                ],
+                            },
+
+                            warranty: {
+                                total:
+                                    warrantyClaimed +
+                                    warrantyVendor +
+                                    warrantyRecovered +
+                                    warrantySoonExpired,
+
+                                items: [
+                                    {
+                                        label:
+                                            "Claimed",
+                                        value:
+                                            warrantyClaimed,
+                                    },
+                                    {
+                                        label:
+                                            "To Vendor",
+                                        value:
+                                            warrantyVendor,
+                                    },
+                                    {
+                                        label:
+                                            "Recovered",
+                                        value:
+                                            warrantyRecovered,
+                                    },
+                                    {
+                                        label:
+                                            queryTypeYear ===
+                                            currentSystemYear
+                                                ? "Soon Expired"
+                                                : queryTypeYear <
+                                                  currentSystemYear
+                                                ? "Expired"
+                                                : "Expiring",
+                                        value:
+                                            warrantySoonExpired,
+                                    },
+                                ],
+                            },
+
+                            service_requests: {
+                                total:
+                                    serviceRequested +
+                                    serviceVendor +
+                                    serviceClosed,
+
+                                items: [
+                                    {
+                                        label:
+                                            "Service Request",
+                                        value:
+                                            serviceRequested,
+                                    },
+                                    {
+                                        label:
+                                            "Transferred to Vendor",
+                                        value:
+                                            serviceVendor,
+                                    },
+                                    {
+                                        label:
+                                            "Closed",
+                                        value:
+                                            serviceClosed,
+                                    },
+                                ],
+                            },
+                        };
+                    }
+                );
+
+                setNonOpSummary(
+                    (current) => ({
+                        ...current,
+                        ownership,
+                        damaged,
+                        lost,
+                        total_non_operational:
+                            ownership +
+                            damaged +
+                            lost,
+                    })
+                );
+
+                const resignationRows:
+                    any[] =
+                    Array.isArray(
+                        (resignationRes as any)
+                            ?.data
+                    )
+                        ? (resignationRes as any)
+                            .data
+                        : [];
+
+                const resignationPoints =
+                    emptyResignationYear();
+
+                for (
+                    const item of
+                    resignationRows
+                ) {
+                    const separationDate =
+                        item.separation_date ??
+                        item.separationDate;
+
+                    if (
+                        yearOf(
+                            separationDate
+                        ) !==
+                        queryTypeYear
+                    ) {
+                        continue;
+                    }
+
+                    const month =
+                        monthOf(
+                            separationDate
+                        );
+
+                    if (
+                        month ===
+                        null
+                    ) {
+                        continue;
+                    }
+
+                    const assignedDevices =
+                        Number(
+                            item.assigned_devices ??
+                            item.device_count ??
+                            0
+                        );
+
+                    if (
+                        assignedDevices >
+                        0
+                    ) {
+                        resignationPoints[
+                            month
+                        ].pending +=
+                            1;
+                    } else {
+                        resignationPoints[
+                            month
+                        ].completed +=
+                            1;
+                    }
+                }
+
+                setResignationAreaData(
+                    resignationPoints
+                );
+
+                const renewalRows:
+                    any[] =
+                    Array.isArray(
+                        (renewalRes as any)
+                            ?.data
+                    )
+                        ? (renewalRes as any)
+                            .data
+                        : [];
+
+                const renewalPoints =
+                    emptyRenewalYear();
+
+                const today =
+                    new Date();
+
+                for (
+                    const item of
+                    renewalRows
+                ) {
+                    const renewalDate =
+                        item.warranty_date ??
+                        item.device_warranty_date ??
+                        item.renewal_date;
+
+                    const parsed =
+                        safeDate(
+                            renewalDate
+                        );
+
+                    if (
+                        !parsed ||
+                        parsed.getFullYear() !==
+                            queryTypeYear
+                    ) {
+                        continue;
+                    }
+
+                    const month =
+                        parsed.getMonth();
+
+                    if (
+                        parsed >=
+                        today
+                    ) {
+                        renewalPoints[
+                            month
+                        ].upcoming +=
+                            1;
+                    } else {
+                        renewalPoints[
+                            month
+                        ].delayed +=
+                            1;
+                    }
+                }
+
+                setRenewalBarData(
+                    renewalPoints
+                );
+            } catch (
+            reason
+            ) {
+                console.warn(
+                    "[dashboard] unable to load selected-year data:",
+                    reason
+                );
+            }
+        }
+
+        void loadSelectedYearDashboard();
+
+        return () => {
+            cancelled =
+                true;
+        };
+    }, [
+        queryTypeYear,
+    ]);
+
+    useEffect(() => {
+        let cancelled =
+            false;
+
+        async function loadQueryTypeChart() {
+            try {
+                setQueryTypeChartLoading(
+                    true
+                );
+
+                setQueryTypeChartError(
+                    ""
+                );
+
+                const period =
+                    queryTypePeriod(
+                        queryTypeYear,
+                        queryTypeMonths
+                    );
+
+                const pageSize =
+                    1000;
+
+                const first =
+                    await dashboardApi.troubleTickets(
+                        {
+                            scope:
+                                "all",
+                            page:
+                                1,
+                            limit:
+                                pageSize,
+                            status:
+                                "all",
+                            from_date:
+                                period.fromDate,
+                            to_date:
+                                period.toDate,
+                        }
+                    );
+
+                if (
+                    cancelled
+                ) {
+                    return;
+                }
+
+                const rows = [
+                    ...(
+                        first.data ??
+                        []
+                    ),
+                ];
+
+                const total =
+                    Number(
+                        first.total ??
+                        rows.length
+                    );
+
+                const pages =
+                    Math.max(
+                        1,
+                        Math.ceil(
+                            total /
+                            pageSize
+                        )
+                    );
+
+                for (
+                    let pageNumber =
+                        2;
+                    pageNumber <=
+                    pages;
+                    pageNumber++
+                ) {
+                    const response =
+                        await dashboardApi.troubleTickets(
+                            {
+                                scope:
+                                    "all",
+                                page:
+                                    pageNumber,
+                                limit:
+                                    pageSize,
+                                status:
+                                    "all",
+                                from_date:
+                                    period.fromDate,
+                                to_date:
+                                    period.toDate,
+                            }
+                        );
+
+                    if (
+                        cancelled
+                    ) {
+                        return;
+                    }
+
+                    rows.push(
+                        ...(
+                            response.data ??
+                            []
+                        )
+                    );
+                }
+
+                const grouped =
+                    new Map<
+                        string,
+                        number
+                    >();
+
+                for (
+                    const ticket of
+                    rows
+                ) {
+                    const queryType =
+                        String(
+                            ticket.query_type ??
+                            ""
+                        ).trim() ||
+                        "Unspecified";
+
+                    grouped.set(
+                        queryType,
+                        (
+                            grouped.get(
+                                queryType
+                            ) ??
+                            0
+                        ) + 1
+                    );
+                }
+
+                const chartRows =
+                    Array.from(
+                        grouped.entries()
+                    )
+                        .sort(
+                            (
+                                a,
+                                b
+                            ) =>
+                                b[1] -
+                                a[1] ||
+                                a[0].localeCompare(
+                                    b[0]
+                                )
+                        )
+                        .map(
+                            (
+                                [
+                                    label,
+                                    value,
+                                ],
+                                index
+                            ) => ({
+                                label,
+                                value,
+                                color:
+                                    queryTypeChartPalette[
+                                    index %
+                                    queryTypeChartPalette.length
+                                    ],
+                            })
+                        );
+
+                if (
+                    !cancelled
+                ) {
+                    setQueryTypeChartData(
+                        chartRows
+                    );
+                }
+            } catch (
+            reason
+            ) {
+                if (
+                    cancelled
+                ) {
+                    return;
+                }
+
+                setQueryTypeChartData(
+                    []
+                );
+
+                setQueryTypeChartError(
+                    reason instanceof
+                        Error
+                        ? reason.message
+                        : "Unable to load Query Type chart."
+                );
+            } finally {
+                if (
+                    !cancelled
+                ) {
+                    setQueryTypeChartLoading(
+                        false
+                    );
+                }
+            }
+        }
+
+        void loadQueryTypeChart();
+
+        return () => {
+            cancelled =
+                true;
+        };
+    }, [
+        queryTypeMonths,
+        queryTypeYear,
+    ]);
+
+    /* ========================================================
+       LOADING / ERROR STATES
+       ======================================================== */
+
+    if (
+        loading ||
+        authLoading ||
+        (
+            authUser &&
+            !canAccessAdminDashboard
+        )
+    ) {
+        return (
+            <div className="p-4 text-sm text-muted-foreground">
+                Loading dashboard data...
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="p-4 text-sm text-red-600">
+                {error}
+            </div>
+        );
+    }
+
+    if (!summary) {
+        return (
+            <div className="p-4 text-sm text-red-600">
+                No dashboard data found.
+            </div>
+        );
+    }
+
+    /* ========================================================
+       PREPARE CHART DATA
+       ======================================================== */
+
+    const activeAssetsData =
+        hideDashboardLabels(
+            summary.active_assets.items,
+            [
+                "Unknown",
+                "Other",
+            ]
+        ).map((item) => ({
+            label: item.label,
+
+            shortLabel:
+                item.label.length > 6
+                    ? item.label.slice(
+                        0,
+                        6
+                    )
+                    : item.label,
+
+            value: item.value,
+
+            color: colorByLabel(
+                item.label
+            ),
+        }));
+
+    const warrantyDetails =
+        summary.warranty.items.map(
+            (item) => ({
+                label: item.label,
+                value: item.value,
+                color: colorByLabel(
+                    item.label
+                ),
+                status: item.label,
+            })
+        );
+
+    const serviceData =
+        summary.service_requests.items.map(
+            (item) => ({
+                label: item.label,
+                value: item.value,
+                color: colorByLabel(
+                    item.label
+                ),
+                status: item.label,
+            })
+        );
+
+    const currentYear =
+        queryTypeYear
+            .toString();
+
+    const warrantyBarData = [
+        {
+            year: currentYear,
+
+            claimed:
+                getSummaryValue(
+                    summary.warranty.items,
+                    "claim"
+                ),
+
+            vendor:
+                getSummaryValue(
+                    summary.warranty.items,
+                    "vendor"
+                ),
+
+            recovered:
+                getSummaryValue(
+                    summary.warranty.items,
+                    "recover"
+                ),
+
+            expired:
+                getSummaryValue(
+                    summary.warranty.items,
+                    "expir"
+                ),
+        },
+    ];
+
+    const warrantyMaxValue =
+        Math.max(
+            warrantyBarData[0]
+                .claimed,
+            warrantyBarData[0]
+                .vendor,
+            warrantyBarData[0]
+                .recovered,
+            warrantyBarData[0]
+                .expired,
+            1
+        );
+
+    const serviceBarData = [
+        {
+            name: currentYear,
+
+            servicerequest:
+                getSummaryValue(
+                    summary
+                        .service_requests
+                        .items,
+                    "service"
+                ),
+
+            transferred:
+                getSummaryValue(
+                    summary
+                        .service_requests
+                        .items,
+                    "vendor"
+                ),
+
+            closed:
+                getSummaryValue(
+                    summary
+                        .service_requests
+                        .items,
+                    "closed"
+                ),
+        },
+    ];
+
+    const serviceMaxValue =
+        Math.max(
+            serviceBarData[0]
+                .servicerequest,
+            serviceBarData[0]
+                .transferred,
+            serviceBarData[0]
+                .closed,
+            1
+        );
+
+    /* ========================================================
+       TOTALS
+       ======================================================== */
+
+    const totalAssets =
+        summary.active_assets
+            .total;
+
+    const totalWarranty =
+        summary.warranty.total;
+
+    const totalService =
+        summary.service_requests
+            .total;
+
+    const ownershipCount =
+        nonOpSummary.ownership;
+
+    const damagedCount =
+        nonOpSummary.damaged;
+
+    const lostCount =
+        nonOpSummary.lost;
+
+    const totalNonOp =
+        nonOpSummary.total_non_operational ||
+        ownershipCount +
+        damagedCount +
+        lostCount;
+
+    const nonOpTotal =
+        ownershipCount +
+        damagedCount +
+        lostCount;
+
+    const nonOpData = [
+        {
+            label: "Ownership",
+            value: ownershipCount,
+            color: "#10b981",
+        },
+        {
+            label: "Damaged",
+            value: damagedCount,
+            color: "#f59e0b",
+        },
+        {
+            label: "Lost",
+            value: lostCount,
+            color: "#ef4444",
+        },
+    ];
+
+    const resignationPendingTotal =
+        resignationAreaData.reduce(
+            (sum, item) =>
+                sum + item.pending,
+            0
+        );
+
+    const resignationCompletedTotal =
+        resignationAreaData.reduce(
+            (sum, item) =>
+                sum + item.completed,
+            0
+        );
+
+    const resignationInProcessTotal =
+        resignationAreaData.reduce(
+            (sum, item) =>
+                sum + item.inprocess,
+            0
+        );
+
+    const resignationLegend = [
+        {
+            label: "Pending Clearance",
+            value: resignationPendingTotal,
+            color: "#f59e0b",
+            status: "Pending Clearance",
+        },
+        {
+            label: "Completed",
+            value: resignationCompletedTotal,
+            color: "#10b981",
+            status: "Completed",
+        },
+        {
+            label: "In Process",
+            value: resignationInProcessTotal,
+            color: "#3b82f6",
+            status: "In Process",
+        },
+    ];
+
+    const renewalUpcomingTotal =
+        renewalBarData.reduce(
+            (sum, item) =>
+                sum + item.upcoming,
+            0
+        );
+
+    const renewalCompletedTotal =
+        renewalBarData.reduce(
+            (sum, item) =>
+                sum + item.completed,
+            0
+        );
+
+    const renewalDelayedTotal =
+        renewalBarData.reduce(
+            (sum, item) =>
+                sum + item.delayed,
+            0
+        );
+
+    const renewalLegend = [
+        {
+            label: "Upcoming Renewals",
+            value: renewalUpcomingTotal,
+            color: "#f59e0b",
+            status: "Upcoming Renewals",
+        },
+        {
+            label: "Completed",
+            value: renewalCompletedTotal,
+            color: "#10b981",
+            status: "Completed",
+        },
+        {
+            label: "Delayed",
+            value: renewalDelayedTotal,
+            color: "#ef4444",
+            status: "Delayed",
+        },
+    ];
+
+    const totalResig =
+        resignationAreaData.reduce(
+            (sum, item) =>
+                sum +
+                item.pending +
+                item.completed +
+                item.inprocess,
+            0
+        );
+
+    const totalRenewal =
+        renewalBarData.reduce(
+            (sum, item) =>
+                sum +
+                item.upcoming +
+                item.completed +
+                item.delayed,
+            0
+        );
+
+    /* ========================================================
+       ACTIVE ASSET X AXIS
+       ======================================================== */
+
+    const ActiveAssetXAxisTick = (
+        props: any
+    ) => {
+        const {
+            x,
+            y,
+            payload,
+        } = props;
+
+        return (
+            <text
+                x={x}
+                y={y + 10}
+                textAnchor="middle"
+                fill="#6b7280"
+                fontSize={8}
+                fontWeight={500}
+            >
+                {payload.value}
+            </text>
+        );
+    };
+
+
+    const queryTypeTicketTotal =
+        queryTypeChartData.reduce(
+            (
+                total,
+                item
+            ) =>
+                total +
+                item.value,
+            0
+        );
+
+    const queryTypeSelectedPeriod =
+        queryTypePeriod(
+            queryTypeYear,
+            queryTypeMonths
+        );
+
+    /* ========================================================
+       RENDER
+       ======================================================== */
+
+    return (
+        <div className="space-y-4 p-4">
+
+            {/* ==================================================
+                SUMMARY CARDS
+            ================================================== */}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+                {/* ==============================================
+                    CARD 1 - ACTIVE ASSETS
+                ============================================== */}
+
+                <CardShell>
+                    <CardHead
+                        title="Total Active Assets"
+                        kpi={totalAssets.toLocaleString()}
+                        titleClass="text-blue-700 dark:text-blue-300"
+                        badge={currentYear}
+                        onKpiClick={() =>
+                            router.push(
+                                "/dashboard/reports/assets"
+                            )
+                        }
+                    />
+
+                    <div className="flex items-center gap-3">
+
+                        <div className="h-36 w-1/2">
+                            <ResponsiveContainer
+                                width="100%"
+                                height="100%"
+                            >
+                                <BarChart
+                                    data={
+                                        activeAssetsData
+                                    }
+                                    margin={{
+                                        top: 16,
+                                        right: 4,
+                                        left: 4,
+                                        bottom: 14,
+                                    }}
+                                    barCategoryGap="22%"
+                                    barGap={0}
+                                >
+                                    <XAxis
+                                        dataKey="shortLabel"
+                                        interval={0}
+                                        minTickGap={0}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tick={
+                                            <ActiveAssetXAxisTick />
+                                        }
+                                    />
+
+                                    <Bar
+                                        dataKey="value"
+                                        radius={[
+                                            3,
+                                            3,
+                                            0,
+                                            0,
+                                        ]}
+                                        maxBarSize={34}
+                                        activeBar={false}
+                                    >
+                                        {activeAssetsData.map(
+                                            (
+                                                item,
+                                                index
+                                            ) => (
+                                                <Cell
+                                                    key={
+                                                        index
+                                                    }
+                                                    fill={
+                                                        item.color
+                                                    }
+                                                />
+                                            )
+                                        )}
+
+                                        <LabelList
+                                            dataKey="value"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                            formatter={(
+                                                value: number
+                                            ) =>
+                                                value >=
+                                                    1000
+                                                    ? `${(
+                                                        value /
+                                                        1000
+                                                    ).toFixed(
+                                                        1
+                                                    )}k`
+                                                    : value
+                                            }
+                                        />
+                                    </Bar>
+
+                                    <Tooltip
+                                        {...cleanTooltipProps}
+                                        formatter={(
+                                            value: number,
+                                            name: string,
+                                            props: any
+                                        ) => [
+                                                Number(
+                                                    value
+                                                ).toLocaleString(),
+                                                props
+                                                    ?.payload
+                                                    ?.label ||
+                                                name,
+                                            ]}
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="w-1/2 space-y-0.5 border-l border-border pl-3">
+                            {activeAssetsData.map(
+                                (item) => (
+                                    <LegendRow
+                                        key={
+                                            item.label
+                                        }
+                                        {...item}
+                                        onClick={() =>
+                                            router.push(
+                                                `/dashboard/reports/assets?status=${encodeURIComponent(
+                                                    item.label
+                                                )}&year=${queryTypeYear}`
+                                            )
+                                        }
+                                    />
+                                )
+                            )}
+                        </div>
+                    </div>
+                </CardShell>
+
+                {/* ==============================================
+                    CARD 2 - NON OPERATIONAL
+                ============================================== */}
+
+                <CardShell>
+                    <CardHead
+                        title="Non-Operational Assets"
+                        kpi={totalNonOp.toLocaleString()}
+                        kpiClass="text-red-500"
+                        titleClass="text-rose-700 dark:text-rose-300"
+                        badge={
+                            nonOpLoading
+                                ? "Loading..."
+                                : currentYear
+                        }
+                        onKpiClick={() =>
+                            router.push(
+                                `/dashboard/reports/non-operational?year=${queryTypeYear}`
+                            )
+                        }
+                    />
+
+                    <div className="flex items-center gap-3">
+
+                        <div className="h-36 w-1/2">
+                            <ResponsiveContainer
+                                width="100%"
+                                height="100%"
+                            >
+                                <PieChart
+                                    margin={{
+                                        top: 10,
+                                        right: 44,
+                                        bottom: 14,
+                                        left: 44,
+                                    }}
+                                >
+                                    <Pie
+                                        data={
+                                            nonOpData
+                                        }
+                                        dataKey="value"
+                                        nameKey="label"
+                                        cx="46%"
+                                        cy="50%"
+                                        outerRadius={43}
+                                        innerRadius={27}
+                                        paddingAngle={3}
+                                        labelLine={false}
+                                        label={(
+                                            props
+                                        ) => (
+                                            <PieLabel
+                                                {...props}
+                                                name={
+                                                    props.name ||
+                                                    props.label
+                                                }
+                                            />
+                                        )}
+                                    >
+                                        {nonOpData.map(
+                                            (
+                                                item,
+                                                index
+                                            ) => (
+                                                <Cell
+                                                    key={
+                                                        index
+                                                    }
+                                                    fill={
+                                                        item.color
+                                                    }
+                                                />
+                                            )
+                                        )}
+                                    </Pie>
+
+                                    <Tooltip
+                                        {...cleanTooltipProps}
+                                        formatter={(
+                                            value: number,
+                                            name: string
+                                        ) => {
+                                            const percentage =
+                                                nonOpTotal >
+                                                    0
+                                                    ? (
+                                                        (Number(
+                                                            value
+                                                        ) /
+                                                            nonOpTotal) *
+                                                        100
+                                                    ).toFixed(
+                                                        1
+                                                    )
+                                                    : "0";
+
+                                            return [
+                                                `${Number(
+                                                    value
+                                                ).toLocaleString()} (${percentage}%)`,
+                                                name,
+                                            ];
+                                        }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="w-1/2 space-y-0.5 border-l border-border pl-3">
+
+                            <LegendRow
+                                label="Ownership"
+                                value={
+                                    ownershipCount
+                                }
+                                color="#10b981"
+                                onClick={() =>
+                                    router.push(
+                                        `/dashboard/disposal/ownership-assets?year=${queryTypeYear}`
+                                    )
+                                }
+                            />
+
+                            <LegendRow
+                                label="Damaged"
+                                value={
+                                    damagedCount
+                                }
+                                color="#f59e0b"
+                                onClick={() =>
+                                    router.push(
+                                        `/dashboard/reports/non-operational?status=damaged&year=${queryTypeYear}`
+                                    )
+                                }
+                            />
+
+                            <LegendRow
+                                label="Lost"
+                                value={
+                                    lostCount
+                                }
+                                color="#ef4444"
+                                onClick={() =>
+                                    router.push(
+                                        `/dashboard/reports/non-operational?status=lost&year=${queryTypeYear}`
+                                    )
+                                }
+                            />
+
+                        </div>
+                    </div>
+                </CardShell>
+
+                {/* ==============================================
+                    CARD 3 - WARRANTY
+                ============================================== */}
+
+                <CardShell>
+                    <CardHead
+                        title={`Warranty Overview ${currentYear}`}
+                        kpi={totalWarranty.toLocaleString()}
+                        titleClass="text-violet-700 dark:text-violet-300"
+                        badge={currentYear}
+                        onKpiClick={() =>
+                            router.push(
+                                `/dashboard/service-warranty/warranty-claims?year=${queryTypeYear}`
+                            )
+                        }
+                    />
+
+                    <div className="flex items-center gap-3">
+
+                        <div className="h-36 w-1/2">
+                            <ResponsiveContainer
+                                width="100%"
+                                height="100%"
+                            >
+                                <BarChart
+                                    data={
+                                        warrantyBarData
+                                    }
+                                    margin={{
+                                        top: 18,
+                                        right: 4,
+                                        left: 4,
+                                        bottom: 4,
+                                    }}
+                                    barCategoryGap="20%"
+                                    barGap={3}
+                                    onClick={(
+                                        event
+                                    ) => {
+                                        const key =
+                                            event
+                                                ?.activePayload?.[0]
+                                                ?.dataKey as
+                                            | string
+                                            | undefined;
+
+                                        const map: Record<
+                                            string,
+                                            string
+                                        > = {
+                                            claimed:
+                                                "Claimed",
+                                            vendor:
+                                                "To Vendor",
+                                            recovered:
+                                                "Recovered",
+                                            expired:
+                                                "Expired",
+                                        };
+
+                                        if (
+                                            key &&
+                                            map[key]
+                                        ) {
+                                            router.push(
+                                                `/dashboard/service-warranty/warranty-claims?status=${encodeURIComponent(
+                                                    map[key]
+                                                )}&year=${queryTypeYear}`
+                                            );
+                                        }
+                                    }}
+                                    style={{
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    <XAxis
+                                        dataKey="year"
+                                        tick={{
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            fill: "#374151",
+                                        }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+
+                                    <YAxis
+                                        hide
+                                        domain={[
+                                            0,
+                                            warrantyMaxValue,
+                                        ]}
+                                    />
+
+                                    <Tooltip
+                                        {...cleanTooltipProps}
+                                    />
+
+                                    <Bar
+                                        dataKey="claimed"
+                                        fill="#f97316"
+                                        radius={[
+                                            4,
+                                            4,
+                                            0,
+                                            0,
+                                        ]}
+                                        cursor="pointer"
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="claimed"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="vendor"
+                                        fill="#8b5cf6"
+                                        radius={[
+                                            4,
+                                            4,
+                                            0,
+                                            0,
+                                        ]}
+                                        cursor="pointer"
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="vendor"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="recovered"
+                                        fill="#3b82f6"
+                                        radius={[
+                                            4,
+                                            4,
+                                            0,
+                                            0,
+                                        ]}
+                                        cursor="pointer"
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="recovered"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="expired"
+                                        fill="#ef4444"
+                                        radius={[
+                                            4,
+                                            4,
+                                            0,
+                                            0,
+                                        ]}
+                                        cursor="pointer"
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="expired"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="w-1/2 space-y-0.5 border-l border-border pl-3">
+                            {warrantyDetails.map(
+                                (item) => (
+                                    <LegendRow
+                                        key={
+                                            item.label
+                                        }
+                                        label={
+                                            item.label
+                                        }
+                                        value={
+                                            item.value
+                                        }
+                                        color={
+                                            item.color
+                                        }
+                                        onClick={() =>
+                                            router.push(
+                                                `/dashboard/service-warranty/warranty-claims?status=${encodeURIComponent(
+                                                    item.status
+                                                )}&year=${queryTypeYear}`
+                                            )
+                                        }
+                                    />
+                                )
+                            )}
+                        </div>
+                    </div>
+                </CardShell>
+
+                {/* ==============================================
+                    CARD 4 - SERVICE REQUESTS
+                ============================================== */}
+
+                <CardShell>
+                    <CardHead
+                        title={`Service Requests ${currentYear}`}
+                        kpi={totalService.toLocaleString()}
+                        titleClass="text-amber-700 dark:text-amber-300"
+                        badge={currentYear}
+                        onKpiClick={() =>
+                            router.push(
+                                `/dashboard/service-warranty/service-claims?year=${queryTypeYear}`
+                            )
+                        }
+                    />
+
+                    <div className="flex items-center gap-3">
+
+                        <div className="h-36 w-1/2">
+                            <ResponsiveContainer
+                                width="100%"
+                                height="100%"
+                            >
+                                <BarChart
+                                    data={
+                                        serviceBarData
+                                    }
+                                    margin={{
+                                        top: 18,
+                                        right: 4,
+                                        left: 4,
+                                        bottom: 4,
+                                    }}
+                                    barCategoryGap="22%"
+                                    barGap={4}
+                                    onClick={(
+                                        event
+                                    ) => {
+                                        const key =
+                                            event
+                                                ?.activePayload?.[0]
+                                                ?.dataKey as
+                                            | string
+                                            | undefined;
+
+                                        const map: Record<
+                                            string,
+                                            string
+                                        > = {
+                                            servicerequest:
+                                                "Service Request",
+                                            transferred:
+                                                "Transferred to Vendor",
+                                            closed:
+                                                "Closed",
+                                        };
+
+                                        if (
+                                            key &&
+                                            map[key]
+                                        ) {
+                                            router.push(
+                                                `/dashboard/service-warranty/service-claims?status=${encodeURIComponent(
+                                                    map[key]
+                                                )}&year=${queryTypeYear}`
+                                            );
+                                        }
+                                    }}
+                                    style={{
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    <XAxis
+                                        dataKey="name"
+                                        tick={{
+                                            fontSize: 9,
+                                        }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+
+                                    <YAxis
+                                        hide
+                                        domain={[
+                                            0,
+                                            serviceMaxValue,
+                                        ]}
+                                    />
+
+                                    <Tooltip
+                                        {...cleanTooltipProps}
+                                    />
+
+                                    <Bar
+                                        dataKey="servicerequest"
+                                        fill="#3b82f6"
+                                        name="Service Request"
+                                        radius={[
+                                            4,
+                                            4,
+                                            0,
+                                            0,
+                                        ]}
+                                        cursor="pointer"
+                                        activeBar={false}
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="servicerequest"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="transferred"
+                                        fill="#f59e0b"
+                                        name="Transferred to Vendor"
+                                        radius={[
+                                            4,
+                                            4,
+                                            0,
+                                            0,
+                                        ]}
+                                        cursor="pointer"
+                                        activeBar={false}
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="transferred"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="closed"
+                                        fill="#10b981"
+                                        name="Closed"
+                                        radius={[
+                                            4,
+                                            4,
+                                            0,
+                                            0,
+                                        ]}
+                                        cursor="pointer"
+                                        activeBar={false}
+                                        minPointSize={6}
+                                    >
+                                        <LabelList
+                                            dataKey="closed"
+                                            position="top"
+                                            fontSize={8}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="w-1/2 space-y-0.5 border-l border-border pl-3">
+                            {serviceData.map(
+                                (item) => (
+                                    <LegendRow
+                                        key={
+                                            item.label
+                                        }
+                                        label={
+                                            item.label
+                                        }
+                                        value={
+                                            item.value
+                                        }
+                                        color={
+                                            item.color
+                                        }
+                                        onClick={() =>
+                                            router.push(
+                                                `/dashboard/service-warranty/service-claims?status=${encodeURIComponent(
+                                                    item.status
+                                                )}&year=${queryTypeYear}`
+                                            )
+                                        }
+                                    />
+                                )
+                            )}
+                        </div>
+                    </div>
+                </CardShell>
+
+                {/* ==============================================
+                    CARD 5 - RESIGNATION CLEARANCE
+                ============================================== */}
+
+                <CardShell>
+                    <CardHead
+                        title={`Resignation Clearance ${currentYear}`}
+                        kpi={totalResig}
+                        kpiClass="text-red-500"
+                        titleClass="text-cyan-700 dark:text-cyan-300"
+                        badge={currentYear}
+                        onKpiClick={() =>
+                            router.push(
+                                `/dashboard/reports/resignation?year=${queryTypeYear}`
+                            )
+                        }
+                    />
+
+                    <div className="flex items-center gap-3">
+
+                        <div className="h-36 w-[55%]">
+                            <ResponsiveContainer
+                                width="100%"
+                                height="100%"
+                            >
+                                <AreaChart
+                                    data={
+                                        resignationAreaData
+                                    }
+                                    margin={{
+                                        top: 20,
+                                        right: 8,
+                                        left: 4,
+                                        bottom: 8,
+                                    }}
+                                    onClick={(
+                                        event
+                                    ) => {
+                                        const key =
+                                            event
+                                                ?.activePayload?.[0]
+                                                ?.dataKey as
+                                            | string
+                                            | undefined;
+
+                                        const map: Record<
+                                            string,
+                                            string
+                                        > = {
+                                            pending:
+                                                "Pending Clearance",
+                                            completed:
+                                                "Completed",
+                                            inprocess:
+                                                "In Process",
+                                        };
+
+                                        if (
+                                            key &&
+                                            map[key]
+                                        ) {
+                                            router.push(
+                                                `/dashboard/reports/resignation?status=${encodeURIComponent(
+                                                    map[key]
+                                                )}`
+                                            );
+                                        }
+                                    }}
+                                    style={{
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    <defs>
+                                        <linearGradient
+                                            id="g1"
+                                            x1="0"
+                                            y1="0"
+                                            x2="0"
+                                            y2="1"
+                                        >
+                                            <stop
+                                                offset="5%"
+                                                stopColor="#f59e0b"
+                                                stopOpacity={
+                                                    0.2
+                                                }
+                                            />
+
+                                            <stop
+                                                offset="95%"
+                                                stopColor="#f59e0b"
+                                                stopOpacity={
+                                                    0
+                                                }
+                                            />
+                                        </linearGradient>
+
+                                        <linearGradient
+                                            id="g2"
+                                            x1="0"
+                                            y1="0"
+                                            x2="0"
+                                            y2="1"
+                                        >
+                                            <stop
+                                                offset="5%"
+                                                stopColor="#10b981"
+                                                stopOpacity={
+                                                    0.2
+                                                }
+                                            />
+
+                                            <stop
+                                                offset="95%"
+                                                stopColor="#10b981"
+                                                stopOpacity={
+                                                    0
+                                                }
+                                            />
+                                        </linearGradient>
+
+                                        <linearGradient
+                                            id="g3"
+                                            x1="0"
+                                            y1="0"
+                                            x2="0"
+                                            y2="1"
+                                        >
+                                            <stop
+                                                offset="5%"
+                                                stopColor="#3b82f6"
+                                                stopOpacity={
+                                                    0.2
+                                                }
+                                            />
+
+                                            <stop
+                                                offset="95%"
+                                                stopColor="#3b82f6"
+                                                stopOpacity={
+                                                    0
+                                                }
+                                            />
+                                        </linearGradient>
+                                    </defs>
+
+                                    <XAxis
+                                        dataKey="month"
+                                        interval={0}
+                                        minTickGap={0}
+                                        tick={{
+                                            fontSize: 8,
+                                        }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        padding={{
+                                            left: 6,
+                                            right: 6,
+                                        }}
+                                    />
+
+                                    <Tooltip
+                                        {...cleanTooltipProps}
+                                    />
+
+                                    <Area
+                                        type="monotone"
+                                        dataKey="pending"
+                                        name="Pending"
+                                        stroke="#f59e0b"
+                                        strokeWidth={1.5}
+                                        fill="url(#g1)"
+                                        dot={{
+                                            r: 2,
+                                        }}
+                                        activeDot={{
+                                            r: 4,
+                                        }}
+                                    >
+                                        <LabelList
+                                            dataKey="pending"
+                                            position="top"
+                                            fontSize={8}
+                                            fontWeight={700}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Area>
+
+                                    <Area
+                                        type="monotone"
+                                        dataKey="completed"
+                                        name="Completed"
+                                        stroke="#10b981"
+                                        strokeWidth={1.5}
+                                        fill="url(#g2)"
+                                        dot={{
+                                            r: 2,
+                                        }}
+                                        activeDot={{
+                                            r: 4,
+                                        }}
+                                    >
+                                        <LabelList
+                                            dataKey="completed"
+                                            position="top"
+                                            fontSize={8}
+                                            fontWeight={700}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Area>
+
+                                    <Area
+                                        type="monotone"
+                                        dataKey="inprocess"
+                                        name="In Process"
+                                        stroke="#3b82f6"
+                                        strokeWidth={1.5}
+                                        fill="url(#g3)"
+                                        dot={{
+                                            r: 2,
+                                        }}
+                                        activeDot={{
+                                            r: 4,
+                                        }}
+                                    >
+                                        <LabelList
+                                            dataKey="inprocess"
+                                            position="top"
+                                            fontSize={8}
+                                            fontWeight={700}
+                                            fill="var(--foreground)"
+                                        />
+                                    </Area>
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="w-[45%] space-y-1 border-l border-border pl-3">
+                            {resignationLegend.map(
+                                (item) => (
+                                    <div
+                                        key={
+                                            item.label
+                                        }
+                                        onClick={() =>
+                                            router.push(
+                                                `/dashboard/reports/resignation?status=${encodeURIComponent(
+                                                    item.status
+                                                )}&year=${queryTypeYear}`
+                                            )
+                                        }
+                                        className="
+                                            grid
+                                            cursor-pointer
+                                            grid-cols-[1fr_28px]
+                                            items-center
+                                            gap-2
+                                            rounded-lg
+                                            px-1.5
+                                            py-1.5
+                                            transition-colors
+                                            hover:bg-muted/60
+                                        "
+                                    >
+                                        <div className="flex min-w-0 items-center gap-1.5">
+                                            <span
+                                                className="h-2 w-2 shrink-0 rounded-full"
+                                                style={{
+                                                    backgroundColor:
+                                                        item.color,
+                                                }}
+                                            />
+
+                                            <span className="text-[10px] leading-tight text-muted-foreground">
+                                                {
+                                                    item.label
+                                                }
+                                            </span>
+                                        </div>
+
+                                        <span className="shrink-0 text-right text-[10px] font-bold tabular-nums text-foreground">
+                                            {item.value.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    </div>
+                </CardShell>
+
+                {/* ==============================================
+                    CARD 6 - CONTRACT RENEWAL
+                ============================================== */}
+
+                <CardShell>
+                    <CardHead
+                        title={`Contract Renewal ${currentYear}`}
+                        kpi={totalRenewal}
+                        kpiClass="text-emerald-600"
+                        titleClass="text-emerald-700 dark:text-emerald-300"
+                        badge={currentYear}
+                        onKpiClick={() =>
+                            router.push(
+                                `/dashboard/reports/renewal?year=${queryTypeYear}`
+                            )
+                        }
+                    />
+
+                    <div className="flex items-center gap-2">
+
+                        <div className="h-36 w-[54%]">
+                            <ResponsiveContainer
+                                width="100%"
+                                height="100%"
+                            >
+                                <BarChart
+                                    data={
+                                        renewalBarData
+                                    }
+                                    margin={{
+                                        top: 18,
+                                        right: 4,
+                                        left: 0,
+                                        bottom: 6,
+                                    }}
+                                    barCategoryGap="18%"
+                                    barGap={0}
+                                    onClick={(
+                                        event
+                                    ) => {
+                                        const key =
+                                            event
+                                                ?.activePayload?.[0]
+                                                ?.dataKey as
+                                            | string
+                                            | undefined;
+
+                                        const map: Record<
+                                            string,
+                                            string
+                                        > = {
+                                            upcoming:
+                                                "Upcoming Renewals",
+                                            completed:
+                                                "Completed",
+                                            delayed:
+                                                "Delayed",
+                                        };
+
+                                        if (
+                                            key &&
+                                            map[key]
+                                        ) {
+                                            router.push(
+                                                `/dashboard/reports/renewal?status=${encodeURIComponent(
+                                                    map[key]
+                                                )}&year=${queryTypeYear}`
+                                            );
+                                        }
+                                    }}
+                                    style={{
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    <XAxis
+                                        dataKey="month"
+                                        interval={0}
+                                        minTickGap={0}
+                                        tick={{
+                                            fontSize: 8,
+                                        }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        padding={{
+                                            left: 4,
+                                            right: 4,
+                                        }}
+                                    />
+
+                                    <Tooltip
+                                        {...cleanTooltipProps}
+                                    />
+
+                                    <Bar
+                                        dataKey="upcoming"
+                                        stackId="renewal"
+                                        fill="#f59e0b"
+                                        cursor="pointer"
+                                        barSize={20}
+                                        maxBarSize={20}
+                                        activeBar={false}
+                                    >
+                                        <LabelList
+                                            dataKey="upcoming"
+                                            position="center"
+                                            fontSize={8}
+                                            fontWeight={700}
+                                            fill="#ffffff"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="completed"
+                                        stackId="renewal"
+                                        fill="#10b981"
+                                        cursor="pointer"
+                                        barSize={20}
+                                        maxBarSize={20}
+                                        activeBar={false}
+                                    >
+                                        <LabelList
+                                            dataKey="completed"
+                                            position="center"
+                                            fontSize={8}
+                                            fontWeight={700}
+                                            fill="#ffffff"
+                                        />
+                                    </Bar>
+
+                                    <Bar
+                                        dataKey="delayed"
+                                        stackId="renewal"
+                                        fill="#ef4444"
+                                        radius={[
+                                            3,
+                                            3,
+                                            0,
+                                            0,
+                                        ]}
+                                        cursor="pointer"
+                                        barSize={20}
+                                        maxBarSize={20}
+                                        activeBar={false}
+                                    >
+                                        <LabelList
+                                            dataKey="delayed"
+                                            position="center"
+                                            fontSize={8}
+                                            fontWeight={700}
+                                            fill="#ffffff"
+                                        />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="w-[46%] space-y-1 border-l border-border pl-2">
+                            {renewalLegend.map(
+                                (item) => (
+                                    <div
+                                        key={
+                                            item.label
+                                        }
+                                        onClick={() =>
+                                            router.push(
+                                                `/dashboard/reports/renewal?status=${encodeURIComponent(
+                                                    item.status
+                                                )}&year=${queryTypeYear}`
+                                            )
+                                        }
+                                        className="
+                                            grid
+                                            cursor-pointer
+                                            grid-cols-[1fr_28px]
+                                            items-center
+                                            gap-2
+                                            rounded-lg
+                                            px-1
+                                            py-1.5
+                                            transition-colors
+                                            hover:bg-muted/60
+                                        "
+                                    >
+                                        <div className="flex min-w-0 items-center gap-1.5">
+                                            <span
+                                                className="h-2 w-2 shrink-0 rounded-full"
+                                                style={{
+                                                    backgroundColor:
+                                                        item.color,
+                                                }}
+                                            />
+
+                                            <span className="text-[10px] leading-tight text-muted-foreground">
+                                                {
+                                                    item.label
+                                                }
+                                            </span>
+                                        </div>
+
+                                        <span className="shrink-0 text-right text-[10px] font-bold tabular-nums text-foreground">
+                                            {item.value.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    </div>
+                </CardShell>
+            </div>
+
+
+            {/* ==================================================
+                TROUBLE TICKET QUERY TYPE Ã¢â‚¬â€ DEFAULT CURRENT MONTH
+            ================================================== */}
+
+            <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-sm font-semibold text-foreground">
+                                Tickets by Query Type
+                            </h2>
+
+                            <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-semibold text-indigo-700">
+                                {queryTypeSelectedPeriod.badgeText}
+                            </span>
+                        </div>
+
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                            Your Trouble Ticket query mix for the selected reporting period
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <select
+                            value={
+                                queryTypeMonths
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                setQueryTypeMonths(
+                                    Number(
+                                        event.target
+                                            .value
+                                    ) as QueryTypeMonths
+                                )
+                            }
+                            className="h-9 rounded-lg border border-border bg-background px-3 text-[10px] font-semibold text-foreground shadow-sm outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                            aria-label="Query Type period"
+                        >
+                            <option value={1}>
+                                Current Month
+                            </option>
+
+                            <option value={2}>
+                                Last 2 Months
+                            </option>
+
+                            <option value={3}>
+                                Last 3 Months
+                            </option>
+                        </select>
+
+                        <select
+                            value={
+                                queryTypeChartMode
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                setQueryTypeChartMode(
+                                    event.target
+                                        .value as QueryTypeChartMode
+                                )
+                            }
+                            className="h-9 rounded-lg border border-border bg-background px-3 text-[10px] font-semibold text-foreground shadow-sm outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                            aria-label="Query Type chart type"
+                        >
+                            <option value="vertical">
+                                Vertical Bar
+                            </option>
+
+                            <option value="horizontal">
+                                Horizontal Bar
+                            </option>
+
+                            <option value="line">
+                                Line
+                            </option>
+
+                            <option value="pie">
+                                Pie
+                            </option>
+                        </select>
+
+                        <div className="min-w-[72px] rounded-lg border border-border bg-muted/20 px-3 py-1.5 text-center shadow-sm">
+                            <p className="text-[8px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                Tickets
+                            </p>
+
+                            <p className="mt-0.5 text-base font-bold tabular-nums text-foreground">
+                                {queryTypeTicketTotal.toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-3 pb-3 pt-2">
+                    {queryTypeChartMode ===
+                        "vertical" &&
+                        queryTypeChartData.length >
+                        16 && (
+                            <div className="mb-1 flex justify-end">
+                                <span className="text-[9px] font-medium text-muted-foreground">
+                                    Scroll horizontally to view more Ã¢â€ â€™
+                                </span>
+                            </div>
+                        )}
+
+                    {queryTypeChartError ? (
+                        <div className="flex h-[250px] items-center justify-center rounded-lg border border-red-100 bg-red-50/50 px-4 text-center text-[10px] text-red-600">
+                            {queryTypeChartError}
+                        </div>
+                    ) : queryTypeChartLoading ? (
+                        <div className="flex h-[250px] items-center justify-center text-[10px] text-muted-foreground">
+                            Loading Query Type analytics...
+                        </div>
+                    ) : queryTypeChartData.length ===
+                        0 ? (
+                        <div className="flex h-[250px] items-center justify-center text-[10px] text-muted-foreground">
+                            No Trouble Ticket Query Type data found for {queryTypeSelectedPeriod.periodText}.
+                        </div>
+                    ) : (
+                        <div
+                            className="
+                                h-[250px]
+                                w-full
+                                overflow-x-auto
+                                overflow-y-hidden
+                                pb-2
+                            "
+                        >
+                            <div
+                                className="h-full"
+                                style={{
+                                    minWidth:
+                                        "100%",
+
+                                    width:
+                                        queryTypeChartMode ===
+                                            "vertical"
+                                            ? `${Math.max(
+                                                1000,
+                                                queryTypeChartData.length *
+                                                64
+                                            )}px`
+                                            : "100%",
+                                }}
+                            >
+                                <ResponsiveContainer
+                                    width="100%"
+                                    height="100%"
+                                >
+                                    {queryTypeChartMode ===
+                                        "horizontal" ? (
+                                        <BarChart
+                                            data={
+                                                queryTypeChartData
+                                            }
+                                            layout="vertical"
+                                            margin={{
+                                                top:
+                                                    8,
+                                                right:
+                                                    34,
+                                                left:
+                                                    4,
+                                                bottom:
+                                                    4,
+                                            }}
+                                        >
+                                            <XAxis
+                                                type="number"
+                                                allowDecimals={
+                                                    false
+                                                }
+                                                tickLine={
+                                                    false
+                                                }
+                                                axisLine={
+                                                    false
+                                                }
+                                                tick={{
+                                                    fontSize:
+                                                        8,
+                                                    fill:
+                                                        "#94a3b8",
+                                                }}
+                                            />
+
+                                            <YAxis
+                                                type="category"
+                                                dataKey="label"
+                                                width={
+                                                    110
+                                                }
+                                                interval={
+                                                    0
+                                                }
+                                                tickLine={
+                                                    false
+                                                }
+                                                axisLine={
+                                                    false
+                                                }
+                                                tick={{
+                                                    fontSize:
+                                                        7,
+                                                    fill:
+                                                        "#64748b",
+                                                }}
+                                                tickFormatter={
+                                                    shortQueryTypeLabel
+                                                }
+                                                height={
+                                                    34
+                                                }
+                                            />
+
+                                            <Tooltip
+                                                {...cleanTooltipProps}
+                                                formatter={(
+                                                    value:
+                                                        number
+                                                ) => [
+                                                        Number(
+                                                            value
+                                                        ).toLocaleString(),
+                                                        "Tickets",
+                                                    ]}
+                                            />
+
+                                            <Bar
+                                                dataKey="value"
+                                                radius={[
+                                                    0,
+                                                    5,
+                                                    5,
+                                                    0,
+                                                ]}
+                                                maxBarSize={
+                                                    24
+                                                }
+                                                activeBar={
+                                                    false
+                                                }
+                                            >
+                                                {queryTypeChartData.map(
+                                                    (
+                                                        item,
+                                                        index
+                                                    ) => (
+                                                        <Cell
+                                                            key={`${item.label}-${index}`}
+                                                            fill={
+                                                                item.color
+                                                            }
+                                                        />
+                                                    )
+                                                )}
+
+                                                <LabelList
+                                                    dataKey="value"
+                                                    position="right"
+                                                    fontSize={
+                                                        8
+                                                    }
+                                                    fontWeight={
+                                                        700
+                                                    }
+                                                    fill="var(--foreground)"
+                                                />
+                                            </Bar>
+                                        </BarChart>
+                                    ) : queryTypeChartMode ===
+                                        "line" ? (
+                                        <LineChart
+                                            data={
+                                                queryTypeChartData
+                                            }
+                                            margin={{
+                                                top:
+                                                    18,
+                                                right:
+                                                    10,
+                                                left:
+                                                    0,
+                                                bottom:
+                                                    26,
+                                            }}
+                                        >
+                                            <XAxis
+                                                dataKey="label"
+                                                interval={
+                                                    0
+                                                }
+                                                tickLine={
+                                                    false
+                                                }
+                                                axisLine={{
+                                                    stroke:
+                                                        "var(--border)",
+                                                }}
+                                                tick={{
+                                                    fontSize:
+                                                        7,
+                                                    fill:
+                                                        "#64748b",
+                                                }}
+                                                tickFormatter={
+                                                    shortQueryTypeLabel
+                                                }
+                                                height={
+                                                    34
+                                                }
+                                            />
+
+                                            <YAxis
+                                                allowDecimals={
+                                                    false
+                                                }
+                                                width={
+                                                    28
+                                                }
+                                                tickLine={
+                                                    false
+                                                }
+                                                axisLine={
+                                                    false
+                                                }
+                                                tick={{
+                                                    fontSize:
+                                                        8,
+                                                    fill:
+                                                        "#94a3b8",
+                                                }}
+                                            />
+
+                                            <Tooltip
+                                                {...cleanTooltipProps}
+                                                formatter={(
+                                                    value:
+                                                        number
+                                                ) => [
+                                                        Number(
+                                                            value
+                                                        ).toLocaleString(),
+                                                        "Tickets",
+                                                    ]}
+                                            />
+
+                                            <Line
+                                                type="monotone"
+                                                dataKey="value"
+                                                stroke="#6366f1"
+                                                strokeWidth={
+                                                    2
+                                                }
+                                                dot={{
+                                                    r:
+                                                        3,
+                                                    fill:
+                                                        "#6366f1",
+                                                }}
+                                                activeDot={{
+                                                    r:
+                                                        5,
+                                                }}
+                                            >
+                                                <LabelList
+                                                    dataKey="value"
+                                                    position="top"
+                                                    fontSize={
+                                                        8
+                                                    }
+                                                    fontWeight={
+                                                        700
+                                                    }
+                                                    fill="var(--foreground)"
+                                                />
+                                            </Line>
+                                        </LineChart>
+                                    ) : queryTypeChartMode ===
+                                        "pie" ? (
+                                        <PieChart>
+                                            <Pie
+                                                data={
+                                                    queryTypeChartData
+                                                }
+                                                dataKey="value"
+                                                nameKey="label"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={
+                                                    58
+                                                }
+                                                outerRadius={
+                                                    90
+                                                }
+                                                paddingAngle={
+                                                    2
+                                                }
+                                            >
+                                                {queryTypeChartData.map(
+                                                    (
+                                                        item,
+                                                        index
+                                                    ) => (
+                                                        <Cell
+                                                            key={`${item.label}-${index}`}
+                                                            fill={
+                                                                item.color
+                                                            }
+                                                        />
+                                                    )
+                                                )}
+                                            </Pie>
+
+                                            <Tooltip
+                                                {...cleanTooltipProps}
+                                                formatter={(
+                                                    value:
+                                                        number
+                                                ) => [
+                                                        Number(
+                                                            value
+                                                        ).toLocaleString(),
+                                                        "Tickets",
+                                                    ]}
+                                            />
+                                        </PieChart>
+                                    ) : (
+                                        <BarChart
+                                            data={
+                                                queryTypeChartData
+                                            }
+                                            margin={{
+                                                top:
+                                                    20,
+                                                right:
+                                                    8,
+                                                left:
+                                                    0,
+                                                bottom:
+                                                    28,
+                                            }}
+                                            barCategoryGap="28%"
+                                        >
+                                            <XAxis
+                                                dataKey="label"
+                                                interval={
+                                                    0
+                                                }
+                                                minTickGap={
+                                                    0
+                                                }
+                                                tickLine={
+                                                    false
+                                                }
+                                                axisLine={{
+                                                    stroke:
+                                                        "var(--border)",
+                                                }}
+                                                tick={{
+                                                    fontSize:
+                                                        8,
+                                                    fill:
+                                                        "#64748b",
+                                                }}
+                                                tickFormatter={
+                                                    shortQueryTypeLabel
+                                                }
+                                            />
+
+                                            <YAxis
+                                                allowDecimals={
+                                                    false
+                                                }
+                                                width={
+                                                    28
+                                                }
+                                                tickLine={
+                                                    false
+                                                }
+                                                axisLine={
+                                                    false
+                                                }
+                                                tick={{
+                                                    fontSize:
+                                                        8,
+                                                    fill:
+                                                        "#94a3b8",
+                                                }}
+                                            />
+
+                                            <Tooltip
+                                                {...cleanTooltipProps}
+                                                formatter={(
+                                                    value:
+                                                        number
+                                                ) => [
+                                                        Number(
+                                                            value
+                                                        ).toLocaleString(),
+                                                        "Tickets",
+                                                    ]}
+                                                labelFormatter={(
+                                                    label
+                                                ) =>
+                                                    String(
+                                                        label
+                                                    )
+                                                }
+                                            />
+
+                                            <Bar
+                                                dataKey="value"
+                                                radius={[
+                                                    6,
+                                                    6,
+                                                    0,
+                                                    0,
+                                                ]}
+                                                maxBarSize={
+                                                    38
+                                                }
+                                                activeBar={
+                                                    false
+                                                }
+                                            >
+                                                {queryTypeChartData.map(
+                                                    (
+                                                        item,
+                                                        index
+                                                    ) => (
+                                                        <Cell
+                                                            key={`${item.label}-${index}`}
+                                                            fill={
+                                                                item.color
+                                                            }
+                                                        />
+                                                    )
+                                                )}
+
+                                                <LabelList
+                                                    dataKey="value"
+                                                    position="top"
+                                                    fontSize={
+                                                        8
+                                                    }
+                                                    fontWeight={
+                                                        700
+                                                    }
+                                                    fill="var(--foreground)"
+                                                />
+                                            </Bar>
+                                        </BarChart>
+                                    )}
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+
+            {/* ==================================================
+                TROUBLE TICKET OVERVIEW
+            ================================================== */}
+
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <OverviewChart key={queryTypeYear} year={queryTypeYear} />
+            </div>
+
+            {/* ==================================================
+                TROUBLE TICKET TABLE
+            ================================================== */}
+
+            <div
+                id="trouble-ticket-table"
+                className="scroll-mt-20 rounded-xl border border-border bg-card p-4 shadow-sm"
+            >
+
+                <div className="mb-3 flex items-center justify-between gap-3">
+
+                    <h2 className="text-xs font-semibold uppercase tracking-wide text-foreground">
+                        Trouble Ticket Table
+                    </h2>
+
+                    {troubleTicketLoading && (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                            Updating...
+                        </span>
+                    )}
+                </div>
+
+                {troubleTicketError && (
+                    <div
+                        className="
+                            mb-2
+                            rounded-md
+                            border
+                            border-red-200
+                            bg-red-50
+                            px-3
+                            py-2
+                            text-[10px]
+                            text-red-600
+                        "
+                    >
+                        {troubleTicketError}
+                    </div>
+                )}
+
+                <div className="overflow-x-auto">
+
+                    <DataTable
+                        columns={columns}
+                        data={
+                            troubleTicketRows
+                        }
+                        dateColumn="created_at"
+                        compact
+                        serverSideDateFilter
+                        appliedServerFilters={
+                            troubleTicketServerFilters
+                        }
+                        emptyMessage={
+                            troubleTicketLoading
+                                ? "Loading Trouble Ticket data..."
+                                : "No Trouble Ticket records found."
+                        }
+                        itPersonalOptions={troubleTicketITPersonnel.map(
+                            (
+                                person
+                            ) => ({
+                                value:
+                                    person.employee_id,
+
+                                label:
+                                    `${person.employee_name} (${person.employee_id})`,
+                            })
+                        )}
+                        onApplyServerFilters={(
+                            filters
+                        ) => {
+                            setTroubleTicketServerFilters(
+                                filters
+                            );
+                        }}
+                    />
+
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+
